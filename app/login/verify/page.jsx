@@ -13,9 +13,7 @@ export default function VerifyLoginPage() {
 
   const inputRefs = useRef([]);
 
-  // ==========================================
-  // AMBIL IDENTIFIER DARI LOGIN
-  // ==========================================
+  
   useEffect(() => {
     const savedIdentifier = sessionStorage.getItem("login_identifier");
 
@@ -32,16 +30,14 @@ export default function VerifyLoginPage() {
     }, 100);
   }, []);
 
-  // ==========================================
-  // HANDLE INPUT OTP
-  // ==========================================
+  
   const handleOtpChange = (index, value) => {
     // Hanya boleh angka
     if (!/^\d*$/.test(value)) {
       return;
     }
 
-    // Ambil karakter terakhir kalau user paste/masukkan lebih dari 1
+    
     const newValue = value.slice(-1);
 
     const newOtp = [...otp];
@@ -51,15 +47,13 @@ export default function VerifyLoginPage() {
     setError("");
     setSuccess("");
 
-    // Pindah ke input berikutnya
+    
     if (newValue && index < 5) {
       inputRefs.current[index + 1]?.focus();
     }
   };
 
-  // ==========================================
-  // HANDLE BACKSPACE
-  // ==========================================
+ 
   const handleKeyDown = (index, e) => {
     if (e.key === "Backspace" && !otp[index] && index > 0) {
       inputRefs.current[index - 1]?.focus();
@@ -76,9 +70,7 @@ export default function VerifyLoginPage() {
     }
   };
 
-  // ==========================================
-  // HANDLE PASTE OTP
-  // ==========================================
+ 
   const handlePaste = (e) => {
     e.preventDefault();
 
@@ -105,9 +97,7 @@ export default function VerifyLoginPage() {
     }, 50);
   };
 
-  // ==========================================
-  // VERIFIKASI OTP
-  // ==========================================
+  
   const handleVerify = async (e) => {
     e.preventDefault();
 
@@ -154,21 +144,17 @@ export default function VerifyLoginPage() {
         throw new Error("Token login tidak diterima dari server.");
       }
 
-      // ==========================================
-      // SIMPAN TOKEN
-      // ==========================================
+      
       localStorage.setItem("token", data.token);
 
       // Hapus identifier sementara
       sessionStorage.removeItem("login_identifier");
 
-      setSuccess("Verifikasi berhasil. Mengarahkan ke dashboard...");
+      setSuccess("Verifikasi berhasil. Mengarahkan ke onboarding...");
 
-      // ==========================================
-      // REDIRECT
-      // ==========================================
+     
       setTimeout(() => {
-        window.location.href = "/dashboard";
+        window.location.href = "/onboarding/status";
       }, 700);
     } catch (error) {
       setError(
@@ -181,9 +167,7 @@ export default function VerifyLoginPage() {
     }
   };
 
-  // ==========================================
-  // KEMBALI KE LOGIN
-  // ==========================================
+  
   const handleBackToLogin = () => {
     sessionStorage.removeItem("login_identifier");
     window.location.href = "/login";

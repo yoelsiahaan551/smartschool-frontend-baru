@@ -173,7 +173,7 @@ export default function LoginPage() {
                 <Image
                   src="/logo/logoSS.png"
                   alt="Smart School Logo"
-                  width={32}
+                  width={32} 
                   height={32}
                   className="object-contain"
                 />
