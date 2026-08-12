@@ -85,10 +85,8 @@ export default function DataYayasanPage() {
     });
 
     const totalPages = Math.ceil(sortedData.length / itemsPerPage);
-    const paginatedData = sortedData.slice(
-        (currentPage - 1) * itemsPerPage,
-        currentPage * itemsPerPage
-    );
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const paginatedData = sortedData.slice(startIndex, startIndex + itemsPerPage);
 
     const handleSort = (field) => {
         if (sortField === field) {
@@ -201,7 +199,7 @@ export default function DataYayasanPage() {
                             </div>
                         </div>
 
-                        {/* STATISTIK – minimalis, tanpa gradien berlebihan */}
+                        {/* STATISTIK */}
                         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                             <StatCard label="Total Yayasan" value={stats.total} icon={Landmark} color="blue" />
                             <StatCard label="Aktif" value={stats.aktif} icon={CheckCircle} color="emerald" />
@@ -211,7 +209,7 @@ export default function DataYayasanPage() {
                             <StatCard label="Pertumbuhan" value={`+${stats.pertumbuhan}%`} icon={TrendingUp} color="teal" />
                         </div>
 
-                        {/* FILTER & SEARCH – bersih dan fungsional */}
+                        {/* FILTER & SEARCH */}
                         <div className="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm">
                             <div className="flex flex-col gap-3">
                                 <div className="relative w-full">
@@ -270,15 +268,19 @@ export default function DataYayasanPage() {
                             </div>
                         </div>
 
-                        {/* TABLE – rapi dengan nuansa netral */}
+                        {/* TABLE */}
                         <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-hidden">
                             {isMobile && paginatedData.length > 0 ? (
                                 <div className="divide-y divide-slate-100 p-3">
-                                    {paginatedData.map((item) => {
+                                    {paginatedData.map((item, index) => {
                                         const statusStyle = statusColorMap[item.status] || statusColorMap.Aktif;
+                                        const rowNumber = startIndex + index + 1;
                                         return (
                                             <div key={item.id} className="py-3 space-y-2">
                                                 <div className="flex items-center gap-3">
+                                                    <span className="text-xs font-medium text-slate-400 w-6 text-right">
+                                                        {rowNumber}
+                                                    </span>
                                                     <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center text-lg shadow-sm flex-shrink-0">
                                                         {item.logo}
                                                     </div>
@@ -301,7 +303,7 @@ export default function DataYayasanPage() {
                                                         </button>
                                                     </div>
                                                 </div>
-                                                <div className="flex flex-wrap items-center gap-2">
+                                                <div className="flex flex-wrap items-center gap-2 ml-9">
                                                     <span className="px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-blue-50 text-blue-600 border border-blue-200">
                                                         {item.jumlahSekolah} Sekolah
                                                     </span>
@@ -319,6 +321,7 @@ export default function DataYayasanPage() {
                                     <table className="w-full text-sm">
                                         <thead>
                                             <tr className="bg-slate-50/80 border-b border-slate-200/80">
+                                                <th className="px-4 py-3 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">No</th>
                                                 <th className="px-4 py-3 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Logo</th>
                                                 <th
                                                     onClick={() => handleSort("nama")}
@@ -347,7 +350,7 @@ export default function DataYayasanPage() {
                                         <tbody className="divide-y divide-slate-100">
                                             {paginatedData.length === 0 ? (
                                                 <tr>
-                                                    <td colSpan={7} className="px-4 py-12 text-center text-slate-500">
+                                                    <td colSpan={8} className="px-4 py-12 text-center text-slate-500">
                                                         <div className="flex flex-col items-center gap-2">
                                                             <Search size={32} className="text-slate-300" />
                                                             <p className="text-sm font-medium">Tidak ada data yang ditemukan</p>
@@ -356,10 +359,14 @@ export default function DataYayasanPage() {
                                                     </td>
                                                 </tr>
                                             ) : (
-                                                paginatedData.map((item) => {
+                                                paginatedData.map((item, index) => {
                                                     const statusStyle = statusColorMap[item.status] || statusColorMap.Aktif;
+                                                    const rowNumber = startIndex + index + 1;
                                                     return (
                                                         <tr key={item.id} className="hover:bg-slate-50/60 transition-colors">
+                                                            <td className="px-4 py-3 text-sm text-slate-500 text-center">
+                                                                {rowNumber}
+                                                            </td>
                                                             <td className="px-4 py-3">
                                                                 <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center text-base shadow-sm">
                                                                     {item.logo}
@@ -423,9 +430,9 @@ export default function DataYayasanPage() {
                             <div className="px-4 py-3 border-t border-slate-200/80 flex flex-col xs:flex-row items-center justify-between gap-2">
                                 <p className="text-xs text-slate-500 text-center xs:text-left">
                                     <span className="hidden xs:inline">Menampilkan </span>
-                                    <span className="font-medium text-slate-700">{paginatedData.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}</span>
+                                    <span className="font-medium text-slate-700">{paginatedData.length === 0 ? 0 : startIndex + 1}</span>
                                     <span className="hidden xs:inline"> sampai </span>
-                                    <span className="font-medium text-slate-700">{Math.min(currentPage * itemsPerPage, sortedData.length)}</span>
+                                    <span className="font-medium text-slate-700">{Math.min(startIndex + paginatedData.length, sortedData.length)}</span>
                                     <span className="hidden xs:inline"> dari </span>
                                     <span className="font-medium text-slate-700">{sortedData.length}</span>
                                     <span className="hidden xs:inline"> data</span>
@@ -493,7 +500,7 @@ export default function DataYayasanPage() {
     );
 }
 
-// ===== KOMPONEN STAT CARD SEDERHANA & PROFESIONAL =====
+// ===== KOMPONEN STAT CARD =====
 function StatCard({ label, value, icon: Icon, color }) {
     const colorClasses = {
         blue: "bg-blue-50 text-blue-600",

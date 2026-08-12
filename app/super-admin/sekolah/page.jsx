@@ -54,7 +54,118 @@ const sekolahData = [
         totalMapel: 12,
         totalAdmin: 3,
     },
-    // ... tambahkan data lainnya sesuai kebutuhan
+    {
+        id: 2,
+        logo: "🏫",
+        nama: "SMP Negeri 2 Bandung",
+        npsn: "2020345",
+        jenjang: "SMP",
+        statusSekolah: "Negeri",
+        yayasan: "-",
+        paket: "Starter",
+        status: "Aktif",
+        bergabung: "2024-02-10",
+        email: "smpn2bandung@sch.id",
+        telepon: "(022) 9876543",
+        website: "www.smpn2bandung.sch.id",
+        alamat: "Jl. Asia Afrika No. 45, Bandung",
+        provinsi: "Jawa Barat",
+        kota: "Bandung",
+        kecamatan: "Sumur Bandung",
+        kelurahan: "Citarum",
+        kodePos: "40112",
+        tanggalMulai: "2024-02-10",
+        tanggalBerakhir: "2025-02-10",
+        totalGuru: 30,
+        totalSiswa: 540,
+        totalKelas: 18,
+        totalMapel: 10,
+        totalAdmin: 2,
+    },
+    {
+        id: 3,
+        logo: "🏫",
+        nama: "SD Islam Al-Ikhlas",
+        npsn: "2030456",
+        jenjang: "SD",
+        statusSekolah: "Swasta",
+        yayasan: "Yayasan Al-Ikhlas",
+        paket: "Enterprise",
+        status: "Aktif",
+        bergabung: "2024-03-01",
+        email: "sd.ikhlas@sch.id",
+        telepon: "(021) 5551234",
+        website: "www.sdikhlas.sch.id",
+        alamat: "Jl. Kebon Kacang No. 12, Jakarta Selatan",
+        provinsi: "DKI Jakarta",
+        kota: "Jakarta Selatan",
+        kecamatan: "Setiabudi",
+        kelurahan: "Karet",
+        kodePos: "12930",
+        tanggalMulai: "2024-03-01",
+        tanggalBerakhir: "2025-03-01",
+        totalGuru: 25,
+        totalSiswa: 390,
+        totalKelas: 12,
+        totalMapel: 8,
+        totalAdmin: 2,
+    },
+    {
+        id: 4,
+        logo: "🏫",
+        nama: "SMK Pariwisata 1",
+        npsn: "2040789",
+        jenjang: "SMK",
+        statusSekolah: "Swasta",
+        yayasan: "Yayasan Pariwisata",
+        paket: "Professional",
+        status: "Trial",
+        bergabung: "2024-04-15",
+        email: "smkpar1@sch.id",
+        telepon: "(0361) 234567",
+        website: "www.smkpar1.sch.id",
+        alamat: "Jl. Legian No. 88, Denpasar",
+        provinsi: "Bali",
+        kota: "Denpasar",
+        kecamatan: "Kuta",
+        kelurahan: "Legian",
+        kodePos: "80361",
+        tanggalMulai: "2024-04-15",
+        tanggalBerakhir: "2024-10-15",
+        totalGuru: 35,
+        totalSiswa: 480,
+        totalKelas: 16,
+        totalMapel: 14,
+        totalAdmin: 3,
+    },
+    {
+        id: 5,
+        logo: "🏫",
+        nama: "SMA Negeri 3 Surabaya",
+        npsn: "2050101",
+        jenjang: "SMA",
+        statusSekolah: "Negeri",
+        yayasan: "-",
+        paket: "Starter",
+        status: "Nonaktif",
+        bergabung: "2023-05-20",
+        email: "sman3sby@sch.id",
+        telepon: "(031) 345678",
+        website: "www.sman3surabaya.sch.id",
+        alamat: "Jl. Raya Darmo No. 56, Surabaya",
+        provinsi: "Jawa Timur",
+        kota: "Surabaya",
+        kecamatan: "Darmo",
+        kelurahan: "Darmo",
+        kodePos: "60226",
+        tanggalMulai: "2023-05-20",
+        tanggalBerakhir: "2024-05-20",
+        totalGuru: 50,
+        totalSiswa: 800,
+        totalKelas: 27,
+        totalMapel: 12,
+        totalAdmin: 4,
+    },
 ];
 
 const stats = {
@@ -67,7 +178,7 @@ const stats = {
 };
 
 const provinsiOptions = ["Semua", "DKI Jakarta", "Banten", "Jawa Barat", "Jawa Timur"];
-const kotaOptions = ["Semua", "Jakarta Pusat", "Jakarta Utara", "Jakarta Barat", "Tangerang Selatan", "Tangerang", "Depok"];
+const kotaOptions = ["Semua", "Jakarta Pusat", "Jakarta Utara", "Jakarta Barat", "Tangerang Selatan", "Tangerang", "Depok", "Bandung", "Denpasar"];
 const jenjangOptions = ["Semua", "SD", "SMP", "SMA", "SMK"];
 const statusOptions = ["Semua", "Aktif", "Nonaktif", "Trial"];
 
@@ -134,10 +245,8 @@ export default function DataSekolahPage() {
     });
 
     const totalPages = Math.ceil(sortedData.length / itemsPerPage);
-    const paginatedData = sortedData.slice(
-        (currentPage - 1) * itemsPerPage,
-        currentPage * itemsPerPage
-    );
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const paginatedData = sortedData.slice(startIndex, startIndex + itemsPerPage);
 
     const handleSort = (field) => {
         if (sortField === field) {
@@ -298,12 +407,16 @@ export default function DataSekolahPage() {
                         <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-hidden">
                             {isMobile && paginatedData.length > 0 ? (
                                 <div className="divide-y divide-slate-100 p-3">
-                                    {paginatedData.map((item) => {
+                                    {paginatedData.map((item, index) => {
                                         const statusStyle = statusColorMap[item.status] || statusColorMap.Aktif;
                                         const paketStyle = paketColorMap[item.paket] || paketColorMap.Starter;
+                                        const rowNumber = startIndex + index + 1;
                                         return (
                                             <div key={item.id} className="py-3 space-y-2">
                                                 <div className="flex items-center gap-3">
+                                                    <span className="text-xs font-medium text-slate-400 w-6 text-right">
+                                                        {rowNumber}
+                                                    </span>
                                                     <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center text-lg shadow-sm flex-shrink-0">
                                                         {item.logo}
                                                     </div>
@@ -326,7 +439,7 @@ export default function DataSekolahPage() {
                                                         </button>
                                                     </div>
                                                 </div>
-                                                <div className="flex flex-wrap items-center gap-1.5">
+                                                <div className="flex flex-wrap items-center gap-1.5 ml-9">
                                                     <span className="px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
                                                         {item.jenjang}
                                                     </span>
@@ -347,6 +460,7 @@ export default function DataSekolahPage() {
                                     <table className="w-full text-sm">
                                         <thead>
                                             <tr className="bg-slate-50/80 border-b border-slate-200/80">
+                                                <th className="px-4 py-3 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">No</th>
                                                 <th className="px-4 py-3 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Logo</th>
                                                 <th
                                                     onClick={() => handleSort("nama")}
@@ -376,7 +490,7 @@ export default function DataSekolahPage() {
                                         <tbody className="divide-y divide-slate-100">
                                             {paginatedData.length === 0 ? (
                                                 <tr>
-                                                    <td colSpan={8} className="px-4 py-12 text-center text-slate-500">
+                                                    <td colSpan={9} className="px-4 py-12 text-center text-slate-500">
                                                         <div className="flex flex-col items-center gap-2">
                                                             <Search size={32} className="text-slate-300" />
                                                             <p className="text-sm font-medium">Tidak ada data yang ditemukan</p>
@@ -385,11 +499,15 @@ export default function DataSekolahPage() {
                                                     </td>
                                                 </tr>
                                             ) : (
-                                                paginatedData.map((item) => {
+                                                paginatedData.map((item, index) => {
                                                     const statusStyle = statusColorMap[item.status] || statusColorMap.Aktif;
                                                     const paketStyle = paketColorMap[item.paket] || paketColorMap.Starter;
+                                                    const rowNumber = startIndex + index + 1;
                                                     return (
                                                         <tr key={item.id} className="hover:bg-slate-50/60 transition-colors">
+                                                            <td className="px-4 py-3 text-sm text-slate-500 text-center">
+                                                                {rowNumber}
+                                                            </td>
                                                             <td className="px-4 py-3">
                                                                 <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center text-base shadow-sm">
                                                                     {item.logo}
@@ -458,9 +576,9 @@ export default function DataSekolahPage() {
                             <div className="px-4 py-3 border-t border-slate-200/80 flex flex-col xs:flex-row items-center justify-between gap-2">
                                 <p className="text-xs text-slate-500 text-center xs:text-left">
                                     <span className="hidden xs:inline">Menampilkan </span>
-                                    <span className="font-medium text-slate-700">{paginatedData.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}</span>
+                                    <span className="font-medium text-slate-700">{paginatedData.length === 0 ? 0 : startIndex + 1}</span>
                                     <span className="hidden xs:inline"> sampai </span>
-                                    <span className="font-medium text-slate-700">{Math.min(currentPage * itemsPerPage, sortedData.length)}</span>
+                                    <span className="font-medium text-slate-700">{Math.min(startIndex + paginatedData.length, sortedData.length)}</span>
                                     <span className="hidden xs:inline"> dari </span>
                                     <span className="font-medium text-slate-700">{sortedData.length}</span>
                                     <span className="hidden xs:inline"> data</span>

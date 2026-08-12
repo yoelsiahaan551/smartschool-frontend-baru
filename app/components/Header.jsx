@@ -25,6 +25,12 @@ export default function Header({
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
+  // Fungsi logout (sementara console.log, nanti sesuaikan dengan auth)
+  const handleLogout = () => {
+    console.log("Logout diklik");
+    // Contoh: localStorage.removeItem("token"); window.location.href = "/login";
+  };
+
   return (
     <header className="bg-white border-b border-slate-200/60 h-16 px-4 md:px-8 flex items-center justify-between flex-shrink-0 sticky top-0 z-30 shadow-sm backdrop-blur-sm bg-white/95">
       {/* Left Section */}
@@ -37,7 +43,7 @@ export default function Header({
           </span>
         </div>
 
-        {/* Search - Lebih modern, responsive */}
+        {/* Search */}
         <div className="relative hidden lg:block">
           <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
@@ -53,7 +59,6 @@ export default function Header({
           </div>
         </div>
 
-        {/* Search icon for mobile - muncul di layar kecil */}
         <button className="lg:hidden p-2 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-all">
           <Search size={19} />
         </button>
@@ -76,7 +81,7 @@ export default function Header({
           </span>
         </button>
 
-        {/* Notifikasi - Dengan animasi */}
+        {/* Notifikasi */}
         <div className="relative">
           <button
             onClick={() => setIsNotifOpen(!isNotifOpen)}
@@ -139,7 +144,24 @@ export default function Header({
           )}
         </div>
 
-        {/* Profile - Dengan desain lebih modern */}
+        {/* ===== TOMBOL LOGOUT DI NAVBAR (BARU) ===== */}
+        <button
+          onClick={handleLogout}
+          className="hidden md:flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-red-600 hover:bg-red-50 hover:text-red-700 transition-all duration-200 border border-transparent hover:border-red-200 group"
+        >
+          <LogOut size={17} className="text-red-400 group-hover:text-red-500" />
+          <span>Logout</span>
+        </button>
+        {/* Versi mobile (hanya ikon) */}
+        <button
+          onClick={handleLogout}
+          className="md:hidden p-2 rounded-xl hover:bg-red-50 text-red-400 hover:text-red-500 transition-all duration-200"
+          title="Logout"
+        >
+          <LogOut size={19} />
+        </button>
+
+        {/* Profile Dropdown */}
         <div className="relative">
           <button
             onClick={() => setIsProfileOpen(!isProfileOpen)}
@@ -173,7 +195,7 @@ export default function Header({
                 </div>
               </div>
 
-              {/* Menu Items - Sekarang hanya 3 menu (Bantuan & Dukungan sudah dihapus) */}
+              {/* Menu Items */}
               <div className="py-1">
                 <button className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 transition-all duration-150 group">
                   <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-500 group-hover:bg-blue-100 transition-colors">
@@ -189,9 +211,12 @@ export default function Header({
                 </button>
               </div>
 
-              {/* Logout */}
+              {/* Logout di dropdown (tetap ada) */}
               <div className="border-t border-slate-100 pt-1">
-                <button className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-all duration-150 group">
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-all duration-150 group"
+                >
                   <div className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center text-red-400 group-hover:bg-red-100 transition-colors">
                     <LogOut size={16} />
                   </div>
