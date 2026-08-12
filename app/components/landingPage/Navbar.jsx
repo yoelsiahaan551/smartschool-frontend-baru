@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -21,7 +20,11 @@ export default function Navbar() {
 
   useEffect(() => {
     const handleScroll = () => {
-      setIsScroll(window.scrollY > 20);
+      const scrolled = window.scrollY > 20;
+      setIsScroll(scrolled);
+      
+      // 🔥 CEK DI CONSOLE BROWSER (F12) UNTUK MEMASTIKAN LOGIKANYA
+      console.log("Posisi Scroll:", window.scrollY, "Status Gelap/Transparan:", scrolled ? "Transparan (Tengah Scroll)" : "GELAP (Berhenti)");
     };
 
     window.addEventListener("scroll", handleScroll);
@@ -88,14 +91,14 @@ export default function Navbar() {
         duration: 0.5,
         ease: "easeOut",
       }}
+      // LOGIKA DI SINI SUDAH BENAR (Sesuai permintaan Anda)
       className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 border-b border-white/10 ${
         isScroll
-          ? "bg-slate-900/90 backdrop-blur-xl shadow-2xl shadow-slate-900/20"
-          : "bg-slate-900/70 backdrop-blur-lg"
+          ? "bg-slate-900/70 backdrop-blur-lg"            // SAAT SCROLL (Transparan)
+          : "bg-slate-900/90 backdrop-blur-xl shadow-2xl shadow-slate-900/20" // SAAT BERHENTI (Gelap)
       }`}
     >
       <div className="max-w-7xl mx-auto h-20 px-6 flex items-center justify-between">
-
         {/* =========================
             LOGO
         ========================= */}
@@ -105,7 +108,6 @@ export default function Navbar() {
           whileHover="hover"
         >
           <Link href="/" className="flex items-center gap-3">
-
             {/* Card putih di belakang logo */}
             <motion.div
               whileHover={{ rotate: 360 }}
@@ -175,7 +177,6 @@ export default function Navbar() {
             DESKTOP BUTTONS
         ========================= */}
         <div className="hidden lg:flex items-center gap-4">
-
           {/* Tombol Masuk */}
           <motion.div
             initial={{ opacity: 0, x: 20 }}
@@ -233,15 +234,9 @@ export default function Navbar() {
             }}
           >
             {isOpen ? (
-              <X
-                size={28}
-                className="text-white"
-              />
+              <X size={28} className="text-white" />
             ) : (
-              <Menu
-                size={28}
-                className="text-white"
-              />
+              <Menu size={28} className="text-white" />
             )}
           </motion.div>
         </motion.button>
@@ -260,7 +255,6 @@ export default function Navbar() {
             className="lg:hidden absolute top-full left-0 w-full bg-slate-900/95 backdrop-blur-lg border-t border-slate-700/50 shadow-2xl overflow-hidden"
           >
             <nav className="flex flex-col px-6 py-5 gap-5">
-
               {/* Menu Mobile */}
               {menus.map((menu) => (
                 <motion.a
@@ -315,4 +309,3 @@ export default function Navbar() {
     </motion.header>
   );
 }
-
