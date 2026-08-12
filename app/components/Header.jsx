@@ -173,7 +173,7 @@ export default function Header({
                 </div>
               </div>
 
-              {/* Menu Items */}
+              {/* Menu Items - Sekarang hanya 3 menu (Bantuan & Dukungan sudah dihapus) */}
               <div className="py-1">
                 <button className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 transition-all duration-150 group">
                   <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-500 group-hover:bg-blue-100 transition-colors">
@@ -186,12 +186,6 @@ export default function Header({
                     <Settings size={16} />
                   </div>
                   <span>Pengaturan</span>
-                </button>
-                <button className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 transition-all duration-150 group">
-                  <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-500 group-hover:bg-emerald-100 transition-colors">
-                    <Sparkles size={16} />
-                  </div>
-                  <span>Bantuan & Dukungan</span>
                 </button>
               </div>
 
