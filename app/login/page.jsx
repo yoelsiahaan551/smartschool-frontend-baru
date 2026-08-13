@@ -7,6 +7,7 @@ import {
   GraduationCap,
   BarChart3,
   ShieldCheck,
+  Users,
   User,
   Mail,
   Lock,
@@ -34,7 +35,6 @@ export default function LoginPage() {
   // ==========================================
   const handleLogin = async (e) => {
     e.preventDefault();
-
     setError("");
 
     if (!identifier.trim()) {
@@ -53,24 +53,17 @@ export default function LoginPage() {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL;
 
       if (!apiUrl) {
-        throw new Error(
-          "NEXT_PUBLIC_API_URL belum dikonfigurasi."
-        );
+        throw new Error("NEXT_PUBLIC_API_URL belum dikonfigurasi.");
       }
 
-      const response = await fetch(
-        `${apiUrl}/api/auth/login`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            identifier: identifier.trim(),
-            kataSandi: password,
-          }),
-        }
-      );
+      const response = await fetch(`${apiUrl}/api/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          identifier: identifier.trim(),
+          kataSandi: password,
+        }),
+      });
 
       const data = await response.json();
 
@@ -106,9 +99,8 @@ export default function LoginPage() {
 
   return (
     <section className="relative min-h-screen overflow-hidden flex items-center justify-center">
-      {/* ==========================================
-          BACKGROUND IMAGE
-      ========================================== */}
+
+      {/* BACKGROUND IMAGE (Murni, tanpa efek cahaya blur di belakang teks) */}
       <div className="absolute inset-0">
         <Image
           src="/hero/hero.png"
@@ -119,128 +111,90 @@ export default function LoginPage() {
         />
       </div>
 
-      {/* ==========================================
-          DARK OVERLAY FOR READABILITY
-      ========================================== */}
-      <div
-        className="absolute inset-0"
-        style={{
-          background: `
-            linear-gradient(
-              135deg,
-              rgba(0, 0, 0, 0.4) 0%,
-              rgba(0, 0, 0, 0.2) 30%,
-              rgba(0, 0, 0, 0.1) 50%,
-              rgba(0, 0, 0, 0.2) 70%,
-              rgba(0, 0, 0, 0.4) 100%
-            )
-          `,
-        }}
-      />
-
-      {/* ==========================================
-          SOFT GLOW EFFECT
-      ========================================== */}
-      <div
-        className="absolute inset-0"
-        style={{
-          background: `
-            radial-gradient(
-              ellipse at 30% 50%,
-              rgba(59, 130, 246, 0.15) 0%,
-              rgba(59, 130, 246, 0.05) 40%,
-              rgba(59, 130, 246, 0) 70%
-            )
-          `,
-        }}
-      />
-
-     
-
-      {/* ==========================================
-          MAIN CONTENT
-      ========================================== */}
+      {/* MAIN CONTENT */}
       <div className="relative z-10 w-full max-w-6xl mx-auto px-6 py-12">
         <div className="grid lg:grid-cols-2 gap-16 items-center">
 
-          {/* ==========================================
-              LEFT CONTENT - PUTIH TERANG
-          ========================================== */}
+          {/* LEFT CONTENT */}
           <div className="space-y-6">
-            {/* LOGO */}
+
+            {/* LOGO & TEKS - WARNA BIRU DIUBAH DAN OVERLAY CAHAYA DIHAPUS */}
             <div className="flex items-center gap-3">
-              <div className="relative w-12 h-12 rounded-2xl bg-white flex items-center justify-center shadow-lg shadow-blue-500/30">
+              <div className="relative w-12 h-12 rounded-2xl bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-xl border border-white/50">
                 <Image
                   src="/logo/logoSS.png"
                   alt="Smart School Logo"
-                  width={32} 
+                  width={32}
                   height={32}
                   className="object-contain"
                 />
               </div>
 
-              <span className="font-extrabold text-2xl text-white drop-shadow-lg">
-                SMART <span className="text-blue-300">SCHOOL</span>
+              <span className="font-extrabold text-2xl text-white drop-shadow-[0_3px_8px_rgba(15,23,42,0.75)]">
+                SMART{" "}
+                <span className="text-blue-300 drop-shadow-[0_3px_8px_rgba(37,99,235,0.65)]">
+                  SCHOOL
+                </span>
               </span>
             </div>
 
             {/* HEADING */}
             <div className="space-y-4">
-              <h1 className="text-4xl lg:text-5xl font-extrabold leading-tight text-white drop-shadow-lg">
+              <h1 className="text-4xl lg:text-5xl font-extrabold leading-tight text-white drop-shadow-[0_4px_10px_rgba(15,23,42,0.8)]">
                 Selamat Datang di
                 <br />
-                <span className="text-blue-300">
+                <span className="text-blue-300 drop-shadow-[0_4px_10px_rgba(37,99,235,0.7)]">
                   Smart School
                 </span>
               </h1>
 
-              <p className="text-white/90 leading-relaxed text-base max-w-md drop-shadow-md">
-                Kelola seluruh aktivitas sekolah dengan lebih mudah, cepat, dan 
+              <p className="text-white leading-relaxed text-base max-w-md drop-shadow-[0_3px_8px_rgba(15,23,42,0.75)] font-medium">
+                Kelola seluruh aktivitas sekolah dengan lebih mudah, cepat, dan
                 terintegrasi dalam satu platform.
               </p>
             </div>
 
-            {/* FEATURES */}
+            {/* FEATURES BADGE - Putih susu, tetap selaras */}
             <div className="flex flex-wrap gap-3">
               {[
                 { icon: GraduationCap, label: "Efisien" },
                 { icon: BarChart3, label: "Terintegrasi" },
                 { icon: ShieldCheck, label: "Aman" },
+                { icon: Users, label: "Kolaboratif" },
               ].map(({ icon: Icon, label }) => (
                 <div
                   key={label}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/20 backdrop-blur-sm border border-white/20 shadow-lg"
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/80 backdrop-blur-sm border border-white/60 shadow-lg hover:bg-white transition-colors duration-200"
                 >
-                  <Icon size={16} className="text-blue-300" />
-                  <span className="text-sm font-semibold text-white">
+                  <Icon size={16} className="text-blue-600" />
+                  <span className="text-sm font-bold text-slate-800">
                     {label}
                   </span>
                 </div>
               ))}
             </div>
 
-            {/* REGISTER */}
-            <p className="text-sm text-white/90 drop-shadow-md">
-              Belum punya akun?{" "}
+            {/* REGISTER LINK */}
+            <p className="text-sm text-white drop-shadow-[0_3px_8px_rgba(15,23,42,0.75)] font-bold">
+              Sudah punya akun?{" "}
               <button
                 type="button"
                 onClick={() => router.push("/register")}
-                className="text-blue-300 font-semibold hover:text-white transition-colors duration-200 hover:underline"
+                className="text-white hover:text-blue-200 transition-colors duration-200 hover:underline drop-shadow-[0_2px_6px_rgba(37,99,235,0.65)]"
               >
-                Daftar di sini
+                Masuk di sini
               </button>
             </p>
           </div>
 
-          {/* ==========================================
-              RIGHT — LOGIN CARD
-          ========================================== */}
+          {/* RIGHT — LOGIN CARD */}
           <div className="flex justify-center lg:justify-end">
             <div className="w-full max-w-md">
               <div className="bg-white rounded-3xl shadow-2xl p-8">
+
                 {/* CARD HEADER */}
                 <div className="text-center mb-8">
-                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white shadow-lg shadow-blue-500/30 mb-4">
+                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white shadow-xl shadow-blue-500/30 border border-blue-100 mb-4">
                     <Image
                       src="/logo/logoSS.png"
                       alt="Smart School Logo"
@@ -249,35 +203,45 @@ export default function LoginPage() {
                       className="object-contain"
                     />
                   </div>
-                  
+
                   <h2 className="text-2xl font-bold text-slate-800">
-                    Masuk ke Akun
+                    Buat Akun Baru
                   </h2>
+
                   <p className="text-sm text-gray-500 mt-1">
-                    Masukkan kredensial untuk melanjutkan
+                    Isi data diri untuk mendaftar
                   </p>
                 </div>
 
-                {/* ERROR */}
+                {/* ERROR MESSAGE */}
                 {error && (
                   <div className="mb-6 rounded-2xl bg-red-50 border border-red-200 px-4 py-3">
-                    <p className="text-sm text-red-600 text-center">{error}</p>
+                    <p className="text-sm text-red-600 text-center">
+                      {error}
+                    </p>
                   </div>
                 )}
 
                 {/* FORM */}
                 <form onSubmit={handleLogin} className="space-y-5">
-                  {/* EMAIL / USERNAME */}
+
                   <div>
                     <label className="block text-sm font-semibold text-slate-700 mb-2">
                       Email / Username
                     </label>
+
                     <div className="relative">
-                      <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <Mail
+                        size={18}
+                        className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
+                      />
+
                       <input
                         type="text"
                         value={identifier}
-                        onChange={(e) => setIdentifier(e.target.value)}
+                        onChange={(e) =>
+                          setIdentifier(e.target.value)
+                        }
                         placeholder="Masukkan email atau username"
                         autoComplete="username"
                         disabled={loading}
@@ -286,43 +250,58 @@ export default function LoginPage() {
                     </div>
                   </div>
 
-                  {/* PASSWORD */}
                   <div>
                     <label className="block text-sm font-semibold text-slate-700 mb-2">
                       Password
                     </label>
+
                     <div className="relative">
-                      <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <Lock
+                        size={18}
+                        className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
+                      />
+
                       <input
                         type={showPassword ? "text" : "password"}
                         value={password}
-                        onChange={(e) => setPassword(e.target.value)}
+                        onChange={(e) =>
+                          setPassword(e.target.value)
+                        }
                         placeholder="Masukkan password"
                         autoComplete="current-password"
                         disabled={loading}
                         className="w-full pl-12 pr-12 py-3 rounded-2xl border border-gray-200 bg-white text-black text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:cursor-not-allowed transition-all duration-200"
                       />
+
                       <button
                         type="button"
-                        onClick={() => setShowPassword(!showPassword)}
+                        onClick={() =>
+                          setShowPassword(!showPassword)
+                        }
                         disabled={loading}
                         className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors duration-200"
                       >
-                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                        {showPassword ? (
+                          <EyeOff size={18} />
+                        ) : (
+                          <Eye size={18} />
+                        )}
                       </button>
                     </div>
                   </div>
 
-                  {/* REMEMBER & FORGOT */}
                   <div className="flex items-center justify-between">
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={rememberMe}
-                        onChange={(e) => setRememberMe(e.target.checked)}
+                        onChange={(e) =>
+                          setRememberMe(e.target.checked)
+                        }
                         disabled={loading}
                         className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
                       />
+
                       <span className="text-sm text-slate-600">
                         Ingat saya
                       </span>
@@ -330,14 +309,15 @@ export default function LoginPage() {
 
                     <button
                       type="button"
-                      onClick={() => router.push("/forgot-password")}
+                      onClick={() =>
+                        router.push("/forgot-password")
+                      }
                       className="text-sm text-blue-600 font-semibold hover:text-blue-700 transition-colors duration-200 hover:underline"
                     >
                       Lupa password?
                     </button>
                   </div>
 
-                  {/* SUBMIT */}
                   <button
                     type="submit"
                     disabled={loading}
@@ -345,25 +325,42 @@ export default function LoginPage() {
                   >
                     {loading ? (
                       <>
-                        <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                        <svg
+                          className="animate-spin h-5 w-5"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                            fill="none"
+                          />
+
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                          />
                         </svg>
+
                         Memproses...
                       </>
                     ) : (
                       <>
                         <User size={20} />
-                        Masuk
+                        Daftar
                       </>
                     )}
                   </button>
 
-                  {/* DIVIDER */}
                   <div className="relative">
                     <div className="absolute inset-0 flex items-center">
                       <div className="w-full border-t border-gray-200" />
                     </div>
+
                     <div className="relative flex justify-center text-sm">
                       <span className="px-4 bg-white text-gray-400">
                         atau
@@ -371,14 +368,13 @@ export default function LoginPage() {
                     </div>
                   </div>
 
-                  {/* GOOGLE */}
                   <button
                     type="button"
                     disabled={loading}
                     className="w-full flex items-center justify-center gap-3 border border-gray-200 bg-white hover:bg-gray-50 hover:border-gray-300 disabled:bg-gray-50 disabled:cursor-not-allowed text-slate-700 text-sm font-semibold py-3.5 rounded-2xl transition-all duration-300"
                   >
                     <GoogleIcon />
-                    Masuk dengan Google
+                    Daftar dengan Google
                   </button>
                 </form>
               </div>
@@ -395,19 +391,27 @@ export default function LoginPage() {
 // ==========================================
 function GoogleIcon() {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
       <path
         fill="#4285F4"
         d="M21.35 12.27c0-.79-.07-1.55-.2-2.27H12v4.3h5.24a4.48 4.48 0 0 1-1.94 2.94v2.45h3.14c1.84-1.69 2.91-4.18 2.91-7.42Z"
       />
+
       <path
         fill="#34A853"
         d="M12 21.75c2.63 0 4.84-.87 6.45-2.36l-3.14-2.45c-.87.58-1.98.92-3.31.92-2.54 0-4.69-1.72-5.46-4.03H3.3v2.53A9.75 9.75 0 0 0 12 21.75Z"
       />
+
       <path
         fill="#FBBC05"
         d="M6.54 13.83a5.87 5.87 0 0 1 0-3.66V7.64H3.3a9.76 9.76 0 0 0 0 8.72l3.24-2.53Z"
       />
+
       <path
         fill="#EA4335"
         d="M12 6.14c1.43 0 2.71.49 3.72 1.45l2.79-2.79C16.84 3.2 14.63 2.25 12 2.25A9.75 9.75 0 0 0 3.3 7.64l3.24 2.53C7.31 7.86 9.46 6.14 12 6.14Z"

@@ -32,6 +32,7 @@ import {
   Video,
   File,
   ClipboardList,
+
 } from "lucide-react";
 
 /**
@@ -113,13 +114,13 @@ const roleConfig = {
       { type: "item", key: "profile", icon: User, label: "Profil", path: "/guru/profile" },
     ],
   },
+ 
 };
 
 function resolveRole(pathname) {
   if (pathname?.startsWith("/guru")) return "guru";
   if (pathname?.startsWith("/super-admin")) return "super-admin";
-  // fallback default kalau path tidak cocok keduanya
-  return "super-admin";
+  return "super-admin"; // fallback
 }
 
 export default function Sidebar({ active, setActive, collapsed, setCollapsed }) {

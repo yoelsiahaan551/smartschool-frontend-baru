@@ -160,9 +160,9 @@ export default function NilaiPage() {
           notifications={notifications}
           user={{ name: "Bapak/Ibu Guru", email: "guru@smartschool.com", avatar: "G" }}
         />
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8">
-          <div className="max-w-6xl mx-auto space-y-6">
-
+        {/* === MAIN DENGAN MIN-H-SCREEN DAN OVERFLOW VERTIKAL === */}
+        <main className="flex-1 overflow-y-auto min-h-screen p-4 sm:p-6 lg:p-8">
+          <div className="w-full space-y-6">
             {/* PAGE HEADER */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div>
@@ -207,10 +207,10 @@ export default function NilaiPage() {
               </div>
             )}
 
-            {/* FILTER BAR */}
+            {/* FILTER BAR — melebar penuh */}
             <div className="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm">
-              <div className="flex flex-col sm:flex-row gap-3">
-                <div className="relative flex-1 sm:max-w-[220px]">
+              <div className="flex flex-col sm:flex-row flex-wrap gap-3">
+                <div className="relative flex-1 min-w-[140px]">
                   <select
                     value={mapel}
                     onChange={(e) => setMapel(e.target.value)}
@@ -223,7 +223,7 @@ export default function NilaiPage() {
                   <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                 </div>
 
-                <div className="relative flex-1 sm:max-w-[140px]">
+                <div className="relative flex-1 min-w-[120px]">
                   <select
                     value={kelas}
                     onChange={(e) => setKelas(e.target.value)}
@@ -236,7 +236,7 @@ export default function NilaiPage() {
                   <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                 </div>
 
-                <div className="relative flex-1 sm:max-w-[140px]">
+                <div className="relative flex-1 min-w-[120px]">
                   <select
                     value={semester}
                     onChange={(e) => setSemester(e.target.value)}
@@ -249,7 +249,7 @@ export default function NilaiPage() {
                   <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                 </div>
 
-                <div className="relative flex-1">
+                <div className="relative flex-1 min-w-[200px]">
                   <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input
                     type="text"
@@ -302,7 +302,7 @@ export default function NilaiPage() {
               </div>
             </div>
 
-            {/* NILAI TABLE */}
+            {/* TABEL DENGAN BORDER & SCROLL HORIZONTAL */}
             <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-hidden">
               <div className="p-4 sm:p-5 border-b border-slate-200/60 flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-slate-700">
@@ -311,24 +311,33 @@ export default function NilaiPage() {
                 <span className="text-xs text-slate-400">{filteredStudents.length} siswa</span>
               </div>
 
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+              <div className="overflow-x-auto w-full">
+                <table className="w-full min-w-[1000px] text-sm border-collapse">
                   <thead>
-                    <tr className="bg-slate-50/80 border-b border-slate-200/60">
-                      <th className="text-left font-medium text-slate-500 text-xs uppercase tracking-wider px-4 sm:px-5 py-3 whitespace-nowrap">Siswa</th>
+                    <tr className="bg-slate-50/80">
+                      <th className="border border-slate-200 text-left font-medium text-slate-500 text-xs uppercase tracking-wider px-4 sm:px-5 py-3 whitespace-nowrap">
+                        Siswa
+                      </th>
                       {scoreFields.map((f) => (
-                        <th key={f.key} className="text-center font-medium text-slate-500 text-xs uppercase tracking-wider px-2 py-3 w-20">
+                        <th
+                          key={f.key}
+                          className="border border-slate-200 text-center font-medium text-slate-500 text-xs uppercase tracking-wider px-2 py-3 whitespace-nowrap w-20"
+                        >
                           {f.label}
                         </th>
                       ))}
-                      <th className="text-center font-medium text-slate-500 text-xs uppercase tracking-wider px-3 py-3 w-24">Rata-rata</th>
-                      <th className="text-center font-medium text-slate-500 text-xs uppercase tracking-wider px-3 py-3 w-24">Status</th>
+                      <th className="border border-slate-200 text-center font-medium text-slate-500 text-xs uppercase tracking-wider px-3 py-3 whitespace-nowrap w-24">
+                        Rata-rata
+                      </th>
+                      <th className="border border-slate-200 text-center font-medium text-slate-500 text-xs uppercase tracking-wider px-3 py-3 whitespace-nowrap w-24">
+                        Status
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {filteredStudents.length === 0 && (
                       <tr>
-                        <td colSpan={7} className="p-10 text-center">
+                        <td colSpan={7} className="border border-slate-200 p-10 text-center">
                           <Users size={28} className="mx-auto text-slate-300 mb-2" />
                           <p className="text-sm text-slate-400">Tidak ada siswa yang cocok di kelas ini.</p>
                         </td>
@@ -341,7 +350,7 @@ export default function NilaiPage() {
                       const tuntas = avg !== null && avg >= KKM;
                       return (
                         <tr key={student.id} className="hover:bg-slate-50/60 transition-colors">
-                          <td className="px-4 sm:px-5 py-3">
+                          <td className="border border-slate-200 px-4 sm:px-5 py-3 whitespace-nowrap">
                             <div className="flex items-center gap-3">
                               <div className="w-8 h-8 rounded-full bg-gradient-to-br from-teal-400 to-cyan-500 flex items-center justify-center text-white text-[11px] font-bold flex-shrink-0">
                                 {initials(student.nama)}
@@ -353,7 +362,7 @@ export default function NilaiPage() {
                             </div>
                           </td>
                           {scoreFields.map((f) => (
-                            <td key={f.key} className="px-2 py-3">
+                            <td key={f.key} className="border border-slate-200 px-2 py-3 text-center">
                               <input
                                 type="number"
                                 min={0}
@@ -365,10 +374,10 @@ export default function NilaiPage() {
                               />
                             </td>
                           ))}
-                          <td className="px-3 py-3 text-center">
+                          <td className="border border-slate-200 px-3 py-3 text-center whitespace-nowrap">
                             <span className="text-sm font-semibold text-slate-800">{avg ?? "—"}</span>
                           </td>
-                          <td className="px-3 py-3 text-center">
+                          <td className="border border-slate-200 px-3 py-3 text-center whitespace-nowrap">
                             {avg === null ? (
                               <span className="text-[11px] font-medium px-2 py-0.5 rounded-full border bg-slate-100 text-slate-400 border-slate-300">
                                 Belum diisi
