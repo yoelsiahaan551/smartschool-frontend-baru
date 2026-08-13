@@ -3,63 +3,46 @@
 import { useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
-import { Crown, PanelLeftClose, ChevronDown } from "lucide-react";
-
-import { guruSidebarConfig } from "./sidebar/guruSidebar";
-import { superadminSidebarConfig } from "./sidebar/superadmin";
-import { yayasanSidebarConfig } from "./sidebar/yayasanSidebar";
+import { PanelLeftClose, Crown, ChevronDown } from "lucide-react";
 
 /**
- * Sidebar.jsx = JEMBATAN.
- * Komponen ini TIDAK menyimpan menu apapun secara langsung — dia cuma:
- * 1. Menentukan role aktif dari pathname (resolveRole)
- * 2. Mengambil config menu yang sesuai (guruSidebarConfig / superadminSidebarConfig / yayasanSidebarConfig)
- * 3. Merender UI sidebar generik berdasarkan config itu
+ * Komponen UI + interaction logic sidebar, sama sekali TIDAK tau soal role.
+ * Semua data menu (brandName, initials, email, menuSections) datang dari `config`
+ * yang dikirim oleh Sidebar.jsx (si "jembatan").
  *
- * Kalau mau nambah role baru: bikin file config baru di ./sidebar/<role>.jsx
- * dengan bentuk yang sama (basePath, brandName, initials, email, menuSections),
- * lalu daftarkan di configByRole di bawah.
+ * Kalau suatu saat mau ubah tampilan/behavior sidebar (misal ganti animasi,
+ * tambah fitur search menu, dll), cukup edit di sini — nggak perlu nyentuh
+ * file config per-role.
  */
-const configByRole = {
-  guru: guruSidebarConfig,
-  "super-admin": superadminSidebarConfig,
-  yayasan: yayasanSidebarConfig,
-};
-
-function resolveRole(pathname) {
-  if (pathname?.startsWith("/guru")) return "guru";
-  if (pathname?.startsWith("/yayasan")) return "yayasan";
-  if (pathname?.startsWith("/super-admin")) return "super-admin";
-  return "super-admin"; // fallback
-}
-
-export default function Sidebar({ active, setActive, collapsed, setCollapsed }) {
+export default function SidebarView({ config, active, setActive, collapsed, setCollapsed }) {
   const router = useRouter();
   const pathname = usePathname();
 
-  const role = resolveRole(pathname);
-  const config = configByRole[role];
+  if (!config) {
+    // Kalau ini muncul, berarti configByRole[role] di Sidebar.jsx gak ketemu.
+    // Cek: (1) nama export di file config (guruSidebar.jsx / superadmin.jsx /
+    // yayasanSidebar.jsx) harus persis sama dengan yang di-import di Sidebar.jsx,
+    // (2) resolveRole() di Sidebar.jsx harus cocok sama pathname saat ini.
+    console.error("SidebarView: config is undefined. Cek export/import config role di Sidebar.jsx");
+    return null;
+  }
+
   const menuSections = config.menuSections;
 
-  // Semua item yang punya children langsung terbuka dari awal (nggak perlu diklik dulu)
-  const [openMenus, setOpenMenus] = useState(() => {
-    const initial = {};
-    menuSections.forEach((item) => {
-      if (item.children) initial[item.key] = true;
-    });
-    return initial;
-  });
+  // Track submenu mana yang lagi terbuka
+  const [openMenus, setOpenMenus] = useState({});
 
-  // Kalau role/config berganti (misal pindah dari /guru ke /yayasan), pastikan
-  // submenu role yang baru juga otomatis kebuka.
+  // Auto-expand submenu kalau path aktif ada di dalam salah satu children-nya
   useEffect(() => {
     const next = {};
     menuSections.forEach((item) => {
-      if (item.children) next[item.key] = true;
+      if (item.children?.some((child) => pathname?.startsWith(child.path))) {
+        next[item.key] = true;
+      }
     });
-    setOpenMenus((prev) => ({ ...next, ...prev }));
+    setOpenMenus((prev) => ({ ...prev, ...next }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [role]);
+  }, [pathname]);
 
   const toggleSubmenu = (key) => {
     if (collapsed) setCollapsed(false);
@@ -72,12 +55,14 @@ export default function Sidebar({ active, setActive, collapsed, setCollapsed }) 
   // - Klik di chevron kapan saja -> toggle buka/tutup submenu
   const handleMenuClick = (item) => {
     const alreadyOnThisPage = pathname === item.path;
+
     setActive(item.key);
 
     if (item.children && alreadyOnThisPage) {
       toggleSubmenu(item.key);
       return;
     }
+
     if (item.path) {
       router.push(item.path);
     }
@@ -120,11 +105,15 @@ export default function Sidebar({ active, setActive, collapsed, setCollapsed }) 
         />
       </div>
 
+      {/* Garis gradient di atas */}
       <div className="relative z-10 h-[2px] w-full bg-gradient-to-r from-transparent via-blue-400/60 to-transparent" />
 
       {/* Logo & Toggle Button */}
       <div className="relative z-10 flex items-center justify-between px-4 h-20 border-b border-white/10">
-        <button onClick={() => setCollapsed(!collapsed)} className="flex items-center gap-3 flex-1 min-w-0">
+        <button
+          onClick={() => setCollapsed(!collapsed)}
+          className="flex items-center gap-3 flex-1 min-w-0"
+        >
           <div
             className={`
             relative rounded-xl 
@@ -218,6 +207,14 @@ export default function Sidebar({ active, setActive, collapsed, setCollapsed }) 
 
           return (
             <div key={item.key}>
+              {/*
+                Catatan: dulu ini <button> tunggal yang membungkus chevron.
+                Sekarang jadi <div role="button"> supaya chevron bisa jadi
+                tombol terpisah di dalamnya (nested <button> tidak valid HTML).
+                - Klik di badan item, halaman BELUM aktif -> navigasi ke halamannya
+                - Klik di badan item, halaman SUDAH aktif -> toggle buka/tutup submenu (klik ke-2)
+                - Klik di chevron kapan saja               -> toggle buka/tutup submenu
+              */}
               <div
                 onClick={() => handleMenuClick(item)}
                 role="button"
@@ -270,7 +267,7 @@ export default function Sidebar({ active, setActive, collapsed, setCollapsed }) 
                   <button
                     type="button"
                     onClick={(e) => {
-                      e.stopPropagation();
+                      e.stopPropagation(); // jangan ikut trigger navigasi parent
                       toggleSubmenu(item.key);
                     }}
                     className="p-1 -m-1 rounded-md hover:bg-white/10 transition-colors duration-150"
