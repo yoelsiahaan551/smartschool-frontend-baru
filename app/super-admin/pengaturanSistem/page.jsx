@@ -178,122 +178,164 @@ export default function PengaturanSistemPage() {
   ];
 
   return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden">
-      <Sidebar
-        active={activeMenu}
-        setActive={() => {}}
-        collapsed={!sidebarOpen}
-        setCollapsed={() => setSidebarOpen(!sidebarOpen)}
-      />
-      <div className="flex-1 flex flex-col min-w-0">
-        <Header
-          toggleSidebar={() => setSidebarOpen(!sidebarOpen)}
-          notifications={notificationsData}
-          user={{ name: "Super Admin", email: "admin@smartschool.com", avatar: "SA" }}
-        />
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8">
-          <div className="max-w-6xl mx-auto space-y-5 sm:space-y-6">
+  <div className="flex min-h-screen bg-slate-50">
+    <Sidebar
+      active={activeMenu}
+      setActive={() => {}}
+      collapsed={!sidebarOpen}
+      setCollapsed={() => setSidebarOpen(!sidebarOpen)}
+    />
 
-            {/* HEADER */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div>
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2 rounded-lg bg-blue-600 text-white shadow-sm">
-                    <Settings size={18} />
-                  </div>
-                  <h1 className="text-xl sm:text-2xl font-semibold text-slate-800">
-                    Pengaturan Sistem
-                  </h1>
-                  <span className="text-xs font-medium text-slate-400 bg-slate-100 px-2.5 py-0.5 rounded-full border border-slate-200">
-                    Super Admin
-                  </span>
-                </div>
-                <p className="text-sm text-slate-500 ml-[52px] flex items-center gap-1.5">
-                  <Sparkles size={14} className="text-slate-400" />
-                  Kelola konfigurasi sistem SmartSchool secara terpusat.
-                </p>
+    <div className="flex-1 flex flex-col min-w-0">
+      <Header
+        toggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+        notifications={notificationsData}
+        user={{
+          name: "Super Admin",
+          email: "admin@smartschool.com",
+          avatar: "SA",
+        }}
+      />
+
+      <main className="flex-1 p-4 sm:p-6 lg:p-8">
+        <div className="w-full space-y-5 sm:space-y-6">
+
+          {/* HEADER */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <Settings size={20} className="text-blue-600" />
+
+                <h1 className="text-xl sm:text-2xl font-bold text-slate-800">
+                  Pengaturan Sistem
+                </h1>
               </div>
-              <div className="flex items-center gap-2.5 ml-[52px] sm:ml-0 flex-wrap">
-                <button
-                  onClick={handleSave}
-                  disabled={isSaving}
-                  className="flex items-center gap-2 px-5 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-sm hover:shadow disabled:opacity-70 disabled:cursor-not-allowed"
-                >
-                  {isSaving ? (
-                    <>
-                      <RefreshCw size={16} className="animate-spin" />
-                      Menyimpan...
-                    </>
-                  ) : (
-                    <>
-                      <Save size={16} />
-                      Simpan Pengaturan
-                    </>
-                  )}
-                </button>
-                {saveSuccess && (
-                  <span className="flex items-center gap-1.5 text-sm text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200">
-                    <Check size={16} />
-                    Tersimpan!
-                  </span>
-                )}
-              </div>
+
+              <p className="text-sm text-slate-500 mt-1">
+                Kelola konfigurasi dan pengaturan utama SmartSchool
+              </p>
             </div>
 
-            {/* TABS */}
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={isSaving}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-medium transition"
+            >
+              {isSaving ? (
+                <>
+                  <RefreshCw size={16} className="animate-spin" />
+                  Menyimpan...
+                </>
+              ) : (
+                <>
+                  <Save size={16} />
+                  Simpan Perubahan
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* SUCCESS MESSAGE */}
+          {saveSuccess && (
+            <div className="flex items-center gap-3 p-3.5 bg-emerald-50 border border-emerald-200 rounded-lg">
+              <Check size={18} className="text-emerald-600" />
+
+              <div>
+                <p className="text-sm font-semibold text-emerald-700">
+                  Pengaturan berhasil disimpan
+                </p>
+
+                <p className="text-xs text-emerald-600 mt-0.5">
+                  Perubahan konfigurasi sistem telah berhasil disimpan.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* TABS */}
+          <div className="bg-white border border-slate-200/80 rounded-xl shadow-sm">
             <div className="border-b border-slate-200/80 overflow-x-auto">
-              <nav className="flex gap-1 min-w-max">
+              <div className="flex min-w-max">
                 {tabs.map((tab) => {
                   const Icon = tab.icon;
                   const isActive = activeTab === tab.id;
+
                   return (
                     <button
                       key={tab.id}
+                      type="button"
                       onClick={() => setActiveTab(tab.id)}
-                      className={`
-                        flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-t-lg border-b-2 transition-colors
-                        ${isActive 
-                          ? 'border-blue-600 text-blue-600 bg-blue-50/50' 
-                          : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
-                        }
-                      `}
+                      className={`flex items-center gap-2 px-4 sm:px-5 py-3.5 text-sm font-medium border-b-2 transition whitespace-nowrap ${
+                        isActive
+                          ? "text-blue-600 border-blue-600"
+                          : "text-slate-500 border-transparent hover:text-slate-700 hover:bg-slate-50"
+                      }`}
                     >
-                      <Icon size={16} className="flex-shrink-0" />
+                      <Icon size={16} />
                       {tab.label}
                     </button>
                   );
                 })}
-              </nav>
+              </div>
             </div>
 
-            {/* CONTENT - Perbaikan teks lebih jelas */}
-            <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm p-4 sm:p-6">
+            {/* CONTENT */}
+            <div className="p-4 sm:p-6">
+
               {activeTab === "umum" && (
-                <GeneralTab general={general} handleChange={handleGeneralChange} />
+                <GeneralTab
+                  general={general}
+                  handleChange={handleGeneralChange}
+                />
               )}
-              {activeTab === "keamanan" && (
-                <SecurityTab security={security} handleChange={handleSecurityChange} showPassword={showPassword} setShowPassword={setShowPassword} />
-              )}
-              {activeTab === "integrasi" && (
-                <IntegrationTab integrations={integrations} handleChange={handleIntegrationChange} showPassword={showPassword} setShowPassword={setShowPassword} />
-              )}
-              {activeTab === "notifikasi" && (
-                <NotificationTab notifications={notifications} handleChange={handleNotificationChange} />
-              )}
-              {activeTab === "aktivitas" && (
-                <ActivityTab logs={filteredLogs} filter={filterLog} setFilter={setFilterLog} />
-              )}
-            </div>
 
-            {/* FOOTER */}
-            <div className="text-center text-xs text-slate-400/80 py-2 border-t border-slate-200/40">
-              © 2026 SmartSchool • Pengaturan terakhir diperbarui hari ini
+              {activeTab === "keamanan" && (
+                <SecurityTab
+                  security={security}
+                  handleChange={handleSecurityChange}
+                  showPassword={showPassword}
+                  setShowPassword={setShowPassword}
+                />
+              )}
+
+              {activeTab === "integrasi" && (
+                <IntegrationTab
+                  integrations={integrations}
+                  handleChange={handleIntegrationChange}
+                  showPassword={showPassword}
+                  setShowPassword={setShowPassword}
+                />
+              )}
+
+              {activeTab === "notifikasi" && (
+                <NotificationTab
+                  notifications={notifications}
+                  handleChange={handleNotificationChange}
+                />
+              )}
+
+              {activeTab === "aktivitas" && (
+                <ActivityTab
+                  logs={filteredLogs}
+                  filter={filterLog}
+                  setFilter={setFilterLog}
+                />
+              )}
+
             </div>
           </div>
-        </main>
-      </div>
+
+          {/* FOOTER */}
+          <div className="text-center text-xs text-slate-400/80 py-2 border-t border-slate-200/40">
+            © 2026 SmartSchool • Pengaturan terakhir diperbarui hari ini
+          </div>
+
+        </div>
+      </main>
     </div>
-  );
+  </div>
+);
 }
 
 // ============================================================

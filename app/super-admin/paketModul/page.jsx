@@ -176,7 +176,11 @@ export default function PaketModulPage() {
   const filteredPaket = paketList.filter((p) => p.nama.toLowerCase().includes(search.toLowerCase()));
 
   return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden">
+    // Pola wrapper disamakan persis dengan halaman Profil/Pengumuman/Dashboard/Manajemen Akses/Yayasan/Sekolah:
+    // min-h-screen (bukan h-screen + overflow-hidden) di wrapper luar,
+    // dan main tanpa overflow-y-auto (p-4 sm:p-6 lg:p-8) supaya sidebar mengikuti
+    // tinggi konten halaman dan konsisten saat responsive/zoom.
+    <div className="flex min-h-screen bg-slate-50">
       <Sidebar
         active={activeMenu}
         setActive={setActiveMenu}
@@ -189,8 +193,8 @@ export default function PaketModulPage() {
           notifications={notifications}
           user={{ name: "Sarah", email: "sarah@smartschool.com", avatar: "SA" }}
         />
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 bg-slate-50/30">
-          <div className="max-w-7xl mx-auto space-y-5 md:space-y-7">
+        <main className="flex-1 p-4 sm:p-6 lg:p-8">
+          <div className="w-full space-y-5 md:space-y-7">
             {/* HEADER */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div>

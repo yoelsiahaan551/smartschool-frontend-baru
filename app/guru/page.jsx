@@ -6,194 +6,150 @@ import Sidebar from "../components/Sidebar";
 import Header from "../components/Header";
 import {
   LayoutDashboard,
-  Users,
+  Calendar,
+  NotebookPen,
   ClipboardCheck,
   BookOpen,
-  Star,
-  Activity,
-  Clock,
-  Calendar,
+  ClipboardList,
+  HelpCircle,
   ChevronRight,
   Sparkles,
-  Zap,
-  BarChart3,
-  ArrowUpRight,
-  ArrowDownRight,
+  TrendingUp,
+  TrendingDown,
+  Minus,
   Bell,
-  CheckCircle,
-  XCircle,
-  RefreshCw,
-  Edit,
-  FilePlus2,
-  MessageSquare,
-  GraduationCap,
-  AlertTriangle,
 } from "lucide-react";
 
 // ===== DUMMY DATA =====
-const statsData = [
+// Catatan: ganti dengan data asli dari API/DB begitu tersedia.
+const kpiStrip = [
+  { id: "kelas", label: "Kelas Diampu", value: "4", icon: Calendar, color: "blue" },
+  { id: "siswa", label: "Siswa Diampu", value: "138", icon: ClipboardCheck, color: "purple" },
+  { id: "tugasBelumDinilai", label: "Tugas Belum Dinilai", value: "12", icon: ClipboardList, color: "amber" },
+  { id: "kehadiran", label: "Rata Kehadiran", value: "96.0%", icon: ClipboardCheck, color: "emerald" },
+];
+
+const quickMenu = [
   {
-    id: 1,
-    label: "Total Kelas",
-    value: "6",
-    change: "+1",
-    trend: "up",
-    icon: BookOpen,
+    id: "jadwal",
+    title: "Jadwal",
+    desc: "Jadwal mengajar, presensi masuk, dan pengajuan izin",
+    icon: Calendar,
     color: "blue",
+    path: "/guru/jadwal",
+    stat: "3 sesi hari ini",
+    featured: true,
   },
   {
-    id: 2,
-    label: "Total Siswa",
-    value: "214",
-    change: "+8",
-    trend: "up",
-    icon: Users,
-    color: "purple",
+    id: "nilai",
+    title: "Nilai",
+    desc: "Input dan rekap nilai tugas, quiz, hingga rapor siswa",
+    icon: NotebookPen,
+    color: "rose",
+    path: "/guru/nilai",
+    stat: "12 belum dinilai",
+    featured: true,
   },
   {
-    id: 3,
-    label: "Kehadiran Hari Ini",
-    value: "96%",
-    change: "+2%",
-    trend: "up",
+    id: "absensi",
+    title: "Absensi",
+    desc: "Presensi kehadiran siswa per kelas",
     icon: ClipboardCheck,
+    color: "purple",
+    path: "/guru/absensi",
+    stat: "4 kelas",
+  },
+  {
+    id: "materi",
+    title: "Materi",
+    desc: "Bahan ajar untuk setiap kelas",
+    icon: BookOpen,
     color: "emerald",
+    path: "/guru/materi",
+    stat: "18 materi",
   },
   {
-    id: 4,
-    label: "Tugas Belum Dinilai",
-    value: "17",
-    change: "-5",
-    trend: "down",
-    icon: FilePlus2,
+    id: "tugas",
+    title: "Tugas",
+    desc: "Buat dan pantau pengumpulan tugas",
+    icon: ClipboardList,
     color: "amber",
+    path: "/guru/tugas",
+    stat: "5 tugas aktif",
+  },
+  {
+    id: "quiz",
+    title: "Quiz",
+    desc: "Kelola bank soal dan sesi quiz",
+    icon: HelpCircle,
+    color: "slate",
+    path: "/guru/quiz",
+    stat: "2 quiz berjalan",
   },
 ];
 
-const recentActivities = [
-  {
-    id: 1,
-    user: "Anda",
-    action: "Menginput nilai ujian",
-    target: "Matematika - Kelas 9A",
-    timestamp: "2026-08-11T13:10:00Z",
-    type: "grade",
-  },
-  {
-    id: 2,
-    user: "Anda",
-    action: "Mencatat kehadiran",
-    target: "Kelas 8B - 32 siswa hadir",
-    timestamp: "2026-08-11T08:05:00Z",
-    type: "attendance",
-  },
-  {
-    id: 3,
-    user: "Anda",
-    action: "Membuat quiz baru",
-    target: "Bab 4 - IPA Kelas 9C",
-    timestamp: "2026-08-10T15:30:00Z",
-    type: "quiz",
-  },
-  {
-    id: 4,
-    user: "Anda",
-    action: "Mencatat prestasi siswa",
-    target: "Rina Amelia - Juara 1 OSN",
-    timestamp: "2026-08-10T11:00:00Z",
-    type: "achievement",
-  },
-  {
-    id: 5,
-    user: "Anda",
-    action: "Mencatat pelanggaran",
-    target: "Kelas 9A - Terlambat masuk",
-    timestamp: "2026-08-09T07:20:00Z",
-    type: "violation",
-  },
+const kelasList = [
+  { id: 1, nama: "Kelas 9A", siswa: 34, kehadiran: 98, trend: "up" },
+  { id: 2, nama: "Kelas 9B", siswa: 33, kehadiran: 95, trend: "down" },
+  { id: 3, nama: "Kelas 8A", siswa: 36, kehadiran: 96, trend: "same" },
+  { id: 4, nama: "Kelas 8B", siswa: 35, kehadiran: 94, trend: "down" },
 ];
 
-const upcomingTasks = [
-  { id: 1, title: "Input Nilai UTS Kelas 9A", due: "2026-08-12", priority: "high" },
-  { id: 2, title: "Koreksi Quiz Bab 4 - 9C", due: "2026-08-13", priority: "medium" },
-  { id: 3, title: "Rapat Guru Mapel", due: "2026-08-15", priority: "low" },
-  { id: 4, title: "Laporan Perkembangan Siswa", due: "2026-08-18", priority: "high" },
-];
-
-const recentNotifications = [
-  { id: 1, title: "Pengumuman Libur Semester", desc: "Info jadwal libur dari sekolah", read: false, time: "2 jam lalu" },
-  { id: 2, title: "Deadline Input Nilai", desc: "Batas input nilai UTS 12 Agustus", read: false, time: "5 jam lalu" },
-  { id: 3, title: "Jadwal Rapat Diperbarui", desc: "Rapat guru mapel dipindah ke Jumat", read: true, time: "1 hari lalu" },
-];
-
-const classSummary = {
-  totalKelas: 6,
-  totalSiswa: 214,
-  rataKehadiran: 96,
-  perluPerhatian: 4,
+const colorMap = {
+  blue: {
+    bg: "bg-blue-50",
+    text: "text-blue-600",
+    border: "border-blue-200",
+    hoverBorder: "hover:border-blue-300",
+    ring: "group-hover:ring-blue-100",
+    bar: "bg-blue-500",
+  },
+  purple: {
+    bg: "bg-purple-50",
+    text: "text-purple-600",
+    border: "border-purple-200",
+    hoverBorder: "hover:border-purple-300",
+    ring: "group-hover:ring-purple-100",
+    bar: "bg-purple-500",
+  },
+  amber: {
+    bg: "bg-amber-50",
+    text: "text-amber-600",
+    border: "border-amber-200",
+    hoverBorder: "hover:border-amber-300",
+    ring: "group-hover:ring-amber-100",
+    bar: "bg-amber-500",
+  },
+  emerald: {
+    bg: "bg-emerald-50",
+    text: "text-emerald-600",
+    border: "border-emerald-200",
+    hoverBorder: "hover:border-emerald-300",
+    ring: "group-hover:ring-emerald-100",
+    bar: "bg-emerald-500",
+  },
+  rose: {
+    bg: "bg-rose-50",
+    text: "text-rose-600",
+    border: "border-rose-200",
+    hoverBorder: "hover:border-rose-300",
+    ring: "group-hover:ring-rose-100",
+    bar: "bg-rose-500",
+  },
+  slate: {
+    bg: "bg-slate-50",
+    text: "text-slate-600",
+    border: "border-slate-200",
+    hoverBorder: "hover:border-slate-300",
+    ring: "group-hover:ring-slate-100",
+    bar: "bg-slate-500",
+  },
 };
 
-const chartData = [
-  { label: "Jan", value: 90 },
-  { label: "Feb", value: 92 },
-  { label: "Mar", value: 88 },
-  { label: "Apr", value: 94 },
-  { label: "Mei", value: 91 },
-  { label: "Jun", value: 95 },
-  { label: "Jul", value: 93 },
-  { label: "Agu", value: 96 },
-];
-
-// ===== UTILITY =====
-const timeAgo = (dateString) => {
-  const now = new Date();
-  const past = new Date(dateString);
-  const diffMs = now - past;
-  const diffMin = Math.floor(diffMs / 60000);
-  const diffHour = Math.floor(diffMs / 3600000);
-  const diffDay = Math.floor(diffMs / 86400000);
-
-  if (diffMin < 1) return "Baru saja";
-  if (diffMin < 60) return `${diffMin} menit lalu`;
-  if (diffHour < 24) return `${diffHour} jam lalu`;
-  if (diffDay < 7) return `${diffDay} hari lalu`;
-  return past.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
-};
-
-const getPriorityColor = (priority) => {
-  const map = {
-    high: "bg-rose-50 text-rose-600 border-rose-200",
-    medium: "bg-amber-50 text-amber-600 border-amber-200",
-    low: "bg-blue-50 text-blue-600 border-blue-200",
-  };
-  return map[priority] || map.low;
-};
-
-const getPriorityLabel = (priority) => {
-  const map = { high: "Tinggi", medium: "Sedang", low: "Rendah" };
-  return map[priority] || priority;
-};
-
-const getActivityIcon = (type) => {
-  const map = {
-    grade: Edit,
-    attendance: ClipboardCheck,
-    quiz: FilePlus2,
-    achievement: Star,
-    violation: AlertTriangle,
-  };
-  return map[type] || Activity;
-};
-
-const getActivityColor = (type) => {
-  const map = {
-    grade: "text-blue-500 bg-blue-50",
-    attendance: "text-emerald-500 bg-emerald-50",
-    quiz: "text-purple-500 bg-purple-50",
-    achievement: "text-amber-500 bg-amber-50",
-    violation: "text-rose-500 bg-rose-50",
-  };
-  return map[type] || "text-slate-500 bg-slate-50";
+const TrendIcon = ({ trend }) => {
+  if (trend === "up") return <TrendingUp size={13} className="text-emerald-500 flex-shrink-0" />;
+  if (trend === "down") return <TrendingDown size={13} className="text-rose-500 flex-shrink-0" />;
+  return <Minus size={13} className="text-slate-400 flex-shrink-0" />;
 };
 
 // ===== MAIN COMPONENT =====
@@ -201,20 +157,16 @@ const getActivityColor = (type) => {
 export default function GuruDashboardPage() {
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [activeMenu] = useState("dashboard");
 
   const notifications = [
-    { id: 1, title: "Pengumuman Libur Semester", desc: "Dikirim 2 jam lalu", read: false },
-    { id: 2, title: "Deadline Input Nilai", desc: "Dikirim 5 jam lalu", read: false },
-    { id: 3, title: "Jadwal Rapat Diperbarui", desc: "Dikirim 1 hari lalu", read: true },
+    { id: 1, title: "Rapat Wali Kelas", desc: "Dikirim 2 jam lalu", read: false },
+    { id: 2, title: "Batas Input Nilai Rapor", desc: "Dikirim 5 jam lalu", read: false },
   ];
-
-  const maxChartValue = Math.max(...chartData.map((d) => d.value)) || 1;
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
       <Sidebar
-        active={activeMenu}
+        active="dashboard"
         setActive={() => {}}
         collapsed={!sidebarOpen}
         setCollapsed={() => setSidebarOpen(!sidebarOpen)}
@@ -223,337 +175,159 @@ export default function GuruDashboardPage() {
         <Header
           toggleSidebar={() => setSidebarOpen(!sidebarOpen)}
           notifications={notifications}
-          user={{ name: "Bapak/Ibu Guru", email: "guru@smartschool.com", avatar: "G" }}
+          user={{ name: "Bu Sari", email: "guru@smartschool.com", avatar: "AS" }}
         />
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8">
-          <div className="max-w-7xl mx-auto space-y-6">
+        {/* min-h-screen + overflow-y-auto biar konsisten sama pola halaman lain */}
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+          <div className="w-full space-y-6">
 
-            {/* HEADER */}
+            {/* PAGE HEADER — wrap ke bawah di layar sempit / zoom */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div>
+              <div className="min-w-0">
                 <div className="flex items-center gap-2.5">
-                  <div className="p-2 rounded-lg bg-blue-600 text-white shadow-sm">
+                  <div className="p-2 rounded-lg bg-blue-600 text-white shadow-sm flex-shrink-0">
                     <LayoutDashboard size={18} />
                   </div>
-                  <h1 className="text-xl sm:text-2xl font-semibold text-slate-800">
-                    Dashboard
+                  <h1 className="text-xl sm:text-2xl font-semibold text-slate-800 truncate">
+                    Selamat pagi, Bu Sari
                   </h1>
-                  <span className="text-xs font-medium text-slate-400 bg-slate-100 px-2.5 py-0.5 rounded-full border border-slate-200">
-                    Guru
-                  </span>
                 </div>
-                <p className="text-sm text-slate-500 ml-[52px] flex items-center gap-1.5">
-                  <Sparkles size={14} className="text-slate-400" />
-                  Selamat datang kembali! Berikut ringkasan kelas Anda hari ini.
+                <p className="text-sm text-slate-500 mt-1 ml-[42px] flex items-center gap-1.5">
+                  <Sparkles size={14} className="text-slate-400 flex-shrink-0" />
+                  <span className="truncate">Senin, 17 Agustus 2026 &middot; Wali kelas 9A</span>
                 </p>
-              </div>
-              <div className="flex items-center gap-2.5 ml-[52px] sm:ml-0">
-                <button
-                  onClick={() => window.location.reload()}
-                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 hover:border-slate-300 transition-colors shadow-sm"
-                >
-                  <RefreshCw size={16} />
-                  <span className="hidden xs:inline">Refresh</span>
-                </button>
               </div>
             </div>
 
-            {/* STATS CARDS */}
-            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-              {statsData.map((stat) => {
-                const Icon = stat.icon;
-                const colorMap = {
-                  blue: "bg-blue-50 text-blue-600",
-                  purple: "bg-purple-50 text-purple-600",
-                  emerald: "bg-emerald-50 text-emerald-600",
-                  amber: "bg-amber-50 text-amber-600",
-                };
-                const iconBg = colorMap[stat.color] || colorMap.blue;
-                const TrendIcon = stat.trend === "up" ? ArrowUpRight : ArrowDownRight;
-                const trendColor = stat.trend === "up" ? "text-emerald-600" : "text-rose-600";
+            {/* KPI STRIP — grid reflow otomatis, tiap kartu punya min-w-0 biar teks gak dorong layout */}
+            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm divide-y sm:divide-y-0 sm:divide-x divide-slate-100 grid grid-cols-2 sm:grid-cols-4">
+              {kpiStrip.map((kpi) => {
+                const Icon = kpi.icon;
+                const c = colorMap[kpi.color];
                 return (
-                  <div
-                    key={stat.id}
-                    className="group bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className={`p-2.5 rounded-xl ${iconBg} flex-shrink-0`}>
-                        <Icon size={18} />
-                      </div>
-                      <span className={`flex items-center gap-0.5 text-xs font-medium ${trendColor} bg-slate-50 px-2 py-0.5 rounded-full border border-slate-200/60`}>
-                        <TrendIcon size={12} />
-                        {stat.change}
-                      </span>
+                  <div key={kpi.id} className="p-3.5 sm:p-5 flex items-center gap-3 sm:gap-3.5 min-w-0">
+                    <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl ${c.bg} ${c.text} flex items-center justify-center flex-shrink-0`}>
+                      <Icon size={18} />
                     </div>
-                    <div className="mt-3">
-                      <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">{stat.label}</p>
-                      <p className="text-2xl font-bold text-slate-800">{stat.value}</p>
+                    <div className="min-w-0">
+                      <p className="text-base sm:text-lg font-semibold text-slate-800 leading-tight truncate">{kpi.value}</p>
+                      <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5 truncate">{kpi.label}</p>
                     </div>
                   </div>
                 );
               })}
             </div>
 
-            {/* CHART & CLASS SUMMARY */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              {/* CHART */}
-              <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200/80 p-4 sm:p-5 shadow-sm">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2.5">
-                    <div className="p-1.5 rounded-lg bg-blue-50 text-blue-600">
-                      <BarChart3 size={16} />
-                    </div>
-                    <h3 className="text-sm font-semibold text-slate-700">Tren Kehadiran Siswa</h3>
-                  </div>
-                  <span className="text-xs text-slate-400">2026</span>
-                </div>
+            {/* QUICK MENU — bento reflow: 1 kolom di mobile, 2 di tablet, 4 di desktop, featured selalu ambil 2 kolom kalau muat */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 auto-rows-min">
+              {quickMenu.map((item) => {
+                const Icon = item.icon;
+                const c = colorMap[item.color];
 
-                <div className="relative pt-2">
-                  <div className="flex items-end h-48 gap-1 sm:gap-2">
-                    {chartData.map((item, idx) => {
-                      const height = (item.value / maxChartValue) * 100;
-                      const isLast = idx === chartData.length - 1;
-                      return (
-                        <div key={idx} className="flex-1 flex flex-col items-center gap-1.5 group">
-                          <div className="relative w-full max-w-[36px]">
-                            <div
-                              className={`w-full bg-gradient-to-t from-blue-500 to-indigo-400 rounded-t-lg transition-all duration-700 hover:opacity-80 ${
-                                isLast ? "from-emerald-500 to-emerald-400" : ""
-                              }`}
-                              style={{
-                                height: `${height}%`,
-                                minHeight: "8px",
-                                transition: "height 0.7s ease-in-out",
-                              }}
-                            />
-                            <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[10px] px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                              {item.value}% hadir
-                            </div>
-                          </div>
-                          <span className={`text-[8px] sm:text-[10px] font-medium ${
-                            isLast ? "text-blue-600 font-semibold" : "text-slate-400"
-                          }`}>
-                            {item.label}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  <div className="absolute inset-0 pointer-events-none">
-                    {[0, 25, 50, 75, 100].map((percent) => (
-                      <div
-                        key={percent}
-                        className="border-t border-slate-200/40"
-                        style={{ top: `${100 - percent}%`, position: "absolute", width: "100%" }}
-                      />
-                    ))}
-                  </div>
-
-                  <div className="flex justify-between mt-2 text-[9px] text-slate-400">
-                    <span>0</span>
-                    <span>{maxChartValue}%</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Class Summary */}
-              <div className="bg-white rounded-xl border border-slate-200/80 p-4 sm:p-5 shadow-sm">
-                <div className="flex items-center gap-2.5 mb-4">
-                  <div className="p-1.5 rounded-lg bg-purple-50 text-purple-600">
-                    <GraduationCap size={16} />
-                  </div>
-                  <h3 className="text-sm font-semibold text-slate-700">Ringkasan Kelas</h3>
-                </div>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-slate-600">Total Kelas</span>
-                    <span className="text-sm font-semibold text-slate-800">{classSummary.totalKelas}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-slate-600">Total Siswa</span>
-                    <span className="text-sm font-semibold text-slate-800">{classSummary.totalSiswa}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-slate-600 flex items-center gap-1.5">
-                      <CheckCircle size={14} className="text-emerald-500" />
-                      Rata-rata Kehadiran
-                    </span>
-                    <span className="text-sm font-semibold text-emerald-600">{classSummary.rataKehadiran}%</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-slate-600 flex items-center gap-1.5">
-                      <XCircle size={14} className="text-rose-500" />
-                      Perlu Perhatian
-                    </span>
-                    <span className="text-sm font-semibold text-rose-600">{classSummary.perluPerhatian} siswa</span>
-                  </div>
-                  <div className="mt-3 pt-3 border-t border-slate-200/60">
-                    <button
-                      onClick={() => router.push("/guru/akademik/dataSiswa")}
-                      className="w-full text-center text-sm text-blue-600 font-medium hover:text-blue-700 transition-colors flex items-center justify-center gap-1"
-                    >
-                      Lihat Data Siswa
-                      <ChevronRight size={14} />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* ACTIVITIES & TASKS */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {/* Recent Activities */}
-              <div className="bg-white rounded-xl border border-slate-200/80 p-4 sm:p-5 shadow-sm">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2.5">
-                    <div className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600">
-                      <Activity size={16} />
-                    </div>
-                    <h3 className="text-sm font-semibold text-slate-700">Aktivitas Terbaru</h3>
-                  </div>
-                  <button
-                    onClick={() => router.push("/guru/profile")}
-                    className="text-xs text-blue-600 font-medium hover:text-blue-700 transition-colors"
-                  >
-                    Lihat Semua
-                  </button>
-                </div>
-                <div className="space-y-3">
-                  {recentActivities.slice(0, 4).map((activity) => {
-                    const Icon = getActivityIcon(activity.type);
-                    const colorClass = getActivityColor(activity.type);
-                    return (
-                      <div key={activity.id} className="flex items-start gap-3 p-2 rounded-lg hover:bg-slate-50/60 transition-colors">
-                        <div className={`p-1.5 rounded-lg ${colorClass} flex-shrink-0 mt-0.5`}>
-                          <Icon size={14} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex flex-wrap items-center gap-1">
-                            <span className="text-sm font-medium text-slate-800">{activity.user}</span>
-                            <span className="text-sm text-slate-500">{activity.action}</span>
-                            <span className="text-sm font-medium text-slate-700 truncate">{activity.target}</span>
-                          </div>
-                          <p className="text-xs text-slate-400 mt-0.5">{timeAgo(activity.timestamp)}</p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Upcoming Tasks & Notifications */}
-              <div className="space-y-4">
-                {/* Upcoming Tasks */}
-                <div className="bg-white rounded-xl border border-slate-200/80 p-4 sm:p-5 shadow-sm">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2.5">
-                      <div className="p-1.5 rounded-lg bg-amber-50 text-amber-600">
-                        <Calendar size={16} />
-                      </div>
-                      <h3 className="text-sm font-semibold text-slate-700">Tugas Mendatang</h3>
-                    </div>
-                    <span className="text-xs text-slate-400">{upcomingTasks.length} tugas</span>
-                  </div>
-                  <div className="space-y-2">
-                    {upcomingTasks.map((task) => (
-                      <div key={task.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-slate-50/60 transition-colors">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${task.priority === "high" ? "bg-rose-500" : task.priority === "medium" ? "bg-amber-500" : "bg-blue-500"}`} />
-                          <span className="text-sm text-slate-700 truncate">{task.title}</span>
-                        </div>
-                        <span className={`text-xs px-2 py-0.5 rounded-full border ${getPriorityColor(task.priority)}`}>
-                          {getPriorityLabel(task.priority)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Recent Notifications */}
-                <div className="bg-white rounded-xl border border-slate-200/80 p-4 sm:p-5 shadow-sm">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="p-1.5 rounded-lg bg-blue-50 text-blue-600">
-                        <Bell size={16} />
-                      </div>
-                      <h3 className="text-sm font-semibold text-slate-700">Notifikasi</h3>
-                    </div>
-                    <button
-                      onClick={() => router.push("/guru/pengumuman")}
-                      className="text-xs text-blue-600 font-medium hover:text-blue-700 transition-colors"
-                    >
-                      Lihat Semua
-                    </button>
-                  </div>
-                  <div className="space-y-2">
-                    {recentNotifications.map((notif) => (
-                      <div
-                        key={notif.id}
-                        className={`p-2 rounded-lg hover:bg-slate-50/60 transition-colors cursor-pointer ${!notif.read ? "bg-blue-50/30 border-l-2 border-l-blue-500" : ""}`}
-                      >
-                        <div className="flex items-start gap-2">
-                          <Bell size={14} className="text-slate-400 flex-shrink-0 mt-0.5" />
-                          <div className="flex-1 min-w-0">
-                            <p className={`text-sm ${!notif.read ? "font-medium text-slate-800" : "text-slate-600"}`}>{notif.title}</p>
-                            <p className="text-xs text-slate-400 truncate">{notif.desc}</p>
-                            <p className="text-[10px] text-slate-400 mt-0.5">{notif.time}</p>
-                          </div>
-                          {!notif.read && (
-                            <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" />
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* QUICK ACTIONS */}
-            <div className="bg-white rounded-xl border border-slate-200/80 p-4 sm:p-5 shadow-sm">
-              <div className="flex items-center gap-2.5 mb-4">
-                <div className="p-1.5 rounded-lg bg-violet-50 text-violet-600">
-                  <Zap size={16} />
-                </div>
-                <h3 className="text-sm font-semibold text-slate-700">Aksi Cepat</h3>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-                {[
-                  { label: "Isi Absensi", icon: ClipboardCheck, path: "/guru/akademik/absensi", color: "blue" },
-                  { label: "Input Nilai", icon: Edit, path: "/guru/akademik/nilai", color: "purple" },
-                  { label: "Buat Quiz", icon: FilePlus2, path: "/guru/akademik/quiz", color: "amber" },
-                  { label: "Catat Prestasi", icon: Star, path: "/guru/akademik/catatanPrestasi", color: "emerald" },
-                  { label: "Catat Pelanggaran", icon: AlertTriangle, path: "/guru/akademik/catatanPelanggaran", color: "rose" },
-                  { label: "Chat", icon: MessageSquare, path: "/guru/chat", color: "slate" },
-                ].map((action) => {
-                  const Icon = action.icon;
-                  const colorMap = {
-                    blue: "bg-blue-50 text-blue-600 hover:bg-blue-100 border-blue-200",
-                    purple: "bg-purple-50 text-purple-600 hover:bg-purple-100 border-purple-200",
-                    amber: "bg-amber-50 text-amber-600 hover:bg-amber-100 border-amber-200",
-                    emerald: "bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border-emerald-200",
-                    rose: "bg-rose-50 text-rose-600 hover:bg-rose-100 border-rose-200",
-                    slate: "bg-slate-50 text-slate-600 hover:bg-slate-100 border-slate-200",
-                  };
+                if (item.featured) {
                   return (
                     <button
-                      key={action.label}
-                      onClick={() => router.push(action.path)}
-                      className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border transition-all hover:scale-105 ${colorMap[action.color]}`}
+                      key={item.id}
+                      onClick={() => router.push(item.path)}
+                      className={`group text-left bg-white rounded-2xl border ${c.border} ${c.hoverBorder} p-5 sm:p-6 shadow-sm hover:shadow-lg transition-all duration-300 sm:col-span-1 lg:col-span-2 relative overflow-hidden min-w-0`}
                     >
-                      <Icon size={16} />
-                      <span className="text-xs font-medium">{action.label}</span>
+                      <div className={`absolute -right-6 -top-6 w-28 h-28 rounded-full ${c.bg} opacity-70`} />
+                      <div className="relative min-w-0">
+                        <div className="flex items-start justify-between">
+                          <div className={`p-3 sm:p-3.5 rounded-xl ${c.bg} ${c.text} ring-4 ring-transparent ${c.ring} transition-all duration-300 flex-shrink-0`}>
+                            <Icon size={22} />
+                          </div>
+                          <ChevronRight
+                            size={20}
+                            className="text-slate-300 group-hover:text-slate-500 group-hover:translate-x-0.5 transition-all duration-300 mt-1 flex-shrink-0"
+                          />
+                        </div>
+                        <h3 className="mt-4 sm:mt-5 text-base sm:text-lg font-semibold text-slate-800 truncate">{item.title}</h3>
+                        <p className="mt-1.5 text-sm text-slate-500 leading-relaxed line-clamp-2">{item.desc}</p>
+                        <div className={`mt-4 inline-flex items-center text-xs font-medium ${c.text} ${c.bg} px-2.5 py-1 rounded-full max-w-full truncate`}>
+                          {item.stat}
+                        </div>
+                      </div>
                     </button>
                   );
-                })}
+                }
+
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => router.push(item.path)}
+                    className={`group text-left bg-white rounded-2xl border ${c.border} ${c.hoverBorder} p-4 shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 min-w-0`}
+                  >
+                    <div className={`w-10 h-10 rounded-lg ${c.bg} ${c.text} flex items-center justify-center flex-shrink-0`}>
+                      <Icon size={17} />
+                    </div>
+                    <h3 className="mt-3 text-sm font-semibold text-slate-800 truncate">{item.title}</h3>
+                    <p className="mt-0.5 text-xs text-slate-500 leading-relaxed line-clamp-2">{item.desc}</p>
+                    <div className="mt-3 flex items-center justify-between gap-2 min-w-0">
+                      <span className="text-[11px] font-medium text-slate-400 truncate">{item.stat}</span>
+                      <ChevronRight size={14} className="text-slate-300 group-hover:text-slate-500 group-hover:translate-x-0.5 transition-all duration-300 flex-shrink-0" />
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* KELAS OVERVIEW + NOTIFICATIONS — stack di mobile, 2:1 kolom di desktop */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                <div className="flex items-center justify-between gap-2 p-4 sm:p-5 border-b border-slate-100">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="p-1.5 rounded-lg bg-blue-50 text-blue-600 flex-shrink-0">
+                      <Calendar size={16} />
+                    </div>
+                    <h3 className="text-sm font-semibold text-slate-700 truncate">Kehadiran per Kelas</h3>
+                  </div>
+                  <button
+                    onClick={() => router.push("/guru/absensi")}
+                    className="text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors inline-flex items-center gap-0.5 flex-shrink-0"
+                  >
+                    Lihat semua
+                    <ChevronRight size={12} />
+                  </button>
+                </div>
+                <div className="p-4 sm:p-5 space-y-4">
+                  {kelasList.map((kelas) => (
+                    <div key={kelas.id} className="flex items-center gap-3 sm:gap-4">
+                      <span className="w-20 sm:w-32 flex-shrink-0 text-sm text-slate-700 font-medium truncate">{kelas.nama}</span>
+                      <div className="flex-1 min-w-0 h-2 rounded-full bg-slate-100 overflow-hidden">
+                        <div className="h-full rounded-full bg-blue-500" style={{ width: `${kelas.kehadiran}%` }} />
+                      </div>
+                      <span className="w-10 flex-shrink-0 text-right text-sm text-slate-600">{kelas.kehadiran}%</span>
+                      <TrendIcon trend={kelas.trend} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* NOTIFICATIONS */}
+              <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-100">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="p-1.5 rounded-lg bg-rose-50 text-rose-600 flex-shrink-0">
+                      <Bell size={16} />
+                    </div>
+                    <h3 className="text-sm font-semibold text-slate-700 truncate">Notifikasi Terbaru</h3>
+                  </div>
+                </div>
+                <div className="divide-y divide-slate-50">
+                  {notifications.map((n) => (
+                    <div key={n.id} className="p-4 sm:p-5 flex items-start gap-3 hover:bg-slate-50/60 transition-colors">
+                      <div className={`mt-1 w-1.5 h-1.5 rounded-full flex-shrink-0 ${n.read ? "bg-slate-300" : "bg-blue-500"}`} />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-slate-800 truncate">{n.title}</p>
+                        <p className="text-xs text-slate-400 mt-0.5">{n.desc}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
 
-            {/* FOOTER */}
-            <div className="text-center text-xs text-slate-400/80 py-2 border-t border-slate-200/40">
-              © 2026 SmartSchool • Dashboard terakhir diperbarui {new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
-            </div>
           </div>
         </main>
       </div>
