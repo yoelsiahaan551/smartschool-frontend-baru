@@ -23,7 +23,6 @@ export default function SchoolOnboardingPage() {
   const [paket, setPaket] = useState(null);
   const [loadingPaket, setLoadingPaket] = useState(true);
   const [loading, setLoading] = useState(false);
-
   const [error, setError] = useState("");
 
   const [form, setForm] = useState({
@@ -39,24 +38,30 @@ export default function SchoolOnboardingPage() {
     logo: "",
   });
 
+  // ================================
+  // LOAD PAKET
+  // ================================
   useEffect(() => {
     const loadPaket = async () => {
       try {
-        const params = new URLSearchParams(window.location.search);
+        const params = new URLSearchParams(
+          window.location.search
+        );
 
         let paketId = params.get("paketId");
 
-        /*
-         * Prioritas:
-         * 1. Paket dari sessionStorage
-         * 2. Paket dari API
-         */
+        // Prioritas:
+        // 1. Paket dari sessionStorage
+        // 2. Paket dari URL
+        // 3. Paket dari selected_paket_id
 
-        const storedPaket = sessionStorage.getItem("selected_paket");
+        const storedPaket =
+          sessionStorage.getItem("selected_paket");
 
         if (storedPaket) {
           try {
-            const parsedPaket = JSON.parse(storedPaket);
+            const parsedPaket =
+              JSON.parse(storedPaket);
 
             if (parsedPaket?.id) {
               setPaket(parsedPaket);
@@ -75,14 +80,11 @@ export default function SchoolOnboardingPage() {
               storageError
             );
 
-            sessionStorage.removeItem("selected_paket");
+            sessionStorage.removeItem(
+              "selected_paket"
+            );
           }
         }
-
-        /*
-         * Kalau tidak ada sessionStorage,
-         * coba ambil ID dari URL.
-         */
 
         if (!paketId) {
           paketId = sessionStorage.getItem(
@@ -91,26 +93,20 @@ export default function SchoolOnboardingPage() {
         }
 
         if (!paketId) {
-          setError("Belum ada paket yang dipilih.");
-
+          setError(
+            "Belum ada paket yang dipilih."
+          );
           setLoadingPaket(false);
           return;
         }
-
-        /*
-         * Simpan ID paket.
-         */
 
         sessionStorage.setItem(
           "selected_paket_id",
           paketId
         );
 
-        /*
-         * Ambil paket dari backend.
-         */
-
-        const response = await getPaketById(paketId);
+        const response =
+          await getPaketById(paketId);
 
         if (!response?.data) {
           throw new Error(
@@ -119,11 +115,6 @@ export default function SchoolOnboardingPage() {
         }
 
         setPaket(response.data);
-
-        /*
-         * Simpan object paket supaya ketika reload
-         * tidak langsung kehilangan data paket.
-         */
 
         sessionStorage.setItem(
           "selected_paket",
@@ -148,17 +139,38 @@ export default function SchoolOnboardingPage() {
     loadPaket();
   }, []);
 
+  // ================================
+  // HANDLE INPUT
+  // ================================
   const handleChange = (e) => {
     const { name, value } = e.target;
 
+    let newValue = value;
+
+    // KHUSUS SUBDOMAIN
+    // Otomatis:
+    // SMK Taruna Bhakti
+    // menjadi:
+    // smk-taruna-bhakti
+    if (name === "subdomain") {
+      newValue = value
+        .toLowerCase()
+        .replace(/[^a-z0-9-]/g, "-")
+        .replace(/-+/g, "-")
+        .replace(/^-+|-+$/g, "");
+    }
+
     setForm((prev) => ({
       ...prev,
-      [name]: value,
+      [name]: newValue,
     }));
 
     setError("");
   };
 
+  // ================================
+  // SUBMIT
+  // ================================
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -169,6 +181,7 @@ export default function SchoolOnboardingPage() {
       return;
     }
 
+    // VALIDASI DATA WAJIB
     if (
       !form.nama.trim() ||
       !form.email.trim() ||
@@ -184,6 +197,23 @@ export default function SchoolOnboardingPage() {
       return;
     }
 
+    // VALIDASI SUBDOMAIN
+    const subdomain = form.subdomain
+      .trim()
+      .toLowerCase();
+
+    if (
+      !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(
+        subdomain
+      )
+    ) {
+      setError(
+        "Subdomain hanya boleh menggunakan huruf kecil, angka, dan tanda strip (-)."
+      );
+      return;
+    }
+
+    // VALIDASI PASSWORD
     if (
       form.kataSandi !==
       form.konfirmasiKataSandi
@@ -218,14 +248,14 @@ export default function SchoolOnboardingPage() {
     setLoading(true);
 
     try {
+      // PAYLOAD YANG DIKIRIM KE BACKEND
       const payload = {
         nama: form.nama.trim(),
         email: form.email.trim(),
-        namaSekolah: form.namaSekolah.trim(),
+        namaSekolah:
+          form.namaSekolah.trim(),
         jenjang: form.jenjang,
-        subdomain: form.subdomain
-          .trim()
-          .toLowerCase(),
+        subdomain: subdomain,
         alamatSekolah:
           form.alamatSekolah.trim(),
         teleponSekolah:
@@ -253,6 +283,7 @@ export default function SchoolOnboardingPage() {
         );
       }
 
+      // SIMPAN DATA UNTUK HALAMAN VERIFIKASI
       sessionStorage.setItem(
         "onboarding_email",
         form.email.trim()
@@ -263,6 +294,7 @@ export default function SchoolOnboardingPage() {
         paket.id
       );
 
+      // PINDAH KE VERIFIKASI
       window.location.href =
         "/onboarding/verify";
     } catch (error) {
@@ -281,6 +313,9 @@ export default function SchoolOnboardingPage() {
     }
   };
 
+  // ================================
+  // LOADING PAKET
+  // ================================
   if (loadingPaket) {
     return (
       <main className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -298,6 +333,9 @@ export default function SchoolOnboardingPage() {
     );
   }
 
+  // ================================
+  // PAKET TIDAK DITEMUKAN
+  // ================================
   if (!paket) {
     return (
       <main className="min-h-screen bg-slate-50 flex items-center justify-center px-5">
@@ -341,10 +379,12 @@ export default function SchoolOnboardingPage() {
     );
   }
 
+  // ================================
+  // HALAMAN UTAMA
+  // ================================
   return (
     <main className="min-h-screen bg-slate-50">
       {/* HEADER */}
-
       <header className="bg-white border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -372,10 +412,8 @@ export default function SchoolOnboardingPage() {
       </header>
 
       {/* CONTENT */}
-
       <div className="max-w-7xl mx-auto px-5 py-10">
         {/* PROGRESS */}
-
         <div className="max-w-3xl mx-auto mb-10">
           <div className="flex items-center justify-center">
             <div className="flex items-center">
@@ -416,7 +454,6 @@ export default function SchoolOnboardingPage() {
 
         <div className="grid lg:grid-cols-[1fr_360px] gap-8 items-start">
           {/* FORM */}
-
           <div className="bg-white border border-slate-200 shadow-sm rounded-2xl p-7">
             <div className="mb-7">
               <div className="flex items-center gap-3 mb-2">
@@ -440,6 +477,7 @@ export default function SchoolOnboardingPage() {
               </div>
             </div>
 
+            {/* ERROR */}
             {error && (
               <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
                 {error}
@@ -450,8 +488,7 @@ export default function SchoolOnboardingPage() {
               onSubmit={handleSubmit}
               className="space-y-7"
             >
-              {/* ADMIN */}
-
+              {/* ================= ADMIN ================= */}
               <section>
                 <h2 className="text-sm font-bold text-slate-900 mb-4">
                   Data Admin Sekolah
@@ -464,7 +501,9 @@ export default function SchoolOnboardingPage() {
                     value={form.nama}
                     onChange={handleChange}
                     placeholder="Nama admin"
-                    icon={<User size={16} />}
+                    icon={
+                      <User size={16} />
+                    }
                     required
                   />
 
@@ -475,14 +514,15 @@ export default function SchoolOnboardingPage() {
                     value={form.email}
                     onChange={handleChange}
                     placeholder="admin@sekolah.sch.id"
-                    icon={<Mail size={16} />}
+                    icon={
+                      <Mail size={16} />
+                    }
                     required
                   />
                 </div>
               </section>
 
-              {/* SEKOLAH */}
-
+              {/* ================= SEKOLAH ================= */}
               <section>
                 <h2 className="text-sm font-bold text-slate-900 mb-4">
                   Informasi Sekolah
@@ -502,6 +542,7 @@ export default function SchoolOnboardingPage() {
                   />
 
                   <div className="grid md:grid-cols-2 gap-5">
+                    {/* JENJANG */}
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-2">
                         Jenjang
@@ -544,22 +585,29 @@ export default function SchoolOnboardingPage() {
                       </select>
                     </div>
 
+                    {/* SUBDOMAIN */}
                     <Input
                       label="Subdomain"
                       name="subdomain"
                       value={form.subdomain}
                       onChange={handleChange}
-                      placeholder="smktarunabhakti"
-                      icon={<Globe size={16} />}
+                      placeholder="smk-taruna-bhakti"
+                      icon={
+                        <Globe size={16} />
+                      }
                       required
                     />
                   </div>
 
                   <p className="text-xs text-slate-400 -mt-3">
-                    Contoh alamat sekolah:
-                    smktarunabhakti.smartschool.id
+                    Gunakan huruf kecil, angka,
+                    dan tanda strip (-).
+                    <br />
+                    Contoh:
+                    smk-taruna-bhakti.smartschool.id
                   </p>
 
+                  {/* ALAMAT */}
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">
                       Alamat Sekolah
@@ -585,6 +633,7 @@ export default function SchoolOnboardingPage() {
                     </div>
                   </div>
 
+                  {/* TELEPON */}
                   <Input
                     label="Nomor Telepon Sekolah"
                     name="teleponSekolah"
@@ -593,23 +642,27 @@ export default function SchoolOnboardingPage() {
                     }
                     onChange={handleChange}
                     placeholder="081234567890"
-                    icon={<Phone size={16} />}
+                    icon={
+                      <Phone size={16} />
+                    }
                     required
                   />
 
+                  {/* LOGO */}
                   <Input
                     label="URL Logo Sekolah"
                     name="logo"
                     value={form.logo}
                     onChange={handleChange}
                     placeholder="https://..."
-                    icon={<Globe size={16} />}
+                    icon={
+                      <Globe size={16} />
+                    }
                   />
                 </div>
               </section>
 
-              {/* PASSWORD */}
-
+              {/* ================= PASSWORD ================= */}
               <section>
                 <h2 className="text-sm font-bold text-slate-900 mb-4">
                   Keamanan Akun
@@ -623,7 +676,9 @@ export default function SchoolOnboardingPage() {
                     value={form.kataSandi}
                     onChange={handleChange}
                     placeholder="Minimal 8 karakter"
-                    icon={<Lock size={16} />}
+                    icon={
+                      <Lock size={16} />
+                    }
                     required
                   />
 
@@ -636,7 +691,9 @@ export default function SchoolOnboardingPage() {
                     }
                     onChange={handleChange}
                     placeholder="Ulangi kata sandi"
-                    icon={<Lock size={16} />}
+                    icon={
+                      <Lock size={16} />
+                    }
                     required
                   />
                 </div>
@@ -647,8 +704,7 @@ export default function SchoolOnboardingPage() {
                 </p>
               </section>
 
-              {/* BUTTON */}
-
+              {/* ================= BUTTON ================= */}
               <div className="pt-2 flex items-center justify-between gap-4">
                 <button
                   type="button"
@@ -685,8 +741,7 @@ export default function SchoolOnboardingPage() {
             </form>
           </div>
 
-          {/* PACKAGE SUMMARY */}
-
+          {/* ================= PACKAGE SUMMARY ================= */}
           <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 lg:sticky lg:top-6">
             <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide mb-2">
               Paket yang dipilih
@@ -740,6 +795,9 @@ export default function SchoolOnboardingPage() {
   );
 }
 
+// ================================
+// INPUT COMPONENT
+// ================================
 function Input({
   label,
   icon,
@@ -765,6 +823,9 @@ function Input({
   );
 }
 
+// ================================
+// FORMAT RUPIAH
+// ================================
 function formatRupiah(value) {
   if (
     value === undefined ||

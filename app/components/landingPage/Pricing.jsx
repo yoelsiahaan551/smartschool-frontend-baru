@@ -8,6 +8,9 @@ import {
   Loader2,
   ShieldCheck,
   Zap,
+  Crown,
+  Rocket,
+  Star,
 } from "lucide-react";
 
 import { getPaket } from "../../../services/paket.service";
@@ -15,203 +18,38 @@ import { getPaket } from "../../../services/paket.service";
 export default function PricingSection() {
   const [paket, setPaket] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  /**
-   * FALLBACK 4 PAKET
-   *
-   * Digunakan apabila backend belum mengembalikan
-   * paket aktif.
-   */
-  const fallbackPaket = [
-    {
-      id: "basic",
-      nama: "Basic",
-      deskripsi:
-        "Solusi dasar untuk membantu sekolah memulai digitalisasi.",
-      harga: 299000,
-      durasi: "bulan",
-      fitur: [
-        {
-          id: "basic-1",
-          nama: "Manajemen Data Sekolah",
-        },
-        {
-          id: "basic-2",
-          nama: "Manajemen Siswa",
-        },
-        {
-          id: "basic-3",
-          nama: "Manajemen Guru",
-        },
-        {
-          id: "basic-4",
-          nama: "Dashboard Sekolah",
-        },
-      ],
-    },
-
-    {
-      id: "professional",
-      nama: "Professional",
-      deskripsi:
-        "Paket lengkap untuk pengelolaan akademik sekolah yang lebih terintegrasi.",
-      harga: 499000,
-      durasi: "bulan",
-      populer: true,
-      fitur: [
-        {
-          id: "pro-1",
-          nama: "Semua fitur Basic",
-        },
-        {
-          id: "pro-2",
-          nama: "Manajemen Akademik",
-        },
-        {
-          id: "pro-3",
-          nama: "Manajemen Kelas",
-        },
-        {
-          id: "pro-4",
-          nama: "Manajemen Mata Pelajaran",
-        },
-        {
-          id: "pro-5",
-          nama: "Laporan Akademik",
-        },
-      ],
-    },
-
-    {
-      id: "enterprise",
-      nama: "Enterprise",
-      deskripsi:
-        "Platform terintegrasi untuk sekolah dengan kebutuhan pengelolaan yang lebih luas.",
-      harga: 799000,
-      durasi: "bulan",
-      fitur: [
-        {
-          id: "enterprise-1",
-          nama: "Semua fitur Professional",
-        },
-        {
-          id: "enterprise-2",
-          nama: "Manajemen Keuangan",
-        },
-        {
-          id: "enterprise-3",
-          nama: "Manajemen Inventaris",
-        },
-        {
-          id: "enterprise-4",
-          nama: "Notifikasi Terintegrasi",
-        },
-        {
-          id: "enterprise-5",
-          nama: "Laporan Lengkap",
-        },
-        {
-          id: "enterprise-6",
-          nama: "Multi Pengguna",
-        },
-      ],
-    },
-
-    {
-      id: "ultimate",
-      nama: "Ultimate",
-      deskripsi:
-        "Solusi digital sekolah paling lengkap untuk kebutuhan institusi secara menyeluruh.",
-      harga: 1299000,
-      durasi: "bulan",
-      fitur: [
-        {
-          id: "ultimate-1",
-          nama: "Semua fitur Enterprise",
-        },
-        {
-          id: "ultimate-2",
-          nama: "Manajemen Sekolah Terintegrasi",
-        },
-        {
-          id: "ultimate-3",
-          nama: "Dashboard Analitik",
-        },
-        {
-          id: "ultimate-4",
-          nama: "Monitoring Sekolah",
-        },
-        {
-          id: "ultimate-5",
-          nama: "Laporan Eksekutif",
-        },
-        {
-          id: "ultimate-6",
-          nama: "Prioritas Dukungan",
-        },
-      ],
-    },
-  ];
+  const [error, setError] = useState("");
 
   useEffect(() => {
     async function loadPaket() {
       try {
         setLoading(true);
-
+        setError("");
         const response = await getPaket();
-
-        /**
-         * Backend kamu mengembalikan:
-         *
-         * {
-         *   success: true,
-         *   data: [...]
-         * }
-         */
-
-        if (
-          response?.success &&
-          Array.isArray(response.data) &&
-          response.data.length > 0
-        ) {
+        if (response?.success && Array.isArray(response.data)) {
           setPaket(response.data);
         } else {
-          /**
-           * Kalau backend kosong,
-           * tetap tampilkan 4 paket.
-           */
-          setPaket(fallbackPaket);
+          setPaket([]);
+          setError(response?.message || "Data paket tidak tersedia.");
         }
       } catch (error) {
         console.error("Gagal mengambil paket:", error);
-
-        /**
-         * Backend error / belum ada paket aktif
-         * → tetap tampilkan 4 paket.
-         */
-        setPaket(fallbackPaket);
+        setPaket([]);
+        setError(
+          "Gagal mengambil data paket. Pastikan backend sedang berjalan."
+        );
       } finally {
         setLoading(false);
       }
     }
-
     loadPaket();
   }, []);
 
-  /**
-   * Format harga Indonesia
-   */
   function formatRupiah(value) {
-    if (value === undefined || value === null) {
-      return "Rp0";
-    }
-
+    if (value === undefined || value === null) return "Rp0";
     const number = Number(value);
-
-    if (number === 0) {
-      return "Gratis";
-    }
-
+    if (Number.isNaN(number)) return "Rp0";
+    if (number === 0) return "Gratis";
     return new Intl.NumberFormat("id-ID", {
       style: "currency",
       currency: "IDR",
@@ -219,319 +57,270 @@ export default function PricingSection() {
     }).format(number);
   }
 
-  /**
-   * Pilih paket
-   */
   function handlePilihPaket(item) {
-    /**
-     * Simpan data paket sementara.
-     * Ini berguna supaya halaman berikutnya
-     * tetap mengetahui paket yang dipilih.
-     */
     try {
-      sessionStorage.setItem(
-        "selected_paket_id",
-        String(item.id)
-      );
-
-      sessionStorage.setItem(
-        "selected_paket",
-        JSON.stringify(item)
-      );
+      sessionStorage.setItem("selected_paket_id", String(item.id));
+      sessionStorage.setItem("selected_paket", JSON.stringify(item));
     } catch (error) {
-      console.error(
-        "Gagal menyimpan paket:",
-        error
-      );
+      console.error("Gagal menyimpan paket:", error);
     }
-
-    /**
-     * Pindah ke halaman onboarding.
-     */
     window.location.href =
-      `/onboarding/school?paketId=${encodeURIComponent(
-        item.id
-      )}`;
+      `/onboarding/school?paketId=${encodeURIComponent(item.id)}`;
   }
 
+  // Label tombol berdasarkan index
+  const buttonLabels = [
+    "Mulai Uji Coba",
+    "Konsultasi Sekarang",
+    "Hubungi Tim Sales",
+  ];
+
   return (
-    <section
-      id="pricing"
-      className="relative overflow-hidden bg-white py-24"
-    >
-      {/* BACKGROUND DECORATION */}
+    <>
+      {/* ANIMATION STYLES */}
+      <style>{`
+        @keyframes fadeUp {
+          0% { opacity: 0; transform: translateY(30px); }
+          100% { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes slideIn {
+          0% { opacity: 0; transform: translateX(-8px); }
+          100% { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes shimmer {
+          0% { background-position: -200% center; }
+          100% { background-position: 200% center; }
+        }
+        .animate-fade-up {
+          animation: fadeUp 0.6s ease forwards;
+          opacity: 0;
+        }
+        .animate-slide-in {
+          animation: slideIn 0.3s ease forwards;
+          opacity: 0;
+        }
+        .animate-shimmer {
+          background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.3) 50%, transparent 100%);
+          background-size: 200% auto;
+          animation: shimmer 2.5s linear infinite;
+        }
+        .feature-item {
+          animation: slideIn 0.3s ease forwards;
+          opacity: 0;
+        }
+        .feature-item:nth-child(1) { animation-delay: 0.05s; }
+        .feature-item:nth-child(2) { animation-delay: 0.10s; }
+        .feature-item:nth-child(3) { animation-delay: 0.15s; }
+        .feature-item:nth-child(4) { animation-delay: 0.20s; }
+        .feature-item:nth-child(5) { animation-delay: 0.25s; }
+        .feature-item:nth-child(6) { animation-delay: 0.30s; }
+        .card-hover {
+          transition: all 0.3s ease;
+        }
+        .card-hover:hover {
+          transform: translateY(-6px);
+          box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.15);
+        }
+        .popular-card {
+          transition: all 0.3s ease;
+        }
+        .popular-card:hover {
+          transform: translateY(-6px);
+          box-shadow: 0 25px 50px -12px rgba(79, 70, 229, 0.3);
+        }
+      `}</style>
 
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute left-[-120px] top-[180px] h-[320px] w-[320px] rounded-full bg-blue-100/40 blur-3xl" />
-
-        <div className="absolute right-[-120px] bottom-[100px] h-[350px] w-[350px] rounded-full bg-indigo-100/40 blur-3xl" />
-
-        <div className="absolute left-[30%] top-[40%] h-3 w-3 rounded-full bg-blue-100" />
-
-        <div className="absolute right-[20%] top-[25%] h-4 w-4 rounded-full bg-blue-100" />
-
-        <div className="absolute left-[15%] bottom-[20%] h-3 w-3 rounded-full bg-slate-100" />
-      </div>
-
-      <div className="relative z-10 mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
-        {/* HEADER */}
-
-        <div className="mx-auto max-w-3xl text-center">
-          {/* BADGE */}
-
-          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-600">
-            <Sparkles size={16} />
-
-            Pilihan Paket Digitalisasi
-          </div>
-
-          {/* TITLE */}
-
-          <h2 className="text-4xl font-extrabold leading-tight tracking-tight text-slate-900 sm:text-5xl">
-            Pilih Paket yang Tepat untuk
-            <span className="block bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-              Digitalisasi Sekolah
-            </span>
-          </h2>
-
-          {/* DESCRIPTION */}
-
-          <p className="mx-auto mt-6 max-w-2xl text-base leading-7 text-slate-500 sm:text-lg">
-            Solusi digital yang fleksibel untuk
-            membantu sekolah mengelola aktivitas
-            akademik, operasional, hingga
-            pengembangan institusi secara lebih
-            terintegrasi.
-          </p>
-        </div>
-
-        {/* TRUST */}
-
-        <div className="mt-10 flex flex-wrap items-center justify-center gap-6 text-sm text-slate-500">
-          <div className="flex items-center gap-2">
-            <ShieldCheck
-              size={18}
-              className="text-blue-600"
-            />
-
-            <span>Data lebih terintegrasi</span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Zap
-              size={18}
-              className="text-blue-600"
-            />
-
-            <span>Implementasi mudah</span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Check
-              size={18}
-              className="text-blue-600"
-            />
-
-            <span>Pilihan paket fleksibel</span>
-          </div>
-        </div>
-
-        {/* LOADING */}
-
-        {loading && (
-          <div className="mt-14 flex items-center justify-center">
-            <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-6 py-4 shadow-sm">
-              <Loader2
-                size={20}
-                className="animate-spin text-blue-600"
-              />
-
-              <span className="text-sm text-slate-500">
-                Memuat paket...
+      <section className="bg-white py-16 md:py-24">
+        <div className="mx-auto max-w-6xl px-5 sm:px-6 lg:px-8">
+          {/* HEADER */}
+          <div className="mx-auto max-w-3xl text-center animate-fade-up">
+            <h2 className="text-3xl font-bold text-slate-900 sm:text-4xl">
+              Pilih Paket yang Tepat untuk
+              <span className="block text-blue-600">
+                Digitalisasi Sekolah
               </span>
+            </h2>
+            <p className="mx-auto mt-3 max-w-2xl text-sm text-slate-500 sm:text-base">
+              Solusi digital fleksibel untuk membantu sekolah mengelola aktivitas
+              akademik, operasional, hingga pengembangan institusi secara terintegrasi.
+            </p>
+          </div>
+
+          {/* TRUST BADGES */}
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-4 text-xs text-slate-500 animate-fade-up" style={{ animationDelay: '0.1s' }}>
+            <div className="flex items-center gap-1.5">
+              <ShieldCheck size={14} className="text-blue-600" />
+              <span>Data Terintegrasi</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Zap size={14} className="text-blue-600" />
+              <span>Implementasi Mudah</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Check size={14} className="text-blue-600" />
+              <span>Paket Fleksibel</span>
             </div>
           </div>
-        )}
 
-        {/* PACKAGE */}
+          {/* LOADING */}
+          {loading && (
+            <div className="mt-12 flex items-center justify-center animate-fade-up">
+              <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-6 py-3 shadow-sm">
+                <Loader2 size={18} className="animate-spin text-blue-600" />
+                <span className="text-sm text-slate-500">Memuat paket...</span>
+              </div>
+            </div>
+          )}
 
-        {!loading && (
-          <div className="mt-14 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
-            {paket.slice(0, 4).map((item, index) => {
-              const isPopular =
-                item.populer ||
-                item.nama?.toLowerCase() ===
-                  "professional";
+          {/* ERROR / EMPTY */}
+          {!loading && error && (
+            <div className="mx-auto mt-12 max-w-xl rounded-xl border border-red-200 bg-red-50 px-6 py-4 text-center animate-fade-up">
+              <p className="text-sm font-medium text-red-600">{error}</p>
+            </div>
+          )}
+          {!loading && !error && paket.length === 0 && (
+            <div className="mx-auto mt-12 max-w-xl rounded-xl border border-slate-200 bg-slate-50 px-6 py-4 text-center animate-fade-up">
+              <p className="text-sm text-slate-500">Belum ada paket aktif yang tersedia.</p>
+            </div>
+          )}
 
-              return (
-                <div
-                  key={item.id || index}
-                  className={`relative flex h-full flex-col rounded-2xl border bg-white p-6 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl ${
-                    isPopular
-                      ? "border-blue-500 shadow-blue-100"
-                      : "border-slate-200"
-                  }`}
-                >
-                  {/* POPULAR */}
+          {/* PACKAGE GRID */}
+          {!loading && !error && paket.length > 0 && (
+            <div className="mt-12 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {paket.map((item, index) => {
+                // Paket populer: Professional / Premium
+                const isPopular =
+                  item.nama?.toLowerCase() === "professional" ||
+                  item.nama?.toLowerCase() === "premium" ||
+                  (item.nama?.toLowerCase() === "gratis" && index === 1);
 
-                  {isPopular && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                      <span className="rounded-full bg-blue-600 px-4 py-1.5 text-xs font-bold text-white shadow-md">
-                        PALING POPULER
-                      </span>
+                // Ikon
+                let Icon = Rocket;
+                let iconColor = "text-blue-600";
+                if (index === 0) { Icon = Rocket; iconColor = "text-blue-600"; }
+                if (index === 1) { Icon = Crown; iconColor = "text-white"; }
+                if (index === 2) { Icon = Star; iconColor = "text-purple-600"; }
+
+                const buttonLabel = buttonLabels[index] || "Pilih Paket";
+
+                return (
+                  <div
+                    key={item.id || index}
+                    className={`relative flex flex-col rounded-2xl p-6 ${
+                      isPopular
+                        ? "bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 text-white popular-card shadow-xl shadow-indigo-200/40"
+                        : "bg-white text-slate-900 border border-slate-200/80 card-hover shadow-sm"
+                    } animate-fade-up`}
+                    style={{ animationDelay: `${index * 0.1}s` }}
+                  >
+                    {/* BADGE REKOMENDASI */}
+                    {isPopular && (
+                      <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                        <span className="relative inline-flex items-center gap-1.5 rounded-full bg-amber-400 px-4 py-1 text-xs font-bold text-slate-900 shadow-lg shadow-amber-400/30">
+                          <Star size={13} fill="currentColor" />
+                          REKOMENDASI UTAMA
+                          <span className="absolute inset-0 rounded-full overflow-hidden animate-shimmer" />
+                        </span>
+                      </div>
+                    )}
+
+                    {/* HEADER: Nama & Ikon */}
+                    <div className="flex items-center justify-between">
+                      <h3 className={`text-lg font-bold ${isPopular ? "text-white" : "text-slate-900"}`}>
+                        {item.nama}
+                      </h3>
+                      <div className={`rounded-full p-2 ${isPopular ? "bg-white/20" : "bg-blue-50"}`}>
+                        <Icon size={18} className={iconColor} />
+                      </div>
                     </div>
-                  )}
 
-                  {/* PACKAGE NUMBER */}
-
-                  <div className="mb-5 flex items-center justify-between">
-                    <div
-                      className={`flex h-11 w-11 items-center justify-center rounded-xl text-sm font-bold ${
-                        isPopular
-                          ? "bg-blue-600 text-white"
-                          : "bg-blue-50 text-blue-600"
-                      }`}
-                    >
-                      {String(index + 1).padStart(
-                        2,
-                        "0"
+                    {/* HARGA */}
+                    <div className="mt-3">
+                      <p className={`text-3xl font-extrabold ${isPopular ? "text-white" : "text-slate-900"}`}>
+                        {formatRupiah(item.harga)}
+                      </p>
+                      {item.durasi && (
+                        <p className={`text-xs ${isPopular ? "text-white/70" : "text-slate-400"}`}>
+                          / {item.durasi}
+                        </p>
+                      )}
+                      {isPopular && item.nama?.toLowerCase() === "professional" && (
+                        <p className="mt-0.5 text-xs text-white/70">Rekomendasi Utama</p>
+                      )}
+                      {!isPopular && item.nama?.toLowerCase() === "enterprise" && (
+                        <p className="mt-0.5 text-xs text-slate-400">Custom</p>
                       )}
                     </div>
 
-                    {isPopular && (
-                      <span className="rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-600">
-                        Recommended
-                      </span>
-                    )}
-                  </div>
-
-                  {/* NAME */}
-
-                  <h3 className="text-xl font-bold text-slate-900">
-                    {item.nama}
-                  </h3>
-
-                  {/* DESCRIPTION */}
-
-                  <p className="mt-3 min-h-[72px] text-sm leading-6 text-slate-500">
-                    {item.deskripsi ||
-                      "Paket digitalisasi sekolah untuk mendukung kebutuhan sekolah."}
-                  </p>
-
-                  {/* PRICE */}
-
-                  <div className="mt-6">
-                    <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                      Mulai dari
+                    {/* DESKRIPSI */}
+                    <p className={`mt-3 text-sm leading-relaxed ${isPopular ? "text-white/90" : "text-slate-500"}`}>
+                      {item.deskripsi ||
+                        "Paket digitalisasi sekolah untuk mendukung kebutuhan sekolah."}
                     </p>
 
-                    <div className="mt-1 flex items-end gap-1">
-                      <span className="text-2xl font-extrabold text-slate-900">
-                        {formatRupiah(item.harga)}
-                      </span>
-                    </div>
+                    {/* TOMBOL */}
+                    <button
+                      type="button"
+                      onClick={() => handlePilihPaket(item)}
+                      className={`mt-5 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold transition-all duration-300 ${
+                        isPopular
+                          ? "bg-white text-blue-600 hover:bg-white/90 hover:scale-105 active:scale-95 shadow-lg shadow-white/20"
+                          : "bg-blue-600 text-white hover:bg-blue-700 hover:shadow-md active:scale-95"
+                      }`}
+                    >
+                      {buttonLabel}
+                      <ArrowRight size={16} />
+                    </button>
 
-                    <p className="mt-1 text-xs text-slate-400">
-                      / {item.durasi || "bulan"}
-                    </p>
-                  </div>
+                    {/* DIVIDER */}
+                    <div className={`my-5 h-px ${isPopular ? "bg-white/20" : "bg-slate-100"}`} />
 
-                  {/* DIVIDER */}
-
-                  <div className="my-6 h-px bg-slate-100" />
-
-                  {/* FEATURES */}
-
-                  <div className="flex-1">
-                    <p className="mb-4 text-sm font-bold text-slate-900">
-                      Fitur yang tersedia:
-                    </p>
-
-                    <div className="space-y-3">
-                      {Array.isArray(item.fitur) &&
-                      item.fitur.length > 0 ? (
-                        item.fitur.map(
-                          (fitur, fiturIndex) => (
+                    {/* FITUR */}
+                    <div className="flex-1">
+                      <p className={`text-xs font-semibold uppercase tracking-wider ${isPopular ? "text-white/80" : "text-slate-400"}`}>
+                        Fitur yang tersedia:
+                      </p>
+                      <div className="mt-3 space-y-2.5">
+                        {Array.isArray(item.fitur) && item.fitur.length > 0 ? (
+                          item.fitur.map((fitur, fiturIndex) => (
                             <div
-                              key={
-                                fitur.id ||
-                                fiturIndex
-                              }
-                              className="flex items-start gap-2.5"
+                              key={fitur.id || fiturIndex}
+                              className="feature-item flex items-start gap-2.5"
                             >
-                              <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-50">
-                                <Check
-                                  size={13}
-                                  strokeWidth={3}
-                                  className="text-blue-600"
-                                />
+                              <div className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full ${isPopular ? "bg-white/20" : "bg-blue-50"}`}>
+                                <Check size={11} strokeWidth={3} className={isPopular ? "text-white" : "text-blue-600"} />
                               </div>
-
-                              <span className="text-sm leading-5 text-slate-600">
+                              <span className={`text-sm leading-5 ${isPopular ? "text-white/90" : "text-slate-600"}`}>
                                 {fitur.nama}
                               </span>
                             </div>
-                          )
-                        )
-                      ) : (
-                        <div className="text-sm text-slate-400">
-                          Fitur tersedia sesuai
-                          paket.
-                        </div>
-                      )}
+                          ))
+                        ) : (
+                          <div className={`text-sm ${isPopular ? "text-white/60" : "text-slate-400"}`}>
+                            Belum ada fitur
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
+                );
+              })}
+            </div>
+          )}
 
-                  {/* BUTTON */}
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handlePilihPaket(item)
-                    }
-                    className={`mt-7 flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3.5 text-sm font-bold transition ${
-                      isPopular
-                        ? "bg-blue-600 text-white shadow-lg shadow-blue-200 hover:bg-blue-700"
-                        : "border border-blue-600 bg-white text-blue-600 hover:bg-blue-50"
-                    }`}
-                  >
-                    Pilih Paket
-
-                    <ArrowRight size={17} />
-                  </button>
-                </div>
-              );
-            })}
+          {/* KONSULTASI */}
+          <div className="mt-12 text-center animate-fade-up" style={{ animationDelay: '0.3s' }}>
+            <p className="text-sm text-slate-500">Masih bingung memilih paket?</p>
+            <button
+              type="button"
+              className="mt-1 inline-flex items-center gap-2 text-sm font-semibold text-blue-600 transition hover:text-blue-700 hover:underline underline-offset-2"
+            >
+              Konsultasi gratis dengan tim kami
+              <ArrowRight size={14} />
+            </button>
           </div>
-        )}
-
-        {/* CONSULTATION */}
-
-        <div className="mt-14 text-center">
-          <p className="text-sm text-slate-500">
-            Masih bingung memilih paket?
-          </p>
-
-          <button
-            type="button"
-            className="mt-2 inline-flex items-center gap-2 text-sm font-bold text-blue-600 transition hover:text-blue-700"
-          >
-            Konsultasi gratis dengan tim kami
-
-            <ArrowRight size={16} />
-          </button>
         </div>
-
-        {/* BOTTOM INFO */}
-
-        <div className="mx-auto mt-12 max-w-3xl rounded-2xl border border-slate-200 bg-slate-50 px-6 py-5 text-center">
-          <p className="text-sm leading-6 text-slate-500">
-            Semua paket dirancang untuk membantu
-            sekolah melakukan transformasi digital
-            secara bertahap dan sesuai kebutuhan.
-          </p>
-        </div>
-      </div>
-    </section>
+      </section>
+    </>
   );
 }

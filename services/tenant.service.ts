@@ -12,13 +12,16 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL;
  * /api/v1/tenant/register
  */
 export async function registerTenant(data: {
-  paket_id: string | number;
-  nama_sekolah: string;
-  npsn: string;
+  paketId: string | number;
+  nama: string;
+  namaSekolah: string;
+  jenjang: string;
+  subdomain: string;
   email: string;
-  no_telepon: string;
-  alamat: string;
-  nama_pic: string;
+  teleponSekolah: string;
+  alamatSekolah: string;
+  kataSandi: string;
+  logo?: string;
 }) {
   if (!API_URL) {
     throw new Error(

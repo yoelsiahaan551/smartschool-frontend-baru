@@ -36,12 +36,7 @@ export default function Header({
       {/* Left Section */}
       <div className="flex items-center gap-3 md:gap-5">
         {/* Breadcrumb / Page Title */}
-        <div className="hidden md:flex items-center gap-2.5">
-          <span className="text-sm text-slate-400 flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-500/60" />
-            Super Admin
-          </span>
-        </div>
+        
 
         {/* Search */}
         <div className="relative hidden lg:block">
