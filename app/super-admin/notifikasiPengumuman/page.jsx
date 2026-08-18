@@ -366,9 +366,7 @@ export default function NotifikasiPengumumanPage() {
                   <h1 className="text-xl sm:text-2xl font-semibold text-slate-800">
                     Notifikasi & Pengumuman
                   </h1>
-                  <span className="text-xs font-medium text-slate-400 bg-slate-100 px-2.5 py-0.5 rounded-full border border-slate-200">
-                    Super Admin
-                  </span>
+                 
                   {unreadCount > 0 && (
                     <span className="ml-2 px-2.5 py-0.5 rounded-full text-xs font-medium bg-rose-50 text-rose-600 border border-rose-200">
                       {unreadCount} belum dibaca
