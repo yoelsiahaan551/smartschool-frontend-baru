@@ -107,7 +107,11 @@ export default function DetailLanggananPage() {
   const sisaHari = Math.ceil((new Date(langganan.tanggalBerakhir) - new Date()) / (1000 * 60 * 60 * 24));
 
   return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden">
+    // Pola wrapper disamakan persis dengan halaman Profil/Pengumuman/Dashboard/Langganan Sekolah:
+    // min-h-screen (bukan h-screen + overflow-hidden) di wrapper luar,
+    // dan main tanpa overflow-y-auto (p-4 sm:p-6 lg:p-8) supaya sidebar mengikuti
+    // tinggi konten halaman dan konsisten saat responsive/zoom.
+    <div className="flex min-h-screen bg-slate-50">
       <Sidebar
         active={activeMenu}
         setActive={() => {}}
@@ -120,8 +124,8 @@ export default function DetailLanggananPage() {
           notifications={notifications}
           user={{ name: "Sarah", email: "sarah@smartschool.com", avatar: "SA" }}
         />
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8">
-          <div className="max-w-4xl mx-auto space-y-5 sm:space-y-6">
+        <main className="flex-1 p-4 sm:p-6 lg:p-8">
+          <div className="w-full space-y-5 sm:space-y-6">
 
             {/* Tombol Kembali */}
             <button

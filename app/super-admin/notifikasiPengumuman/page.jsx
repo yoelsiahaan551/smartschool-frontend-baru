@@ -333,21 +333,28 @@ export default function NotifikasiPengumumanPage() {
   const categories = ["Semua", "Sistem", "Keamanan", "Yayasan", "Sekolah", "Langganan", "Pengumuman", "Acara", "Kebijakan"];
 
   return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden">
-      <Sidebar
-        active={activeMenu}
-        setActive={() => {}}
-        collapsed={!sidebarOpen}
-        setCollapsed={() => setSidebarOpen(!sidebarOpen)}
+  <div className="flex min-h-screen bg-slate-50">
+    <Sidebar
+      active={activeMenu}
+      setActive={() => {}}
+      collapsed={!sidebarOpen}
+      setCollapsed={() => setSidebarOpen(!sidebarOpen)}
+    />
+
+    <div className="flex-1 flex flex-col min-w-0">
+      <Header
+        toggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+        notifications={notificationsData}
+        user={{
+          name: "Super Admin",
+          email: "admin@smartschool.com",
+          avatar: "SA",
+        }}
       />
-      <div className="flex-1 flex flex-col min-w-0">
-        <Header
-          toggleSidebar={() => setSidebarOpen(!sidebarOpen)}
-          notifications={notificationsData}
-          user={{ name: "Super Admin", email: "admin@smartschool.com", avatar: "SA" }}
-        />
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8">
-          <div className="max-w-7xl mx-auto space-y-6">
+
+      <main className="flex-1 p-4 sm:p-6 lg:p-8">
+        <div className="w-full space-y-6">
+
 
             {/* HEADER */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
