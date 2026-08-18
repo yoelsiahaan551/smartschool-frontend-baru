@@ -91,8 +91,25 @@ export default function Hero() {
       </motion.div>
 
       {/* Content */}
+      {/*
+        FIX RESPONSIVE — kenapa dulu ada ruang kosong gede di kiri:
+        Container lama pakai `max-w-7xl mx-auto` (maks 1280px, dipusatkan).
+        Begitu lebar layar > 1280px (laptop/monitor biasa udah 1440-1920px),
+        sisa lebar itu otomatis jadi margin kosong simetris kiri-kanan.
+        Karena teks di dalamnya cuma `max-w-xl` dan nempel ke kiri container,
+        hasilnya keliatan seperti "bolong" lebar banget sebelum teks mulai.
+
+        Solusinya di sini:
+        1. Ganti breakpoint max-width jadi lebih lebar (max-w-[1800px]) supaya
+           baru "berhenti melebar" di layar SANGAT lebar (ultrawide),
+           bukan di 1280px.
+        2. Padding kiri-kanan dibikin fluid/bertahap per breakpoint
+           (px-6 di HP sampai xl:px-28 di layar besar) supaya jarak teks ke
+           tepi layar terasa proporsional di semua ukuran, bukan cuma
+           andalan margin otomatis dari mx-auto.
+      */}
       <div className="relative z-10 min-h-[calc(100vh-80px)] flex items-center">
-        <div className="w-full max-w-7xl mx-auto px-6 lg:px-16">
+        <div className="w-full max-w-[1800px] mx-auto px-6 sm:px-8 md:px-12 lg:px-16 xl:px-24 2xl:px-32">
           <motion.div
             variants={containerVariants}
             initial="hidden"
@@ -111,16 +128,12 @@ export default function Hero() {
               </span>
             </motion.div>
 
-            {/* Title - Dengan Shimmer Gradasi yang bergerak jelas */}
+            {/* Title */}
             <motion.h1
               variants={itemVariants}
               className="mt-6 text-4xl md:text-5xl lg:text-6xl font-extrabold leading-[1.1] tracking-tight text-slate-900"
             >
-              Kelola Sekolah
-              <br />
-              Lebih Cerdas,
-              <br />
-              Bersama{" "}
+              Kelola Sekolah Lebih Cerdas, Bersama{" "}
               <motion.span
                 className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600"
                 animate={{

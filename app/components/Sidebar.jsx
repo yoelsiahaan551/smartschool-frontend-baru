@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Crown, PanelLeftClose, ChevronDown, X } from "lucide-react";
+import { Crown, PanelLeftClose, PanelLeftOpen, ChevronDown, X } from "lucide-react";
 
 import { guruSidebarConfig } from "./sidebar/guruSidebar";
 import { superadminSidebarConfig } from "./sidebar/superadmin";
@@ -23,6 +23,7 @@ import { yayasanSidebarConfig } from "./sidebar/yayasanSidebar";
  * Props `collapsed` / `setCollapsed` dipakai untuk DUA hal sekaligus, tergantung
  * ukuran layar:
  * - Desktop (>= 1024px): mode lama, collapsed = true -> sidebar menciut jadi ikon 72px.
+ *   Saat collapsed, muncul ikon mini di header yang berfungsi sebagai tombol expand.
  * - Mobile  (<  1024px): collapsed dipakai sebagai status buka/tutup drawer.
  *   collapsed = true  -> drawer tersembunyi total di luar layar (off-canvas).
  *   collapsed = false -> drawer muncul penuh dari kiri + overlay gelap di belakangnya.
@@ -162,6 +163,25 @@ export default function Sidebar({ active, setActive, collapsed, setCollapsed }) 
 
   return (
     <>
+      {/* FLOATING TOGGLE — muncul di luar sidebar setiap kali sidebar lagi TERTUTUP
+          (mobile: drawer off-canvas, desktop: bisa dipakai juga sebagai shortcut buka).
+          Ini yang bikin sidebar bisa dimunculkan lagi tanpa tergantung Header.jsx. */}
+      {collapsed && isMobile && (
+        <button
+          onClick={() => setCollapsed(false)}
+          className="fixed top-4 left-4 z-[60] flex items-center justify-center
+            w-11 h-11 rounded-xl
+            bg-gradient-to-b from-[#1A2332] to-[#0F1729]
+            border border-white/20 hover:border-white/40
+            text-white/80 hover:text-white
+            shadow-lg shadow-black/30
+            transition-all duration-200 hover:scale-105 active:scale-95"
+          title="Buka Sidebar"
+        >
+          <PanelLeftOpen size={20} />
+        </button>
+      )}
+
       {/* OVERLAY — hanya muncul di mobile saat drawer terbuka */}
       {isMobile && !collapsed && (
         <div
@@ -200,7 +220,9 @@ export default function Sidebar({ active, setActive, collapsed, setCollapsed }) 
             onClick={() => {
               if (!isMobile) setCollapsed(!collapsed);
             }}
-            className="flex items-center gap-3 flex-1 min-w-0"
+            className={`flex items-center gap-3 flex-1 min-w-0 ${
+              !isMobile && collapsed ? "justify-center" : "justify-start"
+            }`}
           >
             {showLabels && (
               <div className="flex flex-col leading-tight text-left">
@@ -215,6 +237,18 @@ export default function Sidebar({ active, setActive, collapsed, setCollapsed }) 
                 </div>
               </div>
             )}
+
+            {/* Ikon mini saat collapsed di desktop — sekaligus affordance tombol expand */}
+            {!isMobile && collapsed && (
+              <div
+                className="w-10 h-10 rounded-xl bg-white/10 border border-white/20
+                  flex items-center justify-center text-blue-300
+                  hover:bg-white/20 hover:border-white/40 transition-colors duration-200"
+                title="Buka Sidebar"
+              >
+                <PanelLeftOpen size={18} />
+              </div>
+            )}
           </button>
 
           {/* Desktop: tombol ciutkan sidebar jadi ikon */}
@@ -224,7 +258,7 @@ export default function Sidebar({ active, setActive, collapsed, setCollapsed }) 
               className="flex items-center justify-center w-8 h-8 rounded-lg 
                 bg-white/10 hover:bg-white/20 transition-colors duration-200
                 border border-white/20 hover:border-white/40
-                text-white/70 hover:text-white"
+                text-white/70 hover:text-white flex-shrink-0"
               title="Ciutkan Sidebar"
             >
               <PanelLeftClose size={18} />
