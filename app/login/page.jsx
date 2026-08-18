@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   GraduationCap,
@@ -13,94 +14,277 @@ import {
   Lock,
   Eye,
   EyeOff,
+  AtSign,
+  LogIn,
 } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
 
-  // ==========================================
-  // STATE
-  // ==========================================
-  const [identifier, setIdentifier] = useState("");
-  const [password, setPassword] = useState("");
-
+  // State untuk login tahap 1
+  const [identifier, setIdentifier] = useState(""); // email atau username
+  const [kataSandi, setKataSandi] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [step, setStep] = useState("login"); // "login" | "verify"
 
-  const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(true);
+  // State untuk verifikasi OTP
+  const [otpCode, setOtpCode] = useState("");
+  const [verifyLoading, setVerifyLoading] = useState(false);
+  const [emailForOtp, setEmailForOtp] = useState("");
 
-  // ==========================================
-  // HANDLE LOGIN
-  // ==========================================
   const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
 
-    if (!identifier.trim()) {
-      setError("Email atau username harus diisi.");
-      return;
-    }
-
-    if (!password) {
-      setError("Password harus diisi.");
+    if (!identifier || !kataSandi) {
+      setError("Email/Username dan password wajib diisi.");
       return;
     }
 
     setLoading(true);
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-
-      if (!apiUrl) {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL;
+      if (!API_URL) {
         throw new Error("NEXT_PUBLIC_API_URL belum dikonfigurasi.");
       }
 
-      const response = await fetch(`${apiUrl}/api/auth/login`, {
+      const response = await fetch(`${API_URL}/api/auth/login`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
-          identifier: identifier.trim(),
-          kataSandi: password,
+          identifier,
+          kataSandi,
         }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(
-          data?.message || "Login gagal. Silakan coba lagi."
-        );
+        throw new Error(data?.message || "Login gagal. Periksa email/username dan password.");
       }
 
-      sessionStorage.setItem(
-        "login_identifier",
-        identifier.trim()
-      );
+      // Simpan email untuk verifikasi OTP (dari response atau dari identifier)
+      // Asumsikan backend mengirim email, atau kita pakai identifier jika itu email
+      const email = data.email || (identifier.includes("@") ? identifier : null);
+      if (!email) {
+        // Jika backend tidak mengirim email, kita coba cari dari identifier
+        // Tapi lebih baik backend mengembalikan email
+        setEmailForOtp(identifier.includes("@") ? identifier : "");
+      } else {
+        setEmailForOtp(email);
+      }
 
-      sessionStorage.setItem(
-        "remember_me",
-        rememberMe ? "true" : "false"
-      );
-
-      router.push("/login/verify");
+      setStep("verify");
     } catch (error) {
-      console.error("Login error:", error);
-
-      setError(
-        error instanceof Error
-          ? error.message
-          : "Terjadi kesalahan saat login."
-      );
+      setError(error instanceof Error ? error.message : "Terjadi kesalahan saat login.");
     } finally {
       setLoading(false);
     }
   };
 
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
+    setError("");
+
+    if (!otpCode || otpCode.length !== 6) {
+      setError("Masukkan kode OTP 6 digit.");
+      return;
+    }
+
+    setVerifyLoading(true);
+
+    try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL;
+      const response = await fetch(`${API_URL}/api/auth/verify-login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          identifier: identifier, // atau emailForOtp
+          kodeOtp: otpCode,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data?.message || "Verifikasi OTP gagal.");
+      }
+
+      // Simpan token di localStorage atau cookie
+      localStorage.setItem("token", data.token);
+      // Redirect ke dashboard
+      router.push("/dashboard");
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Terjadi kesalahan saat verifikasi OTP.");
+    } finally {
+      setVerifyLoading(false);
+    }
+  };
+
+  // Tampilkan form verifikasi OTP
+  if (step === "verify") {
+    return (
+      <section className="relative min-h-screen overflow-hidden flex items-center justify-center">
+        {/* Background */}
+        <div className="absolute inset-0">
+          <Image
+            src="/hero/hero.png"
+            alt="Smart School"
+            fill
+            priority
+            className="object-cover"
+          />
+        </div>
+
+        <div
+          className="absolute inset-0"
+          style={{
+            background: `
+              radial-gradient(
+                ellipse at 30% 50%,
+                rgba(255, 255, 255, 0.08) 0%,
+                rgba(255, 255, 255, 0.04) 30%,
+                rgba(255, 255, 255, 0.02) 55%,
+                rgba(255, 255, 255, 0) 75%,
+                rgba(255, 255, 255, 0.03) 100%
+              )
+            `,
+          }}
+        />
+
+        <div className="relative z-10 w-full max-w-6xl mx-auto px-6 py-12">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            {/* Left content - sama seperti register */}
+            <div className="space-y-5">
+              <div className="flex items-center gap-3">
+                <div className="relative w-12 h-12 rounded-2xl bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-xl border border-white/50">
+                  <Image
+                    src="/logo/logoSS.png"
+                    alt="Smart School Logo"
+                    width={32}
+                    height={32}
+                    className="object-contain"
+                  />
+                </div>
+                <span className="font-extrabold text-2xl text-white drop-shadow-[0_3px_8px_rgba(15,23,42,0.75)]">
+                  SMART{" "}
+                  <span className="text-blue-300 drop-shadow-[0_3px_8px_rgba(37,99,235,0.65)]">
+                    SCHOOL
+                  </span>
+                </span>
+              </div>
+
+              <div className="space-y-4">
+                <h1 className="text-4xl lg:text-5xl font-extrabold leading-tight text-white drop-shadow-[0_4px_10px_rgba(15,23,42,0.8)]">
+                  Verifikasi
+                  <br />
+                  <span className="text-blue-300 drop-shadow-[0_4px_10px_rgba(37,99,235,0.7)]">
+                    Kode OTP
+                  </span>
+                </h1>
+                <p className="text-white leading-relaxed text-base max-w-md drop-shadow-[0_3px_8px_rgba(15,23,42,0.75)] font-medium">
+                  Masukkan kode 6 digit yang telah dikirim ke email Anda.
+                </p>
+              </div>
+            </div>
+
+            {/* Right - OTP Verification Card */}
+            <div className="flex justify-center lg:justify-end">
+              <div className="w-full max-w-sm">
+                <div className="bg-white rounded-2xl shadow-2xl p-6">
+                  <div className="text-center mb-6">
+                    <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-white shadow-lg shadow-blue-500/20 mb-3">
+                      <Image
+                        src="/logo/logoSS.png"
+                        alt="Smart School Logo"
+                        width={32}
+                        height={32}
+                        className="object-contain"
+                      />
+                    </div>
+                    <h2 className="text-xl font-bold text-slate-800">
+                      Verifikasi OTP
+                    </h2>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      Kode dikirim ke {emailForOtp || identifier}
+                    </p>
+                  </div>
+
+                  {error && (
+                    <div className="mb-4 rounded-xl bg-red-50 border border-red-200 px-3 py-2">
+                      <p className="text-xs text-red-600 text-center">{error}</p>
+                    </div>
+                  )}
+
+                  <form onSubmit={handleVerifyOtp} className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                        Kode OTP
+                      </label>
+                      <input
+                        type="text"
+                        value={otpCode}
+                        onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                        placeholder="Masukkan 6 digit kode"
+                        disabled={verifyLoading}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 bg-white text-black text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:cursor-not-allowed transition-all duration-200 text-center text-lg font-mono tracking-widest"
+                        maxLength={6}
+                      />
+                      <p className="text-xs text-gray-400 mt-1 text-center">
+                        Masukkan kode 6 digit yang dikirim ke email Anda
+                      </p>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={verifyLoading}
+                      className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:from-blue-300 disabled:to-indigo-300 disabled:cursor-not-allowed text-white text-sm font-semibold py-2.5 rounded-xl transition-all duration-300 shadow-lg shadow-blue-500/20 hover:shadow-xl hover:shadow-blue-500/30"
+                    >
+                      {verifyLoading ? (
+                        <>
+                          <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                          </svg>
+                          Memverifikasi...
+                        </>
+                      ) : (
+                        <>
+                          <LogIn size={16} />
+                          Verifikasi
+                        </>
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setStep("login")}
+                      disabled={verifyLoading}
+                      className="w-full text-center text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors"
+                    >
+                      ← Kembali ke Login
+                    </button>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  // Tampilkan form login
   return (
     <section className="relative min-h-screen overflow-hidden flex items-center justify-center">
-
-      {/* BACKGROUND IMAGE (Murni, tanpa efek cahaya blur di belakang teks) */}
+      {/* Background */}
       <div className="absolute inset-0">
         <Image
           src="/hero/hero.png"
@@ -111,16 +295,28 @@ export default function LoginPage() {
         />
       </div>
 
-      {/* MAIN CONTENT */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background: `
+            radial-gradient(
+              ellipse at 30% 50%,
+              rgba(255, 255, 255, 0.08) 0%,
+              rgba(255, 255, 255, 0.04) 30%,
+              rgba(255, 255, 255, 0.02) 55%,
+              rgba(255, 255, 255, 0) 75%,
+              rgba(255, 255, 255, 0.03) 100%
+            )
+          `,
+        }}
+      />
+
       <div className="relative z-10 w-full max-w-6xl mx-auto px-6 py-12">
-        <div className="grid lg:grid-cols-2 gap-16 items-center">
-
-          {/* LEFT CONTENT */}
-          <div className="space-y-6">
-
-            {/* LOGO & TEKS - WARNA BIRU DIUBAH DAN OVERLAY CAHAYA DIHAPUS */}
+        <div className="grid lg:grid-cols-2 gap-12 items-center">
+          {/* Left content */}
+          <div className="space-y-5">
             <div className="flex items-center gap-3">
-              <div className="relative w-12 h-12 rounded-2xl bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-xl border border-white/50">
+              <div className="relative w-12 h-12 rounded-2xl bg-white/90 backdrop-blur-sm flex items-center justify-content shadow-xl border border-white/50">
                 <Image
                   src="/logo/logoSS.png"
                   alt="Smart School Logo"
@@ -129,7 +325,6 @@ export default function LoginPage() {
                   className="object-contain"
                 />
               </div>
-
               <span className="font-extrabold text-2xl text-white drop-shadow-[0_3px_8px_rgba(15,23,42,0.75)]">
                 SMART{" "}
                 <span className="text-blue-300 drop-shadow-[0_3px_8px_rgba(37,99,235,0.65)]">
@@ -138,24 +333,20 @@ export default function LoginPage() {
               </span>
             </div>
 
-            {/* HEADING */}
             <div className="space-y-4">
               <h1 className="text-4xl lg:text-5xl font-extrabold leading-tight text-white drop-shadow-[0_4px_10px_rgba(15,23,42,0.8)]">
-                Selamat Datang di
+                Selamat Datang
                 <br />
                 <span className="text-blue-300 drop-shadow-[0_4px_10px_rgba(37,99,235,0.7)]">
-                  Smart School
+                  Kembali!
                 </span>
               </h1>
-
               <p className="text-white leading-relaxed text-base max-w-md drop-shadow-[0_3px_8px_rgba(15,23,42,0.75)] font-medium">
-                Kelola seluruh aktivitas sekolah dengan lebih mudah, cepat, dan
-                terintegrasi dalam satu platform.
+                Masuk ke akun Anda untuk mengelola seluruh aktivitas sekolah dengan mudah.
               </p>
             </div>
 
-            {/* FEATURES BADGE - Putih susu, tetap selaras */}
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-2">
               {[
                 { icon: GraduationCap, label: "Efisien" },
                 { icon: BarChart3, label: "Terintegrasi" },
@@ -164,194 +355,138 @@ export default function LoginPage() {
               ].map(({ icon: Icon, label }) => (
                 <div
                   key={label}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/80 backdrop-blur-sm border border-white/60 shadow-lg hover:bg-white transition-colors duration-200"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 backdrop-blur-md border border-white/10 shadow-lg"
                 >
-                  <Icon size={16} className="text-blue-600" />
-                  <span className="text-sm font-bold text-slate-800">
-                    {label}
-                  </span>
+                  <Icon size={14} className="text-blue-300" />
+                  <span className="text-xs font-semibold text-white">{label}</span>
                 </div>
               ))}
             </div>
 
-            {/* REGISTER LINK */}
-            <p className="text-sm text-white drop-shadow-[0_3px_8px_rgba(15,23,42,0.75)] font-bold">
-              Sudah punya akun?{" "}
-              <button
-                type="button"
-                onClick={() => router.push("/register")}
-                className="text-white hover:text-blue-200 transition-colors duration-200 hover:underline drop-shadow-[0_2px_6px_rgba(37,99,235,0.65)]"
+            <p className="text-sm text-white/80 drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)]">
+              Belum punya akun?{" "}
+              <Link
+                href="/register"
+                className="text-blue-300 font-semibold hover:text-white transition-colors duration-200 hover:underline drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)]"
               >
-                Masuk di sini
-              </button>
+                Daftar di sini
+              </Link>
             </p>
           </div>
 
-          {/* RIGHT — LOGIN CARD */}
+          {/* Right - Login Card */}
           <div className="flex justify-center lg:justify-end">
-            <div className="w-full max-w-md">
-              <div className="bg-white rounded-3xl shadow-2xl p-8">
-
-                {/* CARD HEADER */}
-                <div className="text-center mb-8">
-                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white shadow-xl shadow-blue-500/30 border border-blue-100 mb-4">
+            <div className="w-full max-w-sm">
+              <div className="bg-white rounded-2xl shadow-2xl p-6">
+                <div className="text-center mb-6">
+                  <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-white shadow-lg shadow-blue-500/20 mb-3">
                     <Image
                       src="/logo/logoSS.png"
                       alt="Smart School Logo"
-                      width={36}
-                      height={36}
+                      width={32}
+                      height={32}
                       className="object-contain"
                     />
                   </div>
-
-                  <h2 className="text-2xl font-bold text-slate-800">
-                    Buat Akun Baru
+                  <h2 className="text-xl font-bold text-slate-800">
+                    Masuk ke Akun
                   </h2>
-
-                  <p className="text-sm text-gray-500 mt-1">
-                    Isi data diri untuk mendaftar
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Masukkan email/username dan password
                   </p>
                 </div>
 
-                {/* ERROR MESSAGE */}
                 {error && (
-                  <div className="mb-6 rounded-2xl bg-red-50 border border-red-200 px-4 py-3">
-                    <p className="text-sm text-red-600 text-center">
-                      {error}
-                    </p>
+                  <div className="mb-4 rounded-xl bg-red-50 border border-red-200 px-3 py-2">
+                    <p className="text-xs text-red-600 text-center">{error}</p>
                   </div>
                 )}
 
-                {/* FORM */}
-                <form onSubmit={handleLogin} className="space-y-5">
-
+                <form onSubmit={handleLogin} className="space-y-4">
                   <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-2">
-                      Email / Username
+                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                      Email atau Username
                     </label>
-
                     <div className="relative">
                       <Mail
-                        size={18}
-                        className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
+                        size={16}
+                        className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
                       />
-
                       <input
                         type="text"
                         value={identifier}
-                        onChange={(e) =>
-                          setIdentifier(e.target.value)
-                        }
+                        onChange={(e) => setIdentifier(e.target.value)}
                         placeholder="Masukkan email atau username"
-                        autoComplete="username"
                         disabled={loading}
-                        className="w-full pl-12 pr-4 py-3 rounded-2xl border border-gray-200 bg-white text-black text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:cursor-not-allowed transition-all duration-200"
+                        className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-gray-200 bg-white text-black text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:cursor-not-allowed transition-all duration-200"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-2">
+                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                       Password
                     </label>
-
                     <div className="relative">
                       <Lock
-                        size={18}
-                        className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
+                        size={16}
+                        className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
                       />
-
                       <input
                         type={showPassword ? "text" : "password"}
-                        value={password}
-                        onChange={(e) =>
-                          setPassword(e.target.value)
-                        }
+                        value={kataSandi}
+                        onChange={(e) => setKataSandi(e.target.value)}
                         placeholder="Masukkan password"
-                        autoComplete="current-password"
                         disabled={loading}
-                        className="w-full pl-12 pr-12 py-3 rounded-2xl border border-gray-200 bg-white text-black text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:cursor-not-allowed transition-all duration-200"
+                        className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-gray-200 bg-white text-black text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:cursor-not-allowed transition-all duration-200"
                       />
-
                       <button
                         type="button"
-                        onClick={() =>
-                          setShowPassword(!showPassword)
-                        }
+                        onClick={() => setShowPassword(!showPassword)}
                         disabled={loading}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors duration-200"
+                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors duration-200"
                       >
-                        {showPassword ? (
-                          <EyeOff size={18} />
-                        ) : (
-                          <Eye size={18} />
-                        )}
+                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                       </button>
                     </div>
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <label className="flex items-center gap-2 cursor-pointer">
+                    <div className="flex items-center gap-2">
                       <input
                         type="checkbox"
-                        checked={rememberMe}
-                        onChange={(e) =>
-                          setRememberMe(e.target.checked)
-                        }
-                        disabled={loading}
-                        className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                        id="remember"
+                        className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
                       />
-
-                      <span className="text-sm text-slate-600">
+                      <label htmlFor="remember" className="text-xs text-slate-600">
                         Ingat saya
-                      </span>
-                    </label>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        router.push("/forgot-password")
-                      }
-                      className="text-sm text-blue-600 font-semibold hover:text-blue-700 transition-colors duration-200 hover:underline"
+                      </label>
+                    </div>
+                    <Link
+                      href="/forgot-password"
+                      className="text-xs text-blue-600 font-medium hover:text-blue-700 transition-colors"
                     >
                       Lupa password?
-                    </button>
+                    </Link>
                   </div>
 
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:from-blue-300 disabled:to-indigo-300 disabled:cursor-not-allowed text-white text-base font-semibold py-3.5 rounded-2xl transition-all duration-300 shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40"
+                    className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:from-blue-300 disabled:to-indigo-300 disabled:cursor-not-allowed text-white text-sm font-semibold py-2.5 rounded-xl transition-all duration-300 shadow-lg shadow-blue-500/20 hover:shadow-xl hover:shadow-blue-500/30"
                   >
                     {loading ? (
                       <>
-                        <svg
-                          className="animate-spin h-5 w-5"
-                          viewBox="0 0 24 24"
-                        >
-                          <circle
-                            className="opacity-25"
-                            cx="12"
-                            cy="12"
-                            r="10"
-                            stroke="currentColor"
-                            strokeWidth="4"
-                            fill="none"
-                          />
-
-                          <path
-                            className="opacity-75"
-                            fill="currentColor"
-                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                          />
+                        <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                         </svg>
-
                         Memproses...
                       </>
                     ) : (
                       <>
-                        <User size={20} />
-                        Daftar
+                        <LogIn size={16} />
+                        Masuk
                       </>
                     )}
                   </button>
@@ -360,9 +495,8 @@ export default function LoginPage() {
                     <div className="absolute inset-0 flex items-center">
                       <div className="w-full border-t border-gray-200" />
                     </div>
-
                     <div className="relative flex justify-center text-sm">
-                      <span className="px-4 bg-white text-gray-400">
+                      <span className="px-3 bg-white text-gray-400 text-xs">
                         atau
                       </span>
                     </div>
@@ -371,10 +505,10 @@ export default function LoginPage() {
                   <button
                     type="button"
                     disabled={loading}
-                    className="w-full flex items-center justify-center gap-3 border border-gray-200 bg-white hover:bg-gray-50 hover:border-gray-300 disabled:bg-gray-50 disabled:cursor-not-allowed text-slate-700 text-sm font-semibold py-3.5 rounded-2xl transition-all duration-300"
+                    className="w-full flex items-center justify-center gap-2 border border-gray-200 bg-white hover:bg-gray-50 hover:border-gray-300 disabled:bg-gray-50 disabled:cursor-not-allowed text-slate-700 text-sm font-semibold py-2.5 rounded-xl transition-all duration-300"
                   >
                     <GoogleIcon />
-                    Daftar dengan Google
+                    Masuk dengan Google
                   </button>
                 </form>
               </div>
@@ -391,27 +525,19 @@ export default function LoginPage() {
 // ==========================================
 function GoogleIcon() {
   return (
-    <svg
-      width="20"
-      height="20"
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-    >
+    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
       <path
         fill="#4285F4"
         d="M21.35 12.27c0-.79-.07-1.55-.2-2.27H12v4.3h5.24a4.48 4.48 0 0 1-1.94 2.94v2.45h3.14c1.84-1.69 2.91-4.18 2.91-7.42Z"
       />
-
       <path
         fill="#34A853"
         d="M12 21.75c2.63 0 4.84-.87 6.45-2.36l-3.14-2.45c-.87.58-1.98.92-3.31.92-2.54 0-4.69-1.72-5.46-4.03H3.3v2.53A9.75 9.75 0 0 0 12 21.75Z"
       />
-
       <path
         fill="#FBBC05"
         d="M6.54 13.83a5.87 5.87 0 0 1 0-3.66V7.64H3.3a9.76 9.76 0 0 0 0 8.72l3.24-2.53Z"
       />
-
       <path
         fill="#EA4335"
         d="M12 6.14c1.43 0 2.71.49 3.72 1.45l2.79-2.79C16.84 3.2 14.63 2.25 12 2.25A9.75 9.75 0 0 0 3.3 7.64l3.24 2.53C7.31 7.86 9.46 6.14 12 6.14Z"

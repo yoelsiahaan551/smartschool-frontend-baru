@@ -144,23 +144,6 @@ export default function Header({
           )}
         </div>
 
-        {/* ===== TOMBOL LOGOUT DI NAVBAR (BARU) ===== */}
-        <button
-          onClick={handleLogout}
-          className="hidden md:flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-red-600 hover:bg-red-50 hover:text-red-700 transition-all duration-200 border border-transparent hover:border-red-200 group"
-        >
-          <LogOut size={17} className="text-red-400 group-hover:text-red-500" />
-          <span>Logout</span>
-        </button>
-        {/* Versi mobile (hanya ikon) */}
-        <button
-          onClick={handleLogout}
-          className="md:hidden p-2 rounded-xl hover:bg-red-50 text-red-400 hover:text-red-500 transition-all duration-200"
-          title="Logout"
-        >
-          <LogOut size={19} />
-        </button>
-
         {/* Profile Dropdown */}
         <div className="relative">
           <button

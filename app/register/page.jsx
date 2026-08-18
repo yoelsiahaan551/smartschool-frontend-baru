@@ -181,7 +181,7 @@ export default function RegisterPage() {
             </div>
 
             {/* FEATURES */}
-             <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-2">
               {[
                 { icon: GraduationCap, label: "Efisien" },
                 { icon: BarChart3, label: "Terintegrasi" },
@@ -190,10 +190,11 @@ export default function RegisterPage() {
               ].map(({ icon: Icon, label }) => (
                 <div
                   key={label}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/80 backdrop-blur-sm border border-white/60 shadow-lg hover:bg-white transition-colors duration-200"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 backdrop-blur-md border border-white/10 shadow-lg"
                 >
-                  <Icon size={16} className="text-blue-600" />
-                  <span className="text-sm font-bold text-slate-800">
+                  <Icon size={14} className="text-blue-300" />
+
+                  <span className="text-xs font-semibold text-white">
                     {label}
                   </span>
                 </div>
@@ -201,15 +202,14 @@ export default function RegisterPage() {
             </div>
 
             {/* LOGIN LINK */}
-            <p className="text-sm text-white drop-shadow-[0_3px_8px_rgba(15,23,42,0.75)] font-bold">
+            <p className="text-sm text-white/80 drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)]">
               Sudah punya akun?{" "}
-              <button
-                type="button"
-                onClick={() => router.push("/register")}
-                className="text-white hover:text-blue-200 transition-colors duration-200 hover:underline drop-shadow-[0_2px_6px_rgba(37,99,235,0.65)]"
+              <Link
+                href="/login"
+                className="text-blue-300 font-semibold hover:text-white transition-colors duration-200 hover:underline drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)]"
               >
                 Masuk di sini
-              </button>
+              </Link>
             </p>
           </div>
 
