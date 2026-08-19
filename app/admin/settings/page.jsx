@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Header from "../../../components/Header";
-import Sidebar from "../../../components/Sidebar";
+import Header from "../../components/Header";
+import Sidebar from "../../components/Sidebar";
 import { Settings, RefreshCw, Save, Globe, Shield, Bell, Users, School, Calendar, FileText, CheckCircle } from "lucide-react";
 
 export default function AdminPengaturanPage() {
@@ -19,7 +19,13 @@ export default function AdminPengaturanPage() {
 
   return (
     <div className="flex h-screen w-full bg-slate-50 overflow-hidden">
-      <Sidebar active="pengaturan" setActive={() => {}} collapsed={isCollapsed} setCollapsed={setIsCollapsed} />
+      <Sidebar
+        active="pengaturan"
+        setActive={() => {}}
+        collapsed={isCollapsed}
+        setCollapsed={setIsCollapsed}
+        role="admin"
+      />
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         <Header toggleSidebar={toggleSidebar} notifications={[]} user={{ name: "Admin Sekolah", email: "admin@smartschool.com", avatar: "AD" }} />
         <main className="flex-1 overflow-y-auto">

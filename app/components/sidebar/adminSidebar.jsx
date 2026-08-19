@@ -1,19 +1,12 @@
 import {
   LayoutDashboard,
-  School,
   Users,
+  UserCheck,      // for Guru & Mapel
   GraduationCap,
-  BookOpen,
-  Calendar,
-  ClipboardCheck,
-  FileText,
-  BarChart3,
+  CalendarDays,   // for Tahun Ajaran
+  BookOpen,       // for Akademik
+  ClipboardCheck, // for Absensi
   Settings,
-  Bell,
-  User,
-  LogOut,
-  CalendarDays, // for Tahun Ajaran
-  UserCheck,    // for Guru & Mapel
 } from "lucide-react";
 
 export const adminSidebarConfig = {
@@ -28,32 +21,24 @@ export const adminSidebarConfig = {
       key: "dashboard",
       icon: LayoutDashboard,
       label: "Dashboard",
-      path: "/admin",
+      path: "/admin/dashboard",
     },
 
     // DATA MASTER
     { type: "header", label: "DATA MASTER" },
     {
       type: "item",
-      key: "sekolah",
-      icon: School,
-      label: "Sekolah",
-      path: "/admin/sekolah",
-    },
-    {
-      type: "item",
       key: "guru",
       icon: Users,
-      label: "Guru & Mapel",
+      label: "Guru",
       path: "/admin/guru",
     },
-   
     {
       type: "item",
-      key: "siswa",
-      icon: Users,
-      label: "Siswa",
-      path: "/admin/siswa",
+      key: "guruMapel",
+      icon: UserCheck,
+      label: "Guru & Mapel",
+      path: "/admin/guru-mapel",
     },
     {
       type: "item",
@@ -74,10 +59,10 @@ export const adminSidebarConfig = {
     { type: "header", label: "AKADEMIK" },
     {
       type: "item",
-      key: "jadwal",
-      icon: Calendar,
-      label: "Jadwal Pelajaran",
-      path: "/admin/jadwal",
+      key: "akademik",
+      icon: BookOpen,
+      label: "Akademik",
+      path: "/admin/akademik",
     },
     {
       type: "item",
@@ -86,39 +71,15 @@ export const adminSidebarConfig = {
       label: "Absensi",
       path: "/admin/absensi",
     },
-    {
-      type: "item",
-      key: "rapor",
-      icon: FileText,
-      label: "Rapor",
-      path: "/admin/rapor",
-    },
-
-    // LAPORAN
-    { type: "header", label: "LAPORAN" },
-    {
-      type: "item",
-      key: "laporan",
-      icon: BarChart3,
-      label: "Laporan & Statistik",
-      path: "/admin/laporan",
-    },
 
     // SISTEM
     { type: "header", label: "SISTEM" },
     {
       type: "item",
-      key: "pengaturan",
+      key: "settings",
       icon: Settings,
       label: "Pengaturan",
-      path: "/admin/pengaturan",
-    },
-    {
-      type: "item",
-      key: "notifikasi",
-      icon: Bell,
-      label: "Notifikasi",
-      path: "/admin/notifikasi",
+      path: "/admin/settings",
     },
   ],
 };

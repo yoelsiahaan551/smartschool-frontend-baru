@@ -7,13 +7,24 @@ import { Crown, PanelLeftClose, PanelLeftOpen, ChevronDown, X } from "lucide-rea
 import { guruSidebarConfig } from "./sidebar/guruSidebar";
 import { superadminSidebarConfig } from "./sidebar/superadmin";
 import { yayasanSidebarConfig } from "./sidebar/yayasanSidebar";
+import { adminSidebarConfig } from "./sidebar/adminSidebar"; // sesuaikan path kalau beda
 
 /**
  * Sidebar.jsx = JEMBATAN.
  * Komponen ini TIDAK menyimpan menu apapun secara langsung — dia cuma:
- * 1. Menentukan role aktif dari pathname (resolveRole)
- * 2. Mengambil config menu yang sesuai (guruSidebarConfig / superadminSidebarConfig / yayasanSidebarConfig)
+ * 1. Menentukan role aktif — LEWAT PROP `role` (disarankan) atau, kalau tidak
+ *    dikirim, fallback menebak dari pathname (resolveRole).
+ * 2. Mengambil config menu yang sesuai (guruSidebarConfig / superadminSidebarConfig / yayasanSidebarConfig / adminSidebarConfig)
  * 3. Merender UI sidebar generik berdasarkan config itu
+ *
+ * PENTING soal HYDRATION:
+ * Menebak role dari `usePathname()` bisa menghasilkan nilai berbeda antara
+ * render server (SSR) dan client kalau ada middleware/rewrite yang mengubah
+ * pathname yang "dilihat" server. Ini menyebabkan hydration mismatch.
+ * Supaya aman, kirim prop `role` secara eksplisit dari page/layout yang
+ * memanggil <Sidebar />, contoh: <Sidebar role="admin" ... />
+ * Kalau prop `role` tidak dikirim, komponen ini fallback ke resolveRole(pathname)
+ * seperti sebelumnya (perilaku lama, tetap didukung untuk kompatibilitas).
  *
  * Kalau mau nambah role baru: bikin file config baru di ./sidebar/<role>.jsx
  * dengan bentuk yang sama (basePath, brandName, initials, email, menuSections),
@@ -35,20 +46,24 @@ const configByRole = {
   guru: guruSidebarConfig,
   "super-admin": superadminSidebarConfig,
   yayasan: yayasanSidebarConfig,
+  admin: adminSidebarConfig,
 };
 
 function resolveRole(pathname) {
   if (pathname?.startsWith("/guru")) return "guru";
   if (pathname?.startsWith("/yayasan")) return "yayasan";
   if (pathname?.startsWith("/super-admin")) return "super-admin";
+  if (pathname?.startsWith("/admin")) return "admin";
   return "super-admin"; // fallback
 }
 
-export default function Sidebar({ active, setActive, collapsed, setCollapsed }) {
+export default function Sidebar({ active, setActive, collapsed, setCollapsed, role: roleProp }) {
   const router = useRouter();
   const pathname = usePathname();
 
-  const role = resolveRole(pathname);
+  // Prioritas: role dikirim eksplisit lewat prop (deterministik, aman untuk SSR).
+  // Kalau tidak dikirim, baru fallback menebak dari pathname (perilaku lama).
+  const role = roleProp ?? resolveRole(pathname);
   const config = configByRole[role];
   const menuSections = config.menuSections;
 
