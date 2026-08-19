@@ -8,63 +8,97 @@ import { guruSidebarConfig } from "./sidebar/guruSidebar";
 import { superadminSidebarConfig } from "./sidebar/superadmin";
 import { yayasanSidebarConfig } from "./sidebar/yayasanSidebar";
 import { adminSidebarConfig } from "./sidebar/adminSidebar"; // sesuaikan path kalau beda
+import { cmsSidebarConfig } from "./sidebar/cmsSidebar";
 
 /**
  * Sidebar.jsx = JEMBATAN.
  * Komponen ini TIDAK menyimpan menu apapun secara langsung — dia cuma:
- * 1. Menentukan role aktif — LEWAT PROP `role` (disarankan) atau, kalau tidak
- *    dikirim, fallback menebak dari pathname (resolveRole).
- * 2. Mengambil config menu yang sesuai (guruSidebarConfig / superadminSidebarConfig / yayasanSidebarConfig / adminSidebarConfig)
+ * 1. Menentukan role aktif — WAJIB lewat prop `role` (lihat catatan di bawah).
+ * 2. Mengambil config menu yang sesuai (guruSidebarConfig / superadminSidebarConfig / yayasanSidebarConfig / adminSidebarConfig / cmsSidebarConfig)
  * 3. Merender UI sidebar generik berdasarkan config itu
  *
- * PENTING soal HYDRATION:
- * Menebak role dari `usePathname()` bisa menghasilkan nilai berbeda antara
- * render server (SSR) dan client kalau ada middleware/rewrite yang mengubah
- * pathname yang "dilihat" server. Ini menyebabkan hydration mismatch.
- * Supaya aman, kirim prop `role` secara eksplisit dari page/layout yang
- * memanggil <Sidebar />, contoh: <Sidebar role="admin" ... />
- * Kalau prop `role` tidak dikirim, komponen ini fallback ke resolveRole(pathname)
- * seperti sebelumnya (perilaku lama, tetap didukung untuk kompatibilitas).
+ * =========================================================================
+ * PENTING SOAL HYDRATION (FIX FINAL):
+ * =========================================================================
+ * SEBELUMNYA, kalau prop `role` tidak dikirim, komponen ini menebak role
+ * dari `usePathname()` lewat `resolveRole(pathname)`. Ini BERBAHAYA karena
+ * kalau ada kondisi di mana `pathname` belum tersedia / berbeda saat first
+ * render di server vs saat hydrate di client (middleware, rewrite, dsb),
+ * server bisa render role A sedangkan client render role B -> hasilnya teks
+ * (brandName, initials, email, dst) beda -> Hydration mismatch persis
+ * seperti yang kejadian di /cmsAdmin (server: "Super Admin", client:
+ * "CMS Admin").
+ *
+ * FIX: sekarang `role` WAJIB dikirim eksplisit dari page/layout yang
+ * memanggil <Sidebar />, contoh:
+ *
+ *     <Sidebar role="cms" active="dashboard" ... />
+ *
+ * `resolveRole(pathname)` TETAP ada tapi HANYA sebagai fallback darurat
+ * (misal ada page lama yang lupa dikasih prop role) — dan dev akan diberi
+ * warning di console supaya ketauan & langsung dibenerin, bukan dibiarkan
+ * silent. JANGAN mengandalkan fallback ini di production.
  *
  * Kalau mau nambah role baru: bikin file config baru di ./sidebar/<role>.jsx
  * dengan bentuk yang sama (basePath, brandName, initials, email, menuSections),
  * lalu daftarkan di configByRole di bawah.
  *
+ * PENTING SOAL ACTIVE STATE:
+ * Menu yang sedang aktif (di-highlight) ditentukan MURNI dari `pathname`
+ * (URL saat ini), bukan dari prop `active` yang dikirim tiap halaman.
+ * Prop `active` / `setActive` tetap dipertahankan di signature komponen
+ * supaya semua page.jsx yang sudah memanggil <Sidebar active=... /> tidak
+ * perlu diubah satu-satu, tapi nilainya tidak dipakai untuk logika highlight.
+ *
  * RESPONSIVE:
- * Props `collapsed` / `setCollapsed` dipakai untuk DUA hal sekaligus, tergantung
- * ukuran layar:
- * - Desktop (>= 1024px): mode lama, collapsed = true -> sidebar menciut jadi ikon 72px.
- *   Saat collapsed, muncul ikon mini di header yang berfungsi sebagai tombol expand.
+ * Props `collapsed` / `setCollapsed` dipakai untuk DUA hal sekaligus:
+ * - Desktop (>= 1024px): collapsed = true -> sidebar menciut jadi ikon 72px.
  * - Mobile  (<  1024px): collapsed dipakai sebagai status buka/tutup drawer.
- *   collapsed = true  -> drawer tersembunyi total di luar layar (off-canvas).
- *   collapsed = false -> drawer muncul penuh dari kiri + overlay gelap di belakangnya.
- * Jadi tombol hamburger yang sudah ada di Header (lewat prop toggleSidebar di
- * tiap halaman) otomatis berfungsi ganda tanpa perlu ubah Header.jsx atau
- * halaman manapun.
  */
 const configByRole = {
   guru: guruSidebarConfig,
   "super-admin": superadminSidebarConfig,
   yayasan: yayasanSidebarConfig,
   admin: adminSidebarConfig,
+  cms: cmsSidebarConfig,
 };
 
+const DEFAULT_ROLE = "super-admin";
+
+// Fallback darurat SAJA — jangan diandalkan sebagai sumber kebenaran utama.
 function resolveRole(pathname) {
   if (pathname?.startsWith("/guru")) return "guru";
   if (pathname?.startsWith("/yayasan")) return "yayasan";
   if (pathname?.startsWith("/super-admin")) return "super-admin";
+  if (pathname?.startsWith("/cmsAdmin")) return "cms";
   if (pathname?.startsWith("/admin")) return "admin";
-  return "super-admin"; // fallback
+  return DEFAULT_ROLE;
 }
 
 export default function Sidebar({ active, setActive, collapsed, setCollapsed, role: roleProp }) {
   const router = useRouter();
   const pathname = usePathname();
 
-  // Prioritas: role dikirim eksplisit lewat prop (deterministik, aman untuk SSR).
-  // Kalau tidak dikirim, baru fallback menebak dari pathname (perilaku lama).
-  const role = roleProp ?? resolveRole(pathname);
-  const config = configByRole[role];
+  // Role WAJIB dikirim lewat prop supaya deterministik antara server & client.
+  // Fallback ke resolveRole(pathname) hanya untuk kompatibilitas mundur —
+  // dan kita warn di console (dev only) supaya kelihatan page mana yang
+  // masih belum dikasih prop role.
+  let role = roleProp;
+  if (!role) {
+    role = resolveRole(pathname);
+    if (process.env.NODE_ENV !== "production") {
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[Sidebar] Prop "role" tidak dikirim untuk pathname "${pathname}". ` +
+          `Fallback menebak dari pathname bisa menyebabkan hydration mismatch. ` +
+          `Tambahkan prop role secara eksplisit, contoh: <Sidebar role="${role}" ... />`
+      );
+    }
+  }
+
+  // Guard tambahan: kalau role nggak ada di configByRole (typo, role baru
+  // belum didaftarkan, dst), jangan crash — fallback ke DEFAULT_ROLE.
+  const config = configByRole[role] ?? configByRole[DEFAULT_ROLE];
   const menuSections = config.menuSections;
 
   // ===== RESPONSIVE: deteksi mobile via matchMedia =====
@@ -136,7 +170,7 @@ export default function Sidebar({ active, setActive, collapsed, setCollapsed, ro
   // - Klik di chevron kapan saja -> toggle buka/tutup submenu
   const handleMenuClick = (item) => {
     const alreadyOnThisPage = pathname === item.path;
-    setActive(item.key);
+    setActive?.(item.key);
 
     if (item.children && alreadyOnThisPage) {
       toggleSubmenu(item.key);
@@ -149,7 +183,7 @@ export default function Sidebar({ active, setActive, collapsed, setCollapsed, ro
   };
 
   const handleSubItemClick = (parentKey, child) => {
-    setActive(child.key);
+    setActive?.(child.key);
     router.push(child.path);
     closeMobileDrawer();
   };
@@ -332,8 +366,12 @@ export default function Sidebar({ active, setActive, collapsed, setCollapsed, ro
             }
 
             const hasChildren = !!item.children;
-            const isChildActive = hasChildren && item.children.some((c) => pathname?.startsWith(c.path));
-            const isActive = active === item.key || pathname === item.path || isChildActive;
+            // Highlight murni berdasarkan pathname (URL saat ini) — bukan prop
+            // `active` yang diketik manual per-halaman. Exact match, BUKAN
+            // startsWith, supaya "/admin/guru" tidak ikut ke-highlight cuma
+            // karena "/admin/guru-mapel" kebetulan diawali kata yang sama.
+            const isChildActive = hasChildren && item.children.some((c) => pathname === c.path);
+            const isActive = pathname === item.path || isChildActive;
             const isOpen = !!openMenus[item.key];
             const collapsedIconMode = !isMobile && collapsed;
 
@@ -423,7 +461,9 @@ export default function Sidebar({ active, setActive, collapsed, setCollapsed, ro
                   >
                     <div className="ml-4 pl-3 border-l border-white/10 space-y-0.5 py-1">
                       {item.children.map((child) => {
-                        const isChildItemActive = active === child.key || pathname === child.path;
+                        // Sama seperti di atas: exact match ke pathname, bukan
+                        // pakai prop `active` per-halaman.
+                        const isChildItemActive = pathname === child.path;
                         return (
                           <button
                             key={child.key}

@@ -1,5 +1,3 @@
-// app/components/sidebar/cmsSidebar.jsx
-
 import {
   LayoutDashboard,
   FileText,

@@ -5,8 +5,16 @@ import {
   GraduationCap,
   CalendarDays,   // for Tahun Ajaran
   BookOpen,       // for Akademik
-  ClipboardCheck, // for Absensi
+  UploadCloud,    // for Impor Siswa
+  Boxes,          // for Sarpras
+  Package,        // for Aset
+  Warehouse,      // for Gudang
   Settings,
+  ClipboardList,  // for Monitoring Siswa
+  NotebookPen,    // for Nilai
+  Award,          // for Prestasi
+  FileSpreadsheet,// for Rapor
+  Smile,          // for Sikap & Perilaku
 } from "lucide-react";
 
 export const adminSidebarConfig = {
@@ -30,7 +38,7 @@ export const adminSidebarConfig = {
       type: "item",
       key: "guru",
       icon: Users,
-      label: "Guru",
+      label: "Data Guru",
       path: "/admin/guru",
     },
     {
@@ -54,6 +62,13 @@ export const adminSidebarConfig = {
       label: "Tahun Ajaran",
       path: "/admin/tahun-ajaran",
     },
+    {
+      type: "item",
+      key: "imporSiswa",
+      icon: UploadCloud,
+      label: "Impor Siswa",
+      path: "/admin/impor-siswa",
+    },
 
     // AKADEMIK
     { type: "header", label: "AKADEMIK" },
@@ -62,14 +77,73 @@ export const adminSidebarConfig = {
       key: "akademik",
       icon: BookOpen,
       label: "Akademik",
+      // Punya path sendiri -> klik pertama langsung membuka halaman ringkasan
+      // Akademik. Klik lagi saat sudah di halaman ini akan toggle submenu
+      // (Sidebar.jsx sudah menangani ini otomatis lewat handleMenuClick).
       path: "/admin/akademik",
+      // Children ini disesuaikan PERSIS dengan folder yang ada di
+      // app/admin/akademik/*: monitoringSiswa, nilai, prestasi, rapor,
+      // sikapPerilaku. Kalau nanti ada folder baru, tambahin entri baru
+      // di sini dengan bentuk yang sama.
+      children: [
+        {
+          key: "akademikMonitoringSiswa",
+          icon: ClipboardList,
+          label: "Monitoring Siswa",
+          path: "/admin/akademik/monitoringSiswa",
+        },
+        {
+          key: "akademikNilai",
+          icon: NotebookPen,
+          label: "Nilai",
+          path: "/admin/akademik/nilai",
+        },
+        {
+          key: "akademikPrestasi",
+          icon: Award,
+          label: "Prestasi",
+          path: "/admin/akademik/prestasi",
+        },
+        {
+          key: "akademikRapor",
+          icon: FileSpreadsheet,
+          label: "Rapor",
+          path: "/admin/akademik/rapor",
+        },
+        {
+          key: "akademikSikapPerilaku",
+          icon: Smile,
+          label: "Sikap & Perilaku",
+          path: "/admin/akademik/sikapPerilaku",
+        },
+      ],
     },
+
+    // SARANA & PRASARANA
+    { type: "header", label: "SARANA & PRASARANA" },
     {
       type: "item",
-      key: "absensi",
-      icon: ClipboardCheck,
-      label: "Absensi",
-      path: "/admin/absensi",
+      key: "sarpras",
+      icon: Boxes,
+      label: "Sarpras",
+      // Punya path sendiri -> klik pertama langsung membuka halaman ringkasan
+      // Sarpras. Klik lagi saat sudah di halaman ini akan toggle submenu
+      // (Sidebar.jsx sudah menangani ini otomatis lewat handleMenuClick).
+      path: "/admin/sarpras",
+      children: [
+        {
+          key: "sarprasAset",
+          icon: Package,
+          label: "Aset",
+          path: "/admin/sarpras/aset",
+        },
+        {
+          key: "sarprasGudang",
+          icon: Warehouse,
+          label: "Gudang",
+          path: "/admin/sarpras/gudang",
+        },
+      ],
     },
 
     // SISTEM
