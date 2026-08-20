@@ -15,7 +15,7 @@ export default function CreatePagePage() {
   const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <div className="flex min-h-screen bg-gradient-to-br from-gray-50 to-gray-100/70">
+    <div className="flex min-h-screen bg-white">
       <Sidebar
         active={active}
         setActive={setActive}

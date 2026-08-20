@@ -1,5 +1,5 @@
 import ArticleForm from '../../../../components/cms/ArticleForm';
-import { dummyArticles } from '@/lib/dummyData';
+import { dummyArticles } from '../../../../../lib/dummyData';
 import { notFound } from 'next/navigation';
 
 export default function EditArticlePage({ params }) {
