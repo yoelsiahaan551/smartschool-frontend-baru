@@ -11,6 +11,7 @@ import {
   FileCheck2,
   Package,
   Settings,
+  CalendarDays,
 } from "lucide-react";
 
 /**
@@ -34,6 +35,7 @@ export const guruSidebarConfig = {
       label: "Jadwal",
       path: "/guru/jadwal",
       children: [
+        { key: "kalender", icon: CalendarDays, label: "kalender", path: "/guru/jadwal/kalender" },
         { key: "presensi", icon: CheckSquare, label: "Presensi", path: "/guru/jadwal/presensi" },
         { key: "izin", icon: FileText, label: "Izin", path: "/guru/jadwal/izin" },
       ],
