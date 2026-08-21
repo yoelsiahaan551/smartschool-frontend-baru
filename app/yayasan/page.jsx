@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "../components/Sidebar";
 import Header from "../components/Header";
+import { apiFetch } from "../../lib/api"; // sesuaikan path kalau beda
 import {
   LayoutDashboard,
   Building2,
@@ -21,15 +22,7 @@ import {
   Bell,
 } from "lucide-react";
 
-// ===== DUMMY DATA =====
-// Catatan: ganti dengan data asli dari API/DB begitu tersedia.
-const kpiStrip = [
-  { id: "sekolah", label: "Unit Sekolah", value: "6", icon: Building2, color: "blue" },
-  { id: "siswa", label: "Total Siswa", value: "4.312", icon: UserSquare2, color: "purple" },
-  { id: "guru", label: "Total Guru", value: "237", icon: Users, color: "amber" },
-  { id: "kehadiran", label: "Rata Kehadiran", value: "96.0%", icon: ClipboardCheck, color: "emerald" },
-];
-
+// ===== DUMMY DATA (bagian yang belum ada endpoint-nya) =====
 const quickMenu = [
   {
     id: "sekolah",
@@ -161,6 +154,57 @@ export default function YayasanDashboardPage() {
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
+  const [summary, setSummary] = useState(null);
+  const [loadingSummary, setLoadingSummary] = useState(true);
+  const [summaryError, setSummaryError] = useState(null);
+
+  useEffect(() => {
+    async function fetchSummary() {
+      try {
+        setLoadingSummary(true);
+        const res = await apiFetch("/yayasan/summary");
+        if (res) setSummary(res.data);
+      } catch (err) {
+        setSummaryError(err.message);
+      } finally {
+        setLoadingSummary(false);
+      }
+    }
+    fetchSummary();
+  }, []);
+
+  // Mapping data API -> struktur kpiStrip yang dipakai UI
+  const kpiStrip = [
+    {
+      id: "sekolah",
+      label: "Unit Sekolah",
+      value: summary?.totalSekolah ?? "-",
+      icon: Building2,
+      color: "blue",
+    },
+    {
+      id: "siswaGuru",
+      label: "Total Pengguna Aktif",
+      value: summary?.totalPenggunaAktif ?? "-",
+      icon: UserSquare2,
+      color: "purple",
+    },
+    {
+      id: "aktif",
+      label: "Sekolah Aktif",
+      value: summary?.sekolahAktif ?? "-",
+      icon: Users,
+      color: "emerald",
+    },
+    {
+      id: "ujiCoba",
+      label: "Sekolah Uji Coba",
+      value: summary?.sekolahUjiCoba ?? "-",
+      icon: ClipboardCheck,
+      color: "amber",
+    },
+  ];
+
   const notifications = [
     { id: 1, title: "Pengumuman Libur Semester", desc: "Dikirim 2 jam lalu", read: false },
     { id: 2, title: "Deadline Input Nilai", desc: "Dikirim 5 jam lalu", read: false },
@@ -169,22 +213,22 @@ export default function YayasanDashboardPage() {
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
       <Sidebar
-        active="dashboard"
-        setActive={() => {}}
-        collapsed={!sidebarOpen}
-        setCollapsed={() => setSidebarOpen(!sidebarOpen)}
-      />
+  role="yayasan"
+  active="dashboard"
+  setActive={() => {}}
+  collapsed={!sidebarOpen}
+  setCollapsed={() => setSidebarOpen(!sidebarOpen)}
+/>
       <div className="flex-1 flex flex-col min-w-0">
         <Header
           toggleSidebar={() => setSidebarOpen(!sidebarOpen)}
           notifications={notifications}
           user={{ name: "Admin Yayasan", email: "admin@smartschool.com", avatar: "Y" }}
         />
-        {/* min-h-screen + overflow-y-auto biar konsisten sama pola halaman Nilai */}
         <main className="flex-1 overflow-y-auto min-h-screen p-4 sm:p-6 lg:p-8">
           <div className="w-full space-y-6">
 
-            {/* PAGE HEADER — wrap ke bawah di layar sempit / zoom, sama kayak pola Nilai */}
+            {/* PAGE HEADER */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div className="min-w-0">
                 <div className="flex items-center gap-2.5">
@@ -202,7 +246,14 @@ export default function YayasanDashboardPage() {
               </div>
             </div>
 
-            {/* KPI STRIP — grid reflow otomatis, tiap kartu punya min-w-0 biar teks gak dorong layout */}
+            {/* Pesan error kalau summary gagal di-fetch */}
+            {summaryError && (
+              <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-xl p-3">
+                Gagal memuat metrik dashboard: {summaryError}
+              </div>
+            )}
+
+            {/* KPI STRIP */}
             <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm divide-y sm:divide-y-0 sm:divide-x divide-slate-100 grid grid-cols-2 sm:grid-cols-4">
               {kpiStrip.map((kpi) => {
                 const Icon = kpi.icon;
@@ -213,7 +264,13 @@ export default function YayasanDashboardPage() {
                       <Icon size={18} />
                     </div>
                     <div className="min-w-0">
-                      <p className="text-base sm:text-lg font-semibold text-slate-800 leading-tight truncate">{kpi.value}</p>
+                      {loadingSummary ? (
+                        <div className="h-5 w-10 bg-slate-100 rounded animate-pulse" />
+                      ) : (
+                        <p className="text-base sm:text-lg font-semibold text-slate-800 leading-tight truncate">
+                          {kpi.value}
+                        </p>
+                      )}
                       <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5 truncate">{kpi.label}</p>
                     </div>
                   </div>
@@ -221,7 +278,7 @@ export default function YayasanDashboardPage() {
               })}
             </div>
 
-            {/* QUICK MENU — bento reflow: 1 kolom di mobile, 2 di tablet, 4 di desktop, featured selalu ambil 2 kolom kalau muat */}
+            {/* QUICK MENU */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 auto-rows-min">
               {quickMenu.map((item) => {
                 const Icon = item.icon;
@@ -275,7 +332,7 @@ export default function YayasanDashboardPage() {
               })}
             </div>
 
-            {/* UNIT OVERVIEW + NOTIFICATIONS — stack di mobile, 2:1 kolom di desktop */}
+            {/* UNIT OVERVIEW + NOTIFICATIONS */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
                 <div className="flex items-center justify-between gap-2 p-4 sm:p-5 border-b border-slate-100">
@@ -307,7 +364,6 @@ export default function YayasanDashboardPage() {
                 </div>
               </div>
 
-              {/* NOTIFICATIONS */}
               <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
                 <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-100">
                   <div className="flex items-center gap-2.5 min-w-0">

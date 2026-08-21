@@ -9,12 +9,14 @@ import { superadminSidebarConfig } from "./sidebar/superadmin";
 import { yayasanSidebarConfig } from "./sidebar/yayasanSidebar";
 import { adminSidebarConfig } from "./sidebar/adminSidebar"; // sesuaikan path kalau beda
 import { cmsSidebarConfig } from "./sidebar/cmsSidebar";
+import { siswaSidebarConfig } from "./sidebar/siswaSidebar"; // sesuaikan path kalau beda
+import { adminSarprasSidebarConfig } from "./sidebar/adminsarprasSidebar"; // sesuaikan path kalau beda
 
 /**
  * Sidebar.jsx = JEMBATAN.
  * Komponen ini TIDAK menyimpan menu apapun secara langsung — dia cuma:
  * 1. Menentukan role aktif — WAJIB lewat prop `role` (lihat catatan di bawah).
- * 2. Mengambil config menu yang sesuai (guruSidebarConfig / superadminSidebarConfig / yayasanSidebarConfig / adminSidebarConfig / cmsSidebarConfig)
+ * 2. Mengambil config menu yang sesuai (guruSidebarConfig / superadminSidebarConfig / yayasanSidebarConfig / adminSidebarConfig / cmsSidebarConfig / siswaSidebarConfig / adminSarprasSidebarConfig)
  * 3. Merender UI sidebar generik berdasarkan config itu
  *
  * =========================================================================
@@ -33,6 +35,8 @@ import { cmsSidebarConfig } from "./sidebar/cmsSidebar";
  * memanggil <Sidebar />, contoh:
  *
  *     <Sidebar role="cms" active="dashboard" ... />
+ *     <Sidebar role="siswa" active="mataPelajaran" ... />
+ *     <Sidebar role="adminSarpras" active="fasilitas" ... />
  *
  * `resolveRole(pathname)` TETAP ada tapi HANYA sebagai fallback darurat
  * (misal ada page lama yang lupa dikasih prop role) — dan dev akan diberi
@@ -61,17 +65,23 @@ const configByRole = {
   yayasan: yayasanSidebarConfig,
   admin: adminSidebarConfig,
   cms: cmsSidebarConfig,
+  siswa: siswaSidebarConfig,
+  adminSarpras: adminSarprasSidebarConfig,
 };
 
 const DEFAULT_ROLE = "super-admin";
 
 // Fallback darurat SAJA — jangan diandalkan sebagai sumber kebenaran utama.
+// PENTING: cek "/adminSarpras" SEBELUM "/admin", karena
+// "/adminSarpras/fasilitas" juga match startsWith("/admin").
 function resolveRole(pathname) {
   if (pathname?.startsWith("/guru")) return "guru";
   if (pathname?.startsWith("/yayasan")) return "yayasan";
   if (pathname?.startsWith("/super-admin")) return "super-admin";
   if (pathname?.startsWith("/cmsAdmin")) return "cms";
+  if (pathname?.startsWith("/adminSarpras")) return "adminSarpras";
   if (pathname?.startsWith("/admin")) return "admin";
+  if (pathname?.startsWith("/siswa")) return "siswa";
   return DEFAULT_ROLE;
 }
 
