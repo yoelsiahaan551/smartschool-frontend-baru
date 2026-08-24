@@ -10,6 +10,7 @@ import {
   NotebookPen,
   FileCheck2,
   Package,
+  History,
   Settings,
   CalendarDays,
 } from "lucide-react";
@@ -48,6 +49,7 @@ export const guruSidebarConfig = {
 
     { type: "header", label: "AKADEMIK" },
     { type: "item", key: "absensi", icon: ClipboardCheck, label: "Absensi", path: "/guru/absensi" },
+    { type: "item", key: "histori-absensi", icon: History, label: "Histori Absensi", path: "/guru/histori-absensi" },
     {
       type: "item",
       key: "nilai",

@@ -2,10 +2,11 @@ import {
   LayoutDashboard,
   Users,
   UserCheck,      // for Guru & Mapel
-  GraduationCap,
+   UserRoundCog,
   CalendarDays,   // for Tahun Ajaran
   BookOpen,       // for Akademik
-  UploadCloud,    // for Impor Siswa
+  UploadCloud,
+  GraduationCap,    // for Impor Siswa
   Boxes,          // for Sarpras
   Package,        // for Aset
   Warehouse,      // for Gudang
@@ -40,6 +41,20 @@ export const adminSidebarConfig = {
       icon: Users,
       label: "Data Guru",
       path: "/admin/guru",
+    },
+    {
+      type: "item",
+      key: "staf",
+      icon:  UserRoundCog,
+      label: "Data Staf",
+      path: "/admin/staf",
+    },
+    {
+      type: "item",
+      key: "siswa",
+      icon: GraduationCap,
+      label: "Data Siswa",
+      path: "/admin/siswa",
     },
     {
       type: "item",

@@ -34,6 +34,7 @@ export const siswaSidebarConfig = {
   menuSections: [
     { type: "item", key: "dashboard", icon: Home, label: "dashboard", path: "/siswa" },
     { type: "item", key: "absensi", icon: ClipboardCheck, label: "Absensi", path: "/siswa/absensi" },
+    { type: "item", key: "ujian", icon: ClipboardCheck, label: "Ujian", path: "/siswa/ujian" },
     {
       type: "item",
       key: "mataPelajaran",

@@ -7,58 +7,11 @@ import { Crown, PanelLeftClose, PanelLeftOpen, ChevronDown, X } from "lucide-rea
 import { guruSidebarConfig } from "./sidebar/guruSidebar";
 import { superadminSidebarConfig } from "./sidebar/superadmin";
 import { yayasanSidebarConfig } from "./sidebar/yayasanSidebar";
-import { adminSidebarConfig } from "./sidebar/adminSidebar"; // sesuaikan path kalau beda
+import { adminSidebarConfig } from "./sidebar/adminSidebar";
 import { cmsSidebarConfig } from "./sidebar/cmsSidebar";
-import { siswaSidebarConfig } from "./sidebar/siswaSidebar"; // sesuaikan path kalau beda
-import { adminSarprasSidebarConfig } from "./sidebar/adminsarprasSidebar"; // sesuaikan path kalau beda
+import { siswaSidebarConfig } from "./sidebar/siswaSidebar";
+import { adminSarprasSidebarConfig } from "./sidebar/adminsarprasSidebar";
 
-/**
- * Sidebar.jsx = JEMBATAN.
- * Komponen ini TIDAK menyimpan menu apapun secara langsung — dia cuma:
- * 1. Menentukan role aktif — WAJIB lewat prop `role` (lihat catatan di bawah).
- * 2. Mengambil config menu yang sesuai (guruSidebarConfig / superadminSidebarConfig / yayasanSidebarConfig / adminSidebarConfig / cmsSidebarConfig / siswaSidebarConfig / adminSarprasSidebarConfig)
- * 3. Merender UI sidebar generik berdasarkan config itu
- *
- * =========================================================================
- * PENTING SOAL HYDRATION (FIX FINAL):
- * =========================================================================
- * SEBELUMNYA, kalau prop `role` tidak dikirim, komponen ini menebak role
- * dari `usePathname()` lewat `resolveRole(pathname)`. Ini BERBAHAYA karena
- * kalau ada kondisi di mana `pathname` belum tersedia / berbeda saat first
- * render di server vs saat hydrate di client (middleware, rewrite, dsb),
- * server bisa render role A sedangkan client render role B -> hasilnya teks
- * (brandName, initials, email, dst) beda -> Hydration mismatch persis
- * seperti yang kejadian di /cmsAdmin (server: "Super Admin", client:
- * "CMS Admin").
- *
- * FIX: sekarang `role` WAJIB dikirim eksplisit dari page/layout yang
- * memanggil <Sidebar />, contoh:
- *
- *     <Sidebar role="cms" active="dashboard" ... />
- *     <Sidebar role="siswa" active="mataPelajaran" ... />
- *     <Sidebar role="adminSarpras" active="fasilitas" ... />
- *
- * `resolveRole(pathname)` TETAP ada tapi HANYA sebagai fallback darurat
- * (misal ada page lama yang lupa dikasih prop role) — dan dev akan diberi
- * warning di console supaya ketauan & langsung dibenerin, bukan dibiarkan
- * silent. JANGAN mengandalkan fallback ini di production.
- *
- * Kalau mau nambah role baru: bikin file config baru di ./sidebar/<role>.jsx
- * dengan bentuk yang sama (basePath, brandName, initials, email, menuSections),
- * lalu daftarkan di configByRole di bawah.
- *
- * PENTING SOAL ACTIVE STATE:
- * Menu yang sedang aktif (di-highlight) ditentukan MURNI dari `pathname`
- * (URL saat ini), bukan dari prop `active` yang dikirim tiap halaman.
- * Prop `active` / `setActive` tetap dipertahankan di signature komponen
- * supaya semua page.jsx yang sudah memanggil <Sidebar active=... /> tidak
- * perlu diubah satu-satu, tapi nilainya tidak dipakai untuk logika highlight.
- *
- * RESPONSIVE:
- * Props `collapsed` / `setCollapsed` dipakai untuk DUA hal sekaligus:
- * - Desktop (>= 1024px): collapsed = true -> sidebar menciut jadi ikon 72px.
- * - Mobile  (<  1024px): collapsed dipakai sebagai status buka/tutup drawer.
- */
 const configByRole = {
   guru: guruSidebarConfig,
   "super-admin": superadminSidebarConfig,
@@ -71,9 +24,6 @@ const configByRole = {
 
 const DEFAULT_ROLE = "super-admin";
 
-// Fallback darurat SAJA — jangan diandalkan sebagai sumber kebenaran utama.
-// PENTING: cek "/adminSarpras" SEBELUM "/admin", karena
-// "/adminSarpras/fasilitas" juga match startsWith("/admin").
 function resolveRole(pathname) {
   if (pathname?.startsWith("/guru")) return "guru";
   if (pathname?.startsWith("/yayasan")) return "yayasan";
@@ -89,15 +39,10 @@ export default function Sidebar({ active, setActive, collapsed, setCollapsed, ro
   const router = useRouter();
   const pathname = usePathname();
 
-  // Role WAJIB dikirim lewat prop supaya deterministik antara server & client.
-  // Fallback ke resolveRole(pathname) hanya untuk kompatibilitas mundur —
-  // dan kita warn di console (dev only) supaya kelihatan page mana yang
-  // masih belum dikasih prop role.
   let role = roleProp;
   if (!role) {
     role = resolveRole(pathname);
     if (process.env.NODE_ENV !== "production") {
-      // eslint-disable-next-line no-console
       console.warn(
         `[Sidebar] Prop "role" tidak dikirim untuk pathname "${pathname}". ` +
           `Fallback menebak dari pathname bisa menyebabkan hydration mismatch. ` +
@@ -106,12 +51,9 @@ export default function Sidebar({ active, setActive, collapsed, setCollapsed, ro
     }
   }
 
-  // Guard tambahan: kalau role nggak ada di configByRole (typo, role baru
-  // belum didaftarkan, dst), jangan crash — fallback ke DEFAULT_ROLE.
   const config = configByRole[role] ?? configByRole[DEFAULT_ROLE];
   const menuSections = config.menuSections;
 
-  // ===== RESPONSIVE: deteksi mobile via matchMedia =====
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -119,9 +61,6 @@ export default function Sidebar({ active, setActive, collapsed, setCollapsed, ro
 
     const applyMode = (mobile) => {
       setIsMobile(mobile);
-      // Begitu terdeteksi mobile, paksa drawer mulai dalam keadaan tertutup —
-      // terlepas dari nilai `collapsed` awal yang dikirim tiap halaman (yang
-      // biasanya false/expanded, karena itu memang default yang benar untuk desktop).
       if (mobile) setCollapsed(true);
     };
 
@@ -129,10 +68,8 @@ export default function Sidebar({ active, setActive, collapsed, setCollapsed, ro
     const handleChange = (e) => applyMode(e.matches);
     mq.addEventListener("change", handleChange);
     return () => mq.removeEventListener("change", handleChange);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Kunci scroll body saat drawer mobile terbuka
   useEffect(() => {
     if (isMobile && !collapsed) {
       document.body.style.overflow = "hidden";
@@ -144,7 +81,6 @@ export default function Sidebar({ active, setActive, collapsed, setCollapsed, ro
     };
   }, [isMobile, collapsed]);
 
-  // Semua item yang punya children langsung terbuka dari awal (nggak perlu diklik dulu)
   const [openMenus, setOpenMenus] = useState(() => {
     const initial = {};
     menuSections.forEach((item) => {
@@ -153,15 +89,12 @@ export default function Sidebar({ active, setActive, collapsed, setCollapsed, ro
     return initial;
   });
 
-  // Kalau role/config berganti (misal pindah dari /guru ke /yayasan), pastikan
-  // submenu role yang baru juga otomatis kebuka.
   useEffect(() => {
     const next = {};
     menuSections.forEach((item) => {
       if (item.children) next[item.key] = true;
     });
     setOpenMenus((prev) => ({ ...next, ...prev }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [role]);
 
   const toggleSubmenu = (key) => {
@@ -169,15 +102,10 @@ export default function Sidebar({ active, setActive, collapsed, setCollapsed, ro
     setOpenMenus((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  // Tutup drawer setelah navigasi, khusus mobile
   const closeMobileDrawer = () => {
     if (isMobile) setCollapsed(true);
   };
 
-  // Klik di badan item:
-  // - Kalau belum di halaman itu -> navigasi ke halamannya (submenu belum kebuka)
-  // - Kalau udah di halaman itu (klik ke-2 kalinya) -> toggle buka/tutup submenu
-  // - Klik di chevron kapan saja -> toggle buka/tutup submenu
   const handleMenuClick = (item) => {
     const alreadyOnThisPage = pathname === item.path;
     setActive?.(item.key);
@@ -198,7 +126,6 @@ export default function Sidebar({ active, setActive, collapsed, setCollapsed, ro
     closeMobileDrawer();
   };
 
-  // Di mobile, drawer selalu tampil penuh (bukan mode ikon-saja) saat terbuka.
   const showLabels = isMobile ? !collapsed : !collapsed;
 
   const asideClasses = isMobile
@@ -222,9 +149,7 @@ export default function Sidebar({ active, setActive, collapsed, setCollapsed, ro
 
   return (
     <>
-      {/* FLOATING TOGGLE — muncul di luar sidebar setiap kali sidebar lagi TERTUTUP
-          (mobile: drawer off-canvas, desktop: bisa dipakai juga sebagai shortcut buka).
-          Ini yang bikin sidebar bisa dimunculkan lagi tanpa tergantung Header.jsx. */}
+      {/* FLOATING TOGGLE — muncul di luar sidebar setiap kali sidebar lagi TERTUTUP */}
       {collapsed && isMobile && (
         <button
           onClick={() => setCollapsed(false)}
@@ -273,44 +198,80 @@ export default function Sidebar({ active, setActive, collapsed, setCollapsed, ro
 
         <div className="relative z-10 h-[2px] w-full bg-gradient-to-r from-transparent via-blue-400/60 to-transparent" />
 
-        {/* Header sidebar: logo + tombol toggle/close */}
+        {/* =============================================
+            HEADER SIDEBAR — LOGO DARI public/hero/logo/
+            ============================================= */}
         <div className="relative z-10 flex items-center justify-between px-4 h-20 border-b border-white/10">
-          <button
-            onClick={() => {
-              if (!isMobile) setCollapsed(!collapsed);
-            }}
-            className={`flex items-center gap-3 flex-1 min-w-0 ${
-              !isMobile && collapsed ? "justify-center" : "justify-start"
-            }`}
-          >
-            {showLabels && (
-              <div className="flex flex-col leading-tight text-left">
-                <span className="font-bold text-white text-xl tracking-tight">
-                  Smart<span className="text-blue-300">School</span>
-                </span>
-                <div className="flex items-center gap-1.5">
-                  <Crown size={10} className="text-yellow-400/80" />
+          {showLabels ? (
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              {/* Kotak Logo dengan Gambar dari public/hero/logo/logoSS.png */}
+              <div className="relative flex-shrink-0">
+                <div className="w-11 h-11 rounded-xl bg-white border border-white/15 flex items-center justify-center shadow-lg shadow-blue-500/20 backdrop-blur-sm overflow-hidden">
+                  <img
+                    src="/logo/logoSS.png"
+                    alt="Logo SmartSchool"
+                    className="w-8 h-8 object-contain rounded-lg"
+                    onError={(e) => {
+                      // Fallback jika gambar tidak ditemukan
+                      e.target.style.display = 'none';
+                      e.target.parentElement.innerHTML = `
+                        <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-400 to-indigo-400 flex items-center justify-center text-white font-bold text-xs shadow-inner shadow-white/20">
+                          SS
+                        </div>
+                      `;
+                    }}
+                  />
+                </div>
+                {/* Decorative glow */}
+                <div className="absolute -inset-1 rounded-xl bg-blue-400/10 blur-md -z-10" />
+              </div>
+
+              {/* Teks Brand */}
+              <div className="flex flex-col leading-tight min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-white text-lg tracking-tight whitespace-nowrap">
+                    Smart<span className="text-blue-300">School</span>
+                  </span>
+                  <Crown size={12} className="text-yellow-400/80 flex-shrink-0" />
+                </div>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <div className="w-1.5 h-1.5 rounded-full bg-blue-400/60" />
                   <span className="text-[10px] text-blue-200/70 font-medium tracking-wider uppercase">
                     {config.brandName}
                   </span>
                 </div>
               </div>
-            )}
-
-            {/* Ikon mini saat collapsed di desktop — sekaligus affordance tombol expand */}
-            {!isMobile && collapsed && (
-              <div
-                className="w-10 h-10 rounded-xl bg-white/10 border border-white/20
-                  flex items-center justify-center text-blue-300
-                  hover:bg-white/20 hover:border-white/40 transition-colors duration-200"
-                title="Buka Sidebar"
-              >
-                <PanelLeftOpen size={18} />
+            </div>
+          ) : (
+            // ===== MODE COLLAPSED (hanya ikon logo) =====
+            <button
+              onClick={() => {
+                if (!isMobile) setCollapsed(!collapsed);
+              }}
+              className="w-full flex items-center justify-center"
+            >
+              <div className="relative">
+                <div className="w-11 h-11 rounded-xl bg-white border border-white/15 flex items-center justify-center shadow-lg shadow-blue-500/20 backdrop-blur-sm hover:border-white/30 transition-all duration-200 overflow-hidden">
+                  <img
+                    src="/logo/logoSS.png"
+                    alt="Logo SmartSchool"
+                    className="w-8 h-8 object-contain rounded-lg"
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                      e.target.parentElement.innerHTML = `
+                        <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-400 to-indigo-400 flex items-center justify-center text-white font-bold text-xs shadow-inner shadow-white/20">
+                          SS
+                        </div>
+                      `;
+                    }}
+                  />
+                </div>
+                <div className="absolute -inset-1 rounded-xl bg-blue-400/10 blur-md -z-10" />
               </div>
-            )}
-          </button>
+            </button>
+          )}
 
-          {/* Desktop: tombol ciutkan sidebar jadi ikon */}
+          {/* Tombol Toggle */}
           {!isMobile && showLabels && (
             <button
               onClick={() => setCollapsed(true)}
@@ -324,7 +285,6 @@ export default function Sidebar({ active, setActive, collapsed, setCollapsed, ro
             </button>
           )}
 
-          {/* Mobile: tombol tutup drawer */}
           {isMobile && (
             <button
               onClick={() => setCollapsed(true)}
@@ -338,24 +298,6 @@ export default function Sidebar({ active, setActive, collapsed, setCollapsed, ro
             </button>
           )}
         </div>
-
-        {/* Mini Profile */}
-        {showLabels && (
-          <div className="relative z-10 mx-3 mt-4 p-3.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 transition-colors duration-300">
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 border-2 border-white/30 flex items-center justify-center text-white text-sm font-bold">
-                  {config.initials}
-                </div>
-                <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-400 rounded-full border-2 border-[#1A2332] ring-2 ring-emerald-400/50 animate-pulse" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-white truncate">{config.brandName}</p>
-                <p className="text-[10px] text-blue-200/60 truncate">{config.email}</p>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Navigation */}
         <nav className="relative z-10 flex-1 overflow-y-auto px-3 py-4 space-y-0.5 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent pb-6">
@@ -376,10 +318,6 @@ export default function Sidebar({ active, setActive, collapsed, setCollapsed, ro
             }
 
             const hasChildren = !!item.children;
-            // Highlight murni berdasarkan pathname (URL saat ini) — bukan prop
-            // `active` yang diketik manual per-halaman. Exact match, BUKAN
-            // startsWith, supaya "/admin/guru" tidak ikut ke-highlight cuma
-            // karena "/admin/guru-mapel" kebetulan diawali kata yang sama.
             const isChildActive = hasChildren && item.children.some((c) => pathname === c.path);
             const isActive = pathname === item.path || isChildActive;
             const isOpen = !!openMenus[item.key];
@@ -471,8 +409,6 @@ export default function Sidebar({ active, setActive, collapsed, setCollapsed, ro
                   >
                     <div className="ml-4 pl-3 border-l border-white/10 space-y-0.5 py-1">
                       {item.children.map((child) => {
-                        // Sama seperti di atas: exact match ke pathname, bukan
-                        // pakai prop `active` per-halaman.
                         const isChildItemActive = pathname === child.path;
                         return (
                           <button
