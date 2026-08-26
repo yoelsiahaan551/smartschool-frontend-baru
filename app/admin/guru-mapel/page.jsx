@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import Header from "../../components/Header";
 import Sidebar from "../../components/Sidebar";
 import {
@@ -14,23 +15,12 @@ import {
   RefreshCw,
   CheckCircle,
   XCircle,
-  Save,
-  X,
   UserCheck,
   GraduationCap,
-  CalendarDays,
   Filter,
   ChevronDown,
-  ChevronRight,
   User,
   BookMarked,
-  School,
-  Hash,
-  Mail,
-  Phone,
-  MapPin,
-  AlertCircle,
-  Eye,
 } from "lucide-react";
 
 // =========================================================
@@ -118,12 +108,12 @@ const dummyKelas = [
 
 // Assignments: guru_id -> mapel_id -> kelas_id
 const dummyAssignments = [
-  { id: 1, guru_id: 1, mapel_id: 1, kelas_id: 1 }, // Ahmad -> Matematika -> X RPL 1
-  { id: 2, guru_id: 1, mapel_id: 1, kelas_id: 4 }, // Ahmad -> Matematika -> XI RPL 1
-  { id: 3, guru_id: 2, mapel_id: 2, kelas_id: 1 }, // Siti -> Bahasa Indonesia -> X RPL 1
-  { id: 4, guru_id: 3, mapel_id: 3, kelas_id: 3 }, // Budi -> Fisika -> X TKJ 1
-  { id: 5, guru_id: 5, mapel_id: 5, kelas_id: 1 }, // Eko -> Pemrograman Dasar -> X RPL 1
-  { id: 6, guru_id: 6, mapel_id: 6, kelas_id: 2 }, // Rina -> Bahasa Inggris -> X RPL 2
+  { id: 1, guru_id: 1, mapel_id: 1, kelas_id: 1 },
+  { id: 2, guru_id: 1, mapel_id: 1, kelas_id: 4 },
+  { id: 3, guru_id: 2, mapel_id: 2, kelas_id: 1 },
+  { id: 4, guru_id: 3, mapel_id: 3, kelas_id: 3 },
+  { id: 5, guru_id: 5, mapel_id: 5, kelas_id: 1 },
+  { id: 6, guru_id: 6, mapel_id: 6, kelas_id: 2 },
 ];
 
 // =========================================================
@@ -139,20 +129,8 @@ export default function AdminGuruMapelPage() {
   const [search, setSearch] = useState("");
   const [filterMapel, setFilterMapel] = useState("Semua");
   const [filterKelas, setFilterKelas] = useState("Semua");
-  const [showModal, setShowModal] = useState(false);
-  const [editingAssignment, setEditingAssignment] = useState(null);
-  const [loading, setLoading] = useState(false);
 
   const toggleSidebar = () => setIsCollapsed(!isCollapsed);
-
-  // =========================================================
-  // FORM STATE
-  // =========================================================
-  const [form, setForm] = useState({
-    guru_id: "",
-    mapel_id: "",
-    kelas_id: "",
-  });
 
   // =========================================================
   // FILTER
@@ -171,86 +149,8 @@ export default function AdminGuruMapelPage() {
   });
 
   // =========================================================
-  // HANDLERS
+  // HANDLER HAPUS
   // =========================================================
-  const resetForm = () => {
-    setForm({ guru_id: "", mapel_id: "", kelas_id: "" });
-    setEditingAssignment(null);
-  };
-
-  const handleOpenAdd = () => {
-    resetForm();
-    setShowModal(true);
-  };
-
-  const handleOpenEdit = (assignment) => {
-    setEditingAssignment(assignment);
-    setForm({
-      guru_id: String(assignment.guru_id),
-      mapel_id: String(assignment.mapel_id),
-      kelas_id: String(assignment.kelas_id),
-    });
-    setShowModal(true);
-  };
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleSubmit = () => {
-    if (!form.guru_id || !form.mapel_id || !form.kelas_id) {
-      alert("Semua field wajib diisi!");
-      return;
-    }
-
-    // Cek duplikat
-    const exists = assignments.some(
-      (a) =>
-        a.guru_id === parseInt(form.guru_id) &&
-        a.mapel_id === parseInt(form.mapel_id) &&
-        a.kelas_id === parseInt(form.kelas_id) &&
-        a.id !== editingAssignment?.id
-    );
-    if (exists) {
-      alert("Guru ini sudah mengajar mapel tersebut di kelas ini!");
-      return;
-    }
-
-    setLoading(true);
-
-    setTimeout(() => {
-      if (editingAssignment) {
-        setAssignments((prev) =>
-          prev.map((a) =>
-            a.id === editingAssignment.id
-              ? {
-                  ...a,
-                  guru_id: parseInt(form.guru_id),
-                  mapel_id: parseInt(form.mapel_id),
-                  kelas_id: parseInt(form.kelas_id),
-                }
-              : a
-          )
-        );
-        alert("Assign berhasil diperbarui!");
-      } else {
-        const newAssignment = {
-          id: Date.now(),
-          guru_id: parseInt(form.guru_id),
-          mapel_id: parseInt(form.mapel_id),
-          kelas_id: parseInt(form.kelas_id),
-        };
-        setAssignments((prev) => [...prev, newAssignment]);
-        alert("Assign berhasil ditambahkan!");
-      }
-
-      setLoading(false);
-      setShowModal(false);
-      resetForm();
-    }, 500);
-  };
-
   const handleDelete = (id) => {
     const confirmDelete = window.confirm("Yakin ingin menghapus assign ini?");
     if (!confirmDelete) return;
@@ -313,12 +213,12 @@ export default function AdminGuruMapelPage() {
                   >
                     <RefreshCw size={17} className="text-slate-500" />
                   </button>
-                  <button
-                    onClick={handleOpenAdd}
+                  <Link
+                    href="/admin/guru-mapel/tambah"
                     className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:shadow-lg hover:shadow-blue-200 transition-all shadow-sm font-medium"
                   >
                     <Plus size={18} /> Assign Guru
-                  </button>
+                  </Link>
                 </div>
               </div>
 
@@ -461,7 +361,7 @@ export default function AdminGuruMapelPage() {
                             <p className="text-xs text-slate-400 mt-1">
                               {search || filterMapel !== "Semua" || filterKelas !== "Semua"
                                 ? "Coba ubah filter pencarian"
-                                : "Assign guru ke mapel dan kelas"}
+                                : "Klik 'Assign Guru' untuk menambahkan"}
                             </p>
                           </td>
                         </tr>
@@ -516,13 +416,13 @@ export default function AdminGuruMapelPage() {
                               </td>
                               <td className="px-4 py-4">
                                 <div className="flex justify-end gap-1.5">
-                                  <button
-                                    onClick={() => handleOpenEdit(a)}
+                                  <Link
+                                    href={`/admin/guru-mapel/edit/${a.id}`}
                                     className="p-2 rounded-lg hover:bg-amber-50 text-slate-400 hover:text-amber-600 transition-all hover:shadow-sm"
                                     title="Edit Assign"
                                   >
                                     <Edit size={17} />
-                                  </button>
+                                  </Link>
                                   <button
                                     onClick={() => handleDelete(a.id)}
                                     className="p-2 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-all hover:shadow-sm"
@@ -548,161 +448,6 @@ export default function AdminGuruMapelPage() {
           </div>
         </main>
       </div>
-
-      {/* ===== MODAL TAMBAH / EDIT ===== */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            {/* Header Modal */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 sticky top-0 bg-white rounded-t-2xl">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-500 text-white shadow-md">
-                  {editingAssignment ? <Edit size={18} /> : <Plus size={18} />}
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-slate-800">
-                    {editingAssignment ? "Edit Assign" : "Assign Guru"}
-                  </h3>
-                  <p className="text-xs text-slate-400">
-                    {editingAssignment
-                      ? "Perbarui assign guru ke mapel dan kelas"
-                      : "Pilih guru, mapel, dan kelas tujuan"}
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => {
-                  setShowModal(false);
-                  resetForm();
-                }}
-                className="p-2 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            {/* Body Modal */}
-            <div className="p-6 space-y-4">
-              {/* Pilih Guru */}
-              <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1.5">
-                  Pilih Guru <span className="text-rose-500">*</span>
-                </label>
-                <div className="relative">
-                  <UserCheck size={17} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <select
-                    name="guru_id"
-                    value={form.guru_id}
-                    onChange={handleChange}
-                    className="w-full pl-10 pr-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition cursor-pointer text-slate-600 appearance-none"
-                  >
-                    <option value="">Pilih Guru</option>
-                    {guru
-                      .filter((g) => g.status === "aktif")
-                      .map((g) => (
-                        <option key={g.id} value={g.id}>
-                          {g.nama} ({g.mapel})
-                        </option>
-                      ))}
-                  </select>
-                  <ChevronDown size={17} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                </div>
-              </div>
-
-              {/* Pilih Mapel */}
-              <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1.5">
-                  Pilih Mata Pelajaran <span className="text-rose-500">*</span>
-                </label>
-                <div className="relative">
-                  <BookOpen size={17} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <select
-                    name="mapel_id"
-                    value={form.mapel_id}
-                    onChange={handleChange}
-                    className="w-full pl-10 pr-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition cursor-pointer text-slate-600 appearance-none"
-                  >
-                    <option value="">Pilih Mapel</option>
-                    {mapel.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.nama} ({m.kode})
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown size={17} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                </div>
-              </div>
-
-              {/* Pilih Kelas */}
-              <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1.5">
-                  Pilih Kelas <span className="text-rose-500">*</span>
-                </label>
-                <div className="relative">
-                  <GraduationCap size={17} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <select
-                    name="kelas_id"
-                    value={form.kelas_id}
-                    onChange={handleChange}
-                    className="w-full pl-10 pr-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition cursor-pointer text-slate-600 appearance-none"
-                  >
-                    <option value="">Pilih Kelas</option>
-                    {kelas.map((k) => (
-                      <option key={k.id} value={k.id}>
-                        {k.nama}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown size={17} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                </div>
-              </div>
-
-              {/* Informasi tambahan */}
-              <div className="bg-blue-50/60 rounded-xl p-3 border border-blue-100">
-                <div className="flex items-start gap-2">
-                  <AlertCircle size={16} className="text-blue-500 mt-0.5" />
-                  <div>
-                    <p className="text-xs text-blue-600 font-medium">Informasi</p>
-                    <p className="text-[10px] text-blue-500">
-                      Pastikan guru yang dipilih memiliki kompetensi di mapel tersebut.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Footer Modal */}
-            <div className="flex items-center gap-3 px-6 py-4 border-t border-slate-100 sticky bottom-0 bg-white rounded-b-2xl">
-              <button
-                onClick={() => {
-                  setShowModal(false);
-                  resetForm();
-                }}
-                className="flex-1 py-2.5 rounded-xl text-sm font-medium text-slate-600 border border-slate-200 hover:bg-slate-50 transition-colors"
-              >
-                Batal
-              </button>
-              <button
-                onClick={handleSubmit}
-                disabled={loading}
-                className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:shadow-lg hover:shadow-blue-200 transition-all shadow-sm flex items-center justify-center gap-2 disabled:opacity-60 disabled:hover:shadow-none"
-              >
-                {loading ? (
-                  <>
-                    <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
-                    Menyimpan...
-                  </>
-                ) : (
-                  <>
-                    <Save size={17} />
-                    {editingAssignment ? "Perbarui" : "Simpan"}
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

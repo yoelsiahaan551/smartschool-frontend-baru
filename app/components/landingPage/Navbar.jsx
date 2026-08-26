@@ -206,7 +206,7 @@ export default function Navbar() {
             whileTap={{ scale: 0.95 }}
           >
             <Link
-              href="/register"
+              href="/daftar-sekolah"
               className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6 py-2.5 rounded-xl transition-all duration-300 font-medium shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40"
             >
               Daftar
@@ -295,7 +295,7 @@ export default function Navbar() {
                 whileTap={{ scale: 0.98 }}
               >
                 <Link
-                  href="/register"
+                  href="/daftar-sekolah"
                   onClick={() => setIsOpen(false)}
                   className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-center py-3 rounded-xl transition shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 block"
                 >

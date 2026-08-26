@@ -218,70 +218,82 @@ return (
         <div className="w-full space-y-6">
 
             {/* HEADER */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div>
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2 rounded-lg bg-blue-600 text-white shadow-sm">
-                    <UserCircle size={18} />
-                  </div>
-                  <h1 className="text-xl sm:text-2xl font-semibold text-slate-800">
-                    Profil Saya
-                  </h1>
-                  <span className="text-xs font-medium text-slate-400 bg-white px-2.5 py-0.5 rounded-full border border-slate-200/60">
-                    Super Admin
-                  </span>
-                </div>
-                <p className="text-sm text-slate-500 ml-[52px] flex items-center gap-1.5">
-                  <Sparkles size={14} className="text-slate-400" />
-                  Kelola profil dan pengaturan akun Anda.
-                </p>
-              </div>
-              <div className="flex items-center gap-2.5 ml-[52px] sm:ml-0">
-                {!isEditing && activeTab === "profile" && (
-                  <button
-                    onClick={() => setIsEditing(true)}
-                    className="flex items-center gap-2 px-5 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-sm hover:shadow"
-                  >
-                    <Edit size={16} />
-                    Edit Profil
-                  </button>
-                )}
-                {isEditing && (
-                  <>
-                    <button
-                      onClick={() => setIsEditing(false)}
-                      className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
-                    >
-                      <X size={16} />
-                      Batal
-                    </button>
-                    <button
-                      onClick={handleSaveProfile}
-                      disabled={isSaving}
-                      className="flex items-center gap-2 px-5 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-sm hover:shadow disabled:opacity-70 disabled:cursor-not-allowed"
-                    >
-                      {isSaving ? (
-                        <>
-                          <RefreshCw size={16} className="animate-spin" />
-                          Menyimpan...
-                        </>
-                      ) : (
-                        <>
-                          <Save size={16} />
-                          Simpan
-                        </>
-                      )}
-                    </button>
-                  </>
-                )}
-                {saveSuccess && (
-                  <span className="flex items-center gap-1.5 text-sm text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200 animate-in fade-in slide-in-from-right-2">
-                    <CheckCircle size={16} />
-                    Tersimpan!
-                  </span>
-                )}
-              </div>
-            </div>
+           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+  {/* Bagian kiri */}
+  <div className="flex items-center gap-3">
+    {/* Icon */}
+    <div className="shrink-0 p-2.5 rounded-xl bg-blue-600 text-white shadow-sm">
+      <UserCircle size={19} />
+    </div>
+
+    {/* Judul + Deskripsi */}
+    <div>
+      <div className="flex items-center gap-2.5 flex-wrap">
+        <h1 className="text-xl sm:text-2xl font-semibold text-slate-800">
+          Profil Saya
+        </h1>
+
+        <span className="text-xs font-medium text-slate-400 bg-white px-3 py-1 rounded-full border border-slate-200/60">
+          Super Admin
+        </span>
+      </div>
+
+      <p className="text-sm text-slate-500 mt-1">
+        Kelola profil dan pengaturan akun Anda.
+      </p>
+    </div>
+  </div>
+
+  {/* Tombol kanan */}
+  <div className="flex items-center gap-2.5 sm:ml-auto">
+    {!isEditing && activeTab === "profile" && (
+      <button
+        onClick={() => setIsEditing(true)}
+        className="flex items-center gap-2 px-5 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-sm hover:shadow"
+      >
+        <Edit size={16} />
+        Edit Profil
+      </button>
+    )}
+
+    {isEditing && (
+      <>
+        <button
+          onClick={() => setIsEditing(false)}
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+        >
+          <X size={16} />
+          Batal
+        </button>
+
+        <button
+          onClick={handleSaveProfile}
+          disabled={isSaving}
+          className="flex items-center gap-2 px-5 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-sm hover:shadow disabled:opacity-70 disabled:cursor-not-allowed"
+        >
+          {isSaving ? (
+            <>
+              <RefreshCw size={16} className="animate-spin" />
+              Menyimpan...
+            </>
+          ) : (
+            <>
+              <Save size={16} />
+              Simpan
+            </>
+          )}
+        </button>
+      </>
+    )}
+
+    {saveSuccess && (
+      <span className="flex items-center gap-1.5 text-sm text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200 animate-in fade-in slide-in-from-right-2">
+        <CheckCircle size={16} />
+        Tersimpan!
+      </span>
+    )}
+  </div>
+</div>
 
             {/* STATS */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

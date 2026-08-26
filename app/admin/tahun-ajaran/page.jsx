@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Header from "../../components/Header";
 import Sidebar from "../../components/Sidebar";
+
 import {
-  Calendar,
+  CalendarDays,
   Plus,
   Search,
   Edit,
@@ -13,20 +15,19 @@ import {
   RefreshCw,
   CheckCircle,
   XCircle,
-  Clock,
-  Eye,
-  Save,
-  X,
-  AlertCircle,
+  Calendar,
   Check,
-  ChevronRight,
-  CalendarDays,
+  AlertCircle,
+  ArrowRight,
+  Clock3,
+  Layers3,
+  Activity,
 } from "lucide-react";
 
 // =========================================================
 // DUMMY DATA
 // =========================================================
-const dummyTahunAjaran = [
+const DEFAULT_DATA = [
   {
     id: 1,
     nama: "2024/2025",
@@ -74,126 +75,142 @@ const dummyTahunAjaran = [
 // =========================================================
 export default function AdminTahunAjaranPage() {
   const router = useRouter();
+
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [tahunAjaran, setTahunAjaran] = useState(dummyTahunAjaran);
+  const [tahunAjaran, setTahunAjaran] = useState([]);
   const [search, setSearch] = useState("");
-  const [showModal, setShowModal] = useState(false);
-  const [editingItem, setEditingItem] = useState(null);
-  const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [loading, setLoading] = useState(true);
 
-  const toggleSidebar = () => setIsCollapsed(!isCollapsed);
+  const itemsPerPage = 5;
 
   // =========================================================
-  // FORM STATE
+  // SIDEBAR
   // =========================================================
-  const [form, setForm] = useState({
-    nama: "",
-    tanggal_mulai: "",
-    tanggal_selesai: "",
-    semester: "Ganjil",
-    status: "nonaktif",
-  });
+  const toggleSidebar = () => {
+    setIsCollapsed((prev) => !prev);
+  };
+
+  // =========================================================
+  // LOAD DATA
+  // =========================================================
+  useEffect(() => {
+    const loadData = () => {
+      const stored = localStorage.getItem("tahunAjaranData");
+
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+
+          if (Array.isArray(parsed)) {
+            setTahunAjaran(parsed);
+          } else {
+            setTahunAjaran(DEFAULT_DATA);
+            localStorage.setItem(
+              "tahunAjaranData",
+              JSON.stringify(DEFAULT_DATA)
+            );
+          }
+        } catch {
+          setTahunAjaran(DEFAULT_DATA);
+
+          localStorage.setItem(
+            "tahunAjaranData",
+            JSON.stringify(DEFAULT_DATA)
+          );
+        }
+      } else {
+        setTahunAjaran(DEFAULT_DATA);
+
+        localStorage.setItem(
+          "tahunAjaranData",
+          JSON.stringify(DEFAULT_DATA)
+        );
+      }
+
+      setLoading(false);
+    };
+
+    loadData();
+  }, []);
 
   // =========================================================
   // FILTER
   // =========================================================
   const filtered = tahunAjaran.filter((item) =>
-    item.nama.toLowerCase().includes(search.toLowerCase())
+    item.nama?.toLowerCase().includes(search.toLowerCase())
   );
 
-  const itemsPerPage = 5;
-  const totalPages = Math.ceil(filtered.length / itemsPerPage);
-  const paginated = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  // =========================================================
+  // PAGINATION
+  // =========================================================
+  const totalPages = Math.ceil(
+    filtered.length / itemsPerPage
+  );
+
+  const paginated = filtered.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   // =========================================================
-  // FORM HANDLERS
+  // STATISTICS
   // =========================================================
-  const resetForm = () => {
-    setForm({
-      nama: "",
-      tanggal_mulai: "",
-      tanggal_selesai: "",
-      semester: "Ganjil",
-      status: "nonaktif",
-    });
-    setEditingItem(null);
-  };
+  const activeYear = tahunAjaran.find(
+    (item) => item.status === "aktif"
+  );
 
-  const handleOpenAdd = () => {
-    resetForm();
-    setShowModal(true);
-  };
+  const activeCount = tahunAjaran.filter(
+    (item) => item.status === "aktif"
+  ).length;
 
-  const handleOpenEdit = (item) => {
-    setEditingItem(item);
-    setForm({
-      nama: item.nama,
-      tanggal_mulai: item.tanggal_mulai,
-      tanggal_selesai: item.tanggal_selesai,
-      semester: item.semester,
-      status: item.status,
-    });
-    setShowModal(true);
-  };
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-  };
+  const inactiveCount = tahunAjaran.filter(
+    (item) => item.status !== "aktif"
+  ).length;
 
   // =========================================================
-  // CRUD
+  // DELETE
   // =========================================================
-  const handleSubmit = () => {
-    if (!form.nama.trim() || !form.tanggal_mulai || !form.tanggal_selesai) {
-      alert("Semua field wajib diisi!");
+  const handleDelete = (id, nama) => {
+    if (
+      !window.confirm(
+        `Yakin ingin menghapus tahun ajaran "${nama}"?`
+      )
+    ) {
       return;
     }
 
-    setLoading(true);
+    const updated = tahunAjaran.filter(
+      (item) => item.id !== id
+    );
 
-    setTimeout(() => {
-      if (editingItem) {
-        setTahunAjaran((prev) =>
-          prev.map((item) =>
-            item.id === editingItem.id
-              ? {
-                  ...item,
-                  ...form,
-                  updatedAt: new Date().toISOString(),
-                }
-              : item
-          )
-        );
-        alert("Tahun ajaran berhasil diperbarui!");
-      } else {
-        const newItem = {
-          id: Date.now(),
-          ...form,
-          dibuatPada: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-        setTahunAjaran((prev) => [...prev, newItem]);
-        alert("Tahun ajaran berhasil ditambahkan!");
-      }
+    setTahunAjaran(updated);
 
-      setLoading(false);
-      setShowModal(false);
-      resetForm();
-    }, 500);
+    localStorage.setItem(
+      "tahunAjaranData",
+      JSON.stringify(updated)
+    );
+
+    alert(
+      `Tahun ajaran "${nama}" berhasil dihapus!`
+    );
+
+    if (
+      paginated.length === 1 &&
+      currentPage > 1
+    ) {
+      setCurrentPage((prev) => prev - 1);
+    }
   };
 
-  const handleDelete = (id, nama) => {
-    const confirmDelete = window.confirm(`Yakin ingin menghapus tahun ajaran "${nama}"?`);
-    if (!confirmDelete) return;
-
-    setTahunAjaran((prev) => prev.filter((item) => item.id !== id));
-    alert(`Tahun ajaran "${nama}" berhasil dihapus!`);
-  };
-
+  // =========================================================
+  // SET ACTIVE
+  // =========================================================
   const handleSetActive = (id) => {
-    const item = tahunAjaran.find((t) => t.id === id);
+    const item = tahunAjaran.find(
+      (t) => t.id === id
+    );
+
     if (!item) return;
 
     if (item.status === "aktif") {
@@ -201,27 +218,73 @@ export default function AdminTahunAjaranPage() {
       return;
     }
 
-    const confirmActive = window.confirm(
-      `Yakin ingin mengaktifkan tahun ajaran "${item.nama}"?\nTahun ajaran lain akan otomatis dinonaktifkan.`
-    );
-    if (!confirmActive) return;
+    if (
+      !window.confirm(
+        `Yakin ingin mengaktifkan tahun ajaran "${item.nama}"?`
+      )
+    ) {
+      return;
+    }
 
-    setTahunAjaran((prev) =>
-      prev.map((t) => ({
-        ...t,
-        status: t.id === id ? "aktif" : "nonaktif",
-      }))
+    const updated = tahunAjaran.map((t) => ({
+      ...t,
+      status:
+        t.id === id ? "aktif" : "nonaktif",
+    }));
+
+    setTahunAjaran(updated);
+
+    localStorage.setItem(
+      "tahunAjaranData",
+      JSON.stringify(updated)
     );
-    alert(`Tahun ajaran "${item.nama}" berhasil diaktifkan!`);
+
+    alert(
+      `Tahun ajaran "${item.nama}" berhasil diaktifkan!`
+    );
   };
 
   // =========================================================
-  // RENDER
+  // FORMAT DATE
   // =========================================================
-  const activeYear = tahunAjaran.find((t) => t.status === "aktif");
+  const formatDate = (date) => {
+    if (!date) return "-";
 
+    return new Date(date).toLocaleDateString(
+      "id-ID",
+      {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      }
+    );
+  };
+
+  // =========================================================
+  // LOADING
+  // =========================================================
+  if (loading) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-9 w-9 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent" />
+
+          <p className="text-sm font-medium text-slate-500">
+            Memuat data tahun ajaran...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // =========================================================
+  // UI
+  // =========================================================
   return (
-    <div className="flex h-screen w-full bg-slate-50 overflow-hidden">
+    <div className="flex h-screen w-full overflow-hidden bg-slate-100">
+      {/* =====================================================
+          SIDEBAR
+      ====================================================== */}
       <Sidebar
         active="tahunAjaran"
         setActive={() => {}}
@@ -229,386 +292,634 @@ export default function AdminTahunAjaranPage() {
         setCollapsed={setIsCollapsed}
       />
 
-      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+      {/* =====================================================
+          CONTENT WRAPPER
+      ====================================================== */}
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        {/* HEADER */}
         <Header
           toggleSidebar={toggleSidebar}
           notifications={[]}
-          user={{ name: "Admin Sekolah", email: "admin@smartschool.com", avatar: "AD" }}
+          user={{
+            name: "Admin Sekolah",
+            email: "admin@smartschool.com",
+            avatar: "AD",
+          }}
         />
 
-        <main className="flex-1 overflow-y-auto">
-          <div className="w-full p-4 md:p-6 lg:p-8">
-            <div className="w-full space-y-5">
-              {/* ===== HEADER ===== */}
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-indigo-600 text-white shadow-sm flex-shrink-0">
-                    <CalendarDays size={18} />
+        {/* ===================================================
+            MAIN
+        ==================================================== */}
+        <main className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden">
+          <div className="w-full px-4 py-5 sm:px-6 lg:px-8 xl:px-10">
+            {/* =================================================
+                TOP HEADER
+            ================================================== */}
+            <section className="relative mb-6 overflow-hidden rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50 via-white to-blue-50 p-5 shadow-sm sm:p-6 lg:p-7">
+              {/* Decorative */}
+              <div className="pointer-events-none absolute -right-10 -top-16 h-44 w-44 rounded-full bg-indigo-100/60 blur-2xl" />
+
+              <div className="pointer-events-none absolute -bottom-16 right-32 h-36 w-36 rounded-full bg-blue-100/50 blur-2xl" />
+
+              <div className="relative flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+                {/* TITLE */}
+                <div className="flex min-w-0 items-center gap-4">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-md shadow-indigo-200">
+                    <CalendarDays size={23} />
                   </div>
-                  <div>
-                    <h1 className="text-xl font-semibold text-slate-800">Kelola Tahun Ajaran</h1>
-                    <p className="text-sm text-slate-500">
-                      Tambah, edit, dan atur tahun ajaran aktif.
+
+                  <div className="min-w-0">
+                    <div className="mb-1 flex items-center gap-2">
+                      <span className="rounded-md bg-indigo-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-indigo-700">
+                        Akademik
+                      </span>
+
+                      {activeYear && (
+                        <span className="flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                          Aktif
+                        </span>
+                      )}
+                    </div>
+
+                    <h1 className="text-xl font-bold tracking-tight text-slate-800 sm:text-2xl">
+                      Kelola Tahun Ajaran
+                    </h1>
+
+                    <p className="mt-1 text-sm text-slate-500">
+                      Atur periode tahun ajaran dan
+                      semester akademik sekolah.
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 flex-wrap">
+
+                {/* ACTIONS */}
+                <div className="relative flex flex-col gap-2 sm:flex-row sm:flex-wrap xl:justify-end">
                   {activeYear && (
-                    <span className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200">
-                      <CheckCircle size={14} />
-                      Tahun Aktif: {activeYear.nama}
-                    </span>
+                    <div className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-emerald-200 bg-white/80 px-4 py-2 text-xs font-semibold text-emerald-700 shadow-sm">
+                      <CheckCircle size={15} />
+
+                      <span>
+                        Aktif: {activeYear.nama}
+                      </span>
+                    </div>
                   )}
+
                   <button
-                    onClick={() => window.location.reload()}
-                    className="p-2.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
+                    onClick={() =>
+                      window.location.reload()
+                    }
+                    className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 shadow-sm transition hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600"
+                    title="Refresh"
                   >
-                    <RefreshCw size={16} className="text-slate-500" />
+                    <RefreshCw size={15} />
+
+                    <span>Refresh</span>
                   </button>
-                  <button
-                    onClick={handleOpenAdd}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-sm whitespace-nowrap"
+
+                  <Link
+                    href="/admin/tahun-ajaran/tambah"
+                    className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-indigo-600 px-5 py-2 text-xs font-semibold text-white shadow-md shadow-indigo-200 transition hover:bg-indigo-700 hover:shadow-lg"
                   >
-                    <Plus size={16} /> Tambah Tahun Ajaran
-                  </button>
+                    <Plus size={16} />
+
+                    Tambah Tahun Ajaran
+                  </Link>
+                </div>
+              </div>
+            </section>
+
+            {/* =================================================
+                STATISTICS
+            ================================================== */}
+            <section className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {/* TOTAL */}
+              <div className="group relative overflow-hidden rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md">
+                <div className="absolute -right-6 -top-6 h-20 w-20 rounded-full bg-indigo-50 transition-transform duration-300 group-hover:scale-125" />
+
+                <div className="relative flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                      Total Periode
+                    </p>
+
+                    <p className="mt-2 text-2xl font-bold text-slate-800">
+                      {tahunAjaran.length}
+                    </p>
+
+                    <p className="mt-1 text-[11px] text-slate-400">
+                      Tahun ajaran tersimpan
+                    </p>
+                  </div>
+
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                    <Layers3 size={21} />
+                  </div>
                 </div>
               </div>
 
-              {/* ===== SEARCH ===== */}
-              <div className="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm">
-                <div className="relative">
-                  <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input
-                    type="text"
-                    placeholder="Cari tahun ajaran (contoh: 2024/2025)..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400"
-                  />
+              {/* ACTIVE */}
+              <div className="group relative overflow-hidden rounded-xl border border-emerald-200 bg-emerald-50/50 p-5 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md">
+                <div className="absolute -right-6 -top-6 h-20 w-20 rounded-full bg-emerald-100 transition-transform duration-300 group-hover:scale-125" />
+
+                <div className="relative flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-emerald-600">
+                      Periode Aktif
+                    </p>
+
+                    <p className="mt-2 text-2xl font-bold text-emerald-700">
+                      {activeCount}
+                    </p>
+
+                    <p className="mt-1 text-[11px] text-emerald-600/70">
+                      Periode sedang digunakan
+                    </p>
+                  </div>
+
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white text-emerald-600 shadow-sm">
+                    <Activity size={21} />
+                  </div>
                 </div>
               </div>
 
-              {/* ===== TABLE ===== */}
-              <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full table-auto">
-                    <thead>
-                      <tr className="border-b border-slate-200 bg-slate-50/80">
-                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 whitespace-nowrap w-[20%]">
-                          Tahun Ajaran
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 whitespace-nowrap w-[15%]">
-                          Semester
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 whitespace-nowrap w-[20%]">
-                          Periode
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 whitespace-nowrap w-[12%]">
-                          Status
-                        </th>
-                        <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500 whitespace-nowrap w-[33%]">
-                          Aksi
-                        </th>
+              {/* INACTIVE */}
+              <div className="group relative overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-5 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md sm:col-span-2 xl:col-span-1">
+                <div className="absolute -right-6 -top-6 h-20 w-20 rounded-full bg-slate-200/70 transition-transform duration-300 group-hover:scale-125" />
+
+                <div className="relative flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      Nonaktif
+                    </p>
+
+                    <p className="mt-2 text-2xl font-bold text-slate-700">
+                      {inactiveCount}
+                    </p>
+
+                    <p className="mt-1 text-[11px] text-slate-400">
+                      Periode sebelumnya
+                    </p>
+                  </div>
+
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white text-slate-500 shadow-sm">
+                    <Clock3 size={21} />
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* =================================================
+                TABLE SECTION
+            ================================================== */}
+            <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+              {/* TABLE HEADER */}
+              <div className="border-b border-slate-100 bg-slate-50/70 px-5 py-4 sm:px-6">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <h2 className="text-sm font-bold text-slate-800 sm:text-base">
+                      Daftar Tahun Ajaran
+                    </h2>
+
+                    <p className="mt-1 text-xs text-slate-400">
+                      Kelola seluruh periode akademik
+                      sekolah.
+                    </p>
+                  </div>
+
+                  {/* SEARCH */}
+                  <div className="w-full lg:max-w-md">
+                    <div className="relative">
+                      <Search
+                        size={17}
+                        className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
+                      />
+
+                      <input
+                        type="text"
+                        placeholder="Cari tahun ajaran..."
+                        value={search}
+                        onChange={(e) => {
+                          setSearch(
+                            e.target.value
+                          );
+                          setCurrentPage(1);
+                        }}
+                        className="w-full rounded-lg border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* =================================================
+                  DESKTOP TABLE
+              ================================================== */}
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[900px]">
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-white">
+                      <th className="w-[22%] px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                        Tahun Ajaran
+                      </th>
+
+                      <th className="w-[15%] px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                        Semester
+                      </th>
+
+                      <th className="w-[25%] px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                        Periode
+                      </th>
+
+                      <th className="w-[15%] px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                        Status
+                      </th>
+
+                      <th className="w-[23%] px-5 py-3.5 text-right text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                        Aksi
+                      </th>
+                    </tr>
+                  </thead>
+
+                  <tbody className="divide-y divide-slate-100">
+                    {paginated.length === 0 ? (
+                      <tr>
+                        <td
+                          colSpan={5}
+                          className="px-5 py-16 text-center"
+                        >
+                          <div className="mx-auto flex max-w-sm flex-col items-center">
+                            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
+                              <CalendarDays
+                                size={27}
+                              />
+                            </div>
+
+                            <p className="mt-4 text-sm font-bold text-slate-700">
+                              {search
+                                ? "Tidak ada hasil pencarian"
+                                : "Belum ada data tahun ajaran"}
+                            </p>
+
+                            <p className="mt-1 text-xs leading-5 text-slate-400">
+                              {search
+                                ? "Coba gunakan kata kunci pencarian yang berbeda."
+                                : "Tambahkan tahun ajaran baru untuk mulai mengelola periode akademik."}
+                            </p>
+
+                            {!search && (
+                              <Link
+                                href="/admin/tahun-ajaran/tambah"
+                                className="mt-4 inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-indigo-700"
+                              >
+                                <Plus
+                                  size={15}
+                                />
+                                Tambah Tahun Ajaran
+                              </Link>
+                            )}
+                          </div>
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {paginated.map((item) => {
-                        const isActive = item.status === "aktif";
+                    ) : (
+                      paginated.map((item) => {
+                        const isActive =
+                          item.status ===
+                          "aktif";
+
                         return (
-                          <tr key={item.id} className="hover:bg-slate-50/60 transition-colors">
-                            <td className="px-4 py-4">
-                              <p className="font-semibold text-slate-800 text-sm">
-                                {item.nama}
-                              </p>
+                          <tr
+                            key={item.id}
+                            className={`group transition-colors duration-150 hover:bg-indigo-50/30 ${
+                              isActive
+                                ? "bg-emerald-50/20"
+                                : "bg-white"
+                            }`}
+                          >
+                            {/* TAHUN */}
+                            <td className="px-5 py-4">
+                              <div className="flex items-center gap-3">
+                                <div
+                                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+                                    isActive
+                                      ? "bg-emerald-50 text-emerald-600"
+                                      : "bg-indigo-50 text-indigo-600"
+                                  }`}
+                                >
+                                  <CalendarDays
+                                    size={17}
+                                  />
+                                </div>
+
+                                <div>
+                                  <p className="text-sm font-bold text-slate-800">
+                                    {item.nama}
+                                  </p>
+
+                                  {isActive && (
+                                    <p className="mt-0.5 text-[10px] font-semibold text-emerald-600">
+                                      Periode aktif
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
                             </td>
-                            <td className="px-4 py-4">
-                              <span className="text-sm text-slate-600">
+
+                            {/* SEMESTER */}
+                            <td className="px-5 py-4">
+                              <span
+                                className={`inline-flex rounded-md border px-2.5 py-1 text-[11px] font-semibold ${
+                                  item.semester ===
+                                  "Ganjil"
+                                    ? "border-indigo-100 bg-indigo-50 text-indigo-600"
+                                    : "border-blue-100 bg-blue-50 text-blue-600"
+                                }`}
+                              >
                                 {item.semester}
                               </span>
                             </td>
-                            <td className="px-4 py-4">
-                              <div className="flex items-center gap-1.5 text-sm text-slate-500">
-                                <Calendar size={13} className="text-slate-400" />
-                                {new Date(item.tanggal_mulai).toLocaleDateString("id-ID", {
-                                  day: "numeric",
-                                  month: "short",
-                                  year: "numeric",
-                                })}
-                                <span className="text-slate-300">→</span>
-                                {new Date(item.tanggal_selesai).toLocaleDateString("id-ID", {
-                                  day: "numeric",
-                                  month: "short",
-                                  year: "numeric",
-                                })}
+
+                            {/* PERIODE */}
+                            <td className="px-5 py-4">
+                              <div className="flex items-center gap-2 text-xs text-slate-500">
+                                <Calendar
+                                  size={14}
+                                  className="shrink-0 text-slate-400"
+                                />
+
+                                <span>
+                                  {formatDate(
+                                    item.tanggal_mulai
+                                  )}
+                                </span>
+
+                                <ArrowRight
+                                  size={13}
+                                  className="shrink-0 text-slate-300"
+                                />
+
+                                <span>
+                                  {formatDate(
+                                    item.tanggal_selesai
+                                  )}
+                                </span>
                               </div>
                             </td>
-                            <td className="px-4 py-4">
+
+                            {/* STATUS */}
+                            <td className="px-5 py-4">
                               <span
-                                className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border ${
+                                className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-semibold ${
                                   isActive
-                                    ? "bg-emerald-50 text-emerald-600 border-emerald-200"
-                                    : "bg-slate-100 text-slate-500 border-slate-200"
+                                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                    : "border-slate-200 bg-slate-100 text-slate-500"
                                 }`}
                               >
                                 {isActive ? (
-                                  <CheckCircle size={12} />
+                                  <CheckCircle
+                                    size={12}
+                                  />
                                 ) : (
-                                  <XCircle size={12} />
+                                  <XCircle
+                                    size={12}
+                                  />
                                 )}
-                                {isActive ? "Aktif" : "Nonaktif"}
+
+                                {isActive
+                                  ? "Aktif"
+                                  : "Nonaktif"}
                               </span>
                             </td>
-                            <td className="px-4 py-4">
-                              <div className="flex justify-end gap-1.5 flex-wrap">
+
+                            {/* AKSI */}
+                            <td className="px-5 py-4">
+                              <div className="flex items-center justify-end gap-2">
                                 {!isActive && (
                                   <button
-                                    onClick={() => handleSetActive(item.id)}
-                                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border border-emerald-200 transition-colors text-xs font-medium"
+                                    onClick={() =>
+                                      handleSetActive(
+                                        item.id
+                                      )
+                                    }
+                                    className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] font-semibold text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-100"
                                   >
-                                    <Check size={14} /> Set Aktif
+                                    <Check
+                                      size={13}
+                                    />
+                                    Set Aktif
                                   </button>
                                 )}
-                                <button
-                                  onClick={() => handleOpenEdit(item)}
-                                  className="p-1.5 rounded-lg hover:bg-amber-50 text-slate-400 hover:text-amber-600 transition-colors"
+
+                                <Link
+                                  href={`/admin/tahun-ajaran/edit/${item.id}`}
+                                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-400 transition hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600"
                                   title="Edit"
                                 >
-                                  <Edit size={16} />
-                                </button>
+                                  <Edit
+                                    size={15}
+                                  />
+                                </Link>
+
                                 <button
-                                  onClick={() => handleDelete(item.id, item.nama)}
-                                  className="p-1.5 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors"
+                                  onClick={() =>
+                                    handleDelete(
+                                      item.id,
+                                      item.nama
+                                    )
+                                  }
+                                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-400 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600"
                                   title="Hapus"
                                 >
-                                  <Trash2 size={16} />
+                                  <Trash2
+                                    size={15}
+                                  />
                                 </button>
                               </div>
                             </td>
                           </tr>
                         );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-                {filtered.length === 0 && (
-                  <div className="p-8 text-center">
-                    <CalendarDays size={48} className="text-slate-300 mx-auto mb-3" />
-                    <p className="text-sm text-slate-500">Tidak ada data tahun ajaran</p>
-                    <button
-                      onClick={handleOpenAdd}
-                      className="mt-3 text-sm text-indigo-600 font-medium hover:text-indigo-700"
-                    >
-                      Tambah tahun ajaran pertama →
-                    </button>
-                  </div>
-                )}
-
-                {/* ===== PAGINATION ===== */}
-                {totalPages > 1 && (
-                  <div className="px-4 py-3 border-t border-slate-200/80 flex flex-col sm:flex-row items-center justify-between gap-2">
-                    <p className="text-xs text-slate-500">
-                      Menampilkan {paginated.length} dari {filtered.length} data
-                    </p>
-                    <div className="flex items-center gap-0.5">
-                      <button
-                        onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                        disabled={currentPage === 1}
-                        className="px-3 py-1 text-sm text-slate-500 hover:bg-slate-100 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                      >
-                        Prev
-                      </button>
-                      {[...Array(Math.min(totalPages, 5))].map((_, i) => (
-                        <button
-                          key={i + 1}
-                          onClick={() => setCurrentPage(i + 1)}
-                          className={`w-8 h-8 text-sm rounded-lg transition-colors ${
-                            currentPage === i + 1
-                              ? "bg-indigo-600 text-white shadow-sm"
-                              : "text-slate-500 hover:bg-slate-100"
-                          }`}
-                        >
-                          {i + 1}
-                        </button>
-                      ))}
-                      {totalPages > 5 && (
-                        <>
-                          <span className="text-slate-400 px-0.5">…</span>
-                          <button
-                            onClick={() => setCurrentPage(totalPages)}
-                            className={`w-8 h-8 text-sm rounded-lg transition-colors ${
-                              currentPage === totalPages
-                                ? "bg-indigo-600 text-white shadow-sm"
-                                : "text-slate-500 hover:bg-slate-100"
-                            }`}
-                          >
-                            {totalPages}
-                          </button>
-                        </>
-                      )}
-                      <button
-                        onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                        disabled={currentPage === totalPages}
-                        className="px-3 py-1 text-sm text-slate-500 hover:bg-slate-100 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                      >
-                        Next
-                      </button>
-                    </div>
-                  </div>
-                )}
+                      })
+                    )}
+                  </tbody>
+                </table>
               </div>
 
-              <footer className="text-center text-[11px] text-slate-400 py-3 border-t border-slate-200/60">
-                © 2026 SmartSchool • Kelola Tahun Ajaran
-              </footer>
-            </div>
+              {/* =================================================
+                  PAGINATION
+              ================================================== */}
+              {totalPages > 1 && (
+                <div className="flex flex-col gap-3 border-t border-slate-100 bg-slate-50/50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-[11px] text-slate-500">
+                    Menampilkan{" "}
+                    <span className="font-semibold text-slate-700">
+                      {paginated.length}
+                    </span>{" "}
+                    dari{" "}
+                    <span className="font-semibold text-slate-700">
+                      {filtered.length}
+                    </span>{" "}
+                    data
+                  </p>
+
+                  <div className="flex items-center gap-1">
+                    {/* PREV */}
+                    <button
+                      onClick={() =>
+                        setCurrentPage(
+                          Math.max(
+                            1,
+                            currentPage - 1
+                          )
+                        )
+                      }
+                      disabled={
+                        currentPage === 1
+                      }
+                      className="rounded-lg px-3 py-1.5 text-xs font-medium text-slate-500 transition hover:bg-white hover:text-indigo-600 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Prev
+                    </button>
+
+                    {/* PAGES */}
+                    {[
+                      ...Array(
+                        Math.min(totalPages, 5)
+                      ),
+                    ].map((_, i) => {
+                      const page = i + 1;
+
+                      return (
+                        <button
+                          key={page}
+                          onClick={() =>
+                            setCurrentPage(page)
+                          }
+                          className={`flex h-8 w-8 items-center justify-center rounded-lg text-xs font-semibold transition ${
+                            currentPage === page
+                              ? "bg-indigo-600 text-white shadow-sm"
+                              : "text-slate-500 hover:bg-white hover:text-indigo-600"
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      );
+                    })}
+
+                    {totalPages > 5 && (
+                      <>
+                        <span className="px-1 text-xs text-slate-400">
+                          ...
+                        </span>
+
+                        <button
+                          onClick={() =>
+                            setCurrentPage(
+                              totalPages
+                            )
+                          }
+                          className={`flex h-8 w-8 items-center justify-center rounded-lg text-xs font-semibold transition ${
+                            currentPage ===
+                            totalPages
+                              ? "bg-indigo-600 text-white"
+                              : "text-slate-500 hover:bg-white hover:text-indigo-600"
+                          }`}
+                        >
+                          {totalPages}
+                        </button>
+                      </>
+                    )}
+
+                    {/* NEXT */}
+                    <button
+                      onClick={() =>
+                        setCurrentPage(
+                          Math.min(
+                            totalPages,
+                            currentPage + 1
+                          )
+                        )
+                      }
+                      disabled={
+                        currentPage === totalPages
+                      }
+                      className="rounded-lg px-3 py-1.5 text-xs font-medium text-slate-500 transition hover:bg-white hover:text-indigo-600 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
+            </section>
+
+            {/* =================================================
+                BOTTOM INFO
+            ================================================== */}
+            <section className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
+              {/* INFO */}
+              <div className="flex items-start gap-3 rounded-xl border border-indigo-100 bg-indigo-50/60 p-4">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-indigo-600 shadow-sm">
+                  <AlertCircle size={17} />
+                </div>
+
+                <div>
+                  <p className="text-xs font-bold text-indigo-800">
+                    Informasi pengelolaan
+                  </p>
+
+                  <p className="mt-1 text-[11px] leading-5 text-indigo-700/70">
+                    Hanya satu tahun ajaran yang dapat
+                    berstatus aktif. Saat periode baru
+                    diaktifkan, periode lainnya akan
+                    otomatis menjadi nonaktif.
+                  </p>
+                </div>
+              </div>
+
+              {/* ACTIVE YEAR */}
+              <div className="flex items-start gap-3 rounded-xl border border-emerald-100 bg-emerald-50/60 p-4">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-emerald-600 shadow-sm">
+                  <CheckCircle size={17} />
+                </div>
+
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-emerald-800">
+                    Tahun ajaran aktif
+                  </p>
+
+                  <p className="mt-1 text-[11px] leading-5 text-emerald-700/70">
+                    {activeYear
+                      ? `Saat ini ${activeYear.nama} menjadi periode aktif sekolah.`
+                      : "Belum ada tahun ajaran yang ditetapkan sebagai aktif."}
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            {/* =================================================
+                FOOTER
+            ================================================== */}
+            <footer className="mt-7 border-t border-slate-200/70 py-5 text-center">
+              <div className="flex flex-wrap items-center justify-center gap-2 text-[11px] text-slate-400">
+                <span className="font-semibold text-slate-500">
+                  SmartSchool
+                </span>
+
+                <span className="h-1 w-1 rounded-full bg-slate-300" />
+
+                <span>Admin Sekolah</span>
+
+                <span className="h-1 w-1 rounded-full bg-slate-300" />
+
+                <span>Kelola Tahun Ajaran</span>
+
+                <span className="h-1 w-1 rounded-full bg-slate-300" />
+
+                <span>2026</span>
+              </div>
+            </footer>
           </div>
         </main>
       </div>
-
-      {/* ===== MODAL TAMBAH / EDIT ===== */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            {/* Header Modal */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 sticky top-0 bg-white rounded-t-2xl">
-              <div>
-                <h3 className="text-lg font-semibold text-slate-800">
-                  {editingItem ? "Edit Tahun Ajaran" : "Tambah Tahun Ajaran"}
-                </h3>
-                <p className="text-xs text-slate-400">
-                  {editingItem
-                    ? "Perbarui informasi tahun ajaran"
-                    : "Isi data tahun ajaran baru"}
-                </p>
-              </div>
-              <button
-                onClick={() => {
-                  setShowModal(false);
-                  resetForm();
-                }}
-                className="p-2 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            {/* Body Modal */}
-            <div className="p-6 space-y-4">
-              {/* Nama */}
-              <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1.5">
-                  Nama Tahun Ajaran <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="nama"
-                  value={form.nama}
-                  onChange={handleChange}
-                  placeholder="Contoh: 2024/2025"
-                  className="w-full px-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition"
-                />
-                <p className="text-[10px] text-slate-400 mt-1">
-                  Format: TahunAjaran/TahunAjaran (contoh: 2024/2025)
-                </p>
-              </div>
-
-              {/* Semester */}
-              <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1.5">
-                  Semester <span className="text-rose-500">*</span>
-                </label>
-                <select
-                  name="semester"
-                  value={form.semester}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition cursor-pointer text-slate-600"
-                >
-                  <option value="Ganjil">Ganjil</option>
-                  <option value="Genap">Genap</option>
-                </select>
-              </div>
-
-              {/* Tanggal Mulai & Selesai */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-slate-500 mb-1.5">
-                    Tanggal Mulai <span className="text-rose-500">*</span>
-                  </label>
-                  <input
-                    type="date"
-                    name="tanggal_mulai"
-                    value={form.tanggal_mulai}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-500 mb-1.5">
-                    Tanggal Selesai <span className="text-rose-500">*</span>
-                  </label>
-                  <input
-                    type="date"
-                    name="tanggal_selesai"
-                    value={form.tanggal_selesai}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition"
-                  />
-                </div>
-              </div>
-
-              {/* Status */}
-              <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1.5">
-                  Status
-                </label>
-                <select
-                  name="status"
-                  value={form.status}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition cursor-pointer text-slate-600"
-                >
-                  <option value="nonaktif">Nonaktif</option>
-                  <option value="aktif">Aktif</option>
-                </select>
-                <p className="text-[10px] text-amber-500 mt-1 flex items-center gap-1">
-                  <AlertCircle size={12} />
-                  Jika diaktifkan, tahun ajaran lain akan otomatis dinonaktifkan
-                </p>
-              </div>
-            </div>
-
-            {/* Footer Modal */}
-            <div className="flex items-center gap-3 px-6 py-4 border-t border-slate-100 sticky bottom-0 bg-white rounded-b-2xl">
-              <button
-                onClick={() => {
-                  setShowModal(false);
-                  resetForm();
-                }}
-                className="flex-1 py-2.5 rounded-lg text-sm font-medium text-slate-600 border border-slate-200 hover:bg-slate-50 transition-colors"
-              >
-                Batal
-              </button>
-              <button
-                onClick={handleSubmit}
-                disabled={loading}
-                className="flex-1 py-2.5 rounded-lg text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 transition-colors shadow-sm hover:shadow flex items-center justify-center gap-2"
-              >
-                {loading ? (
-                  <>
-                    <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
-                    Menyimpan...
-                  </>
-                ) : (
-                  <>
-                    <Save size={16} />
-                    {editingItem ? "Perbarui" : "Simpan"}
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

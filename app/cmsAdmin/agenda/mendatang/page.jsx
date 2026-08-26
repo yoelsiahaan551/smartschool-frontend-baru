@@ -1,3 +1,4 @@
+// app/cmsAdmin/agenda/mendatang/page.jsx
 "use client";
 
 import { useState } from "react";
@@ -10,8 +11,13 @@ import {
   Clock,
   Pencil,
   Trash2,
-  ArrowLeft,
   Plus,
+  ArrowLeft,
+  CalendarDays,
+  Timer,
+  ChevronRight,
+  MoreHorizontal,
+  Sparkles,
 } from "lucide-react";
 
 export default function AgendaMendatangPage() {
@@ -20,7 +26,6 @@ export default function AgendaMendatangPage() {
   const [active, setActive] = useState("agenda");
   const [collapsed, setCollapsed] = useState(false);
 
-  // Dummy Data
   const [upcoming, setUpcoming] = useState([
     {
       id: 2,
@@ -54,517 +59,277 @@ export default function AgendaMendatangPage() {
     }
   };
 
-  // Format tanggal untuk kotak tanggal
   const getDateInfo = (dateString) => {
     const date = new Date(dateString.replace(" ", "T"));
-
     if (Number.isNaN(date.getTime())) {
+      return { month: "---", day: "--", fullDate: "-", time: "-" };
+    }
+    return {
+      month: date.toLocaleDateString("id-ID", { month: "short" }).replace(".", ""),
+      day: date.getDate(),
+      fullDate: date.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" }),
+      time: date.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", hour12: false }),
+    };
+  };
+
+  const getCategoryStyle = (category) => {
+    switch (category) {
+      case "PPDB": return "bg-blue-50 text-blue-700 border-blue-100";
+      case "Kegiatan": return "bg-emerald-50 text-emerald-700 border-emerald-100";
+      case "Rapat": return "bg-slate-100 text-slate-700 border-slate-200";
+      default: return "bg-slate-100 text-slate-600 border-slate-200";
+    }
+  };
+
+  const getStatusStyle = (status) => {
+    if (status === "scheduled") {
       return {
-        month: "---",
-        day: "--",
+        wrapper: "bg-blue-50 text-blue-700 border border-blue-100",
+        dot: "bg-blue-500",
+        icon: CalendarDays,
+        label: "Terjadwal",
       };
     }
-
     return {
-      month: date
-        .toLocaleDateString("id-ID", {
-          month: "short",
-        })
-        .replace(".", ""),
-      day: date.getDate(),
+      wrapper: "bg-amber-50 text-amber-700 border border-amber-100",
+      dot: "bg-amber-500",
+      icon: Clock,
+      label: "Draft",
     };
   };
 
   return (
-    <div className="flex min-h-screen w-full overflow-hidden bg-slate-50">
-      {/* =====================================================
-          SIDEBAR
-      ====================================================== */}
-      <div className="flex-shrink-0">
-        <Sidebar
-          active={active}
-          setActive={setActive}
-          collapsed={collapsed}
-          setCollapsed={setCollapsed}
+    // PERBAIKAN: flex tanpa overflow-x-hidden
+    <div className="flex min-h-screen w-full bg-white">
+      {/* SIDEBAR */}
+      <Sidebar
+        active={active}
+        setActive={setActive}
+        collapsed={collapsed}
+        setCollapsed={setCollapsed}
+      />
+
+      {/* MAIN CONTENT - flex-1 min-w-0 flex flex-col */}
+      <div className="flex-1 min-w-0 flex flex-col">
+        <Header
+          title="Agenda Mendatang"
+          user={{ name: "Admin" }}
+          notifications={[]}
         />
-      </div>
 
-      {/* =====================================================
-          MAIN CONTENT
-      ====================================================== */}
-      <main className="flex-1 min-w-0 w-0 overflow-y-auto overflow-x-hidden bg-slate-50 transition-all duration-300">
-        <Header title="Agenda Mendatang" user={{ name: "Admin" }} />
+        <main className="flex-1 min-w-0 overflow-y-auto p-4 md:p-6 lg:p-8 bg-white">
+          <div className="w-full min-w-0 max-w-7xl mx-auto space-y-6">
 
-        {/* =====================================================
-            CONTENT CONTAINER
-            Tidak menggunakan max-w-4xl
-        ====================================================== */}
-        <div
-          className="
-            w-full
-            min-w-0
-            px-4
-            py-6
-            sm:px-6
-            md:px-8
-            lg:px-10
-            xl:px-12
-            2xl:px-16
-            space-y-6
-          "
-        >
-          {/* =================================================
-              BREADCRUMB
-          ================================================== */}
-          <nav className="w-full min-w-0 overflow-x-auto">
-            <ol
-              className="
-                inline-flex
-                items-center
-                gap-2
-                whitespace-nowrap
-                text-sm
-                font-medium
-                text-slate-500
-                tracking-wide
-              "
+            {/* BREADCRUMB */}
+            <nav className="flex items-center gap-2 text-xs sm:text-sm text-slate-500">
+              <a href="/cmsAdmin" className="hover:text-blue-700 transition">Dashboard</a>
+              <ChevronRight className="w-3.5 h-3.5 text-slate-300" />
+              <a href="/cmsAdmin/agenda" className="hover:text-blue-700 transition">Agenda</a>
+              <ChevronRight className="w-3.5 h-3.5 text-slate-300" />
+              <span className="text-blue-700 font-semibold">Mendatang</span>
+            </nav>
+
+            {/* BACK BUTTON */}
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-blue-700 transition group"
             >
-              <li>
-                <a
-                  href="/cmsAdmin"
-                  className="hover:text-indigo-600 transition-colors"
-                >
-                  Dashboard
-                </a>
-              </li>
+              <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
+              Kembali
+            </button>
 
-              <li className="text-slate-300">/</li>
-
-              <li>
-                <a
-                  href="/cmsAdmin/agenda"
-                  className="hover:text-indigo-600 transition-colors"
-                >
-                  Agenda
-                </a>
-              </li>
-
-              <li className="text-slate-300">/</li>
-
-              <li className="text-indigo-600 font-semibold">
-                Mendatang
-              </li>
-            </ol>
-          </nav>
-
-          {/* =================================================
-              HEADER CARD
-          ================================================== */}
-          <div
-            className="
-              w-full
-              min-w-0
-              bg-white
-              p-4
-              sm:p-5
-              md:p-6
-              rounded-2xl
-              border border-slate-200/60
-              shadow-sm
-            "
-          >
-            <div
-              className="
-                flex
-                flex-col
-                gap-5
-                lg:flex-row
-                lg:items-center
-                lg:justify-between
-              "
-            >
-              {/* Title */}
-              <div className="flex items-start sm:items-center gap-4 min-w-0">
-                <div
-                  className="
-                    flex-shrink-0
-                    p-3
-                    bg-blue-50
-                    rounded-2xl
-                    border border-blue-100
-                  "
-                >
-                  <Clock className="w-5 h-5 text-blue-600" />
-                </div>
-
-                <div className="min-w-0">
-                  <h1
-                    className="
-                      text-xl
-                      sm:text-2xl
-                      font-bold
-                      tracking-tight
-                      text-slate-900
-                    "
-                  >
-                    Agenda Mendatang
-                  </h1>
-
-                  <p
-                    className="
-                      text-sm
-                      text-slate-500
-                      mt-0.5
-                      leading-relaxed
-                    "
-                  >
-                    Event dan jadwal yang akan datang dalam waktu dekat.
-                  </p>
-                </div>
-              </div>
-
-              {/* Button */}
-              <button
-                type="button"
-                onClick={() =>
-                  router.push("/cmsAdmin/agenda/tambah")
-                }
-                className="
-                  w-full
-                  lg:w-auto
-                  shrink-0
-                  inline-flex
-                  items-center
-                  justify-center
-                  gap-2
-                  px-5
-                  py-2.5
-                  rounded-xl
-                  lg:rounded-full
-                  bg-indigo-600
-                  text-white
-                  text-sm
-                  font-semibold
-                  shadow-lg
-                  shadow-indigo-600/20
-                  hover:bg-indigo-700
-                  hover:shadow-xl
-                  transition-all
-                  duration-200
-                  active:scale-[0.98]
-                "
-              >
-                <Calendar className="w-4 h-4" />
-                Buat Agenda Baru
-              </button>
-            </div>
-          </div>
-
-          {/* =================================================
-              LIST AGENDA
-          ================================================== */}
-          <div className="w-full min-w-0 space-y-4">
-            {upcoming.length > 0 ? (
-              upcoming.map((item) => {
-                const dateInfo = getDateInfo(item.date);
-
-                return (
-                  <div
-                    key={item.id}
-                    className="
-                      group
-                      relative
-                      w-full
-                      min-w-0
-                      bg-white
-                      rounded-2xl
-                      border border-slate-200/70
-                      shadow-sm
-                      hover:shadow-md
-                      transition-all
-                      duration-300
-                      overflow-hidden
-                    "
-                  >
-                    {/* Accent Line */}
-                    <div
-                      className="
-                        absolute
-                        left-0
-                        top-0
-                        bottom-0
-                        w-1
-                        bg-blue-500
-                      "
-                    />
-
-                    <div
-                      className="
-                        flex
-                        flex-col
-                        gap-4
-                        p-4
-                        sm:p-5
-                        lg:flex-row
-                        lg:items-center
-                      "
-                    >
-                      {/* =================================================
-                          DATE BOX
-                      ================================================== */}
-                      <div
-                        className="
-                          flex-shrink-0
-                          w-14
-                          h-14
-                          rounded-2xl
-                          bg-slate-50
-                          border border-slate-200
-                          flex
-                          flex-col
-                          items-center
-                          justify-center
-                          shadow-sm
-                        "
-                      >
-                        <span className="text-[10px] font-bold text-slate-400 uppercase">
-                          {dateInfo.month}
-                        </span>
-
-                        <span className="text-lg font-extrabold text-slate-800 leading-none">
-                          {dateInfo.day}
-                        </span>
-                      </div>
-
-                      {/* =================================================
-                          DETAIL
-                      ================================================== */}
-                      <div className="flex-1 min-w-0">
-                        <h4
-                          className="
-                            text-base
-                            font-bold
-                            text-slate-900
-                            group-hover:text-indigo-600
-                            transition-colors
-                            break-words
-                            sm:truncate
-                          "
-                        >
-                          {item.title}
-                        </h4>
-
-                        <div
-                          className="
-                            flex
-                            flex-wrap
-                            items-center
-                            gap-x-4
-                            gap-y-2
-                            mt-2
-                            text-xs
-                          "
-                        >
-                          {/* Location */}
-                          <span className="flex items-center gap-1 text-slate-500 min-w-0">
-                            <MapPin className="w-3 h-3 flex-shrink-0" />
-
-                            <span className="truncate max-w-[220px]">
-                              {item.location}
-                            </span>
-                          </span>
-
-                          {/* Time */}
-                          <span className="flex items-center gap-1 text-slate-500">
-                            <Clock className="w-3 h-3 flex-shrink-0" />
-
-                            <span>
-                              {item.date.split(" ")[1]}
-                            </span>
-                          </span>
-
-                          {/* Category */}
-                          <span
-                            className="
-                              px-2
-                              py-0.5
-                              bg-slate-100
-                              rounded-full
-                              text-slate-600
-                              text-[10px]
-                              font-medium
-                            "
-                          >
-                            {item.category}
-                          </span>
-                        </div>
-
-                        {/* Mobile status */}
-                        <div className="mt-2 lg:hidden">
-                          <span
-                            className={`
-                              inline-flex
-                              items-center
-                              px-2.5
-                              py-1
-                              rounded-full
-                              text-[10px]
-                              font-semibold
-                              ${
-                                item.status === "scheduled"
-                                  ? "bg-blue-50 text-blue-700"
-                                  : "bg-amber-50 text-amber-700"
-                              }
-                            `}
-                          >
-                            {item.status === "scheduled"
-                              ? "Terjadwal"
-                              : "Draft"}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* =================================================
-                          ACTIONS
-                      ================================================== */}
-                      <div
-                        className="
-                          flex
-                          items-center
-                          gap-2
-                          flex-shrink-0
-                          lg:ml-auto
-                        "
-                      >
-                        <button
-                          type="button"
-                          className="
-                            p-2
-                            rounded-xl
-                            text-slate-400
-                            hover:text-indigo-600
-                            hover:bg-indigo-50
-                            transition-all
-                            duration-200
-                          "
-                          title="Edit Agenda"
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(item.id)}
-                          className="
-                            p-2
-                            rounded-xl
-                            text-slate-400
-                            hover:text-red-600
-                            hover:bg-red-50
-                            transition-all
-                            duration-200
-                          "
-                          title="Hapus Agenda"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
+            {/* HEADER CARD */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 lg:p-8">
+              <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+                <div className="flex items-start gap-4 min-w-0">
+                  <div className="shrink-0 p-3 rounded-2xl bg-gradient-to-br from-blue-700 to-blue-800 text-white shadow-lg shadow-blue-200/50">
+                    <CalendarDays className="w-6 h-6" />
                   </div>
-                );
-              })
-            ) : (
-              /* =================================================
-                  EMPTY STATE
-              ================================================== */
-              <div
-                className="
-                  w-full
-                  bg-white
-                  rounded-2xl
-                  border border-slate-200/70
-                  shadow-sm
-                  p-8
-                  sm:p-12
-                  text-center
-                "
-              >
-                <div
-                  className="
-                    w-16
-                    h-16
-                    mx-auto
-                    rounded-full
-                    bg-slate-100
-                    flex
-                    items-center
-                    justify-center
-                    mb-4
-                  "
-                >
-                  <Clock className="w-8 h-8 text-slate-400" />
+                  <div className="min-w-0">
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 border border-blue-100 text-[10px] font-bold uppercase tracking-wider text-blue-700 mb-1.5">
+                      <Sparkles className="w-3 h-3" />
+                      Agenda Sekolah
+                    </div>
+                    <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Agenda Mendatang</h1>
+                    <p className="text-sm text-slate-500 mt-1">Kelola event, kegiatan, dan jadwal sekolah yang akan datang</p>
+                  </div>
                 </div>
-
-                <h3 className="text-base font-semibold text-slate-900">
-                  Tidak ada agenda mendatang
-                </h3>
-
-                <p className="text-sm text-slate-500 mt-1 max-w-sm mx-auto leading-relaxed">
-                  Semua jadwal selesai. Saatnya membuat agenda baru!
-                </p>
-
                 <button
-                  type="button"
-                  onClick={() =>
-                    router.push("/cmsAdmin/agenda/tambah")
-                  }
-                  className="
-                    mt-5
-                    inline-flex
-                    items-center
-                    justify-center
-                    gap-2
-                    px-5
-                    py-2.5
-                    rounded-xl
-                    bg-indigo-600
-                    text-white
-                    text-sm
-                    font-semibold
-                    hover:bg-indigo-700
-                    transition-colors
-                  "
+                  onClick={() => router.push("/cmsAdmin/agenda/tambah")}
+                  className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-700 to-blue-800 text-white rounded-xl hover:shadow-lg hover:shadow-blue-200/50 transition-all shadow-md font-semibold text-sm whitespace-nowrap"
                 >
                   <Plus className="w-4 h-4" />
-                  Buat Agenda
+                  Buat Agenda Baru
                 </button>
               </div>
-            )}
-          </div>
-
-          {/* =================================================
-              FOOTER INFO
-          ================================================== */}
-          {upcoming.length > 0 && (
-            <div
-              className="
-                w-full
-                px-4
-                py-3
-                bg-white
-                rounded-2xl
-                border border-slate-200/60
-                text-center
-              "
-            >
-              <p className="text-[10px] sm:text-xs font-medium text-slate-400">
-                ⚡ Data simulasi (Dummy) • Total{" "}
-                {upcoming.length} agenda mendatang
-              </p>
             </div>
-          )}
-        </div>
-      </main>
+
+            {/* STATISTICS */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-center gap-4">
+                <div className="p-2.5 rounded-xl bg-blue-50 text-blue-700">
+                  <Calendar className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Total Agenda</p>
+                  <p className="text-2xl font-bold text-slate-900">{upcoming.length}</p>
+                </div>
+              </div>
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-center gap-4">
+                <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-600">
+                  <Timer className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Terjadwal</p>
+                  <p className="text-2xl font-bold text-slate-900">{upcoming.filter((i) => i.status === "scheduled").length}</p>
+                </div>
+              </div>
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-center gap-4">
+                <div className="p-2.5 rounded-xl bg-amber-50 text-amber-600">
+                  <Clock className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Draft</p>
+                  <p className="text-2xl font-bold text-slate-900">{upcoming.filter((i) => i.status === "draft").length}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* LIST HEADER */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">Jadwal Terdekat</h2>
+                <p className="text-sm text-slate-500">Daftar agenda yang dijadwalkan berikutnya</p>
+              </div>
+              <span className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-500 shadow-sm">
+                <CalendarDays className="w-3.5 h-3.5 text-blue-500" />
+                {upcoming.length} agenda
+              </span>
+            </div>
+
+            {/* LIST */}
+            <div className="space-y-3">
+              {upcoming.length > 0 ? (
+                upcoming.map((item) => {
+                  const dateInfo = getDateInfo(item.date);
+                  const status = getStatusStyle(item.status);
+                  const StatusIcon = status.icon;
+
+                  return (
+                    <div
+                      key={item.id}
+                      className="group relative bg-white rounded-2xl border border-slate-200 shadow-sm hover:border-blue-200 hover:shadow-lg hover:shadow-slate-200/60 transition-all duration-300 overflow-hidden"
+                    >
+                      <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-700" />
+
+                      <div className="flex flex-col lg:flex-row lg:items-center gap-4 p-4 sm:p-5">
+                        {/* DATE */}
+                        <div className="shrink-0 flex lg:block items-center gap-3">
+                          <div className="flex flex-col items-center justify-center w-16 h-16 rounded-xl border border-blue-100 bg-blue-50 shadow-sm">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-blue-500">
+                              {dateInfo.month}
+                            </span>
+                            <span className="text-2xl font-extrabold text-slate-900 mt-0.5 leading-none">
+                              {dateInfo.day}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* CONTENT */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                            <h3 className="text-sm sm:text-base lg:text-lg font-bold text-slate-900 group-hover:text-blue-700 transition-colors break-words">
+                              {item.title}
+                            </h3>
+                            <span className={`inline-flex w-fit shrink-0 items-center rounded-md border px-2 py-1 text-[10px] font-semibold ${getCategoryStyle(item.category)}`}>
+                              {item.category}
+                            </span>
+                          </div>
+
+                          <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-2">
+                            <div className="inline-flex items-center gap-1.5 text-xs text-slate-500">
+                              <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                              <span>{dateInfo.fullDate}</span>
+                            </div>
+                            <div className="inline-flex items-center gap-1.5 text-xs text-slate-500">
+                              <Clock className="w-3.5 h-3.5 text-slate-400" />
+                              <span>{dateInfo.time} WIB</span>
+                            </div>
+                            <div className="inline-flex items-center gap-1.5 text-xs text-slate-500">
+                              <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                              <span className="truncate max-w-[200px]">{item.location}</span>
+                            </div>
+                          </div>
+
+                          {/* STATUS MOBILE */}
+                          <div className="mt-3 lg:hidden">
+                            <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold ${status.wrapper}`}>
+                              <span className={`h-1.5 w-1.5 rounded-full ${status.dot}`} />
+                              <StatusIcon className="w-3 h-3" />
+                              {status.label}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* STATUS DESKTOP */}
+                        <div className="hidden lg:block shrink-0">
+                          <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold ${status.wrapper}`}>
+                            <span className={`h-1.5 w-1.5 rounded-full ${status.dot}`} />
+                            <StatusIcon className="w-3.5 h-3.5" />
+                            {status.label}
+                          </span>
+                        </div>
+
+                        {/* ACTIONS */}
+                        <div className="flex shrink-0 items-center justify-end gap-1.5 border-t border-slate-100 pt-3 lg:border-t-0 lg:pt-0">
+                          <button className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-transparent text-slate-400 transition-all hover:border-blue-100 hover:bg-blue-50 hover:text-blue-600" title="Edit">
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => handleDelete(item.id)} className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-transparent text-slate-400 transition-all hover:border-red-100 hover:bg-red-50 hover:text-red-600" title="Hapus">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                          <button className="hidden sm:inline-flex h-9 w-9 items-center justify-center rounded-lg border border-transparent text-slate-400 transition-all hover:border-slate-200 hover:bg-slate-50 hover:text-slate-700" title="Opsi">
+                            <MoreHorizontal className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="flex flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 py-14 text-center shadow-sm">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50">
+                    <CalendarDays className="w-7 h-7 text-slate-400" />
+                  </div>
+                  <h3 className="mt-4 text-base font-bold text-slate-900">Tidak ada agenda mendatang</h3>
+                  <p className="mt-1 max-w-md text-sm text-slate-500">Belum terdapat agenda yang dijadwalkan. Tambahkan agenda baru untuk mulai mengatur kegiatan sekolah.</p>
+                  <button onClick={() => router.push("/cmsAdmin/agenda/tambah")} className="mt-5 inline-flex items-center gap-2 rounded-xl bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-blue-200/50 transition-all hover:bg-blue-800 hover:shadow-lg">
+                    <Plus className="w-4 h-4" />
+                    Buat Agenda
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* FOOTER */}
+            {upcoming.length > 0 && (
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <span className="text-xs text-slate-400 flex items-center gap-2">
+                  <CalendarDays className="w-3.5 h-3.5" />
+                  Menampilkan {upcoming.length} agenda mendatang
+                </span>
+                <span className="text-xs text-slate-400">Data simulasi</span>
+              </div>
+            )}
+
+            {/* FOOTER */}
+            <footer className="pt-4 border-t border-slate-200/60 text-center text-xs text-slate-400">
+              © 2026 SmartSchool CMS • Agenda Mendatang
+            </footer>
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

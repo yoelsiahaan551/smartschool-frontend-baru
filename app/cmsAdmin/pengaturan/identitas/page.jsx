@@ -1,3 +1,4 @@
+// app/cmsAdmin/pengaturan/identitas/page.jsx
 "use client";
 
 import { useState } from "react";
@@ -11,6 +12,8 @@ import {
   MapPin,
   UploadCloud,
   X,
+  ChevronRight,
+  Building2,
 } from "lucide-react";
 
 export default function IdentitasPage() {
@@ -20,866 +23,223 @@ export default function IdentitasPage() {
 
   const [form, setForm] = useState({
     name: "SmartSchool CMS",
-    description:
-      "Sistem manajemen sekolah berbasis web terintegrasi.",
+    description: "Sistem manajemen sekolah berbasis web terintegrasi.",
     email: "admin@sekolah.sch.id",
     phone: "+62 812 3456 7890",
-    address:
-      "Jl. Pendidikan No. 1, Kota Smart, Indonesia",
+    address: "Jl. Pendidikan No. 1, Kota Smart, Indonesia",
   });
 
-  const [logo, setLogo] = useState(null);
   const [logoPreview, setLogoPreview] = useState(
-    "https://via.placeholder.com/150"
+    "https://placehold.co/150x150/1e3a5f/white?text=Logo"
   );
-
-  const [favicon, setFavicon] = useState(null);
   const [faviconPreview, setFaviconPreview] = useState(
-    "https://via.placeholder.com/32"
+    "https://placehold.co/32x32/1e3a5f/white?text=F"
   );
 
-  // =========================
-  // HANDLE INPUT
-  // =========================
   const handleChange = (e) => {
     const { name, value } = e.target;
-
-    setForm((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  // =========================
-  // HANDLE FILE
-  // =========================
   const handleFileChange = (e, type) => {
     const file = e.target.files?.[0];
-
     if (!file) return;
-
     const url = URL.createObjectURL(file);
-
-    if (type === "logo") {
-      setLogo(file);
-      setLogoPreview(url);
-    } else {
-      setFavicon(file);
-      setFaviconPreview(url);
-    }
+    if (type === "logo") setLogoPreview(url);
+    else setFaviconPreview(url);
   };
 
-  // =========================
-  // SUBMIT
-  // =========================
   const handleSubmit = (e) => {
     e.preventDefault();
-
     setLoading(true);
-
     setTimeout(() => {
       setLoading(false);
-
-      alert(
-        "✅ Identitas website berhasil disimpan! (Mockup)"
-      );
+      alert("✅ Identitas website berhasil disimpan!");
     }, 1500);
   };
 
   return (
-    <div className="flex min-h-screen w-full overflow-x-hidden bg-slate-50">
-      {/* =====================================================
-          SIDEBAR
-      ====================================================== */}
-      <div className="shrink-0">
-        <Sidebar
-          active={active}
-          setActive={setActive}
-          collapsed={collapsed}
-          setCollapsed={setCollapsed}
-        />
-      </div>
+    <div className="flex min-h-screen w-full bg-white">
+      <Sidebar
+        active={active}
+        setActive={setActive}
+        collapsed={collapsed}
+        setCollapsed={setCollapsed}
+      />
 
-      {/* =====================================================
-          MAIN CONTENT
-      ====================================================== */}
-      <main className="flex-1 min-w-0 overflow-x-hidden overflow-y-auto bg-slate-50 transition-all duration-300">
+      <div className="flex-1 min-w-0 flex flex-col">
+        {/* ===== HEADER dengan CMS Admin ===== */}
         <Header
           title="Identitas Website"
-          user={{ name: "Admin" }}
+          user={{
+            name: "CMS Admin",
+            email: "cms@smartschool.com",
+            avatar: "CA",
+          }}
+          notifications={[]}
         />
 
-        {/* =====================================================
-            CONTENT WRAPPER
-        ====================================================== */}
-        <div
-          className="
-            w-full
-            min-w-0
-            mx-auto
-            px-3
-            py-5
-            sm:px-4
-            sm:py-6
-            md:px-6
-            md:py-8
-            lg:px-8
-            lg:py-10
-            xl:px-10
-            space-y-6
-          "
-        >
-          {/* =====================================================
-              BREADCRUMB
-          ====================================================== */}
-          <nav className="w-full min-w-0 overflow-hidden">
-            <ol
-              className="
-                flex
-                items-center
-                flex-wrap
-                gap-x-2
-                gap-y-1
-                text-xs
-                sm:text-sm
-                font-medium
-                text-slate-500
-              "
-            >
-              <li className="shrink-0">
-                <a
-                  href="/cmsAdmin"
-                  className="hover:text-indigo-600 transition-colors"
-                >
-                  Dashboard
-                </a>
-              </li>
+        <main className="flex-1 min-w-0 overflow-y-auto p-4 md:p-6 lg:p-8 bg-white">
+          <div className="w-full min-w-0 max-w-6xl mx-auto space-y-6">
 
-              <li className="text-slate-300 shrink-0">
-                /
-              </li>
+            {/* Breadcrumb */}
+            <nav className="flex items-center gap-2 text-sm text-slate-500">
+              <a href="/cmsAdmin" className="hover:text-blue-800 transition">Dashboard</a>
+              <ChevronRight className="w-4 h-4 text-slate-300" />
+              <a href="/cmsAdmin/pengaturan" className="hover:text-blue-800 transition">Pengaturan</a>
+              <ChevronRight className="w-4 h-4 text-slate-300" />
+              <span className="text-blue-900 font-semibold">Identitas</span>
+            </nav>
 
-              <li className="shrink-0">
-                <a
-                  href="/cmsAdmin/pengaturan"
-                  className="hover:text-indigo-600 transition-colors"
-                >
-                  Pengaturan
-                </a>
-              </li>
-
-              <li className="text-slate-300 shrink-0">
-                /
-              </li>
-
-              <li className="text-indigo-600 font-semibold truncate">
-                Identitas
-              </li>
-            </ol>
-          </nav>
-
-          {/* =====================================================
-              PAGE HEADER
-          ====================================================== */}
-          <section
-            className="
-              w-full
-              min-w-0
-              flex
-              flex-col
-              sm:flex-row
-              sm:items-center
-              gap-3
-              sm:gap-4
-            "
-          >
-            <div
-              className="
-                shrink-0
-                w-fit
-                p-2.5
-                sm:p-3
-                bg-indigo-50
-                rounded-xl
-                sm:rounded-2xl
-                border
-                border-indigo-100
-              "
-            >
-              <Globe className="w-5 h-5 text-indigo-600" />
-            </div>
-
-            <div className="min-w-0">
-              <h1
-                className="
-                  text-lg
-                  sm:text-xl
-                  md:text-2xl
-                  font-bold
-                  tracking-tight
-                  text-slate-900
-                "
-              >
-                Identitas Website
-              </h1>
-
-              <p
-                className="
-                  text-xs
-                  sm:text-sm
-                  text-slate-500
-                  mt-0.5
-                  leading-relaxed
-                "
-              >
-                Atur informasi dasar, logo, dan profil
-                website sekolah Anda.
-              </p>
-            </div>
-          </section>
-
-          {/* =====================================================
-              MAIN CARD
-          ====================================================== */}
-          <form
-            onSubmit={handleSubmit}
-            className="
-              w-full
-              min-w-0
-              bg-white
-              rounded-2xl
-              border
-              border-slate-200/70
-              shadow-sm
-              overflow-hidden
-            "
-          >
-            {/* =================================================
-                CARD HEADER
-            ================================================== */}
-            <div
-              className="
-                px-4
-                sm:px-6
-                md:px-8
-                py-5
-                border-b
-                border-slate-100
-                flex
-                flex-col
-                sm:flex-row
-                sm:items-center
-                sm:justify-between
-                gap-3
-              "
-            >
+            {/* Header */}
+            <div className="flex items-start gap-4">
+              <div className="shrink-0 p-3 rounded-xl bg-blue-900/10 text-blue-900 border border-blue-900/5">
+                <Globe className="w-6 h-6" />
+              </div>
               <div>
-                <h2 className="text-base sm:text-lg font-bold text-slate-900">
-                  Informasi Website
-                </h2>
-
-                <p className="text-xs sm:text-sm text-slate-500 mt-1">
-                  Kelola identitas dan informasi utama website sekolah.
-                </p>
-              </div>
-
-              <div
-                className="
-                  hidden
-                  md:flex
-                  items-center
-                  gap-2
-                  text-xs
-                  text-slate-400
-                "
-              >
-                <Globe className="w-4 h-4" />
-                Identitas Website
+                <h1 className="text-2xl font-bold text-slate-900">Identitas Website</h1>
+                <p className="text-sm text-slate-500 mt-1">Atur informasi dasar, logo, dan profil website sekolah Anda.</p>
               </div>
             </div>
 
-            {/* =================================================
-                CARD BODY
-            ================================================== */}
-            <div
-              className="
-                p-4
-                sm:p-6
-                md:p-8
-                space-y-8
-              "
-            >
-              {/* =================================================
-                  UPLOAD SECTION
-              ================================================== */}
-              <section>
-                <div className="mb-5">
-                  <h3 className="text-sm sm:text-base font-bold text-slate-900">
-                    Branding Website
-                  </h3>
+            {/* Form */}
+            <form onSubmit={handleSubmit} className="space-y-6">
 
-                  <p className="text-xs sm:text-sm text-slate-500 mt-1">
-                    Upload logo utama dan favicon yang digunakan
-                    pada website.
-                  </p>
-                </div>
-
-                <div
-                  className="
-                    grid
-                    grid-cols-1
-                    md:grid-cols-2
-                    xl:grid-cols-2
-                    gap-5
-                    lg:gap-6
-                  "
-                >
-                  {/* =================================================
-                      LOGO
-                  ================================================== */}
-                  <div
-                    className="
-                      min-w-0
-                      border
-                      border-slate-200
-                      rounded-2xl
-                      p-4
-                      sm:p-5
-                      bg-slate-50/40
-                    "
-                  >
-                    <div className="flex items-center justify-between gap-3 mb-4">
-                      <label className="text-sm font-semibold text-slate-700">
-                        Logo Website
-                      </label>
-
-                      <span
-                        className="
-                          text-[10px]
-                          sm:text-xs
-                          text-slate-400
-                          bg-white
-                          px-2.5
-                          py-1
-                          rounded-full
-                          border
-                          border-slate-200
-                        "
-                      >
-                        PNG / JPG
-                      </span>
-                    </div>
-
-                    <div
-                      className="
-                        relative
-                        w-full
-                        min-h-[180px]
-                        sm:min-h-[200px]
-                        border-2
-                        border-dashed
-                        border-slate-300
-                        rounded-2xl
-                        p-5
-                        flex
-                        items-center
-                        justify-center
-                        bg-white
-                        hover:bg-slate-50
-                        hover:border-indigo-300
-                        transition-all
-                        overflow-hidden
-                      "
-                    >
-                      <img
-                        src={logoPreview}
-                        alt="Logo Preview"
-                        className="
-                          max-h-[140px]
-                          sm:max-h-[160px]
-                          max-w-[80%]
-                          object-contain
-                        "
-                      />
-
-                      <div
-                        className="
-                          absolute
-                          bottom-3
-                          left-1/2
-                          -translate-x-1/2
-                          flex
-                          items-center
-                          gap-1.5
-                          px-3
-                          py-1.5
-                          rounded-full
-                          bg-white/95
-                          border
-                          border-slate-200
-                          shadow-sm
-                          text-[10px]
-                          sm:text-xs
-                          text-slate-500
-                          whitespace-nowrap
-                          pointer-events-none
-                        "
-                      >
-                        <UploadCloud className="w-3.5 h-3.5" />
-                        Klik untuk mengganti
-                      </div>
-
-                      <input
-                        type="file"
-                        className="
-                          absolute
-                          inset-0
-                          w-full
-                          h-full
-                          opacity-0
-                          cursor-pointer
-                        "
-                        accept="image/*"
-                        onChange={(e) =>
-                          handleFileChange(e, "logo")
-                        }
-                      />
-                    </div>
-
-                    <p className="text-[10px] sm:text-xs text-slate-400 mt-3">
-                      Disarankan ukuran 150 × 150px.
-                    </p>
+              {/* Branding Card */}
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                      <Building2 className="w-4 h-4 text-blue-900" />
+                      Branding Website
+                    </h3>
+                    <p className="text-xs text-slate-400 mt-0.5">Upload logo utama dan favicon</p>
                   </div>
-
-                  {/* =================================================
-                      FAVICON
-                  ================================================== */}
-                  <div
-                    className="
-                      min-w-0
-                      border
-                      border-slate-200
-                      rounded-2xl
-                      p-4
-                      sm:p-5
-                      bg-slate-50/40
-                    "
-                  >
-                    <div className="flex items-center justify-between gap-3 mb-4">
-                      <label className="text-sm font-semibold text-slate-700">
-                        Favicon
-                      </label>
-
-                      <span
-                        className="
-                          text-[10px]
-                          sm:text-xs
-                          text-slate-400
-                          bg-white
-                          px-2.5
-                          py-1
-                          rounded-full
-                          border
-                          border-slate-200
-                        "
-                      >
-                        ICO / PNG
-                      </span>
-                    </div>
-
-                    <div
-                      className="
-                        relative
-                        w-full
-                        min-h-[180px]
-                        sm:min-h-[200px]
-                        border-2
-                        border-dashed
-                        border-slate-300
-                        rounded-2xl
-                        p-5
-                        flex
-                        items-center
-                        justify-center
-                        bg-white
-                        hover:bg-slate-50
-                        hover:border-indigo-300
-                        transition-all
-                        overflow-hidden
-                      "
-                    >
-                      <div className="flex flex-col items-center gap-3">
-                        <div
-                          className="
-                            w-20
-                            h-20
-                            sm:w-24
-                            sm:h-24
-                            rounded-2xl
-                            bg-slate-50
-                            border
-                            border-slate-200
-                            flex
-                            items-center
-                            justify-center
-                            overflow-hidden
-                          "
-                        >
-                          <img
-                            src={faviconPreview}
-                            alt="Favicon Preview"
-                            className="
-                              max-w-[64px]
-                              max-h-[64px]
-                              object-contain
-                            "
-                          />
-                        </div>
-
-                        <span className="text-[10px] sm:text-xs text-slate-400">
-                          Preview Favicon
+                  <span className="text-[10px] font-medium text-slate-400 bg-slate-50 px-2.5 py-1 rounded-full border border-slate-200">PNG / JPG</span>
+                </div>
+                <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-5">
+                  {/* Logo */}
+                  <div className="border border-slate-200 rounded-xl p-4 bg-white">
+                    <label className="text-xs font-medium text-slate-600 block mb-2">Logo Website</label>
+                    <div className="relative aspect-square max-w-[180px] mx-auto border-2 border-dashed border-slate-300 rounded-xl overflow-hidden bg-white hover:border-blue-900/30 transition">
+                      <img src={logoPreview} alt="Logo" className="w-full h-full object-contain p-3" />
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/5 opacity-0 hover:opacity-100 transition cursor-pointer">
+                        <span className="bg-white/90 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-700 shadow-sm flex items-center gap-1.5">
+                          <UploadCloud className="w-3.5 h-3.5" /> Ganti
                         </span>
                       </div>
-
-                      <div
-                        className="
-                          absolute
-                          bottom-3
-                          left-1/2
-                          -translate-x-1/2
-                          flex
-                          items-center
-                          gap-1.5
-                          px-3
-                          py-1.5
-                          rounded-full
-                          bg-white/95
-                          border
-                          border-slate-200
-                          shadow-sm
-                          text-[10px]
-                          sm:text-xs
-                          text-slate-500
-                          whitespace-nowrap
-                          pointer-events-none
-                        "
-                      >
-                        <UploadCloud className="w-3.5 h-3.5" />
-                        Klik untuk mengganti
-                      </div>
-
-                      <input
-                        type="file"
-                        className="
-                          absolute
-                          inset-0
-                          w-full
-                          h-full
-                          opacity-0
-                          cursor-pointer
-                        "
-                        accept="image/*"
-                        onChange={(e) =>
-                          handleFileChange(e, "favicon")
-                        }
-                      />
+                      <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*" onChange={(e) => handleFileChange(e, "logo")} />
                     </div>
+                    <p className="text-[10px] text-slate-400 mt-2 text-center">Ukuran 150×150px</p>
+                  </div>
 
-                    <p className="text-[10px] sm:text-xs text-slate-400 mt-3">
-                      Disarankan ukuran 32 × 32px.
-                    </p>
+                  {/* Favicon */}
+                  <div className="border border-slate-200 rounded-xl p-4 bg-white">
+                    <label className="text-xs font-medium text-slate-600 block mb-2">Favicon</label>
+                    <div className="relative w-24 h-24 mx-auto border-2 border-dashed border-slate-300 rounded-xl overflow-hidden bg-white hover:border-blue-900/30 transition">
+                      <img src={faviconPreview} alt="Favicon" className="w-full h-full object-contain p-2" />
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/5 opacity-0 hover:opacity-100 transition cursor-pointer">
+                        <span className="bg-white/90 px-2 py-1 rounded-lg text-[10px] font-medium text-slate-700 shadow-sm flex items-center gap-1">
+                          <UploadCloud className="w-3 h-3" /> Ganti
+                        </span>
+                      </div>
+                      <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*" onChange={(e) => handleFileChange(e, "favicon")} />
+                    </div>
+                    <p className="text-[10px] text-slate-400 mt-2 text-center">Ukuran 32×32px</p>
                   </div>
                 </div>
-              </section>
+              </div>
 
-              {/* =================================================
-                  DIVIDER
-              ================================================== */}
-              <div className="h-px bg-slate-100" />
-
-              {/* =================================================
-                  BASIC INFORMATION
-              ================================================== */}
-              <section>
-                <div className="mb-5">
-                  <h3 className="text-sm sm:text-base font-bold text-slate-900">
-                    Informasi Dasar
-                  </h3>
-
-                  <p className="text-xs sm:text-sm text-slate-500 mt-1">
-                    Informasi ini akan digunakan sebagai identitas
-                    utama website.
-                  </p>
+              {/* Informasi Dasar Card */}
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="px-5 py-4 border-b border-slate-100">
+                  <h3 className="text-sm font-semibold text-slate-800">Informasi Dasar</h3>
+                  <p className="text-xs text-slate-400 mt-0.5">Informasi ini akan digunakan sebagai identitas utama website</p>
                 </div>
-
-                <div
-                  className="
-                    grid
-                    grid-cols-1
-                    lg:grid-cols-2
-                    gap-5
-                    lg:gap-6
-                  "
-                >
-                  {/* NAMA WEBSITE */}
-                  <div className="min-w-0">
-                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">
-                      Nama Website
-                    </label>
-
+                <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-medium text-slate-600 block mb-1.5">Nama Website</label>
                     <input
                       required
                       name="name"
                       value={form.name}
                       onChange={handleChange}
-                      placeholder="Masukkan nama website"
-                      className="
-                        w-full
-                        min-w-0
-                        px-4
-                        py-3
-                        rounded-xl
-                        border
-                        border-slate-200
-                        bg-white
-                        text-sm
-                        text-slate-800
-                        placeholder:text-slate-400
-                        focus:outline-none
-                        focus:ring-2
-                        focus:ring-indigo-500/20
-                        focus:border-indigo-500
-                        transition-all
-                      "
+                      className="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 bg-white text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-900/20 focus:border-blue-900 transition"
                     />
                   </div>
-
-                  {/* EMAIL */}
-                  <div className="min-w-0">
-                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">
-                      <Mail className="w-4 h-4 inline mr-2 text-slate-400" />
-                      Email
-                    </label>
-
+                  <div>
+                    <label className="text-xs font-medium text-slate-600 block mb-1.5">Email</label>
                     <input
                       type="email"
                       name="email"
                       value={form.email}
                       onChange={handleChange}
-                      placeholder="admin@sekolah.sch.id"
-                      className="
-                        w-full
-                        min-w-0
-                        px-4
-                        py-3
-                        rounded-xl
-                        border
-                        border-slate-200
-                        bg-white
-                        text-sm
-                        text-slate-800
-                        placeholder:text-slate-400
-                        focus:outline-none
-                        focus:ring-2
-                        focus:ring-indigo-500/20
-                        focus:border-indigo-500
-                        transition-all
-                      "
+                      className="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 bg-white text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-900/20 focus:border-blue-900 transition"
                     />
                   </div>
-
-                  {/* DESKRIPSI */}
-                  <div className="lg:col-span-2 min-w-0">
-                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">
-                      Deskripsi Singkat
-                    </label>
-
+                  <div className="md:col-span-2">
+                    <label className="text-xs font-medium text-slate-600 block mb-1.5">Deskripsi Singkat</label>
                     <textarea
                       name="description"
-                      rows={4}
+                      rows={3}
                       value={form.description}
                       onChange={handleChange}
-                      placeholder="Tulis deskripsi singkat website..."
-                      className="
-                        w-full
-                        min-w-0
-                        px-4
-                        py-3
-                        rounded-xl
-                        border
-                        border-slate-200
-                        bg-white
-                        text-sm
-                        text-slate-800
-                        placeholder:text-slate-400
-                        focus:outline-none
-                        focus:ring-2
-                        focus:ring-indigo-500/20
-                        focus:border-indigo-500
-                        transition-all
-                        resize-none
-                      "
+                      className="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 bg-white text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-900/20 focus:border-blue-900 transition resize-none"
                     />
                   </div>
-
-                  {/* TELEPON */}
-                  <div className="min-w-0">
-                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">
-                      <Phone className="w-4 h-4 inline mr-2 text-slate-400" />
-                      Telepon
-                    </label>
-
+                  <div>
+                    <label className="text-xs font-medium text-slate-600 block mb-1.5">Telepon</label>
                     <input
-                      type="text"
                       name="phone"
                       value={form.phone}
                       onChange={handleChange}
-                      placeholder="+62 812 xxxx xxxx"
-                      className="
-                        w-full
-                        min-w-0
-                        px-4
-                        py-3
-                        rounded-xl
-                        border
-                        border-slate-200
-                        bg-white
-                        text-sm
-                        text-slate-800
-                        placeholder:text-slate-400
-                        focus:outline-none
-                        focus:ring-2
-                        focus:ring-indigo-500/20
-                        focus:border-indigo-500
-                        transition-all
-                      "
+                      className="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 bg-white text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-900/20 focus:border-blue-900 transition"
                     />
                   </div>
-
-                  {/* ALAMAT */}
-                  <div className="min-w-0">
-                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">
-                      <MapPin className="w-4 h-4 inline mr-2 text-slate-400" />
-                      Alamat
-                    </label>
-
+                  <div>
+                    <label className="text-xs font-medium text-slate-600 block mb-1.5">Alamat</label>
                     <input
                       name="address"
                       value={form.address}
                       onChange={handleChange}
-                      placeholder="Alamat sekolah"
-                      className="
-                        w-full
-                        min-w-0
-                        px-4
-                        py-3
-                        rounded-xl
-                        border
-                        border-slate-200
-                        bg-white
-                        text-sm
-                        text-slate-800
-                        placeholder:text-slate-400
-                        focus:outline-none
-                        focus:ring-2
-                        focus:ring-indigo-500/20
-                        focus:border-indigo-500
-                        transition-all
-                      "
+                      className="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 bg-white text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-900/20 focus:border-blue-900 transition"
                     />
                   </div>
                 </div>
-              </section>
-            </div>
+              </div>
 
-            {/* =================================================
-                FOOTER ACTION
-            ================================================== */}
-            <div
-              className="
-                px-4
-                sm:px-6
-                md:px-8
-                py-4
-                sm:py-5
-                border-t
-                border-slate-100
-                bg-slate-50/50
-                flex
-                flex-col
-                sm:flex-row
-                gap-3
-                justify-end
-              "
-            >
-              <button
-                type="button"
-                onClick={() => window.history.back()}
-                className="
-                  inline-flex
-                  items-center
-                  justify-center
-                  gap-2
-                  px-6
-                  py-2.5
-                  w-full
-                  sm:w-auto
-                  bg-white
-                  text-slate-600
-                  text-sm
-                  font-semibold
-                  rounded-xl
-                  border
-                  border-slate-200
-                  hover:bg-slate-50
-                  transition-all
-                "
-              >
-                <X className="w-4 h-4" />
-                Batal
-              </button>
+              {/* Actions */}
+              <div className="flex flex-col sm:flex-row justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => window.history.back()}
+                  className="inline-flex items-center justify-center gap-2 px-5 py-2.5 w-full sm:w-auto bg-white text-slate-600 text-sm font-medium rounded-lg border border-slate-200 hover:bg-slate-50 transition"
+                >
+                  <X className="w-4 h-4" /> Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="inline-flex items-center justify-center gap-2 px-6 py-2.5 w-full sm:w-auto bg-blue-900 text-white text-sm font-medium rounded-lg shadow-md shadow-blue-900/10 hover:bg-blue-800 transition disabled:opacity-60"
+                >
+                  {loading ? (
+                    <span className="animate-pulse">Menyimpan...</span>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4" /> Simpan Perubahan
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="
-                  inline-flex
-                  items-center
-                  justify-center
-                  gap-2
-                  px-8
-                  py-2.5
-                  w-full
-                  sm:w-auto
-                  bg-indigo-600
-                  text-white
-                  text-sm
-                  font-semibold
-                  rounded-xl
-                  shadow-lg
-                  shadow-indigo-600/20
-                  hover:bg-indigo-700
-                  active:scale-95
-                  transition-all
-                  disabled:opacity-50
-                  disabled:cursor-not-allowed
-                "
-              >
-                {loading ? (
-                  <span className="animate-pulse">
-                    Menyimpan...
-                  </span>
-                ) : (
-                  <>
-                    <Save className="w-4 h-4" />
-                    Simpan Perubahan
-                  </>
-                )}
-              </button>
-            </div>
-          </form>
-        </div>
-      </main>
+            {/* Footer */}
+            <footer className="pt-4 border-t border-slate-200/60 text-center text-xs text-slate-400">
+              © 2026 SmartSchool CMS • Identitas Website
+            </footer>
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

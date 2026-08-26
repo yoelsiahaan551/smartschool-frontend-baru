@@ -153,35 +153,42 @@ export default function LaporanAnalitikPage() {
           <div className="w-full space-y-6">
 
             {/* HEADER */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div>
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/25">
-                    <FileText size={18} />
-                  </div>
-                  <h1 className="text-xl sm:text-2xl font-bold text-slate-800 tracking-tight">
-                    Laporan & Analitik
-                  </h1>
-                  <span className="text-xs font-medium text-slate-400 bg-white px-3 py-0.5 rounded-full border border-slate-200 shadow-sm">
-                    Super Admin
-                  </span>
-                </div>
-                <p className="text-sm text-slate-500 ml-[52px] flex items-center gap-1.5 mt-0.5">
-                  <Sparkles size={14} className="text-amber-400" />
-                  Pantau performa sistem dan analisis data secara mendalam.
-                </p>
-              </div>
-              <div className="flex items-center gap-2 ml-[52px] sm:ml-0 flex-wrap">
-                <button className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm hover:shadow">
-                  <FileSpreadsheet size={16} />
-                  <span className="hidden xs:inline">Export</span>
-                </button>
-                <button className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm hover:shadow">
-                  <Printer size={16} />
-                  <span className="hidden xs:inline">Cetak</span>
-                </button>
-              </div>
-            </div>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+  {/* Bagian kiri */}
+  <div className="flex items-center gap-3">
+    {/* Icon */}
+    <div className="shrink-0 p-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/25">
+      <FileText size={19} />
+    </div>
+
+    {/* Judul + Deskripsi */}
+    <div>
+      <div className="flex items-center gap-2.5 flex-wrap">
+        <h1 className="text-xl sm:text-2xl font-bold text-slate-800 tracking-tight">
+          Laporan & Analitik
+        </h1>
+
+        <span className="text-xs font-medium text-slate-500 bg-white px-3 py-1 rounded-full border border-slate-200 shadow-sm">
+          Super Admin
+        </span>
+      </div>
+
+      <p className="mt-1 text-sm text-slate-500">
+        Pantau performa sistem dan analisis data secara mendalam.
+      </p>
+    </div>
+  </div>
+
+  {/* Tombol kanan */}
+  <div className="flex items-center gap-2 sm:ml-auto">
+    <button className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm">
+      <FileSpreadsheet size={16} />
+      <span>Export</span>
+    </button>
+
+    
+  </div>
+</div>
 
             {/* STATS CARDS - Premium */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">

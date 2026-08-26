@@ -17,22 +17,46 @@ import {
   Settings,
   ChevronRight,
   Menu as MenuIcon,
+  GripVertical,
+  Edit,
+  Trash2,
+  CheckCircle,
+  XCircle,
 } from "lucide-react";
 
-export default function MenuPage() {
-  // =====================================================
-  // SIDEBAR STATE
-  // =====================================================
+// =========================================================
+// DUMMY DATA MENU
+// =========================================================
+const dummyMenus = [
+  { id: 1, title: "Beranda", type: "header", url: "/", order: 1, status: "aktif" },
+  { id: 2, title: "Profil", type: "header", url: "/profil", order: 2, status: "aktif" },
+  { id: 3, title: "Layanan", type: "header", url: "/layanan", order: 3, status: "aktif" },
+  { id: 4, title: "Syarat & Ketentuan", type: "footer", url: "/syarat", order: 1, status: "aktif" },
+  { id: 5, title: "Kebijakan Privasi", type: "footer", url: "/privasi", order: 2, status: "aktif" },
+  { id: 6, title: "Kontak Kami", type: "footer", url: "/kontak", order: 3, status: "aktif" },
+  { id: 7, title: "Berita", type: "header", url: "/berita", order: 4, status: "nonaktif" },
+  { id: 8, title: "Galeri", type: "header", url: "/galeri", order: 5, status: "nonaktif" },
+];
 
+export default function MenuPage() {
   const [active, setActive] = useState("menu");
   const [collapsed, setCollapsed] = useState(false);
+  const [search, setSearch] = useState("");
+  const [filterType, setFilterType] = useState("semua");
+
+  const filteredMenus = dummyMenus
+    .filter((m) => m.title.toLowerCase().includes(search.toLowerCase()))
+    .filter((m) => (filterType === "semua" ? true : m.type === filterType));
+
+  const totalMenus = dummyMenus.length;
+  const headerCount = dummyMenus.filter((m) => m.type === "header").length;
+  const footerCount = dummyMenus.filter((m) => m.type === "footer").length;
+  const activeCount = dummyMenus.filter((m) => m.status === "aktif").length;
 
   return (
-    <div className="flex min-h-screen w-full bg-slate-50 overflow-x-hidden">
-      {/* =================================================
-          SIDEBAR
-      ================================================= */}
-
+    // HAPUS overflow-x-hidden agar sidebar tidak terpotong
+    <div className="flex min-h-screen w-full bg-slate-50">
+      {/* SIDEBAR - flex-shrink-0 agar tidak mengecil */}
       <Sidebar
         active={active}
         setActive={setActive}
@@ -40,411 +64,225 @@ export default function MenuPage() {
         setCollapsed={setCollapsed}
       />
 
-      {/* =================================================
-          MAIN AREA
-      ================================================= */}
+      {/* MAIN AREA - flex-1 dan min-w-0 */}
+      <div className="flex-1 min-w-0 flex flex-col">
+        <Header
+          title="Menu Website"
+          user={{ name: "Admin" }}
+          notifications={[]}
+        />
 
-      <div className="flex-1 min-w-0 w-full">
-        {/* =================================================
-            HEADER
-        ================================================= */}
+        <main className="flex-1 min-w-0 overflow-y-auto p-4 md:p-6 lg:p-8">
+          <div className="w-full min-w-0 space-y-6">
+            {/* BREADCRUMB */}
+            <nav className="flex items-center flex-wrap gap-1 text-xs sm:text-sm text-slate-500">
+              <a href="/cmsAdmin" className="hover:text-indigo-600 transition">
+                Dashboard
+              </a>
+              <ChevronRight className="w-3.5 h-3.5 text-slate-300" />
+              <a href="/cmsAdmin/website" className="hover:text-indigo-600 transition">
+                Website
+              </a>
+              <ChevronRight className="w-3.5 h-3.5 text-slate-300" />
+              <span className="text-indigo-600 font-semibold">Manajemen Menu</span>
+            </nav>
 
-        <Header title="Menu" user={{ name: "Admin" }} />
-
-        {/* =================================================
-            MAIN CONTENT
-        ================================================= */}
-
-        <main className="w-full min-w-0 bg-slate-50">
-          <div
-            className="
-              w-full
-              min-w-0
-              px-3
-              sm:px-4
-              md:px-5
-              lg:px-6
-              xl:px-8
-              2xl:px-10
-              py-4
-              sm:py-6
-              lg:py-8
-            "
-          >
-            {/* =================================================
-                CONTENT WRAPPER
-
-                TIDAK menggunakan max-w-7xl
-                supaya ketika zoom out area ikut melebar
-            ================================================= */}
-
-            <div className="w-full min-w-0 space-y-5 sm:space-y-6">
-              {/* =================================================
-                  BREADCRUMB
-              ================================================= */}
-
-              <nav
-                className="
-                  flex
-                  items-center
-                  flex-wrap
-                  gap-1
-                  text-xs
-                  sm:text-sm
-                  text-gray-500
-                "
-                aria-label="Breadcrumb"
-              >
+            {/* PAGE HEADER */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="shrink-0 p-2.5 bg-indigo-50 text-indigo-600 rounded-xl">
+                  <Layout className="w-5 h-5 sm:w-6 sm:h-6" />
+                </div>
+                <div className="min-w-0">
+                  <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900 truncate">
+                    Manajemen Menu
+                  </h1>
+                  <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+                    Atur navigasi header, footer, dan struktur menu website
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
                 <a
-                  href="/cmsAdmin"
-                  className="hover:text-indigo-600 transition"
+                  href="/cmsAdmin/website/menu/tambah"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition shadow-sm font-semibold text-sm"
                 >
-                  Dashboard
+                  <Plus className="w-4 h-4" />
+                  Tambah Menu
                 </a>
-
-                <ChevronRight className="w-3.5 h-3.5 text-gray-400" />
-
                 <a
-                  href="/cmsAdmin/website"
-                  className="hover:text-indigo-600 transition"
+                  href="/cmsAdmin/website/menu/pengaturan"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 border border-slate-200 bg-white text-slate-700 rounded-xl hover:bg-slate-50 transition text-sm font-medium"
                 >
-                  Website
+                  <Settings className="w-4 h-4" />
+                  Pengaturan
                 </a>
-
-                <ChevronRight className="w-3.5 h-3.5 text-gray-400" />
-
-                <span className="text-indigo-600 font-semibold">
-                  Manajemen Menu
-                </span>
-              </nav>
-
-              {/* =================================================
-                  PAGE HEADER
-              ================================================= */}
-
-              <div
-                className="
-                  flex
-                  flex-col
-                  xl:flex-row
-                  xl:items-center
-                  xl:justify-between
-                  gap-4
-                "
-              >
-                {/* TITLE */}
-
-                <div className="flex items-center gap-3 min-w-0">
-                  <div
-                    className="
-                      flex
-                      items-center
-                      justify-center
-                      shrink-0
-                      w-10
-                      h-10
-                      sm:w-11
-                      sm:h-11
-                      bg-indigo-50
-                      text-indigo-600
-                      rounded-xl
-                    "
-                  >
-                    <Layout className="w-5 h-5 sm:w-6 sm:h-6" />
-                  </div>
-
-                  <div className="min-w-0">
-                    <h1
-                      className="
-                        text-xl
-                        sm:text-2xl
-                        lg:text-3xl
-                        font-bold
-                        text-gray-900
-                        truncate
-                      "
-                    >
-                      Manajemen Menu
-                    </h1>
-
-                    <p
-                      className="
-                        text-xs
-                        sm:text-sm
-                        text-gray-500
-                        mt-1
-                        hidden
-                        sm:block
-                      "
-                    >
-                      Atur navigasi header, footer, dan struktur menu website
-                      Anda
-                    </p>
-                  </div>
-                </div>
-
-                {/* ACTION BUTTON */}
-
-                <div
-                  className="
-                    grid
-                    grid-cols-1
-                    sm:grid-cols-2
-                    xl:flex
-                    gap-2
-                    w-full
-                    xl:w-auto
-                  "
-                >
-                  <a
-                    href="/cmsAdmin/website/menu/tambah"
-                    className="
-                      inline-flex
-                      items-center
-                      justify-center
-                      gap-2
-                      rounded-xl
-                      bg-indigo-600
-                      px-4
-                      sm:px-5
-                      py-2.5
-                      text-sm
-                      font-semibold
-                      text-white
-                      shadow-sm
-                      hover:bg-indigo-700
-                      hover:shadow-md
-                      transition-all
-                      whitespace-nowrap
-                    "
-                  >
-                    <Plus className="w-4 h-4" />
-                    Tambah Menu
-                  </a>
-
-                  <a
-                    href="/cmsAdmin/website/menu/pengaturan"
-                    className="
-                      inline-flex
-                      items-center
-                      justify-center
-                      gap-2
-                      rounded-xl
-                      border
-                      border-gray-200
-                      bg-white
-                      px-4
-                      py-2.5
-                      text-sm
-                      font-medium
-                      text-gray-700
-                      shadow-sm
-                      hover:bg-gray-50
-                      hover:border-gray-300
-                      transition
-                      whitespace-nowrap
-                    "
-                  >
-                    <Settings className="w-4 h-4" />
-                    Pengaturan
-                  </a>
-                </div>
               </div>
+            </div>
 
-              {/* =================================================
-                  STATISTICS
-              ================================================= */}
+            {/* STATISTIK */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+              <StatCard
+                icon={<List className="w-5 h-5" />}
+                iconBg="bg-blue-50"
+                iconColor="text-blue-600"
+                label="Total Menu"
+                value={totalMenus}
+              />
+              <StatCard
+                icon={<Monitor className="w-5 h-5" />}
+                iconBg="bg-purple-50"
+                iconColor="text-purple-600"
+                label="Menu Header"
+                value={headerCount}
+              />
+              <StatCard
+                icon={<Footprints className="w-5 h-5" />}
+                iconBg="bg-orange-50"
+                iconColor="text-orange-600"
+                label="Menu Footer"
+                value={footerCount}
+              />
+              <StatCard
+                icon={<CheckCircle className="w-5 h-5" />}
+                iconBg="bg-emerald-50"
+                iconColor="text-emerald-600"
+                label="Menu Aktif"
+                value={activeCount}
+              />
+            </div>
 
-              <div
-                className="
-                  grid
-                  grid-cols-1
-                  min-[420px]:grid-cols-2
-                  lg:grid-cols-4
-                  gap-3
-                  sm:gap-4
-                  w-full
-                "
-              >
-                <StatCard
-                  icon={<List className="w-5 h-5" />}
-                  iconBg="bg-blue-50"
-                  iconColor="text-blue-600"
-                  label="Total Menu"
-                  value="12"
-                />
-
-                <StatCard
-                  icon={<Monitor className="w-5 h-5" />}
-                  iconBg="bg-purple-50"
-                  iconColor="text-purple-600"
-                  label="Menu Header"
-                  value="6"
-                />
-
-                <StatCard
-                  icon={<Footprints className="w-5 h-5" />}
-                  iconBg="bg-orange-50"
-                  iconColor="text-orange-600"
-                  label="Menu Footer"
-                  value="4"
-                />
-
-                <StatCard
-                  icon={<Layers className="w-5 h-5" />}
-                  iconBg="bg-green-50"
-                  iconColor="text-green-600"
-                  label="Sub Menu"
-                  value="2"
+            {/* SEARCH & FILTER */}
+            <div className="flex flex-col sm:flex-row gap-3 bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+              <div className="relative flex-1">
+                <MenuIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Cari menu..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition"
                 />
               </div>
-
-              {/* =================================================
-                  MENU MANAGEMENT CARDS
-
-                  Pada layar lebar:
-                  2 card
-
-                  Pada layar kecil:
-                  1 card
-
-                  Card menggunakan min-w-0 agar tidak
-                  memaksa horizontal overflow.
-              ================================================= */}
-
-              <div
-                className="
-                  grid
-                  grid-cols-1
-                  xl:grid-cols-2
-                  gap-4
-                  sm:gap-5
-                  lg:gap-6
-                  w-full
-                "
+              <select
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value)}
+                className="px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 cursor-pointer text-slate-700"
               >
-                {/* =================================================
-                    HEADER MENU CARD
-                ================================================= */}
-
-                <MenuManagementCard
-                  type="header"
-                  title="Menu Header"
-                  description="Navigasi utama website"
-                  count="6 Aktif"
-                  icon={<Monitor className="w-7 h-7 sm:w-8 sm:h-8" />}
-                  iconBg="bg-indigo-50"
-                  iconColor="text-indigo-600"
-                  buttonBg="bg-indigo-50"
-                  buttonBorder="border-indigo-200"
-                  buttonText="text-indigo-700"
-                  buttonHover="hover:bg-indigo-100"
-                  link="/cmsAdmin/website/menu/header"
-                  menus={[
-                    "Beranda",
-                    "Profil",
-                    "Layanan",
-                  ]}
-                />
-
-                {/* =================================================
-                    FOOTER MENU CARD
-                ================================================= */}
-
-                <MenuManagementCard
-                  type="footer"
-                  title="Menu Footer"
-                  description="Navigasi bawah website"
-                  count="4 Aktif"
-                  icon={<Footprints className="w-7 h-7 sm:w-8 sm:h-8" />}
-                  iconBg="bg-purple-50"
-                  iconColor="text-purple-600"
-                  buttonBg="bg-purple-50"
-                  buttonBorder="border-purple-200"
-                  buttonText="text-purple-700"
-                  buttonHover="hover:bg-purple-100"
-                  link="/cmsAdmin/website/menu/footer"
-                  menus={[
-                    "Syarat & Ketentuan",
-                    "Kebijakan Privasi",
-                    "Kontak Kami",
-                  ]}
-                />
-              </div>
-
-              {/* =================================================
-                  MOBILE / RESPONSIVE TIPS
-              ================================================= */}
-
-              <div
-                className="
-                  w-full
-                  bg-indigo-50/70
-                  border
-                  border-indigo-100
-                  rounded-2xl
-                  p-4
-                  sm:p-5
-                "
+                <option value="semua">Semua Tipe</option>
+                <option value="header">Header</option>
+                <option value="footer">Footer</option>
+              </select>
+              <button
+                onClick={() => { setSearch(""); setFilterType("semua"); }}
+                className="px-4 py-2 text-sm text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition"
               >
-                <div className="flex items-start gap-3">
-                  <div
-                    className="
-                      shrink-0
-                      p-2
-                      bg-indigo-100
-                      rounded-xl
-                      text-indigo-600
-                    "
-                  >
-                    <Smartphone className="w-5 h-5" />
-                  </div>
+                Reset
+              </button>
+            </div>
 
-                  <div className="min-w-0">
-                    <h4
-                      className="
-                        text-sm
-                        sm:text-base
-                        font-semibold
-                        text-indigo-800
-                      "
-                    >
-                      Tips Manajemen Menu
-                    </h4>
-
-                    <p
-                      className="
-                        text-xs
-                        sm:text-sm
-                        leading-6
-                        text-indigo-700/80
-                        mt-1
-                      "
-                    >
-                      Atur urutan menu dengan drag-and-drop, dan pastikan
-                      semua menu utama terlihat dengan baik di perangkat
-                      desktop maupun mobile.
-                    </p>
-                  </div>
-                </div>
+            {/* MENU LIST - TABEL */}
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full table-auto">
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-slate-50/80">
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 w-10">
+                        <GripVertical className="w-4 h-4 text-slate-300" />
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                        Judul Menu
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                        Tipe
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                        URL
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                        Status
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">
+                        Aksi
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {filteredMenus.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-4 py-8 text-center">
+                          <MenuIcon className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+                          <p className="text-sm text-slate-500">Tidak ada menu ditemukan</p>
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredMenus.map((menu) => (
+                        <tr key={menu.id} className="hover:bg-slate-50/60 transition-colors">
+                          <td className="px-4 py-3">
+                            <GripVertical className="w-4 h-4 text-slate-300 cursor-grab" />
+                          </td>
+                          <td className="px-4 py-3 font-medium text-slate-800 text-sm">
+                            {menu.title}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${
+                              menu.type === "header"
+                                ? "bg-purple-100 text-purple-700"
+                                : "bg-orange-100 text-orange-700"
+                            }`}>
+                              {menu.type === "header" ? <Monitor className="w-3 h-3" /> : <Footprints className="w-3 h-3" />}
+                              {menu.type === "header" ? "Header" : "Footer"}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-slate-500 truncate max-w-[150px]">
+                            {menu.url}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border ${
+                              menu.status === "aktif"
+                                ? "bg-emerald-50 text-emerald-600 border-emerald-200"
+                                : "bg-slate-100 text-slate-400 border-slate-200"
+                            }`}>
+                              {menu.status === "aktif" ? (
+                                <CheckCircle className="w-3 h-3" />
+                              ) : (
+                                <XCircle className="w-3 h-3" />
+                              )}
+                              {menu.status === "aktif" ? "Aktif" : "Nonaktif"}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex justify-end gap-1.5">
+                              <button className="p-1.5 rounded-lg hover:bg-amber-50 text-slate-400 hover:text-amber-600 transition" title="Edit">
+                                <Edit className="w-4 h-4" />
+                              </button>
+                              <button className="p-1.5 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition" title="Hapus">
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
               </div>
+            </div>
 
-              {/* =================================================
-                  FOOTER
-              ================================================= */}
-
-              <div
-                className="
-                  pt-5
-                  border-t
-                  border-gray-200
-                  text-center
-                  text-xs
-                  text-gray-400
-                "
-              >
-                © 2026 SmartSchool CMS. All rights reserved.
+            {/* TIPS */}
+            <div className="bg-indigo-50/80 border border-indigo-100 rounded-2xl p-4 sm:p-5 flex items-start gap-3">
+              <Smartphone className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-sm font-semibold text-indigo-800">Tips Manajemen Menu</h4>
+                <p className="text-xs sm:text-sm text-indigo-700/80 leading-relaxed mt-0.5">
+                  Atur urutan menu dengan drag-and-drop, dan pastikan semua menu utama terlihat dengan baik di perangkat desktop maupun mobile.
+                </p>
               </div>
+            </div>
+
+            {/* FOOTER */}
+            <div className="pt-4 border-t border-slate-200 text-center text-xs text-slate-400">
+              © 2026 SmartSchool CMS. All rights reserved.
             </div>
           </div>
         </main>
@@ -456,279 +294,14 @@ export default function MenuPage() {
 /* =========================================================
    STAT CARD
 ========================================================= */
-
-function StatCard({
-  icon,
-  iconBg,
-  iconColor,
-  label,
-  value,
-}) {
+function StatCard({ icon, iconBg, iconColor, label, value }) {
   return (
-    <div
-      className="
-        w-full
-        min-w-0
-        bg-white
-        p-3
-        sm:p-4
-        rounded-2xl
-        shadow-sm
-        border
-        border-gray-100
-        hover:shadow-md
-        transition
-      "
-    >
-      <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-        <div
-          className={`
-            shrink-0
-            p-2
-            sm:p-2.5
-            ${iconBg}
-            ${iconColor}
-            rounded-xl
-          `}
-        >
-          {icon}
-        </div>
-
-        <div className="min-w-0">
-          <p
-            className="
-              text-[10px]
-              sm:text-xs
-              text-gray-500
-              font-medium
-              truncate
-            "
-          >
-            {label}
-          </p>
-
-          <p
-            className="
-              text-lg
-              sm:text-xl
-              font-bold
-              text-gray-900
-            "
-          >
-            {value}
-          </p>
-        </div>
+    <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition flex items-center gap-3">
+      <div className={`p-2.5 rounded-xl ${iconBg} ${iconColor}`}>{icon}</div>
+      <div className="min-w-0">
+        <p className="text-xs text-slate-500 font-medium truncate">{label}</p>
+        <p className="text-lg font-bold text-slate-900">{value}</p>
       </div>
-    </div>
-  );
-}
-
-/* =========================================================
-   MENU MANAGEMENT CARD
-========================================================= */
-
-function MenuManagementCard({
-  title,
-  description,
-  count,
-  icon,
-  iconBg,
-  iconColor,
-  buttonBg,
-  buttonBorder,
-  buttonText,
-  buttonHover,
-  link,
-  menus,
-}) {
-  return (
-    <div
-      className="
-        group
-        relative
-        w-full
-        min-w-0
-        bg-white
-        rounded-2xl
-        shadow-sm
-        border
-        border-gray-100
-        p-4
-        sm:p-5
-        lg:p-6
-        hover:shadow-xl
-        hover:-translate-y-1
-        transition-all
-        duration-300
-        flex
-        flex-col
-      "
-    >
-      {/* =================================================
-          CARD HEADER
-      ================================================= */}
-
-      <div
-        className="
-          flex
-          flex-col
-          sm:flex-row
-          sm:items-start
-          sm:justify-between
-          gap-4
-          mb-5
-        "
-      >
-        {/* ICON + TITLE */}
-
-        <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-          <div
-            className={`
-              shrink-0
-              p-2.5
-              sm:p-3
-              ${iconBg}
-              ${iconColor}
-              rounded-2xl
-            `}
-          >
-            {icon}
-          </div>
-
-          <div className="min-w-0">
-            <h2
-              className="
-                text-lg
-                sm:text-xl
-                font-bold
-                text-gray-900
-                truncate
-              "
-            >
-              {title}
-            </h2>
-
-            <p
-              className="
-                text-xs
-                sm:text-sm
-                text-gray-500
-                mt-0.5
-              "
-            >
-              {description}
-            </p>
-          </div>
-        </div>
-
-        {/* STATUS */}
-
-        <span
-          className="
-            self-start
-            shrink-0
-            px-3
-            py-1.5
-            bg-emerald-100
-            text-emerald-700
-            text-[10px]
-            sm:text-xs
-            font-semibold
-            rounded-full
-            whitespace-nowrap
-          "
-        >
-          {count}
-        </span>
-      </div>
-
-      {/* =================================================
-          MENU LIST
-      ================================================= */}
-
-      <div
-        className="
-          space-y-3
-          flex-1
-          mb-5
-          sm:mb-6
-          min-w-0
-        "
-      >
-        {menus.map((menu, index) => (
-          <div
-            key={menu}
-            className="
-              flex
-              items-center
-              gap-3
-              text-xs
-              sm:text-sm
-              text-gray-600
-              min-w-0
-            "
-          >
-            <div
-              className="
-                w-2
-                h-2
-                bg-gray-300
-                rounded-full
-                shrink-0
-              "
-            />
-
-            <span className="truncate">
-              {menu}
-            </span>
-          </div>
-        ))}
-
-        <div
-          className="
-            text-indigo-500
-            text-xs
-            sm:text-sm
-            font-medium
-            cursor-pointer
-            hover:underline
-            pt-1
-          "
-        >
-          + Lihat semua ({count.replace(" Aktif", "")} menu)
-        </div>
-      </div>
-
-      {/* =================================================
-          BUTTON
-      ================================================= */}
-
-      <a
-        href={link}
-        className={`
-          inline-flex
-          items-center
-          justify-center
-          gap-2
-          w-full
-          py-3
-          px-4
-          rounded-xl
-          border
-          ${buttonBorder}
-          ${buttonBg}
-          ${buttonText}
-          font-semibold
-          text-xs
-          sm:text-sm
-          ${buttonHover}
-          transition-colors
-          whitespace-nowrap
-        `}
-      >
-        Kelola {title}
-        <ChevronRight className="w-4 h-4" />
-      </a>
     </div>
   );
 }

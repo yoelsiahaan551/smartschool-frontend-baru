@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import Header from "../../components/Header";
 import Sidebar from "../../components/Sidebar";
 
@@ -34,18 +35,18 @@ import {
   Loader2,
   RefreshCw,
   AlertCircle,
+  ArrowUpRight,
 } from "lucide-react";
 
 import {
   getPaket,
   getFitur,
-  createPaket,
-  updatePaket,
   deletePaket,
+  updatePaket,
 } from "../../../services/paket.service";
 
 /* =========================================================
-   KONFIGURASI ICON
+   ICON MODULE
 ========================================================= */
 
 const ICON_MAP = {
@@ -58,6 +59,10 @@ const ICON_MAP = {
   komunikasi: MessageSquare,
   inventaris: Boxes,
 };
+
+/* =========================================================
+   DEFAULT MODULE
+========================================================= */
 
 const DEFAULT_MODULES = [
   {
@@ -111,48 +116,84 @@ const DEFAULT_MODULES = [
 ];
 
 /* =========================================================
-   WARNA
+   PACKAGE COLOR
 ========================================================= */
 
-const WARNA_MAP = {
-  slate: {
-    bg: "bg-slate-100",
-    text: "text-slate-700",
-    border: "border-slate-200",
-    ring: "ring-slate-200",
-    solid: "bg-slate-600",
-  },
-
+const PACKAGE_THEMES = {
   blue: {
-    bg: "bg-blue-50",
-    text: "text-blue-700",
-    border: "border-blue-200",
-    ring: "ring-blue-200",
-    solid: "bg-blue-600",
+    card:
+      "from-blue-600 via-blue-600 to-indigo-700",
+    soft:
+      "bg-blue-50",
+    softText:
+      "text-blue-700",
+    icon:
+      "bg-blue-100 text-blue-700",
+    badge:
+      "bg-blue-100 text-blue-700",
+    line:
+      "border-blue-100",
+    button:
+      "bg-blue-600 hover:bg-blue-700",
+    glow:
+      "bg-blue-500/10",
   },
 
   purple: {
-    bg: "bg-purple-50",
-    text: "text-purple-700",
-    border: "border-purple-200",
-    ring: "ring-purple-200",
-    solid: "bg-purple-600",
-  },
-
-  amber: {
-    bg: "bg-amber-50",
-    text: "text-amber-700",
-    border: "border-amber-200",
-    ring: "ring-amber-200",
-    solid: "bg-amber-600",
+    card:
+      "from-indigo-600 via-purple-600 to-violet-700",
+    soft:
+      "bg-purple-50",
+    softText:
+      "text-purple-700",
+    icon:
+      "bg-purple-100 text-purple-700",
+    badge:
+      "bg-purple-100 text-purple-700",
+    line:
+      "border-purple-100",
+    button:
+      "bg-purple-600 hover:bg-purple-700",
+    glow:
+      "bg-purple-500/10",
   },
 
   emerald: {
-    bg: "bg-emerald-50",
-    text: "text-emerald-700",
-    border: "border-emerald-200",
-    ring: "ring-emerald-200",
-    solid: "bg-emerald-600",
+    card:
+      "from-emerald-600 via-teal-600 to-cyan-700",
+    soft:
+      "bg-emerald-50",
+    softText:
+      "text-emerald-700",
+    icon:
+      "bg-emerald-100 text-emerald-700",
+    badge:
+      "bg-emerald-100 text-emerald-700",
+    line:
+      "border-emerald-100",
+    button:
+      "bg-emerald-600 hover:bg-emerald-700",
+    glow:
+      "bg-emerald-500/10",
+  },
+
+  orange: {
+    card:
+      "from-orange-500 via-amber-500 to-yellow-600",
+    soft:
+      "bg-orange-50",
+    softText:
+      "text-orange-700",
+    icon:
+      "bg-orange-100 text-orange-700",
+    badge:
+      "bg-orange-100 text-orange-700",
+    line:
+      "border-orange-100",
+    button:
+      "bg-orange-500 hover:bg-orange-600",
+    glow:
+      "bg-orange-500/10",
   },
 };
 
@@ -239,9 +280,12 @@ function getFeatureDescription(item) {
 }
 
 function normalizeFeature(item, index) {
-  const id = getFeatureId(item) ?? `fitur-${index}`;
+  const id =
+    getFeatureId(item) ??
+    `fitur-${index}`;
 
-  const nama = getFeatureName(item);
+  const nama =
+    getFeatureName(item);
 
   const iconKey = String(nama)
     .toLowerCase()
@@ -252,8 +296,12 @@ function normalizeFeature(item, index) {
     ...item,
     id,
     nama,
-    deskripsi: getFeatureDescription(item),
-    icon: ICON_MAP[id] || ICON_MAP[iconKey] || Layers,
+    deskripsi:
+      getFeatureDescription(item),
+    icon:
+      ICON_MAP[id] ||
+      ICON_MAP[iconKey] ||
+      Layers,
   };
 }
 
@@ -303,7 +351,9 @@ function getPaketStatus(paket) {
       "aktif"
   ).toLowerCase();
 
-  return status === "aktif" ? "aktif" : "nonaktif";
+  return status === "aktif"
+    ? "aktif"
+    : "nonaktif";
 }
 
 function getPaketCycle(paket) {
@@ -358,11 +408,12 @@ function getPaketFeatures(paket) {
 }
 
 function getFeatureIdsFromPaket(paket) {
-  const features = getPaketFeatures(paket);
-
-  return features
+  return getPaketFeatures(paket)
     .map((item) => {
-      if (typeof item === "string" || typeof item === "number") {
+      if (
+        typeof item === "string" ||
+        typeof item === "number"
+      ) {
         return item;
       }
 
@@ -371,51 +422,120 @@ function getFeatureIdsFromPaket(paket) {
     .filter(Boolean);
 }
 
-function getPaketColor(paket, index) {
-  if (paket?.warna && WARNA_MAP[paket.warna]) {
-    return paket.warna;
+/* =========================================================
+   PACKAGE THEME
+========================================================= */
+
+function getPackageTheme(paket, index) {
+  const name =
+    getPaketName(paket).toLowerCase();
+
+  if (
+    name.includes("premium") ||
+    name.includes("enterprise") ||
+    name.includes("professional")
+  ) {
+    return PACKAGE_THEMES.purple;
   }
 
-  const colors = ["slate", "blue", "purple", "amber"];
+  if (
+    name.includes("custom")
+  ) {
+    return PACKAGE_THEMES.blue;
+  }
 
-  return colors[index % colors.length];
+  if (
+    name.includes("basic") ||
+    name.includes("starter") ||
+    name.includes("trial")
+  ) {
+    return PACKAGE_THEMES.emerald;
+  }
+
+  const themes = [
+    PACKAGE_THEMES.blue,
+    PACKAGE_THEMES.purple,
+    PACKAGE_THEMES.emerald,
+    PACKAGE_THEMES.orange,
+  ];
+
+  return themes[index % themes.length];
 }
 
-function getPaketIcon(paket, index) {
-  const nama = getPaketName(paket).toLowerCase();
+function getPackageIcon(paket, index) {
+  const nama =
+    getPaketName(paket).toLowerCase();
 
-  if (nama.includes("enterprise")) return Crown;
-  if (nama.includes("professional")) return Zap;
-  if (nama.includes("trial")) return Sparkles;
-  if (nama.includes("starter")) return Star;
+  if (
+    nama.includes("enterprise") ||
+    nama.includes("premium")
+  ) {
+    return Crown;
+  }
 
-  const icons = [Star, Zap, Crown, Sparkles];
+  if (
+    nama.includes("professional") ||
+    nama.includes("custom")
+  ) {
+    return Zap;
+  }
+
+  if (
+    nama.includes("trial")
+  ) {
+    return Sparkles;
+  }
+
+  if (
+    nama.includes("starter") ||
+    nama.includes("basic")
+  ) {
+    return Star;
+  }
+
+  const icons = [
+    Star,
+    Zap,
+    Crown,
+    Sparkles,
+  ];
 
   return icons[index % icons.length];
 }
 
 /* =========================================================
-   HALAMAN UTAMA
+   MAIN PAGE
 ========================================================= */
 
 export default function PaketModulPage() {
-  const [activeMenu, setActiveMenu] = useState("paket-modul");
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const router = useRouter();
 
-  const [paketList, setPaketList] = useState([]);
-  const [fiturList, setFiturList] = useState([]);
+  const [activeMenu, setActiveMenu] =
+    useState("paket-modul");
 
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const [sidebarOpen, setSidebarOpen] =
+    useState(true);
 
-  const [error, setError] = useState("");
+  const [paketList, setPaketList] =
+    useState([]);
 
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editingPaket, setEditingPaket] = useState(null);
+  const [fiturList, setFiturList] =
+    useState([]);
 
-  const [confirmDelete, setConfirmDelete] = useState(null);
+  const [loading, setLoading] =
+    useState(true);
 
-  const [search, setSearch] = useState("");
+  const [refreshing, setRefreshing] =
+    useState(false);
+
+  const [error, setError] =
+    useState("");
+
+  const [confirmDelete, setConfirmDelete] =
+    useState(null);
+
+  const [search, setSearch] =
+    useState("");
 
   const notifications = [
     {
@@ -446,22 +566,40 @@ export default function PaketModulPage() {
 
       setError("");
 
-      const [paketResponse, fiturResponse] = await Promise.all([
+      const [
+        paketResponse,
+        fiturResponse,
+      ] = await Promise.all([
         getPaket(),
         getFitur(),
       ]);
 
-      const paketData = getResponseData(paketResponse);
-      const fiturData = getResponseData(fiturResponse);
+      const paketData =
+        getResponseData(
+          paketResponse
+        );
+
+      const fiturData =
+        getResponseData(
+          fiturResponse
+        );
 
       setPaketList(paketData);
+
       setFiturList(
-        fiturData.map((item, index) =>
-          normalizeFeature(item, index)
+        fiturData.map(
+          (item, index) =>
+            normalizeFeature(
+              item,
+              index
+            )
         )
       );
     } catch (err) {
-      console.error("Gagal memuat data paket:", err);
+      console.error(
+        "Gagal memuat data paket:",
+        err
+      );
 
       setError(
         err?.response?.data?.message ||
@@ -480,132 +618,141 @@ export default function PaketModulPage() {
   }, []);
 
   /* =======================================================
-     DATA YANG SUDAH DINORMALISASI
+     NORMALIZED DATA
   ======================================================= */
 
-  const normalizedPaket = useMemo(() => {
-    return paketList.map((paket, index) => {
-      return {
-        ...paket,
+  const normalizedPaket =
+    useMemo(() => {
+      return paketList.map(
+        (paket, index) => ({
+          ...paket,
 
-        id: getPaketId(paket),
+          id:
+            getPaketId(paket),
 
-        nama: getPaketName(paket),
+          nama:
+            getPaketName(paket),
 
-        harga: getPaketPrice(paket),
+          harga:
+            getPaketPrice(paket),
 
-        deskripsi: getPaketDescription(paket),
+          deskripsi:
+            getPaketDescription(
+              paket
+            ),
 
-        status: getPaketStatus(paket),
+          status:
+            getPaketStatus(paket),
 
-        siklus: getPaketCycle(paket),
+          siklus:
+            getPaketCycle(paket),
 
-        langganan: getPaketSubscribers(paket),
+          langganan:
+            getPaketSubscribers(
+              paket
+            ),
 
-        fiturIds: getFeatureIdsFromPaket(paket),
+          fiturIds:
+            getFeatureIdsFromPaket(
+              paket
+            ),
 
-        warna: getPaketColor(paket, index),
+          theme:
+            getPackageTheme(
+              paket,
+              index
+            ),
 
-        icon: getPaketIcon(paket, index),
+          icon:
+            getPackageIcon(
+              paket,
+              index
+            ),
 
-        populer:
-          paket?.populer === true ||
-          paket?.isPopular === true ||
-          paket?.is_popular === true ||
-          false,
-      };
-    });
-  }, [paketList]);
+          populer:
+            paket?.populer === true ||
+            paket?.isPopular === true ||
+            paket?.is_popular === true,
+        })
+      );
+    }, [paketList]);
 
   /* =======================================================
-     STATISTIK
+     STATISTICS
   ======================================================= */
 
-  const totalPaket = normalizedPaket.length;
+  const totalPaket =
+    normalizedPaket.length;
 
-  const paketAktif = normalizedPaket.filter(
-    (p) => p.status === "aktif"
-  ).length;
+  const paketAktif =
+    normalizedPaket.filter(
+      (p) => p.status === "aktif"
+    ).length;
 
-  const totalLangganan = normalizedPaket.reduce(
-    (sum, p) => sum + Number(p.langganan || 0),
-    0
-  );
+  const totalLangganan =
+    normalizedPaket.reduce(
+      (sum, p) =>
+        sum +
+        Number(
+          p.langganan || 0
+        ),
+      0
+    );
 
-  const totalPendapatan = normalizedPaket.reduce(
-    (sum, p) => sum + Number(p.harga || 0) * Number(p.langganan || 0),
-    0
-  );
+  const totalPendapatan =
+    normalizedPaket.reduce(
+      (sum, p) =>
+        sum +
+        Number(p.harga || 0) *
+          Number(
+            p.langganan || 0
+          ),
+      0
+    );
 
   /* =======================================================
      SEARCH
   ======================================================= */
 
-  const filteredPaket = normalizedPaket.filter((paket) =>
-    paket.nama
-      .toLowerCase()
-      .includes(search.toLowerCase())
-  );
+  const filteredPaket =
+    normalizedPaket.filter(
+      (paket) =>
+        paket.nama
+          .toLowerCase()
+          .includes(
+            search.toLowerCase()
+          )
+    );
 
   /* =======================================================
-     TAMBAH
+     NAVIGATION
   ======================================================= */
 
-  function openTambah() {
-    setEditingPaket(null);
-    setModalOpen(true);
+  function navigateToTambah() {
+    router.push(
+      "/super-admin/paketModul/tambah"
+    );
+  }
+
+  function navigateToEdit(paket) {
+    const id =
+      getPaketId(paket);
+
+    router.push(
+      `/super-admin/paketModul/edit/${id}`
+    );
   }
 
   /* =======================================================
-     EDIT
-  ======================================================= */
-
-  function openEdit(paket) {
-    setEditingPaket(paket);
-    setModalOpen(true);
-  }
-
-  /* =======================================================
-     SIMPAN
-  ======================================================= */
-
-  async function simpanPaket(data) {
-    try {
-      setError("");
-
-      if (editingPaket) {
-        const id = getPaketId(editingPaket);
-
-        await updatePaket(id, data);
-      } else {
-        await createPaket(data);
-      }
-
-      setModalOpen(false);
-      setEditingPaket(null);
-
-      await loadData(false);
-    } catch (err) {
-      console.error("Gagal menyimpan paket:", err);
-
-      setError(
-        err?.response?.data?.message ||
-          err?.response?.data?.error ||
-          err?.message ||
-          "Gagal menyimpan paket."
-      );
-    }
-  }
-
-  /* =======================================================
-     HAPUS
+     DELETE
   ======================================================= */
 
   async function hapusPaket(paket) {
     try {
       setError("");
 
-      const id = getPaketId(paket);
+      const id =
+        getPaketId(paket);
 
       await deletePaket(id);
 
@@ -613,7 +760,10 @@ export default function PaketModulPage() {
 
       await loadData(false);
     } catch (err) {
-      console.error("Gagal menghapus paket:", err);
+      console.error(
+        "Gagal menghapus paket:",
+        err
+      );
 
       setError(
         err?.response?.data?.message ||
@@ -625,26 +775,6 @@ export default function PaketModulPage() {
   }
 
   /* =======================================================
-     DUPLIKAT
-  ======================================================= */
-
-  function duplikatPaket(paket) {
-    setEditingPaket({
-      ...paket,
-
-      id: undefined,
-
-      nama: `${paket.nama} (Salinan)`,
-
-      populer: false,
-
-      langganan: 0,
-    });
-
-    setModalOpen(true);
-  }
-
-  /* =======================================================
      TOGGLE STATUS
   ======================================================= */
 
@@ -652,7 +782,8 @@ export default function PaketModulPage() {
     try {
       setError("");
 
-      const id = getPaketId(paket);
+      const id =
+        getPaketId(paket);
 
       const nextStatus =
         paket.status === "aktif"
@@ -666,7 +797,10 @@ export default function PaketModulPage() {
 
       await loadData(false);
     } catch (err) {
-      console.error("Gagal mengubah status paket:", err);
+      console.error(
+        "Gagal mengubah status:",
+        err
+      );
 
       setError(
         err?.response?.data?.message ||
@@ -678,44 +812,82 @@ export default function PaketModulPage() {
   }
 
   /* =======================================================
+     DUPLICATE
+  ======================================================= */
+
+  function duplikatPaket(paket) {
+    const data = {
+      ...paket,
+      id: undefined,
+      nama: `${paket.nama} (Salinan)`,
+      populer: false,
+      langganan: 0,
+    };
+
+    sessionStorage.setItem(
+      "duplikatPaket",
+      JSON.stringify(data)
+    );
+
+    router.push(
+      "/super-admin/paketModul/tambah?duplikat=true"
+    );
+  }
+
+  /* =======================================================
      LOADING
   ======================================================= */
 
   if (loading) {
     return (
-      <div className="flex min-h-screen bg-slate-50">
+      <div className="flex min-h-screen bg-white">
         <Sidebar
           active={activeMenu}
           setActive={setActiveMenu}
           collapsed={!sidebarOpen}
           setCollapsed={() =>
-            setSidebarOpen(!sidebarOpen)
+            setSidebarOpen(
+              !sidebarOpen
+            )
           }
         />
 
         <div className="flex-1 flex flex-col min-w-0">
           <Header
             toggleSidebar={() =>
-              setSidebarOpen(!sidebarOpen)
+              setSidebarOpen(
+                !sidebarOpen
+              )
             }
-            notifications={notifications}
+            notifications={
+              notifications
+            }
             user={{
               name: "Sarah",
-              email: "sarah@smartschool.com",
+              email:
+                "sarah@smartschool.com",
               avatar: "SA",
             }}
           />
 
-          <main className="flex-1 flex items-center justify-center p-8">
-            <div className="flex flex-col items-center gap-3">
-              <Loader2
-                size={32}
-                className="animate-spin text-blue-600"
-              />
+          <main className="flex-1 flex items-center justify-center">
+            <div className="flex flex-col items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-600/20">
+                <Loader2
+                  size={24}
+                  className="animate-spin text-white"
+                />
+              </div>
 
-              <p className="text-sm text-slate-500">
-                Memuat data paket...
-              </p>
+              <div className="text-center">
+                <p className="text-sm font-semibold text-slate-700">
+                  Memuat paket...
+                </p>
+
+                <p className="text-xs text-slate-400 mt-1">
+                  Menyiapkan data langganan
+                </p>
+              </div>
             </div>
           </main>
         </div>
@@ -728,109 +900,141 @@ export default function PaketModulPage() {
   ======================================================= */
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div className="flex min-h-screen bg-white">
+      {/* SIDEBAR */}
+
       <Sidebar
         active={activeMenu}
         setActive={setActiveMenu}
         collapsed={!sidebarOpen}
         setCollapsed={() =>
-          setSidebarOpen(!sidebarOpen)
+          setSidebarOpen(
+            !sidebarOpen
+          )
         }
       />
+
+      {/* CONTENT */}
 
       <div className="flex-1 flex flex-col min-w-0">
         <Header
           toggleSidebar={() =>
-            setSidebarOpen(!sidebarOpen)
+            setSidebarOpen(
+              !sidebarOpen
+            )
           }
-          notifications={notifications}
+          notifications={
+            notifications
+          }
           user={{
             name: "Sarah",
-            email: "sarah@smartschool.com",
+            email:
+              "sarah@smartschool.com",
             avatar: "SA",
           }}
         />
 
         <main className="flex-1 p-4 sm:p-6 lg:p-8">
-          <div className="w-full space-y-5 md:space-y-7">
+          <div className="max-w-[1500px] mx-auto space-y-6">
 
             {/* =================================================
-                HEADER
+                PAGE HEADER
             ================================================= */}
 
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div>
-                <h1 className="text-2xl md:text-3xl font-semibold text-slate-800 tracking-tight flex items-center gap-2">
-                  <span className="p-1.5 rounded-lg bg-blue-600 text-white shadow-sm">
-                    <Package size={18} />
-                  </span>
+            <section className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#0f172a] via-[#172554] to-[#1d4ed8] p-6 md:p-7 shadow-lg shadow-blue-900/10">
+              
+              {/* decorative */}
+              <div className="absolute -right-10 -top-16 w-56 h-56 rounded-full bg-blue-400/10 blur-2xl" />
+              <div className="absolute right-24 bottom-[-80px] w-48 h-48 rounded-full bg-indigo-400/10 blur-2xl" />
 
-                  Paket & Modul
-                </h1>
+              <div className="relative flex flex-col xl:flex-row xl:items-center xl:justify-between gap-5">
+                
+                <div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-11 h-11 rounded-xl bg-white/10 border border-white/10 backdrop-blur-sm flex items-center justify-center">
+                      <Package
+                        size={21}
+                        className="text-white"
+                      />
+                    </div>
 
-                <p className="text-sm text-slate-500 mt-0.5 flex items-center gap-1.5 ml-[44px]">
-                  <Sparkles
-                    size={14}
-                    className="text-slate-400"
-                  />
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-200">
+                        Product Management
+                      </p>
 
-                  Kelola paket langganan dan modul yang
-                  tersedia untuk setiap sekolah.
-                </p>
-              </div>
+                      <h1 className="text-2xl md:text-3xl font-bold text-white tracking-tight">
+                        Paket Langganan
+                      </h1>
+                    </div>
+                  </div>
 
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => loadData(false)}
-                  disabled={refreshing}
-                  className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 transition"
-                >
-                  <RefreshCw
-                    size={15}
-                    className={
-                      refreshing
-                        ? "animate-spin"
-                        : ""
+                  <p className="text-sm text-blue-100/80 mt-3 max-w-xl">
+                    Kelola paket langganan dan
+                    modul yang tersedia untuk
+                    setiap sekolah.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() =>
+                      loadData(false)
                     }
-                  />
+                    disabled={refreshing}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white text-sm font-medium backdrop-blur-sm transition"
+                  >
+                    <RefreshCw
+                      size={15}
+                      className={
+                        refreshing
+                          ? "animate-spin"
+                          : ""
+                      }
+                    />
 
-                  Refresh
-                </button>
+                    Refresh
+                  </button>
 
-                <button
-                  onClick={openTambah}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 shadow-sm hover:shadow transition-all"
-                >
-                  <Plus size={16} />
+                  <button
+                    onClick={
+                      navigateToTambah
+                    }
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white text-blue-700 hover:bg-blue-50 text-sm font-semibold shadow-lg transition"
+                  >
+                    <Plus size={16} />
 
-                  Tambah Paket
-                </button>
+                    Tambah Paket
+                  </button>
+                </div>
               </div>
-            </div>
+            </section>
 
             {/* =================================================
                 ERROR
             ================================================= */}
 
             {error && (
-              <div className="flex items-start gap-3 p-4 rounded-xl border border-rose-200 bg-rose-50 text-rose-700">
+              <div className="flex items-start gap-3 p-4 rounded-xl border border-rose-200 bg-rose-50">
                 <AlertCircle
                   size={18}
-                  className="mt-0.5 flex-shrink-0"
+                  className="text-rose-500 mt-0.5"
                 />
 
                 <div className="flex-1">
-                  <p className="text-sm font-medium">
+                  <p className="text-sm font-semibold text-rose-700">
                     Terjadi kesalahan
                   </p>
 
-                  <p className="text-xs mt-1 text-rose-600">
+                  <p className="text-xs text-rose-600 mt-1">
                     {error}
                   </p>
                 </div>
 
                 <button
-                  onClick={() => setError("")}
+                  onClick={() =>
+                    setError("")
+                  }
                   className="text-rose-400 hover:text-rose-600"
                 >
                   <X size={16} />
@@ -839,36 +1043,42 @@ export default function PaketModulPage() {
             )}
 
             {/* =================================================
-                STAT
+                STATS
             ================================================= */}
 
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+            <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
               <StatCard
                 icon={Package}
                 label="Total Paket"
                 value={totalPaket}
-                color="blue"
+                description="Paket tersedia"
+                theme="blue"
               />
 
               <StatCard
                 icon={BadgeCheck}
                 label="Paket Aktif"
                 value={paketAktif}
-                color="emerald"
+                description="Sedang tersedia"
+                theme="emerald"
               />
 
               <StatCard
                 icon={Users}
                 label="Total Langganan"
                 value={totalLangganan}
-                color="purple"
+                description="Sekolah berlangganan"
+                theme="purple"
               />
 
               <StatCard
                 icon={CircleDollarSign}
                 label="Estimasi Pendapatan"
-                value={formatRupiah(totalPendapatan)}
-                color="orange"
+                value={formatRupiah(
+                  totalPendapatan
+                )}
+                description="Per periode"
+                theme="orange"
               />
             </div>
 
@@ -876,103 +1086,122 @@ export default function PaketModulPage() {
                 SEARCH
             ================================================= */}
 
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="relative w-full sm:w-80">
-                <Search
-                  size={15}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                />
+            <section className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+              <div>
+                <h2 className="text-base font-bold text-slate-800">
+                  Paket Tersedia
+                </h2>
 
-                <input
-                  value={search}
-                  onChange={(e) =>
-                    setSearch(e.target.value)
-                  }
-                  placeholder="Cari paket..."
-                  className="w-full pl-9 pr-3 py-2.5 text-sm rounded-lg border border-slate-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 placeholder:text-slate-400 transition"
-                />
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Pilih paket untuk melihat
+                  detail dan modulnya.
+                </p>
               </div>
 
-              <div className="flex items-center gap-2 text-sm text-slate-500">
-                <span>
-                  {filteredPaket.length} paket ditemukan
-                </span>
-              </div>
-            </div>
-
-            {/* =================================================
-                GRID PAKET
-            ================================================= */}
-
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5">
-              {filteredPaket.map((paket) => (
-                <PaketCard
-                  key={paket.id}
-                  paket={paket}
-                  fiturList={fiturList}
-                  onEdit={() =>
-                    openEdit(paket)
-                  }
-                  onDelete={() =>
-                    setConfirmDelete(paket)
-                  }
-                  onDuplicate={() =>
-                    duplikatPaket(paket)
-                  }
-                  onToggleStatus={() =>
-                    toggleStatus(paket)
-                  }
-                />
-              ))}
-
-              {filteredPaket.length === 0 && (
-                <div className="col-span-full text-center py-14 text-slate-400 text-sm border border-dashed border-slate-200 rounded-xl bg-white">
-                  <Package
-                    size={34}
-                    className="mx-auto text-slate-300 mb-3"
+              <div className="flex items-center gap-3">
+                <div className="relative w-full md:w-72">
+                  <Search
+                    size={16}
+                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
                   />
 
-                  <p className="font-medium text-slate-500">
-                    Tidak ada paket ditemukan
+                  <input
+                    value={search}
+                    onChange={(e) =>
+                      setSearch(
+                        e.target.value
+                      )
+                    }
+                    placeholder="Cari paket..."
+                    className="w-full pl-10 pr-4 py-2.5 text-sm rounded-xl border border-slate-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition"
+                  />
+                </div>
+
+                <span className="hidden sm:flex items-center whitespace-nowrap px-3 py-2.5 rounded-xl bg-white border border-slate-200 text-xs font-medium text-slate-500">
+                  {filteredPaket.length} paket
+                </span>
+              </div>
+            </section>
+
+            {/* =================================================
+                PACKAGE GRID
+            ================================================= */}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 items-stretch">
+              {filteredPaket.map(
+                (paket) => (
+                  <PaketCard
+                    key={paket.id}
+                    paket={paket}
+                    fiturList={
+                      fiturList
+                    }
+                    onEdit={() =>
+                      navigateToEdit(
+                        paket
+                      )
+                    }
+                    onDelete={() =>
+                      setConfirmDelete(
+                        paket
+                      )
+                    }
+                    onDuplicate={() =>
+                      duplikatPaket(
+                        paket
+                      )
+                    }
+                    onToggleStatus={() =>
+                      toggleStatus(
+                        paket
+                      )
+                    }
+                  />
+                )
+              )}
+
+              {filteredPaket.length ===
+                0 && (
+                <div className="md:col-span-2 xl:col-span-3 rounded-2xl border border-dashed border-slate-300 bg-white/70 py-16 text-center">
+                  <div className="w-14 h-14 mx-auto rounded-2xl bg-slate-100 flex items-center justify-center">
+                    <Package
+                      size={25}
+                      className="text-slate-400"
+                    />
+                  </div>
+
+                  <p className="mt-4 text-sm font-semibold text-slate-600">
+                    Paket tidak ditemukan
                   </p>
 
-                  <p className="text-xs mt-1">
-                    Coba gunakan kata kunci pencarian lain.
+                  <p className="text-xs text-slate-400 mt-1">
+                    Coba gunakan kata kunci
+                    pencarian lain.
                   </p>
                 </div>
               )}
             </div>
 
             {/* =================================================
-                MATRIKS
+                MODULE MATRIX
             ================================================= */}
 
             <ModulMatrix
-              paketList={normalizedPaket}
-              fiturList={fiturList}
+              paketList={
+                normalizedPaket
+              }
+              fiturList={
+                fiturList.length
+                  ? fiturList
+                  : DEFAULT_MODULES
+              }
             />
           </div>
         </main>
       </div>
 
       {/* =====================================================
-          MODAL
-      ===================================================== */}
-
-      {modalOpen && (
-        <PaketModal
-          paket={editingPaket}
-          fiturList={fiturList}
-          onClose={() => {
-            setModalOpen(false);
-            setEditingPaket(null);
-          }}
-          onSave={simpanPaket}
-        />
-      )}
-
-      {/* =====================================================
-          DELETE
+          DELETE MODAL
       ===================================================== */}
 
       {confirmDelete && (
@@ -982,7 +1211,9 @@ export default function PaketModulPage() {
             setConfirmDelete(null)
           }
           onConfirm={() =>
-            hapusPaket(confirmDelete)
+            hapusPaket(
+              confirmDelete
+            )
           }
         />
       )}
@@ -998,34 +1229,63 @@ function StatCard({
   icon: Icon,
   label,
   value,
-  color,
+  description,
+  theme,
 }) {
-  const colorMap = {
-    blue: "bg-blue-50 text-blue-600",
-    emerald:
-      "bg-emerald-50 text-emerald-600",
-    purple:
-      "bg-purple-50 text-purple-600",
-    orange:
-      "bg-orange-50 text-orange-600",
+  const themes = {
+    blue: {
+      icon: "bg-blue-100 text-blue-700",
+      accent: "bg-blue-600",
+      glow: "bg-blue-500/10",
+    },
+
+    emerald: {
+      icon: "bg-emerald-100 text-emerald-700",
+      accent: "bg-emerald-600",
+      glow: "bg-emerald-500/10",
+    },
+
+    purple: {
+      icon: "bg-purple-100 text-purple-700",
+      accent: "bg-purple-600",
+      glow: "bg-purple-500/10",
+    },
+
+    orange: {
+      icon: "bg-orange-100 text-orange-700",
+      accent: "bg-orange-500",
+      glow: "bg-orange-500/10",
+    },
   };
 
+  const t =
+    themes[theme] ||
+    themes.blue;
+
   return (
-    <div className="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm hover:shadow-md transition-shadow">
-      <div className="flex items-center gap-3">
+    <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:shadow-md transition-all">
+      <div
+        className={`absolute right-0 top-0 w-24 h-24 rounded-full blur-2xl ${t.glow}`}
+      />
+
+      <div className="relative flex items-center gap-4">
         <div
-          className={`w-10 h-10 rounded-xl ${colorMap[color]} flex items-center justify-center flex-shrink-0`}
+          className={`w-11 h-11 rounded-xl flex items-center justify-center ${t.icon}`}
         >
-          <Icon size={18} />
+          <Icon size={19} />
         </div>
 
         <div className="min-w-0">
-          <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
             {label}
           </p>
 
-          <p className="text-lg font-semibold text-slate-800 truncate">
+          <p className="text-xl font-bold text-slate-800 truncate mt-0.5">
             {value}
+          </p>
+
+          <p className="text-[11px] text-slate-400 mt-0.5">
+            {description}
           </p>
         </div>
       </div>
@@ -1034,7 +1294,7 @@ function StatCard({
 }
 
 /* =========================================================
-   KARTU PAKET
+   PACKAGE CARD
 ========================================================= */
 
 function PaketCard({
@@ -1048,219 +1308,342 @@ function PaketCard({
   const [menuOpen, setMenuOpen] =
     useState(false);
 
-  const warna =
-    WARNA_MAP[paket.warna] ||
-    WARNA_MAP.slate;
-
   const Icon =
     paket.icon || Package;
+
+  const theme =
+    paket.theme ||
+    PACKAGE_THEMES.blue;
 
   const selectedFeatures =
     paket.fiturIds || [];
 
   return (
-    <div
-      className={`relative bg-white rounded-xl border p-5 shadow-sm hover:shadow-md transition-all duration-200 ${
-        paket.populer
-          ? "border-blue-300 ring-1 ring-blue-200"
-          : "border-slate-200/80"
-      }`}
-    >
-      {/* POPULER */}
+    <div className="group relative flex flex-col h-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-300/30 transition-all duration-300">
 
-      {paket.populer && (
-        <span className="absolute -top-2.5 left-4 px-2.5 py-0.5 rounded-full text-[10px] font-semibold text-white bg-blue-600 shadow-sm">
-          Paling Populer
-        </span>
-      )}
+      {/* =================================================
+          COLOR HEADER
+      ================================================= */}
 
-      {/* TOP */}
+      <div
+        className={`relative h-24 bg-gradient-to-br ${theme.card} overflow-hidden`}
+      >
+        <div className="absolute -right-8 -top-12 w-32 h-32 rounded-full bg-white/10" />
 
-      <div className="flex items-start justify-between mb-3">
-        <div
-          className={`w-10 h-10 rounded-xl ${warna.bg} ${warna.text} flex items-center justify-center shadow-sm`}
-        >
-          <Icon size={18} />
+        <div className="absolute right-8 bottom-[-35px] w-24 h-24 rounded-full bg-white/5" />
+
+        <div className="relative flex items-center justify-between p-5">
+          <div className="w-11 h-11 rounded-xl bg-white/15 border border-white/20 backdrop-blur-sm flex items-center justify-center">
+            <Icon
+              size={21}
+              className="text-white"
+            />
+          </div>
+
+          <div className="relative">
+            <button
+              onClick={() =>
+                setMenuOpen(
+                  (value) =>
+                    !value
+                )
+              }
+              className="w-9 h-9 rounded-lg flex items-center justify-center text-white/80 hover:text-white hover:bg-white/10 transition"
+            >
+              <MoreHorizontal
+                size={18}
+              />
+            </button>
+
+            {menuOpen && (
+              <div
+                onMouseLeave={() =>
+                  setMenuOpen(
+                    false
+                  )
+                }
+                className="absolute right-0 top-10 w-44 rounded-xl border border-slate-200 bg-white shadow-xl py-1.5 z-30"
+              >
+                <MenuButton
+                  icon={Pencil}
+                  label="Edit Paket"
+                  onClick={() => {
+                    onEdit();
+                    setMenuOpen(
+                      false
+                    );
+                  }}
+                />
+
+                <MenuButton
+                  icon={Copy}
+                  label="Duplikat"
+                  onClick={() => {
+                    onDuplicate();
+                    setMenuOpen(
+                      false
+                    );
+                  }}
+                />
+
+                <MenuButton
+                  icon={
+                    ShieldCheck
+                  }
+                  label={
+                    paket.status ===
+                    "aktif"
+                      ? "Nonaktifkan"
+                      : "Aktifkan"
+                  }
+                  onClick={() => {
+                    onToggleStatus();
+                    setMenuOpen(
+                      false
+                    );
+                  }}
+                />
+
+                <MenuButton
+                  icon={Trash2}
+                  label="Hapus"
+                  danger
+                  onClick={() => {
+                    onDelete();
+                    setMenuOpen(
+                      false
+                    );
+                  }}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* =================================================
+          CONTENT
+      ================================================= */}
+
+      <div className="flex flex-col flex-1 p-5">
+
+        {/* PACKAGE NAME */}
+
+        <div>
+          <div className="flex items-start justify-between gap-3">
+            <h3 className="text-lg font-bold text-slate-800">
+              {paket.nama}
+            </h3>
+
+            {paket.populer && (
+              <span className="shrink-0 px-2 py-1 rounded-lg bg-blue-50 text-blue-700 text-[9px] font-bold uppercase tracking-wide">
+                Populer
+              </span>
+            )}
+          </div>
+
+          <p className="text-xs leading-relaxed text-slate-400 mt-1.5 min-h-[36px]">
+            {paket.deskripsi ||
+              "Paket layanan SmartSchool untuk kebutuhan sekolah."}
+          </p>
         </div>
 
-        <div className="relative">
-          <button
-            onClick={() =>
-              setMenuOpen((v) => !v)
-            }
-            className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors"
+        {/* PRICE */}
+
+        <div className="mt-5">
+          <div className="flex items-end gap-1">
+            <span className="text-2xl font-extrabold text-slate-800 tracking-tight">
+              {formatRupiah(
+                paket.harga
+              )}
+            </span>
+
+            {paket.harga > 0 && (
+              <span className="text-xs text-slate-400 pb-1">
+                / {paket.siklus}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* STATUS */}
+
+        <div className="flex items-center justify-between mt-4 pb-4 border-b border-slate-100">
+          <span
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold ${
+              paket.status ===
+              "aktif"
+                ? "bg-emerald-50 text-emerald-600"
+                : "bg-slate-100 text-slate-500"
+            }`}
           >
-            <MoreHorizontal size={16} />
-          </button>
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${
+                paket.status ===
+                "aktif"
+                  ? "bg-emerald-500"
+                  : "bg-slate-400"
+              }`}
+            />
 
-          {menuOpen && (
-            <div
-              onMouseLeave={() =>
-                setMenuOpen(false)
-              }
-              className="absolute right-0 mt-1 w-40 bg-white rounded-lg border border-slate-200 shadow-lg py-1 z-20"
-            >
-              <button
-                onClick={() => {
-                  onEdit();
-                  setMenuOpen(false);
-                }}
-                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-600 hover:bg-slate-50"
-              >
-                <Pencil size={12} />
-                Edit
-              </button>
+            {paket.status ===
+            "aktif"
+              ? "Aktif"
+              : "Nonaktif"}
+          </span>
 
-              <button
-                onClick={() => {
-                  onDuplicate();
-                  setMenuOpen(false);
-                }}
-                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-600 hover:bg-slate-50"
-              >
-                <Copy size={12} />
-                Duplikat
-              </button>
+          <span className="flex items-center gap-1.5 text-xs text-slate-400">
+            <Users
+              size={13}
+            />
 
-              <button
-                onClick={() => {
-                  onToggleStatus();
-                  setMenuOpen(false);
-                }}
-                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-600 hover:bg-slate-50"
-              >
-                <ShieldCheck size={12} />
+            {paket.langganan} sekolah
+          </span>
+        </div>
 
-                {paket.status === "aktif"
-                  ? "Nonaktifkan"
-                  : "Aktifkan"}
-              </button>
+        {/* MODULE */}
 
-              <button
-                onClick={() => {
-                  onDelete();
-                  setMenuOpen(false);
-                }}
-                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-rose-500 hover:bg-rose-50"
-              >
-                <Trash2 size={12} />
-                Hapus
-              </button>
+        <div className="mt-4 flex-1">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              Modul tersedia
+            </p>
+
+            <span className="text-[10px] font-bold text-slate-400">
+              {selectedFeatures.length}
+            </span>
+          </div>
+
+          {selectedFeatures.length >
+          0 ? (
+            <div className="space-y-2">
+              {selectedFeatures
+                .slice(0, 4)
+                .map(
+                  (
+                    featureId,
+                    index
+                  ) => {
+                    const feature =
+                      fiturList.find(
+                        (f) =>
+                          String(
+                            f.id
+                          ) ===
+                          String(
+                            featureId
+                          )
+                      );
+
+                    const nama =
+                      feature?.nama ||
+                      String(
+                        featureId
+                      );
+
+                    const FeatureIcon =
+                      feature?.icon ||
+                      Check;
+
+                    return (
+                      <div
+                        key={`${featureId}-${index}`}
+                        className="flex items-center gap-2.5"
+                      >
+                        <div className="w-6 h-6 rounded-md bg-slate-100 flex items-center justify-center shrink-0">
+                          <FeatureIcon
+                            size={
+                              12
+                            }
+                            className="text-slate-500"
+                          />
+                        </div>
+
+                        <span className="text-xs text-slate-600 truncate">
+                          {nama}
+                        </span>
+
+                        <Check
+                          size={
+                            13
+                          }
+                          className="ml-auto text-emerald-500 shrink-0"
+                        />
+                      </div>
+                    );
+                  }
+                )}
+
+              {selectedFeatures.length >
+                4 && (
+                <p className="text-[10px] text-slate-400 pl-8 pt-1">
+                  +
+                  {selectedFeatures.length -
+                    4}{" "}
+                  modul lainnya
+                </p>
+              )}
+            </div>
+          ) : (
+            <div className="flex items-center gap-2.5 text-xs text-slate-400">
+              <div className="w-6 h-6 rounded-md bg-slate-50 flex items-center justify-center">
+                <X
+                  size={12}
+                  className="text-slate-300"
+                />
+              </div>
+
+              Belum ada modul
             </div>
           )}
         </div>
-      </div>
 
-      {/* NAME */}
+        {/* BUTTON */}
 
-      <h3 className="text-base font-semibold text-slate-800">
-        {paket.nama}
-      </h3>
-
-      <p className="text-xs text-slate-400 mt-1 min-h-[2.4em] leading-relaxed">
-        {paket.deskripsi ||
-          "Tidak ada deskripsi paket."}
-      </p>
-
-      {/* PRICE */}
-
-      <div className="mt-3 flex items-baseline gap-1">
-        <span className="text-xl font-bold text-slate-800">
-          {formatRupiah(paket.harga)}
-        </span>
-
-        {paket.harga > 0 && (
-          <span className="text-xs text-slate-400">
-            / {paket.siklus}
-          </span>
-        )}
-      </div>
-
-      {/* STATUS */}
-
-      <div className="mt-3 flex items-center gap-2 flex-wrap">
-        <span
-          className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${
-            paket.status === "aktif"
-              ? "bg-emerald-50 text-emerald-600 border-emerald-200"
-              : "bg-slate-50 text-slate-500 border-slate-200"
-          }`}
+        <button
+          onClick={onEdit}
+          className={`group/btn mt-5 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white ${theme.button} shadow-sm transition`}
         >
-          {paket.status === "aktif"
-            ? "Aktif"
-            : "Nonaktif"}
-        </span>
+          Kelola Paket
 
-        <span className="flex items-center gap-1 text-xs text-slate-400">
-          <Users size={12} />
-
-          {paket.langganan} sekolah
-        </span>
+          <ArrowUpRight
+            size={15}
+            className="group-hover/btn:translate-x-0.5 group-hover/btn:-translate-y-0.5 transition-transform"
+          />
+        </button>
       </div>
-
-      {/* FEATURES */}
-
-      <div className="mt-4 pt-3 border-t border-slate-100 space-y-1.5">
-        <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider mb-1">
-          {selectedFeatures.length} Fitur termasuk
-        </p>
-
-        {selectedFeatures
-          .slice(0, 4)
-          .map((featureId, index) => {
-            const feature =
-              fiturList.find(
-                (f) =>
-                  String(f.id) ===
-                  String(featureId)
-              );
-
-            const nama =
-              feature?.nama ||
-              String(featureId);
-
-            return (
-              <div
-                key={`${featureId}-${index}`}
-                className="flex items-center gap-1.5 text-xs text-slate-600"
-              >
-                <Check
-                  size={12}
-                  className="text-emerald-500 flex-shrink-0"
-                />
-
-                {nama}
-              </div>
-            );
-          })}
-
-        {selectedFeatures.length === 0 && (
-          <p className="text-xs text-slate-400">
-            Belum ada fitur
-          </p>
-        )}
-
-        {selectedFeatures.length > 4 && (
-          <p className="text-[10px] text-slate-400 pl-[18px]">
-            +{selectedFeatures.length - 4} fitur lainnya
-          </p>
-        )}
-      </div>
-
-      {/* BUTTON */}
-
-      <button
-        onClick={onEdit}
-        className="mt-4 w-full text-center py-2 rounded-lg text-sm font-medium text-slate-700 border border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition-colors"
-      >
-        Kelola Paket
-      </button>
     </div>
   );
 }
 
 /* =========================================================
-   MATRIKS
+   MENU BUTTON
+========================================================= */
+
+function MenuButton({
+  icon: Icon,
+  label,
+  onClick,
+  danger = false,
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs transition ${
+        danger
+          ? "text-rose-500 hover:bg-rose-50"
+          : "text-slate-600 hover:bg-slate-50"
+      }`}
+    >
+      <Icon size={14} />
+
+      {label}
+    </button>
+  );
+}
+
+/* =========================================================
+   MODULE MATRIX
 ========================================================= */
 
 function ModulMatrix({
@@ -1268,489 +1651,167 @@ function ModulMatrix({
   fiturList,
 }) {
   return (
-    <div className="bg-white rounded-xl border border-slate-200/80 p-4 md:p-5 shadow-sm">
-      <div className="flex items-center gap-3 mb-4">
-        <div className="p-1.5 rounded-lg bg-blue-50 text-blue-600">
-          <Layers size={16} />
-        </div>
+    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
 
-        <div>
-          <h3 className="text-sm font-semibold text-slate-700">
-            Matriks Modul per Paket
-          </h3>
+      {/* HEADER */}
 
-          <p className="text-xs text-slate-400">
-            Perbandingan fitur yang tersedia di setiap paket
-          </p>
+      <div className="px-5 md:px-6 py-5 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-blue-50/50">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center">
+            <Layers size={18} />
+          </div>
+
+          <div>
+            <h3 className="text-sm font-bold text-slate-800">
+              Matriks Modul per Paket
+            </h3>
+
+            <p className="text-xs text-slate-400 mt-0.5">
+              Perbandingan modul yang tersedia
+              di setiap paket.
+            </p>
+          </div>
         </div>
       </div>
 
-      {fiturList.length === 0 ? (
-        <div className="py-10 text-center text-sm text-slate-400">
+      {/* TABLE */}
+
+      {fiturList.length ===
+      0 ? (
+        <div className="py-12 text-center">
           <Layers
             size={28}
-            className="mx-auto mb-2 text-slate-300"
+            className="mx-auto text-slate-300"
           />
 
-          Belum ada data fitur dari server.
+          <p className="text-sm text-slate-400 mt-3">
+            Belum ada data modul.
+          </p>
         </div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full text-sm min-w-[650px]">
+          <table className="w-full min-w-[700px] text-sm">
             <thead>
-              <tr className="text-left text-xs text-slate-400 border-b border-slate-200/60">
-                <th className="pb-2 font-medium sticky left-0 bg-white z-10">
+              <tr className="bg-slate-50/70 text-left">
+                <th className="px-5 py-3 text-[10px] uppercase tracking-wider font-bold text-slate-400 sticky left-0 bg-slate-50 z-10">
                   Modul
                 </th>
 
-                {paketList.map((paket) => (
-                  <th
-                    key={paket.id}
-                    className="pb-2 font-medium text-center px-3"
-                  >
-                    {paket.nama}
-                  </th>
-                ))}
+                {paketList.map(
+                  (paket) => (
+                    <th
+                      key={paket.id}
+                      className="px-4 py-3 text-center text-[10px] uppercase tracking-wider font-bold text-slate-400"
+                    >
+                      {paket.nama}
+                    </th>
+                  )
+                )}
               </tr>
             </thead>
 
             <tbody>
-              {fiturList.map((fitur) => {
-                const Icon =
-                  fitur.icon || Layers;
+              {fiturList.map(
+                (fitur) => {
+                  const Icon =
+                    fitur.icon ||
+                    Layers;
 
-                return (
-                  <tr
-                    key={fitur.id}
-                    className="border-b border-slate-100/80 last:border-0 hover:bg-slate-50/50 transition-colors"
-                  >
-                    <td className="py-2.5 sticky left-0 bg-white">
-                      <div className="flex items-center gap-2">
-                        <Icon
-                          size={14}
-                          className="text-slate-400"
-                        />
+                  return (
+                    <tr
+                      key={
+                        fitur.id
+                      }
+                      className="border-t border-slate-100 hover:bg-blue-50/30 transition"
+                    >
+                      <td className="px-5 py-3.5 sticky left-0 bg-white">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center">
+                            <Icon
+                              size={
+                                14
+                              }
+                              className="text-slate-500"
+                            />
+                          </div>
 
-                        <span className="font-medium text-slate-700">
-                          {fitur.nama}
-                        </span>
-                      </div>
-                    </td>
+                          <div>
+                            <p className="font-semibold text-xs text-slate-700">
+                              {
+                                fitur.nama
+                              }
+                            </p>
 
-                    {paketList.map((paket) => (
-                      <td
-                        key={paket.id}
-                        className="py-2.5 text-center"
-                      >
-                        {paket.fiturIds.some(
-                          (id) =>
-                            String(id) ===
-                            String(fitur.id)
-                        ) ? (
-                          <Check
-                            size={16}
-                            className="text-emerald-500 mx-auto"
-                          />
-                        ) : (
-                          <X
-                            size={16}
-                            className="text-slate-200 mx-auto"
-                          />
-                        )}
+                            {fitur.deskripsi && (
+                              <p className="text-[10px] text-slate-400 mt-0.5">
+                                {
+                                  fitur.deskripsi
+                                }
+                              </p>
+                            )}
+                          </div>
+                        </div>
                       </td>
-                    ))}
-                  </tr>
-                );
-              })}
+
+                      {paketList.map(
+                        (paket) => {
+                          const active =
+                            paket.fiturIds.some(
+                              (
+                                id
+                              ) =>
+                                String(
+                                  id
+                                ) ===
+                                String(
+                                  fitur.id
+                                )
+                            );
+
+                          return (
+                            <td
+                              key={
+                                paket.id
+                              }
+                              className="px-4 py-3.5 text-center"
+                            >
+                              {active ? (
+                                <div className="w-7 h-7 mx-auto rounded-full bg-emerald-50 flex items-center justify-center">
+                                  <Check
+                                    size={
+                                      14
+                                    }
+                                    className="text-emerald-600"
+                                  />
+                                </div>
+                              ) : (
+                                <div className="w-7 h-7 mx-auto rounded-full bg-slate-50 flex items-center justify-center">
+                                  <X
+                                    size={
+                                      13
+                                    }
+                                    className="text-slate-300"
+                                  />
+                                </div>
+                              )}
+                            </td>
+                          );
+                        }
+                      )}
+                    </tr>
+                  );
+                }
+              )}
             </tbody>
           </table>
         </div>
       )}
-    </div>
+    </section>
   );
 }
 
 /* =========================================================
-   MODAL TAMBAH / EDIT
-========================================================= */
-
-function PaketModal({
-  paket,
-  fiturList,
-  onClose,
-  onSave,
-}) {
-  const [nama, setNama] = useState(
-    paket?.nama || ""
-  );
-
-  const [deskripsi, setDeskripsi] =
-    useState(paket?.deskripsi || "");
-
-  const [harga, setHarga] = useState(
-    paket?.harga ?? 0
-  );
-
-  const [siklus, setSiklus] = useState(
-    paket?.siklus || "bulan"
-  );
-
-  const [status, setStatus] = useState(
-    paket?.status || "aktif"
-  );
-
-  const [fiturTerpilih, setFiturTerpilih] =
-    useState(paket?.fiturIds || []);
-
-  const [saving, setSaving] =
-    useState(false);
-
-  const [localError, setLocalError] =
-    useState("");
-
-  function toggleFitur(id) {
-    setFiturTerpilih((list) => {
-      const exists = list.some(
-        (item) =>
-          String(item) === String(id)
-      );
-
-      if (exists) {
-        return list.filter(
-          (item) =>
-            String(item) !== String(id)
-        );
-      }
-
-      return [...list, id];
-    });
-  }
-
-  async function handleSubmit(e) {
-    e.preventDefault();
-
-    if (!nama.trim()) {
-      setLocalError(
-        "Nama paket wajib diisi."
-      );
-      return;
-    }
-
-    try {
-      setSaving(true);
-      setLocalError("");
-
-      /*
-       * Payload yang dikirim ke service.
-       *
-       * Jika controller backend kamu menggunakan
-       * nama field yang berbeda, bagian ini nanti
-       * tinggal disesuaikan.
-       */
-
-      const payload = {
-        nama: nama.trim(),
-        deskripsi: deskripsi.trim(),
-        harga: Number(harga) || 0,
-        siklus,
-        status,
-        fiturIds: fiturTerpilih,
-      };
-
-      await onSave(payload);
-    } catch (err) {
-      console.error(err);
-
-      setLocalError(
-        err?.response?.data?.message ||
-          err?.message ||
-          "Gagal menyimpan paket."
-      );
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-        {/* HEADER */}
-
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 sticky top-0 bg-white z-10">
-          <div>
-            <h3 className="text-lg font-semibold text-slate-800">
-              {paket
-                ? "Edit Paket"
-                : "Tambah Paket Baru"}
-            </h3>
-
-            <p className="text-xs text-slate-400 mt-0.5">
-              Atur informasi dan fitur paket.
-            </p>
-          </div>
-
-          <button
-            onClick={onClose}
-            disabled={saving}
-            className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
-          >
-            <X size={20} />
-          </button>
-        </div>
-
-        {/* FORM */}
-
-        <form
-          onSubmit={handleSubmit}
-          className="p-6 space-y-5"
-        >
-          {/* ERROR */}
-
-          {localError && (
-            <div className="flex items-start gap-2 p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-600">
-              <AlertCircle
-                size={16}
-                className="mt-0.5 flex-shrink-0"
-              />
-
-              <p className="text-xs">
-                {localError}
-              </p>
-            </div>
-          )}
-
-          {/* NAMA */}
-
-          <div>
-            <label className="text-xs font-medium text-slate-500">
-              Nama Paket
-            </label>
-
-            <input
-              value={nama}
-              onChange={(e) =>
-                setNama(e.target.value)
-              }
-              required
-              placeholder="Contoh: Professional"
-              className="mt-1 w-full px-3 py-2.5 text-sm rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 text-slate-700 transition"
-            />
-          </div>
-
-          {/* DESKRIPSI */}
-
-          <div>
-            <label className="text-xs font-medium text-slate-500">
-              Deskripsi
-            </label>
-
-            <textarea
-              value={deskripsi}
-              onChange={(e) =>
-                setDeskripsi(e.target.value)
-              }
-              rows={3}
-              placeholder="Deskripsi singkat paket ini"
-              className="mt-1 w-full px-3 py-2.5 text-sm rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 text-slate-700 resize-none transition"
-            />
-          </div>
-
-          {/* HARGA + SIKLUS */}
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs font-medium text-slate-500">
-                Harga (Rp)
-              </label>
-
-              <input
-                type="number"
-                min="0"
-                value={harga}
-                onChange={(e) =>
-                  setHarga(e.target.value)
-                }
-                className="mt-1 w-full px-3 py-2.5 text-sm rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 text-slate-700 transition"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-medium text-slate-500">
-                Siklus
-              </label>
-
-              <select
-                value={siklus}
-                onChange={(e) =>
-                  setSiklus(e.target.value)
-                }
-                className="mt-1 w-full px-3 py-2.5 text-sm rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 text-slate-700 bg-white transition"
-              >
-                <option value="bulan">
-                  Per Bulan
-                </option>
-
-                <option value="tahun">
-                  Per Tahun
-                </option>
-
-                <option value="14 hari">
-                  14 Hari (Trial)
-                </option>
-              </select>
-            </div>
-          </div>
-
-          {/* STATUS */}
-
-          <div>
-            <label className="text-xs font-medium text-slate-500">
-              Status
-            </label>
-
-            <div className="mt-1 flex gap-2">
-              <button
-                type="button"
-                onClick={() =>
-                  setStatus("aktif")
-                }
-                className={`flex-1 py-2.5 rounded-lg text-xs font-medium border transition-colors ${
-                  status === "aktif"
-                    ? "bg-emerald-50 text-emerald-600 border-emerald-200"
-                    : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
-                }`}
-              >
-                Aktif
-              </button>
-
-              <button
-                type="button"
-                onClick={() =>
-                  setStatus("nonaktif")
-                }
-                className={`flex-1 py-2.5 rounded-lg text-xs font-medium border transition-colors ${
-                  status === "nonaktif"
-                    ? "bg-slate-100 text-slate-600 border-slate-300"
-                    : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
-                }`}
-              >
-                Nonaktif
-              </button>
-            </div>
-          </div>
-
-          {/* FITUR */}
-
-          <div>
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-medium text-slate-500">
-                Modul / Fitur Termasuk
-              </label>
-
-              <span className="text-[10px] text-slate-400">
-                {fiturTerpilih.length} dipilih
-              </span>
-            </div>
-
-            <div className="mt-1.5 grid grid-cols-2 gap-2 max-h-56 overflow-y-auto pr-1">
-              {fiturList.map((fitur) => {
-                const checked =
-                  fiturTerpilih.some(
-                    (id) =>
-                      String(id) ===
-                      String(fitur.id)
-                  );
-
-                const Icon =
-                  fitur.icon || Layers;
-
-                return (
-                  <button
-                    type="button"
-                    key={fitur.id}
-                    onClick={() =>
-                      toggleFitur(fitur.id)
-                    }
-                    className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border text-left transition-colors ${
-                      checked
-                        ? "bg-blue-50 border-blue-200"
-                        : "bg-white border-slate-200 hover:bg-slate-50"
-                    }`}
-                  >
-                    <span
-                      className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 border ${
-                        checked
-                          ? "bg-blue-600 border-blue-600"
-                          : "border-slate-300"
-                      }`}
-                    >
-                      {checked && (
-                        <Check
-                          size={10}
-                          className="text-white"
-                        />
-                      )}
-                    </span>
-
-                    <Icon
-                      size={13}
-                      className="text-slate-400 flex-shrink-0"
-                    />
-
-                    <span className="text-xs text-slate-600 truncate">
-                      {fitur.nama}
-                    </span>
-                  </button>
-                );
-              })}
-
-              {fiturList.length === 0 && (
-                <div className="col-span-2 py-6 text-center text-xs text-slate-400">
-                  Belum ada fitur dari server.
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* BUTTON */}
-
-          <div className="flex items-center gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={saving}
-              className="flex-1 py-2.5 rounded-lg text-sm font-medium text-slate-600 border border-slate-200 hover:bg-slate-50 transition-colors disabled:opacity-50"
-            >
-              Batal
-            </button>
-
-            <button
-              type="submit"
-              disabled={saving}
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 shadow-sm hover:shadow transition-all disabled:opacity-60"
-            >
-              {saving && (
-                <Loader2
-                  size={15}
-                  className="animate-spin"
-                />
-              )}
-
-              {saving
-                ? "Menyimpan..."
-                : paket
-                ? "Simpan Perubahan"
-                : "Tambah Paket"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-/* =========================================================
-   MODAL DELETE
+   DELETE MODAL
 ========================================================= */
 
 function ConfirmDeleteModal({
@@ -1772,47 +1833,84 @@ function ConfirmDeleteModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6">
-        <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center mx-auto mb-4">
-          <Trash2 size={22} />
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 backdrop-blur-sm p-4">
+      <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
+
+        {/* TOP */}
+
+        <div className="bg-gradient-to-br from-rose-500 to-red-600 p-6 text-center">
+          <div className="w-14 h-14 mx-auto rounded-2xl bg-white/15 border border-white/20 flex items-center justify-center">
+            <Trash2
+              size={24}
+              className="text-white"
+            />
+          </div>
         </div>
 
-        <h3 className="text-center text-lg font-semibold text-slate-800">
-          Hapus paket "{paket.nama}"?
-        </h3>
+        {/* CONTENT */}
 
-        <p className="text-center text-sm text-slate-500 mt-2">
-          Tindakan ini tidak dapat dibatalkan.
-          {paket.langganan > 0 &&
-            ` Paket ini masih memiliki ${paket.langganan} sekolah berlangganan.`}
-        </p>
+        <div className="p-6">
+          <h3 className="text-center text-lg font-bold text-slate-800">
+            Hapus paket?
+          </h3>
 
-        <div className="flex items-center gap-3 mt-5">
-          <button
-            onClick={onCancel}
-            disabled={deleting}
-            className="flex-1 py-2.5 rounded-lg text-sm font-medium text-slate-600 border border-slate-200 hover:bg-slate-50 transition-colors disabled:opacity-50"
-          >
-            Batal
-          </button>
+          <p className="text-center text-sm text-slate-500 mt-2 leading-relaxed">
+            Kamu akan menghapus paket{" "}
+            <span className="font-semibold text-slate-700">
+              "{paket.nama}"
+            </span>
+            . Tindakan ini tidak dapat
+            dibatalkan.
+          </p>
 
-          <button
-            onClick={handleDelete}
-            disabled={deleting}
-            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium text-white bg-rose-500 hover:bg-rose-600 shadow-sm hover:shadow transition-all disabled:opacity-60"
-          >
-            {deleting && (
-              <Loader2
-                size={15}
-                className="animate-spin"
-              />
-            )}
+          {paket.langganan >
+            0 && (
+            <div className="mt-4 p-3 rounded-xl bg-amber-50 border border-amber-100 text-xs text-amber-700">
+              Paket ini masih memiliki{" "}
+              <strong>
+                {
+                  paket.langganan
+                }{" "}
+                sekolah
+              </strong>{" "}
+              yang berlangganan.
+            </div>
+          )}
 
-            {deleting
-              ? "Menghapus..."
-              : "Ya, Hapus"}
-          </button>
+          <div className="flex items-center gap-3 mt-6">
+            <button
+              onClick={
+                onCancel
+              }
+              disabled={
+                deleting
+              }
+              className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition disabled:opacity-50"
+            >
+              Batal
+            </button>
+
+            <button
+              onClick={
+                handleDelete
+              }
+              disabled={
+                deleting
+              }
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-rose-500 hover:bg-rose-600 text-white text-sm font-semibold shadow-sm transition disabled:opacity-60"
+            >
+              {deleting && (
+                <Loader2
+                  size={15}
+                  className="animate-spin"
+                />
+              )}
+
+              {deleting
+                ? "Menghapus..."
+                : "Ya, Hapus"}
+            </button>
+          </div>
         </div>
       </div>
     </div>
