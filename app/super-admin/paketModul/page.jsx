@@ -117,83 +117,42 @@ const DEFAULT_MODULES = [
 
 /* =========================================================
    PACKAGE COLOR
+   Palet dipangkas jadi 3 warna senada (biru, indigo, slate)
+   supaya grid paket tidak terlihat "warna-warni".
 ========================================================= */
 
 const PACKAGE_THEMES = {
   blue: {
-    card:
-      "from-blue-600 via-blue-600 to-indigo-700",
-    soft:
-      "bg-blue-50",
-    softText:
-      "text-blue-700",
-    icon:
-      "bg-blue-100 text-blue-700",
-    badge:
-      "bg-blue-100 text-blue-700",
-    line:
-      "border-blue-100",
-    button:
-      "bg-blue-600 hover:bg-blue-700",
-    glow:
-      "bg-blue-500/10",
+    card: "bg-blue-600",
+    soft: "bg-blue-50",
+    softText: "text-blue-700",
+    icon: "bg-blue-100 text-blue-700",
+    badge: "bg-blue-100 text-blue-700",
+    line: "border-blue-100",
+    button: "bg-blue-600 hover:bg-blue-700",
+    glow: "bg-blue-500/10",
   },
 
-  purple: {
-    card:
-      "from-indigo-600 via-purple-600 to-violet-700",
-    soft:
-      "bg-purple-50",
-    softText:
-      "text-purple-700",
-    icon:
-      "bg-purple-100 text-purple-700",
-    badge:
-      "bg-purple-100 text-purple-700",
-    line:
-      "border-purple-100",
-    button:
-      "bg-purple-600 hover:bg-purple-700",
-    glow:
-      "bg-purple-500/10",
+  indigo: {
+    card: "bg-indigo-600",
+    soft: "bg-indigo-50",
+    softText: "text-indigo-700",
+    icon: "bg-indigo-100 text-indigo-700",
+    badge: "bg-indigo-100 text-indigo-700",
+    line: "border-indigo-100",
+    button: "bg-indigo-600 hover:bg-indigo-700",
+    glow: "bg-indigo-500/10",
   },
 
-  emerald: {
-    card:
-      "from-emerald-600 via-teal-600 to-cyan-700",
-    soft:
-      "bg-emerald-50",
-    softText:
-      "text-emerald-700",
-    icon:
-      "bg-emerald-100 text-emerald-700",
-    badge:
-      "bg-emerald-100 text-emerald-700",
-    line:
-      "border-emerald-100",
-    button:
-      "bg-emerald-600 hover:bg-emerald-700",
-    glow:
-      "bg-emerald-500/10",
-  },
-
-  orange: {
-    card:
-      "from-orange-500 via-amber-500 to-yellow-600",
-    soft:
-      "bg-orange-50",
-    softText:
-      "text-orange-700",
-    icon:
-      "bg-orange-100 text-orange-700",
-    badge:
-      "bg-orange-100 text-orange-700",
-    line:
-      "border-orange-100",
-    button:
-      "bg-orange-500 hover:bg-orange-600",
-    glow:
-      "bg-orange-500/10",
+  slate: {
+    card: "bg-slate-700",
+    soft: "bg-slate-100",
+    softText: "text-slate-700",
+    icon: "bg-slate-200 text-slate-700",
+    badge: "bg-slate-200 text-slate-700",
+    line: "border-slate-200",
+    button: "bg-slate-700 hover:bg-slate-800",
+    glow: "bg-slate-500/10",
   },
 };
 
@@ -435,7 +394,7 @@ function getPackageTheme(paket, index) {
     name.includes("enterprise") ||
     name.includes("professional")
   ) {
-    return PACKAGE_THEMES.purple;
+    return PACKAGE_THEMES.indigo;
   }
 
   if (
@@ -449,14 +408,13 @@ function getPackageTheme(paket, index) {
     name.includes("starter") ||
     name.includes("trial")
   ) {
-    return PACKAGE_THEMES.emerald;
+    return PACKAGE_THEMES.slate;
   }
 
   const themes = [
     PACKAGE_THEMES.blue,
-    PACKAGE_THEMES.purple,
-    PACKAGE_THEMES.emerald,
-    PACKAGE_THEMES.orange,
+    PACKAGE_THEMES.indigo,
+    PACKAGE_THEMES.slate,
   ];
 
   return themes[index % themes.length];
@@ -941,11 +899,11 @@ export default function PaketModulPage() {
                 PAGE HEADER
             ================================================= */}
 
-            <section className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#0f172a] via-[#172554] to-[#1d4ed8] p-6 md:p-7 shadow-lg shadow-blue-900/10">
-              
+            <section className="relative overflow-hidden rounded-2xl bg-slate-900 p-6 md:p-7 shadow-lg shadow-blue-900/10">
+
               {/* decorative */}
               <div className="absolute -right-10 -top-16 w-56 h-56 rounded-full bg-blue-400/10 blur-2xl" />
-              <div className="absolute right-24 bottom-[-80px] w-48 h-48 rounded-full bg-indigo-400/10 blur-2xl" />
+              <div className="absolute right-24 bottom-[-80px] w-48 h-48 rounded-full bg-blue-400/10 blur-2xl" />
 
               <div className="relative flex flex-col xl:flex-row xl:items-center xl:justify-between gap-5">
                 
@@ -1068,7 +1026,7 @@ export default function PaketModulPage() {
                 label="Total Langganan"
                 value={totalLangganan}
                 description="Sekolah berlangganan"
-                theme="purple"
+                theme="slate"
               />
 
               <StatCard
@@ -1078,7 +1036,7 @@ export default function PaketModulPage() {
                   totalPendapatan
                 )}
                 description="Per periode"
-                theme="orange"
+                theme="blue"
               />
             </div>
 
@@ -1245,16 +1203,10 @@ function StatCard({
       glow: "bg-emerald-500/10",
     },
 
-    purple: {
-      icon: "bg-purple-100 text-purple-700",
-      accent: "bg-purple-600",
-      glow: "bg-purple-500/10",
-    },
-
-    orange: {
-      icon: "bg-orange-100 text-orange-700",
-      accent: "bg-orange-500",
-      glow: "bg-orange-500/10",
+    slate: {
+      icon: "bg-slate-200 text-slate-700",
+      accent: "bg-slate-600",
+      glow: "bg-slate-500/10",
     },
   };
 
@@ -1326,7 +1278,7 @@ function PaketCard({
       ================================================= */}
 
       <div
-        className={`relative h-24 bg-gradient-to-br ${theme.card} overflow-hidden`}
+        className={`relative h-24 ${theme.card} overflow-hidden`}
       >
         <div className="absolute -right-8 -top-12 w-32 h-32 rounded-full bg-white/10" />
 
@@ -1655,7 +1607,7 @@ function ModulMatrix({
 
       {/* HEADER */}
 
-      <div className="px-5 md:px-6 py-5 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-blue-50/50">
+      <div className="px-5 md:px-6 py-5 border-b border-slate-100 bg-slate-50">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center">
             <Layers size={18} />
@@ -1838,7 +1790,7 @@ function ConfirmDeleteModal({
 
         {/* TOP */}
 
-        <div className="bg-gradient-to-br from-rose-500 to-red-600 p-6 text-center">
+        <div className="bg-rose-600 p-6 text-center">
           <div className="w-14 h-14 mx-auto rounded-2xl bg-white/15 border border-white/20 flex items-center justify-center">
             <Trash2
               size={24}
@@ -1897,7 +1849,7 @@ function ConfirmDeleteModal({
               disabled={
                 deleting
               }
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-rose-500 hover:bg-rose-600 text-white text-sm font-semibold shadow-sm transition disabled:opacity-60"
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-sm font-semibold shadow-sm transition disabled:opacity-60"
             >
               {deleting && (
                 <Loader2

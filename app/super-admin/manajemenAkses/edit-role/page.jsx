@@ -1,12 +1,39 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Sidebar from "../../../components/Sidebar";
 import Header from "../../../components/Header";
 
 // dummyPermissions diimpor dari halaman list manajemen akses
 import { dummyPermissions } from "../page";
+
+const dummyRoles = [
+  { id: "role-001", nama: "Super Admin", namaTampilan: "super-admin", deskripsi: "Akses penuh ke seluruh modul dan pengaturan sistem SmartSchool, termasuk manajemen tenant dan langganan.", status: "aktif", pengguna: 3, dibuat: "12 Jan 2025", diperbarui: "27 Agu 2026" },
+  { id: "role-002", nama: "Admin Sekolah", namaTampilan: "admin", deskripsi: "Mengelola data sekolah, guru, siswa, kelas, dan pengaturan operasional pada satu sekolah.", status: "aktif", pengguna: 125, dibuat: "12 Jan 2025", diperbarui: "20 Agu 2026" },
+  { id: "role-003", nama: "Yayasan", namaTampilan: "yayasan", deskripsi: "Memantau seluruh sekolah di bawah naungan yayasan, termasuk laporan akademik dan keuangan lintas sekolah.", status: "aktif", pengguna: 12, dibuat: "3 Feb 2025", diperbarui: "15 Jul 2026" },
+  { id: "role-004", nama: "Kepala Sekolah", namaTampilan: "admin", deskripsi: "Mengawasi kegiatan akademik dan administratif sekolah serta menyetujui laporan dari guru dan staf.", status: "aktif", pengguna: 24, dibuat: "3 Feb 2025", diperbarui: "2 Jun 2026" },
+  { id: "role-005", nama: "Guru", namaTampilan: "guru", deskripsi: "Mengelola nilai, presensi, dan materi ajar untuk kelas dan mata pelajaran yang diampu.", status: "aktif", pengguna: 842, dibuat: "3 Feb 2025", diperbarui: "10 Agu 2026" },
+  { id: "role-006", nama: "Wali Kelas", namaTampilan: "guru", deskripsi: "Memantau perkembangan siswa, presensi, dan catatan perilaku untuk satu kelas yang diampu.", status: "aktif", pengguna: 210, dibuat: "3 Feb 2025", diperbarui: "10 Agu 2026" },
+  { id: "role-007", nama: "Guru BK", namaTampilan: "guru", deskripsi: "Mengelola data bimbingan konseling, catatan kasus, dan laporan perkembangan siswa.", status: "aktif", pengguna: 36, dibuat: "3 Feb 2025", diperbarui: "5 Mei 2026" },
+  { id: "role-008", nama: "Bendahara", namaTampilan: "admin", deskripsi: "Mengelola tagihan, pembayaran SPP, dan laporan keuangan sekolah.", status: "aktif", pengguna: 18, dibuat: "10 Mar 2025", diperbarui: "1 Agu 2026" },
+  { id: "role-009", nama: "Staff Tata Usaha", namaTampilan: "admin", deskripsi: "Mengelola administrasi surat-menyurat, arsip data siswa, dan kebutuhan operasional harian sekolah.", status: "aktif", pengguna: 45, dibuat: "10 Mar 2025", diperbarui: "18 Jul 2026" },
+  { id: "role-010", nama: "Admin Sarpras", namaTampilan: "adminSarpras", deskripsi: "Mengelola data sarana dan prasarana sekolah, inventaris, serta jadwal pemeliharaan.", status: "aktif", pengguna: 15, dibuat: "22 Apr 2025", diperbarui: "9 Jun 2026" },
+  { id: "role-011", nama: "Admin PPDB", namaTampilan: "adminPPDB", deskripsi: "Mengelola proses pendaftaran peserta didik baru, seleksi, dan verifikasi berkas calon siswa.", status: "aktif", pengguna: 20, dibuat: "22 Apr 2025", diperbarui: "30 Jul 2026" },
+  { id: "role-012", nama: "CMS Admin", namaTampilan: "cms", deskripsi: "Mengelola konten dan tampilan situs sekolah, termasuk berita, pengumuman, dan halaman publik.", status: "nonaktif", pengguna: 6, dibuat: "5 Mei 2025", diperbarui: "14 Feb 2026" },
+  { id: "role-013", nama: "Siswa", namaTampilan: "siswa", deskripsi: "Mengakses jadwal, nilai, presensi, dan materi ajar melalui portal siswa.", status: "aktif", pengguna: 3210, dibuat: "5 Mei 2025", diperbarui: "25 Agu 2026" },
+];
+
+// Preset izin yang sudah dimiliki tiap role (contoh data, disesuaikan dengan kebutuhan nyata)
+const dummyRolePermissions = {
+  "role-001": dummyPermissions.map((p) => p.id),
+  "role-002": ["perm-001", "perm-002", "perm-003", "perm-005", "perm-006", "perm-007", "perm-009", "perm-010", "perm-011", "perm-012"],
+  "role-005": ["perm-001", "perm-005", "perm-006"],
+  "role-008": ["perm-007", "perm-008"],
+  "role-010": ["perm-009", "perm-010"],
+  "role-011": ["perm-011", "perm-012"],
+  "role-012": ["perm-013", "perm-014"],
+};
 
 const AKSI_LIST = [
   { key: "view", label: "Lihat" },
@@ -15,15 +42,10 @@ const AKSI_LIST = [
   { key: "delete", label: "Hapus" },
 ];
 
-const formKosong = {
-  nama: "",
-  namaTampilan: "",
-  deskripsi: "",
-  status: "aktif",
-};
-
-export default function TambahRolePage() {
+export default function EditRolePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const roleId = searchParams.get("id");
 
   const [activeMenu, setActiveMenu] = useState("manajemen-akses");
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -32,7 +54,6 @@ export default function TambahRolePage() {
   const [saved, setSaved] = useState(false);
   const [cariModul, setCariModul] = useState("");
   const [modulTerbuka, setModulTerbuka] = useState(null);
-  const [errors, setErrors] = useState({});
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
@@ -41,22 +62,36 @@ export default function TambahRolePage() {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  const [form, setForm] = useState(formKosong);
-  const [selectedPermissions, setSelectedPermissions] = useState(() => new Set());
+  const roleAsal = useMemo(
+    () => dummyRoles.find((r) => r.id === roleId) || dummyRoles[0],
+    [roleId]
+  );
+
+  const [form, setForm] = useState({
+    nama: roleAsal.nama,
+    namaTampilan: roleAsal.namaTampilan,
+    deskripsi: roleAsal.deskripsi,
+    status: roleAsal.status,
+  });
+
+  // selectedPermissions: Set berisi id permission yang dicentang
+  const [selectedPermissions, setSelectedPermissions] = useState(
+    () => new Set(dummyRolePermissions[roleAsal.id] || [])
+  );
+
+  useEffect(() => {
+    setForm({
+      nama: roleAsal.nama,
+      namaTampilan: roleAsal.namaTampilan,
+      deskripsi: roleAsal.deskripsi,
+      status: roleAsal.status,
+    });
+    setSelectedPermissions(new Set(dummyRolePermissions[roleAsal.id] || []));
+  }, [roleAsal]);
 
   const notifications = [
-    {
-      id: 1,
-      title: "Pembaruan Sistem v2.0",
-      desc: "Dikirim 2 jam lalu",
-      read: false,
-    },
-    {
-      id: 2,
-      title: "Pengingat: Backup Data",
-      desc: "Dikirim 1 hari lalu",
-      read: false,
-    },
+    { id: 1, title: "Pembaruan Sistem v2.0", desc: "Dikirim 2 jam lalu", read: false },
+    { id: 2, title: "Pengingat: Backup Data", desc: "Dikirim 1 hari lalu", read: false },
   ];
 
   // Kelompokkan permission berdasarkan modul
@@ -76,31 +111,6 @@ export default function TambahRolePage() {
 
   const totalPermissionTersedia = dummyPermissions.length;
   const totalDipilih = selectedPermissions.size;
-
-  // Nama tampilan otomatis dari nama peran, kecuali sudah diubah manual
-  const [namaTampilanManual, setNamaTampilanManual] = useState(false);
-
-  const buatSlug = (teks) =>
-    teks
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9\s-]/g, "")
-      .replace(/\s+/g, "-");
-
-  const handleNamaChange = (value) => {
-    setForm((prev) => ({
-      ...prev,
-      nama: value,
-      namaTampilan: namaTampilanManual ? prev.namaTampilan : buatSlug(value),
-    }));
-  };
-
-  const handleNamaTampilanChange = (value) => {
-    setNamaTampilanManual(true);
-    setForm((prev) => ({ ...prev, namaTampilan: value }));
-  };
-
-  const handleChange = (field, value) => setForm((prev) => ({ ...prev, [field]: value }));
 
   const togglePermission = (permId) => {
     setSelectedPermissions((prev) => {
@@ -124,25 +134,16 @@ export default function TambahRolePage() {
   const pilihSemua = () => setSelectedPermissions(new Set(dummyPermissions.map((p) => p.id)));
   const hapusSemua = () => setSelectedPermissions(new Set());
 
-  const validasi = () => {
-    const errBaru = {};
-    if (!form.nama.trim()) errBaru.nama = "Nama peran wajib diisi.";
-    if (!form.namaTampilan.trim()) errBaru.namaTampilan = "Nama tampilan wajib diisi.";
-    setErrors(errBaru);
-    return Object.keys(errBaru).length === 0;
-  };
+  const handleChange = (field, value) => setForm((prev) => ({ ...prev, [field]: value }));
 
   const handleSimpan = () => {
-    if (!validasi()) return;
     setIsSaving(true);
     // Simulasi penyimpanan ke server
     setTimeout(() => {
-      console.log("Tambah role:", { ...form, permissions: Array.from(selectedPermissions) });
+      console.log("Simpan role:", { id: roleAsal.id, ...form, permissions: Array.from(selectedPermissions) });
       setIsSaving(false);
       setSaved(true);
-      setTimeout(() => {
-        router.push("/super-admin/manajemenAkses");
-      }, 900);
+      setTimeout(() => setSaved(false), 2500);
     }, 600);
   };
 
@@ -154,17 +155,11 @@ export default function TambahRolePage() {
         collapsed={!sidebarOpen}
         setCollapsed={() => setSidebarOpen(!sidebarOpen)}
       />
-
-      <div className="flex-1 min-w-0 flex flex-col">
-        {/* HEADER */}
+      <div className="flex-1 flex flex-col min-w-0">
         <Header
           toggleSidebar={() => setSidebarOpen(!sidebarOpen)}
           notifications={notifications}
-          user={{
-            name: "Sarah",
-            email: "sarah@smartschool.com",
-            avatar: "SA",
-          }}
+          user={{ name: "Sarah", email: "sarah@smartschool.com", avatar: "SA" }}
         />
         <main className="flex-1 p-4 sm:p-6 lg:p-8">
           <div className="w-full space-y-5 sm:space-y-6">
@@ -179,11 +174,14 @@ export default function TambahRolePage() {
                 </button>
                 <div className="flex items-center gap-2.5">
                   <h1 className="text-xl sm:text-2xl text-slate-900">
-                    Tambah Role
+                    Edit Role
                   </h1>
+                  <span className="text-xs text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-full border border-slate-200">
+                    {roleAsal.id}
+                  </span>
                 </div>
                 <p className="text-sm text-slate-600">
-                  Buat peran baru dan tentukan hak akses modul yang dimiliki.
+                  Perbarui detail peran dan tentukan hak akses modul untuk role ini.
                 </p>
               </div>
               <button
@@ -191,15 +189,31 @@ export default function TambahRolePage() {
                 disabled={isSaving}
                 className="px-5 py-2 text-sm text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-60 transition-colors shadow-sm hover:shadow"
               >
-                {isSaving ? "Menyimpan..." : "Simpan Role"}
+                {isSaving ? "Menyimpan..." : "Simpan Perubahan"}
               </button>
             </div>
 
             {saved && (
               <div className="px-4 py-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm">
-                Role baru berhasil dibuat. Mengalihkan ke daftar role...
+                Perubahan role berhasil disimpan.
               </div>
             )}
+
+            {/* RINGKASAN ROLE */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div className="bg-white rounded-lg border border-slate-200/80 p-3.5 shadow-sm">
+                <p className="text-[10px] text-slate-500 uppercase tracking-wider">Pengguna</p>
+                <p className="text-lg text-slate-900">{roleAsal.pengguna.toLocaleString("id-ID")}</p>
+              </div>
+              <div className="bg-white rounded-lg border border-slate-200/80 p-3.5 shadow-sm">
+                <p className="text-[10px] text-slate-500 uppercase tracking-wider">Hak Akses Aktif</p>
+                <p className="text-lg text-slate-900">{totalDipilih}/{totalPermissionTersedia}</p>
+              </div>
+              <div className="bg-white rounded-lg border border-slate-200/80 p-3.5 shadow-sm hidden sm:block">
+                <p className="text-[10px] text-slate-500 uppercase tracking-wider">Terakhir Diperbarui</p>
+                <p className="text-sm text-slate-900">{roleAsal.diperbarui}</p>
+              </div>
+            </div>
 
             {/* DETAIL ROLE */}
             <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm p-4 sm:p-5">
@@ -212,30 +226,18 @@ export default function TambahRolePage() {
                   <input
                     type="text"
                     value={form.nama}
-                    onChange={(e) => handleNamaChange(e.target.value)}
-                    placeholder="Contoh: Admin Perpustakaan"
-                    className={`w-full px-3 py-2 text-sm text-slate-900 bg-slate-50 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all placeholder:text-slate-400 ${
-                      errors.nama ? "border-rose-300" : "border-slate-200"
-                    }`}
+                    onChange={(e) => handleChange("nama", e.target.value)}
+                    className="w-full px-3 py-2 text-sm text-slate-900 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
                   />
-                  {errors.nama && <p className="text-xs text-rose-600 mt-1">{errors.nama}</p>}
                 </div>
                 <div>
                   <label className="block text-xs text-slate-700 mb-1.5">Nama Tampilan (kode sistem)</label>
                   <input
                     type="text"
                     value={form.namaTampilan}
-                    onChange={(e) => handleNamaTampilanChange(e.target.value)}
-                    placeholder="admin-perpustakaan"
-                    className={`w-full px-3 py-2 text-sm text-slate-900 bg-slate-50 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all font-mono placeholder:text-slate-400 placeholder:font-sans ${
-                      errors.namaTampilan ? "border-rose-300" : "border-slate-200"
-                    }`}
+                    onChange={(e) => handleChange("namaTampilan", e.target.value)}
+                    className="w-full px-3 py-2 text-sm text-slate-900 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all font-mono"
                   />
-                  {errors.namaTampilan ? (
-                    <p className="text-xs text-rose-600 mt-1">{errors.namaTampilan}</p>
-                  ) : (
-                    <p className="text-xs text-slate-500 mt-1">Terisi otomatis dari nama peran, bisa diubah manual.</p>
-                  )}
                 </div>
                 <div className="sm:col-span-2">
                   <label className="block text-xs text-slate-700 mb-1.5">Deskripsi</label>
@@ -243,8 +245,7 @@ export default function TambahRolePage() {
                     value={form.deskripsi}
                     onChange={(e) => handleChange("deskripsi", e.target.value)}
                     rows={2}
-                    placeholder="Jelaskan tanggung jawab dan cakupan akses peran ini..."
-                    className="w-full px-3 py-2 text-sm text-slate-900 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all resize-none placeholder:text-slate-400"
+                    className="w-full px-3 py-2 text-sm text-slate-900 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all resize-none"
                   />
                 </div>
                 <div>
@@ -267,10 +268,9 @@ export default function TambahRolePage() {
                     ))}
                   </div>
                 </div>
-                <div className="flex items-end">
-                  <p className="text-xs text-slate-500">
-                    Role baru belum memiliki pengguna. Pengguna dapat ditetapkan setelah role dibuat.
-                  </p>
+                <div className="flex flex-col justify-end gap-1 text-xs text-slate-600">
+                  <p>{roleAsal.pengguna.toLocaleString("id-ID")} pengguna sedang menggunakan peran ini.</p>
+                  <p>Dibuat {roleAsal.dibuat} · Diperbarui {roleAsal.diperbarui}</p>
                 </div>
               </div>
             </div>
@@ -484,7 +484,7 @@ export default function TambahRolePage() {
                 disabled={isSaving}
                 className="px-5 py-2 text-sm text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-60 transition-colors shadow-sm hover:shadow"
               >
-                {isSaving ? "Menyimpan..." : "Simpan Role"}
+                {isSaving ? "Menyimpan..." : "Simpan Perubahan"}
               </button>
             </div>
           </div>

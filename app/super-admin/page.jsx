@@ -50,7 +50,7 @@ const statsData = [
     description: "sekolah terdaftar",
     trend: "up",
     icon: School,
-    accent: "blue",
+    accent: "primary",
   },
   {
     id: 2,
@@ -60,7 +60,7 @@ const statsData = [
     description: "yayasan terdaftar",
     trend: "up",
     icon: Building2,
-    accent: "violet",
+    accent: "neutral",
   },
   {
     id: 3,
@@ -70,7 +70,7 @@ const statsData = [
     description: "pengguna aktif",
     trend: "up",
     icon: Users,
-    accent: "emerald",
+    accent: "primary",
   },
   {
     id: 4,
@@ -80,7 +80,7 @@ const statsData = [
     description: "dari 128 sekolah",
     trend: "down",
     icon: Package,
-    accent: "amber",
+    accent: "neutral",
   },
 ];
 
@@ -240,7 +240,8 @@ const quickActions = [
 ];
 
 // ============================================================
-// HELPERS
+// HELPERS — palet warna disederhanakan: biru (primary),
+// slate (neutral), emerald/rose hanya untuk indikator naik/turun.
 // ============================================================
 
 const getActivityIcon = (type) => {
@@ -256,10 +257,10 @@ const getActivityIcon = (type) => {
 
 const getActivityColor = (type) => {
   const map = {
-    create: "bg-emerald-50 text-emerald-600",
-    update: "bg-blue-50 text-blue-600",
-    verify: "bg-violet-50 text-violet-600",
-    payment: "bg-amber-50 text-amber-600",
+    create: "bg-blue-50 text-blue-600",
+    update: "bg-slate-100 text-slate-600",
+    verify: "bg-blue-50 text-blue-700",
+    payment: "bg-emerald-50 text-emerald-600",
   };
 
   return map[type] || "bg-slate-50 text-slate-500";
@@ -267,25 +268,17 @@ const getActivityColor = (type) => {
 
 const getAccent = (accent) => {
   const map = {
-    blue: {
+    primary: {
       icon: "bg-blue-50 text-blue-600",
       bar: "bg-blue-600",
     },
-    violet: {
-      icon: "bg-violet-50 text-violet-600",
-      bar: "bg-violet-600",
-    },
-    emerald: {
-      icon: "bg-emerald-50 text-emerald-600",
-      bar: "bg-emerald-500",
-    },
-    amber: {
-      icon: "bg-amber-50 text-amber-600",
-      bar: "bg-amber-500",
+    neutral: {
+      icon: "bg-slate-100 text-slate-600",
+      bar: "bg-slate-400",
     },
   };
 
-  return map[accent] || map.blue;
+  return map[accent] || map.primary;
 };
 
 const getPriority = (priority) => {
@@ -302,8 +295,8 @@ const getPriority = (priority) => {
     },
     low: {
       label: "Rendah",
-      className: "border-blue-200 bg-blue-50 text-blue-600",
-      dot: "bg-blue-500",
+      className: "border-slate-200 bg-slate-100 text-slate-600",
+      dot: "bg-slate-400",
     },
   };
 
@@ -376,7 +369,7 @@ export default function DashboardPage() {
 
               <section className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white px-5 py-5 shadow-[0_1px_3px_rgba(15,23,42,0.04)] sm:px-6 lg:flex-row lg:items-center lg:justify-between">
                 <div className="flex min-w-0 items-center gap-3.5">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#1E3A8A] text-white shadow-sm">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm">
                     <LayoutDashboard
                       size={20}
                       strokeWidth={2}
@@ -599,7 +592,7 @@ export default function DashboardPage() {
                 <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-50 text-violet-600">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
                         <Package size={17} />
                       </div>
 
@@ -646,7 +639,7 @@ export default function DashboardPage() {
 
                     <div className="mt-5 h-2 overflow-hidden rounded-full bg-slate-100">
                       <div
-                        className="h-full rounded-full bg-emerald-500"
+                        className="h-full rounded-full bg-blue-600"
                         style={{ width: "82%" }}
                       />
                     </div>
@@ -661,17 +654,17 @@ export default function DashboardPage() {
                       {
                         label: "Aktif",
                         value: "105",
-                        color: "bg-emerald-500",
+                        color: "bg-blue-600",
                       },
                       {
                         label: "Trial",
                         value: "18",
-                        color: "bg-amber-500",
+                        color: "bg-slate-400",
                       },
                       {
                         label: "Expired",
                         value: "5",
-                        color: "bg-rose-500",
+                        color: "bg-rose-400",
                       },
                     ].map((item) => (
                       <div
@@ -812,69 +805,69 @@ export default function DashboardPage() {
 
                 {/* SYSTEM STATUS */}
 
-                <div className="overflow-hidden rounded-xl bg-[#172554] p-5 text-white shadow-[0_4px_16px_rgba(23,37,84,0.12)]">
+                <div className="overflow-hidden rounded-xl border border-slate-200 bg-white p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/10">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
                       <ShieldCheck size={18} />
                     </div>
 
                     <div>
-                      <h2 className="text-sm font-semibold">
+                      <h2 className="text-sm font-semibold text-slate-800">
                         Status Sistem
                       </h2>
 
-                      <p className="mt-0.5 text-[10px] text-blue-200">
+                      <p className="mt-0.5 text-[10px] text-slate-400">
                         Monitoring platform
                       </p>
                     </div>
                   </div>
 
                   <div className="mt-6 space-y-3">
-                    <div className="rounded-lg border border-white/10 bg-white/5 p-3">
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs text-blue-200">
+                        <span className="text-xs text-slate-500">
                           Server
                         </span>
 
-                        <span className="flex items-center gap-1.5 text-[10px] font-medium text-emerald-200">
-                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                        <span className="flex items-center gap-1.5 text-[10px] font-medium text-emerald-600">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                           Online
                         </span>
                       </div>
                     </div>
 
-                    <div className="rounded-lg border border-white/10 bg-white/5 p-3">
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs text-blue-200">
+                        <span className="text-xs text-slate-500">
                           Database
                         </span>
 
-                        <span className="flex items-center gap-1.5 text-[10px] font-medium text-emerald-200">
-                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                        <span className="flex items-center gap-1.5 text-[10px] font-medium text-emerald-600">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                           Normal
                         </span>
                       </div>
                     </div>
 
-                    <div className="rounded-lg border border-white/10 bg-white/5 p-3">
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs text-blue-200">
+                        <span className="text-xs text-slate-500">
                           Backup
                         </span>
 
-                        <span className="text-[10px] font-medium">
+                        <span className="text-[10px] font-medium text-slate-600">
                           08:00 WIB
                         </span>
                       </div>
                     </div>
 
-                    <div className="rounded-lg border border-white/10 bg-white/5 p-3">
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs text-blue-200">
+                        <span className="text-xs text-slate-500">
                           Versi
                         </span>
 
-                        <span className="text-[10px] font-medium">
+                        <span className="text-[10px] font-medium text-slate-600">
                           v2.0.4
                         </span>
                       </div>
@@ -885,7 +878,7 @@ export default function DashboardPage() {
                     onClick={() =>
                       router.push("/super-admin/pengaturan")
                     }
-                    className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/5 py-2.5 text-xs font-medium transition hover:bg-white/10"
+                    className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white py-2.5 text-xs font-medium text-slate-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600"
                   >
                     <Settings size={14} />
                     Pengaturan Sistem
@@ -998,7 +991,7 @@ export default function DashboardPage() {
                   <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-50 text-amber-600">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
                           <Calendar size={17} />
                         </div>
 

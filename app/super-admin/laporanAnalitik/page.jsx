@@ -1,52 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "../../components/Sidebar";
 import Header from "../../components/Header";
-import {
-  FileText,
-  BarChart3,
-  PieChart,
-  TrendingUp,
-  TrendingDown,
-  Calendar,
-  Download,
-  Filter,
-  Search,
-  RefreshCw,
-  Sparkles,
-  School,
-  Building2,
-  Users,
-  Package,
-  DollarSign,
-  CreditCard,
-  CheckCircle,
-  XCircle,
-  Clock,
-  ArrowUpRight,
-  ArrowDownRight,
-  ChevronDown,
-  ChevronRight,
-  Eye,
-  FileSpreadsheet,
-  Printer,
-  Mail,
-  MoreHorizontal,
-  Zap,
-  Award,
-  Crown,
-} from "lucide-react";
+import { Search, ArrowUpRight, ArrowDownRight } from "lucide-react";
 
 // ===== DUMMY DATA =====
 const summaryStats = [
-  { label: "Total Sekolah", value: "128", change: "+12", trend: "up", icon: School, color: "blue" },
-  { label: "Total Yayasan", value: "42", change: "+3", trend: "up", icon: Building2, color: "purple" },
-  { label: "Pengguna Aktif", value: "1.198", change: "+54", trend: "up", icon: Users, color: "emerald" },
-  { label: "Total Pendapatan", value: "Rp 2,4 M", change: "+18%", trend: "up", icon: DollarSign, color: "amber" },
-  { label: "Langganan Aktif", value: "105", change: "-2", trend: "down", icon: Package, color: "rose" },
-  { label: "Tingkat Retensi", value: "92%", change: "+5%", trend: "up", icon: Award, color: "violet" },
+  { label: "Total Sekolah", value: "128", change: "+12", trend: "up" },
+  { label: "Total Yayasan", value: "42", change: "+3", trend: "up" },
+  { label: "Pengguna Aktif", value: "1.198", change: "+54", trend: "up" },
+  { label: "Total Pendapatan", value: "Rp 2,4 M", change: "+18%", trend: "up" },
+  { label: "Langganan Aktif", value: "105", change: "-2", trend: "down" },
+  { label: "Tingkat Retensi", value: "92%", change: "+5%", trend: "up" },
 ];
 
 const monthlyData = [
@@ -78,12 +45,15 @@ const formatRupiah = (angka) => {
 
 const getStatusColor = (status) => {
   const map = {
-    Aktif: "bg-emerald-50 text-emerald-600 border-emerald-200",
-    Trial: "bg-amber-50 text-amber-600 border-amber-200",
-    Nonaktif: "bg-rose-50 text-rose-600 border-rose-200",
+    Aktif: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    Trial: "bg-amber-50 text-amber-700 border-amber-200",
+    Nonaktif: "bg-rose-50 text-rose-700 border-rose-200",
   };
   return map[status] || map.Nonaktif;
 };
+
+// Satu warna aksen konsisten untuk seluruh grafik, supaya tidak "warna-warni".
+const ACCENT = "#2563eb"; // blue-600
 
 // ===== MAIN COMPONENT =====
 
@@ -103,13 +73,14 @@ export default function LaporanAnalitikPage() {
     { id: 2, title: "Pengingat: Backup Data", desc: "Dikirim 1 hari lalu", read: false },
   ];
 
-  const maxSekolah = Math.max(...monthlyData.map(d => d.sekolah));
-  const maxPendapatan = Math.max(...monthlyData.map(d => d.pendapatan));
-  const maxPengguna = Math.max(...monthlyData.map(d => d.pengguna));
+  const maxSekolah = Math.max(...monthlyData.map((d) => d.sekolah));
+  const maxPendapatan = Math.max(...monthlyData.map((d) => d.pendapatan));
+  const maxPengguna = Math.max(...monthlyData.map((d) => d.pengguna));
 
-  const filteredReport = reportData.filter(item => {
-    const matchSearch = item.sekolah.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                       item.yayasan.toLowerCase().includes(searchQuery.toLowerCase());
+  const filteredReport = reportData.filter((item) => {
+    const matchSearch =
+      item.sekolah.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.yayasan.toLowerCase().includes(searchQuery.toLowerCase());
     const matchPaket = filterPaket === "Semua" || item.paket === filterPaket;
     const matchStatus = filterStatus === "Semua" || item.status === filterStatus;
     return matchSearch && matchPaket && matchStatus;
@@ -122,20 +93,16 @@ export default function LaporanAnalitikPage() {
   );
 
   const tabs = [
-    { id: "ringkasan", label: "Ringkasan", icon: BarChart3 },
-    { id: "sekolah", label: "Data Sekolah", icon: School },
-    { id: "keuangan", label: "Keuangan", icon: DollarSign },
-    { id: "pengguna", label: "Pengguna", icon: Users },
+    { id: "ringkasan", label: "Ringkasan" },
+    { id: "sekolah", label: "Data Sekolah" },
+    { id: "keuangan", label: "Keuangan" },
+    { id: "pengguna", label: "Pengguna" },
   ];
 
   const paketOptions = ["Semua", "Starter", "Professional", "Enterprise"];
   const statusOptions = ["Semua", "Aktif", "Trial", "Nonaktif"];
 
   return (
-    // Pola wrapper disamakan persis dengan halaman Profil/Pengumuman/Dashboard/Langganan Sekolah:
-    // min-h-screen (bukan h-screen + overflow-hidden) di wrapper luar,
-    // dan main tanpa overflow-y-auto (p-4 sm:p-6 lg:p-8) supaya sidebar mengikuti
-    // tinggi konten halaman dan konsisten saat responsive/zoom.
     <div className="flex min-h-screen bg-slate-50">
       <Sidebar
         active={activeMenu}
@@ -149,107 +116,67 @@ export default function LaporanAnalitikPage() {
           notifications={notifications}
           user={{ name: "Super Admin", email: "admin@smartschool.com", avatar: "SA" }}
         />
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 bg-gradient-to-br from-slate-50 via-white to-slate-50/80">
+        <main className="flex-1 p-4 sm:p-6 lg:p-8">
           <div className="w-full space-y-6">
 
             {/* HEADER */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-  {/* Bagian kiri */}
-  <div className="flex items-center gap-3">
-    {/* Icon */}
-    <div className="shrink-0 p-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/25">
-      <FileText size={19} />
-    </div>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <h1 className="text-xl sm:text-2xl font-semibold text-slate-800 tracking-tight">
+                  Laporan & Analitik
+                </h1>
+                <p className="text-sm text-slate-500 mt-0.5">
+                  Pantau performa sistem dan analisis data secara mendalam.
+                </p>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <button className="px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 hover:border-slate-300 transition-colors">
+                  Export
+                </button>
+                <button className="px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 hover:border-slate-300 transition-colors">
+                  Cetak
+                </button>
+              </div>
+            </div>
 
-    {/* Judul + Deskripsi */}
-    <div>
-      <div className="flex items-center gap-2.5 flex-wrap">
-        <h1 className="text-xl sm:text-2xl font-bold text-slate-800 tracking-tight">
-          Laporan & Analitik
-        </h1>
-
-        <span className="text-xs font-medium text-slate-500 bg-white px-3 py-1 rounded-full border border-slate-200 shadow-sm">
-          Super Admin
-        </span>
-      </div>
-
-      <p className="mt-1 text-sm text-slate-500">
-        Pantau performa sistem dan analisis data secara mendalam.
-      </p>
-    </div>
-  </div>
-
-  {/* Tombol kanan */}
-  <div className="flex items-center gap-2 sm:ml-auto">
-    <button className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm">
-      <FileSpreadsheet size={16} />
-      <span>Export</span>
-    </button>
-
-    
-  </div>
-</div>
-
-            {/* STATS CARDS - Premium */}
+            {/* STATS CARDS */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
               {summaryStats.map((stat) => {
-                const Icon = stat.icon;
-                const colorMap = {
-                  blue: "bg-blue-50 text-blue-600",
-                  purple: "bg-purple-50 text-purple-600",
-                  emerald: "bg-emerald-50 text-emerald-600",
-                  amber: "bg-amber-50 text-amber-600",
-                  rose: "bg-rose-50 text-rose-600",
-                  violet: "bg-violet-50 text-violet-600",
-                };
-                const iconBg = colorMap[stat.color] || colorMap.blue;
                 const TrendIcon = stat.trend === "up" ? ArrowUpRight : ArrowDownRight;
-                const trendColor = stat.trend === "up" ? "text-emerald-600 bg-emerald-50" : "text-rose-600 bg-rose-50";
+                const trendColor = stat.trend === "up" ? "text-emerald-600" : "text-rose-600";
                 return (
                   <div
                     key={stat.label}
-                    className="group bg-white rounded-xl border border-slate-200/80 p-3.5 shadow-sm hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300"
+                    className="bg-white rounded-xl border border-slate-200/80 p-3.5 shadow-sm hover:shadow-md transition-shadow duration-200"
                   >
-                    <div className="flex items-center justify-between">
-                      <div className={`p-2 rounded-lg ${iconBg} group-hover:scale-110 transition-transform duration-300`}>
-                        <Icon size={16} />
-                      </div>
-                      <span className={`flex items-center gap-0.5 text-[9px] font-semibold px-1.5 py-0.5 rounded-full ${trendColor} border border-slate-200/60`}>
-                        <TrendIcon size={10} />
+                    <div className="flex items-center justify-between gap-1">
+                      <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider truncate">{stat.label}</p>
+                      <span className={`flex items-center gap-0.5 text-[10px] font-semibold ${trendColor} flex-shrink-0 whitespace-nowrap`}>
+                        <TrendIcon size={11} />
                         {stat.change}
                       </span>
                     </div>
-                    <div className="mt-2">
-                      <p className="text-[9px] font-medium text-slate-400 uppercase tracking-wider">{stat.label}</p>
-                      <p className="text-base font-bold text-slate-800">{stat.value}</p>
-                    </div>
-                    <div className="mt-1.5 h-1 w-full bg-slate-100 rounded-full overflow-hidden">
-                      <div className={`h-full w-3/4 bg-gradient-to-r from-${stat.color}-500 to-${stat.color}-600 rounded-full group-hover:w-full transition-all duration-700`} />
-                    </div>
+                    <p className="mt-1.5 text-lg font-bold text-slate-800">{stat.value}</p>
                   </div>
                 );
               })}
             </div>
 
             {/* TABS */}
-            <div className="border-b border-slate-200/80 overflow-x-auto">
+            <div className="border-b border-slate-200 overflow-x-auto">
               <nav className="flex gap-1 min-w-max">
                 {tabs.map((tab) => {
-                  const Icon = tab.icon;
                   const isActive = activeTab === tab.id;
                   return (
                     <button
                       key={tab.id}
                       onClick={() => setActiveTab(tab.id)}
-                      className={`
-                        flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-t-lg border-b-2 transition-all
-                        ${isActive
-                          ? 'border-blue-600 text-blue-600 bg-blue-50/50 shadow-sm'
-                          : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
-                        }
-                      `}
+                      className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                        isActive
+                          ? "border-blue-600 text-blue-600"
+                          : "border-transparent text-slate-500 hover:text-slate-700"
+                      }`}
                     >
-                      <Icon size={16} />
                       {tab.label}
                     </button>
                   );
@@ -263,14 +190,14 @@ export default function LaporanAnalitikPage() {
                 <RingkasanTab monthlyData={monthlyData} maxSekolah={maxSekolah} maxPendapatan={maxPendapatan} maxPengguna={maxPengguna} />
               )}
               {activeTab === "sekolah" && (
-                <SekolahTab 
-                  reportData={paginatedReport} 
+                <SekolahTab
+                  reportData={paginatedReport}
                   filteredData={filteredReport}
-                  searchQuery={searchQuery} 
+                  searchQuery={searchQuery}
                   setSearchQuery={setSearchQuery}
-                  filterPaket={filterPaket} 
+                  filterPaket={filterPaket}
                   setFilterPaket={setFilterPaket}
-                  filterStatus={filterStatus} 
+                  filterStatus={filterStatus}
                   setFilterStatus={setFilterStatus}
                   currentPage={currentPage}
                   setCurrentPage={setCurrentPage}
@@ -286,7 +213,7 @@ export default function LaporanAnalitikPage() {
             </div>
 
             {/* FOOTER */}
-            <div className="text-center text-[10px] text-slate-400/80 py-3 border-t border-slate-200/40">
+            <div className="text-center text-xs text-slate-400 py-3 border-t border-slate-200/60">
               © 2026 SmartSchool • Data diperbarui secara real-time
             </div>
           </div>
@@ -296,16 +223,16 @@ export default function LaporanAnalitikPage() {
   );
 }
 
-// ===== TAB RINGKASAN - PREMIUM CHARTS =====
+// ===== TAB RINGKASAN =====
 function RingkasanTab({ monthlyData, maxSekolah, maxPendapatan, maxPengguna }) {
   const [selectedMetric, setSelectedMetric] = useState("sekolah");
   const metrics = [
-    { id: "sekolah", label: "Sekolah", color: "#3b82f6", gradient: "from-blue-500 to-indigo-500", dataKey: "sekolah", max: maxSekolah },
-    { id: "pendapatan", label: "Pendapatan (Juta)", color: "#10b981", gradient: "from-emerald-500 to-teal-500", dataKey: "pendapatan", max: maxPendapatan },
-    { id: "pengguna", label: "Pengguna", color: "#8b5cf6", gradient: "from-purple-500 to-violet-500", dataKey: "pengguna", max: maxPengguna },
+    { id: "sekolah", label: "Sekolah", dataKey: "sekolah", max: maxSekolah },
+    { id: "pendapatan", label: "Pendapatan (Juta)", dataKey: "pendapatan", max: maxPendapatan },
+    { id: "pengguna", label: "Pengguna", dataKey: "pengguna", max: maxPengguna },
   ];
 
-  const currentMetric = metrics.find(m => m.id === selectedMetric) || metrics[0];
+  const currentMetric = metrics.find((m) => m.id === selectedMetric) || metrics[0];
   const maxVal = currentMetric.max || 1;
 
   return (
@@ -317,9 +244,9 @@ function RingkasanTab({ monthlyData, maxSekolah, maxPendapatan, maxPengguna }) {
           <button
             key={metric.id}
             onClick={() => setSelectedMetric(metric.id)}
-            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
+            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
               selectedMetric === metric.id
-                ? `bg-gradient-to-r ${metric.gradient} text-white shadow-md`
+                ? "bg-slate-800 text-white"
                 : "text-slate-600 hover:bg-slate-100"
             }`}
           >
@@ -328,87 +255,62 @@ function RingkasanTab({ monthlyData, maxSekolah, maxPendapatan, maxPengguna }) {
         ))}
       </div>
 
-      {/* Premium Area Chart with Gradient */}
-      <div className="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm hover:shadow-md transition-shadow">
+      {/* Area Chart */}
+      <div className="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm">
         <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2.5">
-            <div className="p-1.5 rounded-lg bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-md shadow-blue-500/20">
-              <TrendingUp size={14} />
-            </div>
-            <h3 className="text-sm font-semibold text-slate-700">Analitik {currentMetric.label}</h3>
-          </div>
+          <h3 className="text-sm font-semibold text-slate-700">Analitik {currentMetric.label}</h3>
           <span className="text-[10px] font-medium text-slate-400 bg-slate-50 px-2 py-0.5 rounded-full border border-slate-200">
             {monthlyData.length} bulan
           </span>
         </div>
 
-        {/* SVG Area Chart */}
         <div className="relative">
           <svg className="w-full h-56" viewBox="0 0 700 220" preserveAspectRatio="none">
             <defs>
-              <linearGradient id={`areaGradient-${selectedMetric}`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={currentMetric.color} stopOpacity="0.35" />
-                <stop offset="50%" stopColor={currentMetric.color} stopOpacity="0.10" />
-                <stop offset="100%" stopColor={currentMetric.color} stopOpacity="0.02" />
+              <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={ACCENT} stopOpacity="0.25" />
+                <stop offset="100%" stopColor={ACCENT} stopOpacity="0.02" />
               </linearGradient>
-              <linearGradient id={`lineGradient-${selectedMetric}`} x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stopColor={currentMetric.color} stopOpacity="1" />
-                <stop offset="50%" stopColor={currentMetric.color} stopOpacity="0.9" />
-                <stop offset="100%" stopColor={currentMetric.color} stopOpacity="0.7" />
-              </linearGradient>
-              <filter id={`glow-${selectedMetric}`}>
-                <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
-                <feMerge>
-                  <feMergeNode in="coloredBlur"/>
-                  <feMergeNode in="SourceGraphic"/>
-                </feMerge>
-              </filter>
             </defs>
 
             {/* Grid Lines */}
             {[0, 25, 50, 75, 100].map((percent) => {
               const y = 205 - (percent / 100) * 190;
               return (
-                <line
-                  key={percent}
-                  x1="25"
-                  y1={y}
-                  x2="675"
-                  y2={y}
-                  stroke="#e2e8f0"
-                  strokeWidth="0.8"
-                  strokeDasharray="5,5"
-                  opacity="0.6"
-                />
+                <line key={percent} x1="25" y1={y} x2="675" y2={y} stroke="#e2e8f0" strokeWidth="0.8" />
               );
             })}
 
             {/* Area Path */}
             <polygon
-              points={monthlyData.map((d, i) => {
-                const x = 25 + (i / (monthlyData.length - 1)) * 650;
-                const val = d[currentMetric.dataKey];
-                const y = 205 - (val / maxVal) * 190;
-                return `${x},${y}`;
-              }).join(" ") + `,675,205,25,205`}
-              fill={`url(#areaGradient-${selectedMetric})`}
-              className="transition-all duration-1000"
+              points={
+                monthlyData
+                  .map((d, i) => {
+                    const x = 25 + (i / (monthlyData.length - 1)) * 650;
+                    const val = d[currentMetric.dataKey];
+                    const y = 205 - (val / maxVal) * 190;
+                    return `${x},${y}`;
+                  })
+                  .join(" ") + `,675,205,25,205`
+              }
+              fill="url(#areaGradient)"
             />
 
             {/* Line Path */}
             <polyline
-              points={monthlyData.map((d, i) => {
-                const x = 25 + (i / (monthlyData.length - 1)) * 650;
-                const val = d[currentMetric.dataKey];
-                const y = 205 - (val / maxVal) * 190;
-                return `${x},${y}`;
-              }).join(" ")}
+              points={monthlyData
+                .map((d, i) => {
+                  const x = 25 + (i / (monthlyData.length - 1)) * 650;
+                  const val = d[currentMetric.dataKey];
+                  const y = 205 - (val / maxVal) * 190;
+                  return `${x},${y}`;
+                })
+                .join(" ")}
               fill="none"
-              stroke={`url(#lineGradient-${selectedMetric})`}
-              strokeWidth="2.5"
+              stroke={ACCENT}
+              strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
-              filter={`url(#glow-${selectedMetric})`}
             />
 
             {/* Data Points */}
@@ -422,23 +324,13 @@ function RingkasanTab({ monthlyData, maxSekolah, maxPendapatan, maxPengguna }) {
                   <circle
                     cx={x}
                     cy={y}
-                    r={isLast ? 5 : 3.5}
-                    fill={isLast ? currentMetric.color : "white"}
-                    stroke={currentMetric.color}
-                    strokeWidth={isLast ? 2.5 : 1.8}
-                    className="transition-all duration-300 cursor-pointer"
+                    r={isLast ? 4.5 : 3}
+                    fill={isLast ? ACCENT : "white"}
+                    stroke={ACCENT}
+                    strokeWidth="1.8"
                   />
-                  {/* Tooltip on hover - using foreignObject */}
-                  <foreignObject
-                    x={x - 25}
-                    y={y - 35}
-                    width="50"
-                    height="25"
-                    className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none"
-                  >
-                    <div className="bg-slate-800 text-white text-[10px] px-2 py-1 rounded-lg text-center shadow-lg">
-                      {val}
-                    </div>
+                  <foreignObject x={x - 25} y={y - 32} width="50" height="24" className="opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                    <div className="bg-slate-800 text-white text-[10px] px-2 py-1 rounded text-center">{val}</div>
                   </foreignObject>
                 </g>
               );
@@ -448,15 +340,7 @@ function RingkasanTab({ monthlyData, maxSekolah, maxPendapatan, maxPengguna }) {
             {monthlyData.map((d, i) => {
               const x = 25 + (i / (monthlyData.length - 1)) * 650;
               return (
-                <text
-                  key={i}
-                  x={x}
-                  y="215"
-                  fontSize="10"
-                  fill="#94a3b8"
-                  textAnchor="middle"
-                  className="font-medium"
-                >
+                <text key={i} x={x} y="215" fontSize="10" fill="#94a3b8" textAnchor="middle">
                   {d.month}
                 </text>
               );
@@ -467,39 +351,27 @@ function RingkasanTab({ monthlyData, maxSekolah, maxPendapatan, maxPengguna }) {
               const y = 205 - (percent / 100) * 190;
               const value = Math.round((percent / 100) * maxVal);
               return (
-                <text
-                  key={percent}
-                  x="20"
-                  y={y + 3}
-                  fontSize="9"
-                  fill="#94a3b8"
-                  textAnchor="end"
-                  className="font-medium"
-                >
+                <text key={percent} x="20" y={y + 3} fontSize="9" fill="#94a3b8" textAnchor="end">
                   {value}
                 </text>
               );
             })}
           </svg>
 
-          {/* Current Value Highlight */}
-          <div className="absolute top-2 right-4 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm">
+          <div className="absolute top-2 right-4 bg-white/95 px-3 py-1.5 rounded-lg border border-slate-200">
             <span className="text-xs font-bold text-slate-800">
               {monthlyData[monthlyData.length - 1][currentMetric.dataKey]}
               {selectedMetric === "pendapatan" ? " Jt" : ""}
             </span>
-            <span className="text-[10px] text-slate-400 ml-1">
-              {currentMetric.label === "Pendapatan (Juta)" ? "Jt" : "unit"}
-            </span>
           </div>
         </div>
 
-        {/* Metric Cards */}
+        {/* Metric Summary */}
         <div className="grid grid-cols-3 gap-3 mt-4 pt-3 border-t border-slate-200/60">
           <div className="text-center">
             <p className="text-[9px] text-slate-400">Terendah</p>
             <p className="text-sm font-bold text-slate-700">
-              {Math.min(...monthlyData.map(d => d[currentMetric.dataKey]))}
+              {Math.min(...monthlyData.map((d) => d[currentMetric.dataKey]))}
               {selectedMetric === "pendapatan" ? " Jt" : ""}
             </p>
           </div>
@@ -513,48 +385,40 @@ function RingkasanTab({ monthlyData, maxSekolah, maxPendapatan, maxPengguna }) {
           <div className="text-center">
             <p className="text-[9px] text-slate-400">Tertinggi</p>
             <p className="text-sm font-bold text-slate-700">
-              {Math.max(...monthlyData.map(d => d[currentMetric.dataKey]))}
+              {Math.max(...monthlyData.map((d) => d[currentMetric.dataKey]))}
               {selectedMetric === "pendapatan" ? " Jt" : ""}
             </p>
           </div>
         </div>
       </div>
 
-      {/* Kombinasi grafik ringkas untuk 3 metrik */}
+      {/* Ringkasan 3 metrik */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {metrics.map((metric) => {
-          const Icon = metric.id === "sekolah" ? School : metric.id === "pendapatan" ? DollarSign : Users;
-          const colorMap = {
-            sekolah: "bg-blue-50 text-blue-600",
-            pendapatan: "bg-emerald-50 text-emerald-600",
-            pengguna: "bg-purple-50 text-purple-600",
-          };
           const currentVal = monthlyData[monthlyData.length - 1][metric.dataKey];
           const firstVal = monthlyData[0][metric.dataKey];
-          const growth = firstVal > 0 ? ((currentVal - firstVal) / firstVal * 100) : 0;
-          const max = Math.max(...monthlyData.map(d => d[metric.dataKey])) || 1;
+          const growth = firstVal > 0 ? ((currentVal - firstVal) / firstVal) * 100 : 0;
+          const max = Math.max(...monthlyData.map((d) => d[metric.dataKey])) || 1;
 
           return (
             <div
               key={metric.id}
-              className="bg-white rounded-xl border border-slate-200/80 p-3 shadow-sm hover:shadow-md transition-all cursor-pointer"
+              className="bg-white rounded-xl border border-slate-200/80 p-3 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
               onClick={() => setSelectedMetric(metric.id)}
             >
               <div className="flex items-center justify-between">
-                <div className={`p-1.5 rounded-lg ${colorMap[metric.id]}`}>
-                  <Icon size={14} />
-                </div>
+                <p className="text-[10px] text-slate-400">{metric.label}</p>
                 <span className={`text-xs font-medium ${growth >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
-                  {growth >= 0 ? "+" : ""}{growth.toFixed(1)}%
+                  {growth >= 0 ? "+" : ""}
+                  {growth.toFixed(1)}%
                 </span>
               </div>
-              <p className="text-lg font-bold text-slate-800 mt-1">{currentVal}{metric.id === "pendapatan" ? " Jt" : ""}</p>
-              <p className="text-[9px] text-slate-400">{metric.label}</p>
+              <p className="text-lg font-bold text-slate-800 mt-1">
+                {currentVal}
+                {metric.id === "pendapatan" ? " Jt" : ""}
+              </p>
               <div className="mt-1.5 h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                <div
-                  className={`h-full rounded-full bg-gradient-to-r ${metric.gradient}`}
-                  style={{ width: `${(currentVal / max) * 100}%` }}
-                />
+                <div className="h-full rounded-full bg-blue-600" style={{ width: `${(currentVal / max) * 100}%` }} />
               </div>
             </div>
           );
@@ -565,15 +429,15 @@ function RingkasanTab({ monthlyData, maxSekolah, maxPendapatan, maxPengguna }) {
 }
 
 // ===== TAB SEKOLAH =====
-function SekolahTab({ 
+function SekolahTab({
   reportData, filteredData, searchQuery, setSearchQuery,
   filterPaket, setFilterPaket, filterStatus, setFilterStatus,
   currentPage, setCurrentPage, totalPages,
-  paketOptions, statusOptions, formatRupiah, getStatusColor
+  paketOptions, statusOptions, formatRupiah, getStatusColor,
 }) {
   return (
     <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-hidden">
-      <div className="p-4 border-b border-slate-200/80 flex flex-col sm:flex-row gap-3 bg-gradient-to-r from-slate-50/50 to-transparent">
+      <div className="p-4 border-b border-slate-200/80 flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
@@ -590,14 +454,18 @@ function SekolahTab({
             onChange={(e) => setFilterPaket(e.target.value)}
             className="px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 text-slate-600 cursor-pointer"
           >
-            {paketOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+            {paketOptions.map((opt) => (
+              <option key={opt} value={opt}>{opt}</option>
+            ))}
           </select>
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
             className="px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 text-slate-600 cursor-pointer"
           >
-            {statusOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+            {statusOptions.map((opt) => (
+              <option key={opt} value={opt}>{opt}</option>
+            ))}
           </select>
           <button
             onClick={() => { setSearchQuery(""); setFilterPaket("Semua"); setFilterStatus("Semua"); }}
@@ -611,7 +479,7 @@ function SekolahTab({
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="bg-slate-50/80 border-b border-slate-200/80">
+            <tr className="bg-slate-50 border-b border-slate-200/80">
               <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Sekolah</th>
               <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider hidden md:table-cell">Yayasan</th>
               <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Paket</th>
@@ -632,7 +500,7 @@ function SekolahTab({
                     <td className="px-4 py-2.5 font-medium text-slate-800">{item.sekolah}</td>
                     <td className="px-4 py-2.5 text-slate-500 hidden md:table-cell">{item.yayasan}</td>
                     <td className="px-4 py-2.5">
-                      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-600 border border-blue-200">
+                      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">
                         {item.paket}
                       </span>
                     </td>
@@ -667,7 +535,7 @@ function SekolahTab({
               <button
                 key={i}
                 onClick={() => setCurrentPage(i + 1)}
-                className={`w-8 h-8 text-sm rounded-lg transition-colors ${currentPage === i + 1 ? "bg-blue-600 text-white shadow-sm" : "text-slate-500 hover:bg-slate-100"}`}
+                className={`w-8 h-8 text-sm rounded-lg transition-colors ${currentPage === i + 1 ? "bg-blue-600 text-white" : "text-slate-500 hover:bg-slate-100"}`}
               >
                 {i + 1}
               </button>
@@ -691,28 +559,25 @@ function SekolahTab({
 function KeuanganTab({ monthlyData, formatRupiah }) {
   const totalPendapatan = monthlyData.reduce((sum, d) => sum + d.pendapatan, 0);
   const rataRata = totalPendapatan / monthlyData.length;
-  const maxPendapatan = Math.max(...monthlyData.map(d => d.pendapatan));
+  const maxPendapatan = Math.max(...monthlyData.map((d) => d.pendapatan));
 
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm hover:shadow-md transition-shadow">
+        <div className="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm">
           <p className="text-xs text-slate-400">Total Pendapatan</p>
           <p className="text-2xl font-bold text-slate-800">{formatRupiah(totalPendapatan)}</p>
-          <div className="mt-1 h-1 w-full bg-slate-100 rounded-full">
-            <div className="h-full w-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full" />
-          </div>
         </div>
-        <div className="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm hover:shadow-md transition-shadow">
+        <div className="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm">
           <p className="text-xs text-slate-400">Rata-rata / Bulan</p>
           <p className="text-2xl font-bold text-slate-800">{formatRupiah(Math.round(rataRata))}</p>
           <p className="text-[10px] text-slate-400 mt-1">Dari {monthlyData.length} bulan</p>
         </div>
-        <div className="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm hover:shadow-md transition-shadow">
+        <div className="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm">
           <p className="text-xs text-slate-400">Bulan Tertinggi</p>
           <p className="text-2xl font-bold text-emerald-600">{formatRupiah(maxPendapatan)}</p>
           <p className="text-[10px] text-slate-400 mt-1">
-            {monthlyData.find(d => d.pendapatan === maxPendapatan)?.month}
+            {monthlyData.find((d) => d.pendapatan === maxPendapatan)?.month}
           </p>
         </div>
       </div>
@@ -722,7 +587,7 @@ function KeuanganTab({ monthlyData, formatRupiah }) {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-200/80 bg-slate-50/50">
+              <tr className="border-b border-slate-200/80 bg-slate-50">
                 <th className="px-3 py-2 text-left text-xs font-medium text-slate-400">Bulan</th>
                 <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">Pendapatan</th>
                 <th className="px-3 py-2 text-right text-xs font-medium text-slate-400">%</th>
@@ -732,7 +597,7 @@ function KeuanganTab({ monthlyData, formatRupiah }) {
               {monthlyData.map((item, idx) => {
                 const persen = (item.pendapatan / totalPendapatan) * 100;
                 return (
-                  <tr key={idx} className="border-b border-slate-100/80 last:border-0 hover:bg-slate-50/60 transition-colors">
+                  <tr key={idx} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/60 transition-colors">
                     <td className="px-3 py-2 font-medium text-slate-700">{item.month}</td>
                     <td className="px-3 py-2 text-right text-slate-600">{formatRupiah(item.pendapatan)}</td>
                     <td className="px-3 py-2 text-right">
@@ -752,31 +617,29 @@ function KeuanganTab({ monthlyData, formatRupiah }) {
 // ===== TAB PENGGUNA =====
 function PenggunaTab({ monthlyData }) {
   const totalPengguna = monthlyData[monthlyData.length - 1]?.pengguna || 0;
-  const growth = monthlyData.length > 1 
-    ? ((monthlyData[monthlyData.length - 1].pengguna - monthlyData[0].pengguna) / monthlyData[0].pengguna) * 100 
+  const growth = monthlyData.length > 1
+    ? ((monthlyData[monthlyData.length - 1].pengguna - monthlyData[0].pengguna) / monthlyData[0].pengguna) * 100
     : 0;
-  const maxPengguna = Math.max(...monthlyData.map(d => d.pengguna));
+  const maxPengguna = Math.max(...monthlyData.map((d) => d.pengguna));
 
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm hover:shadow-md transition-shadow">
+        <div className="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm">
           <p className="text-xs text-slate-400">Total Pengguna</p>
           <p className="text-2xl font-bold text-slate-800">{totalPengguna.toLocaleString()}</p>
-          <div className="mt-1 h-1 w-full bg-slate-100 rounded-full">
-            <div className="h-full w-full bg-gradient-to-r from-purple-500 to-violet-500 rounded-full" />
-          </div>
         </div>
-        <div className="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm hover:shadow-md transition-shadow">
+        <div className="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm">
           <p className="text-xs text-slate-400">Pertumbuhan</p>
           <p className={`text-2xl font-bold ${growth >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
-            {growth >= 0 ? "+" : ""}{growth.toFixed(1)}%
+            {growth >= 0 ? "+" : ""}
+            {growth.toFixed(1)}%
           </p>
           <p className="text-[10px] text-slate-400 mt-1">Sejak awal</p>
         </div>
-        <div className="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm hover:shadow-md transition-shadow">
+        <div className="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm">
           <p className="text-xs text-slate-400">Bulan Ini</p>
-          <p className="text-2xl font-bold text-violet-600">{monthlyData[monthlyData.length - 1]?.pengguna.toLocaleString()}</p>
+          <p className="text-2xl font-bold text-slate-800">{monthlyData[monthlyData.length - 1]?.pengguna.toLocaleString()}</p>
           <p className="text-[10px] text-slate-400 mt-1">{monthlyData[monthlyData.length - 1]?.month}</p>
         </div>
       </div>
@@ -785,29 +648,9 @@ function PenggunaTab({ monthlyData }) {
         <h4 className="text-sm font-semibold text-slate-700 mb-3">Distribusi Pengguna per Bulan</h4>
         <div className="relative">
           <svg className="w-full h-40" viewBox="0 0 680 150" preserveAspectRatio="none">
-            <defs>
-              <linearGradient id="userBarGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.8" />
-                <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0.4" />
-              </linearGradient>
-            </defs>
-
-            {/* Grid Lines */}
             {[0, 25, 50, 75, 100].map((percent) => {
               const y = 135 - (percent / 100) * 120;
-              return (
-                <line
-                  key={percent}
-                  x1="30"
-                  y1={y}
-                  x2="660"
-                  y2={y}
-                  stroke="#e2e8f0"
-                  strokeWidth="0.5"
-                  strokeDasharray="4,4"
-                  opacity="0.5"
-                />
-              );
+              return <line key={percent} x1="30" y1={y} x2="660" y2={y} stroke="#e2e8f0" strokeWidth="0.5" />;
             })}
 
             {monthlyData.map((item, idx) => {
@@ -815,16 +658,7 @@ function PenggunaTab({ monthlyData }) {
               const height = (item.pengguna / maxPengguna) * 120;
               const y = 135 - height;
               return (
-                <rect
-                  key={idx}
-                  x={x - 6}
-                  y={y}
-                  width="12"
-                  height={height || 2}
-                  rx="2"
-                  fill={`url(#userBarGradient)`}
-                  className="transition-all duration-700 hover:opacity-70 cursor-pointer"
-                >
+                <rect key={idx} x={x - 6} y={y} width="12" height={height || 2} rx="2" fill={ACCENT} className="transition-all duration-700 hover:opacity-80 cursor-pointer">
                   <title>{item.month}: {item.pengguna} pengguna</title>
                 </rect>
               );
@@ -833,25 +667,15 @@ function PenggunaTab({ monthlyData }) {
             {monthlyData.map((item, idx) => {
               const x = 30 + (idx / (monthlyData.length - 1)) * 630;
               return (
-                <text
-                  key={idx}
-                  x={x}
-                  y="142"
-                  fontSize="9"
-                  fill="#94a3b8"
-                  textAnchor="middle"
-                  className="font-medium"
-                >
+                <text key={idx} x={x} y="142" fontSize="9" fill="#94a3b8" textAnchor="middle">
                   {item.month}
                 </text>
               );
             })}
           </svg>
 
-          <div className="absolute top-2 right-4 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm">
-            <span className="text-xs font-bold text-violet-600">
-              {monthlyData[monthlyData.length - 1]?.pengguna}
-            </span>
+          <div className="absolute top-2 right-4 bg-white/95 px-3 py-1.5 rounded-lg border border-slate-200">
+            <span className="text-xs font-bold text-slate-800">{monthlyData[monthlyData.length - 1]?.pengguna}</span>
             <span className="text-[10px] text-slate-400 ml-1">terbaru</span>
           </div>
         </div>
