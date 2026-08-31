@@ -67,97 +67,85 @@ const ICON_MAP = {
 const DEFAULT_MODULES = [
   {
     id: "akademik",
+    kode: "akademik",
     nama: "Akademik",
-    desk: "Nilai, jadwal & rapor digital",
+    deskripsi: "Nilai, jadwal & rapor digital",
     icon: BookOpen,
   },
   {
     id: "keuangan",
+    kode: "keuangan",
     nama: "Keuangan",
-    desk: "SPP, tagihan & laporan keuangan",
+    deskripsi: "SPP, tagihan & laporan keuangan",
     icon: Wallet,
   },
   {
     id: "kepegawaian",
+    kode: "kepegawaian",
     nama: "Kepegawaian",
-    desk: "Data guru & staff sekolah",
+    deskripsi: "Data guru & staff sekolah",
     icon: UserCog,
   },
   {
     id: "perpustakaan",
+    kode: "perpustakaan",
     nama: "Perpustakaan",
-    desk: "Katalog & sirkulasi buku",
+    deskripsi: "Katalog & sirkulasi buku",
     icon: Library,
   },
   {
     id: "presensi",
+    kode: "presensi",
     nama: "Presensi",
-    desk: "Absensi digital siswa & guru",
+    deskripsi: "Absensi digital siswa & guru",
     icon: ClipboardCheck,
   },
   {
     id: "ppdb",
+    kode: "ppdb",
     nama: "PPDB",
-    desk: "Pendaftaran siswa baru online",
+    deskripsi: "Pendaftaran siswa baru online",
     icon: UserPlus,
   },
   {
     id: "komunikasi",
+    kode: "komunikasi",
     nama: "Komunikasi",
-    desk: "Pesan ke orang tua & wali murid",
+    deskripsi: "Pesan ke orang tua & wali murid",
     icon: MessageSquare,
   },
   {
     id: "inventaris",
+    kode: "inventaris",
     nama: "Inventaris",
-    desk: "Aset & barang milik sekolah",
+    deskripsi: "Aset & barang milik sekolah",
     icon: Boxes,
   },
 ];
 
 /* =========================================================
-   PACKAGE COLOR
-   Palet dipangkas jadi 3 warna senada (biru, indigo, slate)
-   supaya grid paket tidak terlihat "warna-warni".
+   PACKAGE THEMES
 ========================================================= */
 
 const PACKAGE_THEMES = {
   blue: {
     card: "bg-blue-600",
-    soft: "bg-blue-50",
-    softText: "text-blue-700",
-    icon: "bg-blue-100 text-blue-700",
-    badge: "bg-blue-100 text-blue-700",
-    line: "border-blue-100",
     button: "bg-blue-600 hover:bg-blue-700",
-    glow: "bg-blue-500/10",
   },
 
   indigo: {
     card: "bg-indigo-600",
-    soft: "bg-indigo-50",
-    softText: "text-indigo-700",
-    icon: "bg-indigo-100 text-indigo-700",
-    badge: "bg-indigo-100 text-indigo-700",
-    line: "border-indigo-100",
     button: "bg-indigo-600 hover:bg-indigo-700",
-    glow: "bg-indigo-500/10",
   },
 
   slate: {
     card: "bg-slate-700",
-    soft: "bg-slate-100",
-    softText: "text-slate-700",
-    icon: "bg-slate-200 text-slate-700",
-    badge: "bg-slate-200 text-slate-700",
-    line: "border-slate-200",
     button: "bg-slate-700 hover:bg-slate-800",
-    glow: "bg-slate-500/10",
   },
 };
 
 /* =========================================================
-   HELPER
+   FORMAT RUPIAH
 ========================================================= */
 
 function formatRupiah(value) {
@@ -170,8 +158,14 @@ function formatRupiah(value) {
   return "Rp" + angka.toLocaleString("id-ID");
 }
 
+/* =========================================================
+   GET RESPONSE DATA
+========================================================= */
+
 function getResponseData(response) {
-  if (!response) return [];
+  if (!response) {
+    return [];
+  }
 
   if (Array.isArray(response)) {
     return response;
@@ -196,79 +190,16 @@ function getResponseData(response) {
   return [];
 }
 
-function getFeatureId(item) {
-  if (!item) return null;
-
-  return (
-    item.id ??
-    item.fiturId ??
-    item.fitur_id ??
-    item.modulId ??
-    item.modul_id ??
-    item.kode ??
-    item.slug ??
-    null
-  );
-}
-
-function getFeatureName(item) {
-  if (!item) return "Fitur";
-
-  return (
-    item.nama ??
-    item.namaFitur ??
-    item.nama_fitur ??
-    item.namaModul ??
-    item.nama_modul ??
-    item.name ??
-    item.label ??
-    item.judul ??
-    "Fitur"
-  );
-}
-
-function getFeatureDescription(item) {
-  if (!item) return "";
-
-  return (
-    item.deskripsi ??
-    item.description ??
-    item.keterangan ??
-    ""
-  );
-}
-
-function normalizeFeature(item, index) {
-  const id =
-    getFeatureId(item) ??
-    `fitur-${index}`;
-
-  const nama =
-    getFeatureName(item);
-
-  const iconKey = String(nama)
-    .toLowerCase()
-    .replace(/\s+/g, "")
-    .replace(/[^a-z]/g, "");
-
-  return {
-    ...item,
-    id,
-    nama,
-    deskripsi:
-      getFeatureDescription(item),
-    icon:
-      ICON_MAP[id] ||
-      ICON_MAP[iconKey] ||
-      Layers,
-  };
-}
+/* =========================================================
+   PACKAGE HELPERS
+========================================================= */
 
 function getPaketId(paket) {
   return (
     paket?.id ??
     paket?.paketId ??
-    paket?.paket_id
+    paket?.paket_id ??
+    null
   );
 }
 
@@ -336,49 +267,120 @@ function getPaketSubscribers(paket) {
   );
 }
 
-function getPaketFeatures(paket) {
-  if (!paket) return [];
+/* =========================================================
+   GET FITUR DARI PAKET
+   SESUAI RESPONSE BACKEND
+========================================================= */
 
-  if (Array.isArray(paket.modul)) {
-    return paket.modul;
+function getPaketFeatures(paket) {
+  if (!paket) {
+    return [];
   }
+
+  /*
+    RESPONSE BACKEND:
+
+    {
+      id: "...",
+      nama: "...",
+      deskripsi: "...",
+      harga: 100000,
+      durasi: "bulan",
+      fitur: [
+        {
+          id: "...",
+          kode: "akademik",
+          nama: "Akademik",
+          deskripsi: "...",
+          ikon: "..."
+        }
+      ]
+    }
+  */
 
   if (Array.isArray(paket.fitur)) {
     return paket.fitur;
   }
 
-  if (Array.isArray(paket.fiturs)) {
-    return paket.fiturs;
-  }
+  /*
+    Fallback apabila ada endpoint/response
+    yang mengembalikan paketModul.
+  */
 
-  if (Array.isArray(paket.features)) {
-    return paket.features;
-  }
-
-  if (Array.isArray(paket.fiturIds)) {
-    return paket.fiturIds;
-  }
-
-  if (Array.isArray(paket.fitur_ids)) {
-    return paket.fitur_ids;
+  if (Array.isArray(paket.paketModul)) {
+    return paket.paketModul
+      .map((item) => {
+        return item?.modul || item?.fitur || null;
+      })
+      .filter(Boolean);
   }
 
   return [];
 }
 
-function getFeatureIdsFromPaket(paket) {
-  return getPaketFeatures(paket)
-    .map((item) => {
-      if (
-        typeof item === "string" ||
-        typeof item === "number"
-      ) {
-        return item;
-      }
+/* =========================================================
+   NORMALIZE FEATURE
+========================================================= */
 
-      return getFeatureId(item);
-    })
-    .filter(Boolean);
+function normalizeFeature(item, index) {
+  if (!item) {
+    return {
+      id: `fitur-${index}`,
+      kode: "",
+      nama: "Fitur",
+      deskripsi: "",
+      icon: Layers,
+    };
+  }
+
+  const id =
+    item?.id ??
+    item?.modulId ??
+    item?.modul_id ??
+    item?.fiturId ??
+    item?.fitur_id ??
+    item?.kode ??
+    `fitur-${index}`;
+
+  const nama =
+    item?.nama ??
+    item?.namaFitur ??
+    item?.nama_fitur ??
+    item?.namaModul ??
+    item?.nama_modul ??
+    item?.name ??
+    item?.label ??
+    item?.judul ??
+    "Fitur";
+
+  const deskripsi =
+    item?.deskripsi ??
+    item?.description ??
+    item?.keterangan ??
+    "";
+
+  const kode = String(
+    item?.kode ?? ""
+  ).toLowerCase();
+
+  const namaKey = String(nama)
+    .toLowerCase()
+    .replace(/\s+/g, "")
+    .replace(/[^a-z]/g, "");
+
+  const Icon =
+    ICON_MAP[kode] ||
+    ICON_MAP[namaKey] ||
+    Layers;
+
+  return {
+    ...item,
+    id,
+    kode,
+    nama,
+    deskripsi,
+    icon: Icon,
+  };
 }
 
 /* =========================================================
@@ -397,9 +399,7 @@ function getPackageTheme(paket, index) {
     return PACKAGE_THEMES.indigo;
   }
 
-  if (
-    name.includes("custom")
-  ) {
+  if (name.includes("custom")) {
     return PACKAGE_THEMES.blue;
   }
 
@@ -420,6 +420,10 @@ function getPackageTheme(paket, index) {
   return themes[index % themes.length];
 }
 
+/* =========================================================
+   PACKAGE ICON
+========================================================= */
+
 function getPackageIcon(paket, index) {
   const nama =
     getPaketName(paket).toLowerCase();
@@ -438,9 +442,7 @@ function getPackageIcon(paket, index) {
     return Zap;
   }
 
-  if (
-    nama.includes("trial")
-  ) {
+  if (nama.includes("trial")) {
     return Sparkles;
   }
 
@@ -542,16 +544,60 @@ export default function PaketModulPage() {
           fiturResponse
         );
 
-      setPaketList(paketData);
+      console.log(
+        "===================================="
+      );
+
+      console.log(
+        "DATA PAKET DARI BACKEND:",
+        paketData
+      );
+
+      console.log(
+        "DATA FITUR DARI BACKEND:",
+        fiturData
+      );
+
+      console.log(
+        "===================================="
+      );
+
+      /*
+        Debug setiap paket.
+        Ini memastikan fitur per paket
+        benar-benar terbaca dari BE.
+      */
+
+      paketData.forEach((paket) => {
+        console.log(
+          `PAKET: ${paket?.nama}`,
+          {
+            id: paket?.id,
+            fitur: paket?.fitur,
+            jumlahFitur:
+              Array.isArray(paket?.fitur)
+                ? paket.fitur.length
+                : 0,
+          }
+        );
+      });
+
+      setPaketList(
+        Array.isArray(paketData)
+          ? paketData
+          : []
+      );
 
       setFiturList(
-        fiturData.map(
-          (item, index) =>
-            normalizeFeature(
-              item,
-              index
+        Array.isArray(fiturData)
+          ? fiturData.map(
+              (item, index) =>
+                normalizeFeature(
+                  item,
+                  index
+                )
             )
-        )
+          : []
       );
     } catch (err) {
       console.error(
@@ -560,9 +606,7 @@ export default function PaketModulPage() {
       );
 
       setError(
-        err?.response?.data?.message ||
-          err?.response?.data?.error ||
-          err?.message ||
+        err?.message ||
           "Gagal mengambil data paket dari server."
       );
     } finally {
@@ -576,75 +620,87 @@ export default function PaketModulPage() {
   }, []);
 
   /* =======================================================
-     NORMALIZED DATA
-  ======================================================= */
+     NORMALIZED PACKAGE
+======================================================= */
 
   const normalizedPaket =
     useMemo(() => {
       return paketList.map(
-        (paket, index) => ({
-          ...paket,
+        (paket, index) => {
+          /*
+            LANGSUNG AMBIL fitur
+            dari response BE.
+          */
 
-          id:
-            getPaketId(paket),
+          const features =
+            getPaketFeatures(paket);
 
-          nama:
-            getPaketName(paket),
+          return {
+            ...paket,
 
-          harga:
-            getPaketPrice(paket),
+            id:
+              getPaketId(paket),
 
-          deskripsi:
-            getPaketDescription(
-              paket
-            ),
+            nama:
+              getPaketName(paket),
 
-          status:
-            getPaketStatus(paket),
+            harga:
+              getPaketPrice(paket),
 
-          siklus:
-            getPaketCycle(paket),
+            deskripsi:
+              getPaketDescription(
+                paket
+              ),
 
-          langganan:
-            getPaketSubscribers(
-              paket
-            ),
+            status:
+              getPaketStatus(paket),
 
-          fiturIds:
-            getFeatureIdsFromPaket(
-              paket
-            ),
+            siklus:
+              getPaketCycle(paket),
 
-          theme:
-            getPackageTheme(
-              paket,
-              index
-            ),
+            langganan:
+              getPaketSubscribers(
+                paket
+              ),
 
-          icon:
-            getPackageIcon(
-              paket,
-              index
-            ),
+            /*
+              INI YANG PALING PENTING
+            */
 
-          populer:
-            paket?.populer === true ||
-            paket?.isPopular === true ||
-            paket?.is_popular === true,
-        })
+            fitur: features,
+
+            theme:
+              getPackageTheme(
+                paket,
+                index
+              ),
+
+            icon:
+              getPackageIcon(
+                paket,
+                index
+              ),
+
+            populer:
+              paket?.populer === true ||
+              paket?.isPopular === true ||
+              paket?.is_popular === true,
+          };
+        }
       );
     }, [paketList]);
 
   /* =======================================================
      STATISTICS
-  ======================================================= */
+======================================================= */
 
   const totalPaket =
     normalizedPaket.length;
 
   const paketAktif =
     normalizedPaket.filter(
-      (p) => p.status === "aktif"
+      (p) =>
+        p.status === "aktif"
     ).length;
 
   const totalLangganan =
@@ -670,7 +726,7 @@ export default function PaketModulPage() {
 
   /* =======================================================
      SEARCH
-  ======================================================= */
+======================================================= */
 
   const filteredPaket =
     normalizedPaket.filter(
@@ -684,7 +740,7 @@ export default function PaketModulPage() {
 
   /* =======================================================
      NAVIGATION
-  ======================================================= */
+======================================================= */
 
   function navigateToTambah() {
     router.push(
@@ -696,6 +752,13 @@ export default function PaketModulPage() {
     const id =
       getPaketId(paket);
 
+    if (!id) {
+      setError(
+        "ID paket tidak ditemukan."
+      );
+      return;
+    }
+
     router.push(
       `/super-admin/paketModul/edit/${id}`
     );
@@ -703,7 +766,7 @@ export default function PaketModulPage() {
 
   /* =======================================================
      DELETE
-  ======================================================= */
+======================================================= */
 
   async function hapusPaket(paket) {
     try {
@@ -711,6 +774,12 @@ export default function PaketModulPage() {
 
       const id =
         getPaketId(paket);
+
+      if (!id) {
+        throw new Error(
+          "ID paket tidak ditemukan."
+        );
+      }
 
       await deletePaket(id);
 
@@ -724,9 +793,7 @@ export default function PaketModulPage() {
       );
 
       setError(
-        err?.response?.data?.message ||
-          err?.response?.data?.error ||
-          err?.message ||
+        err?.message ||
           "Gagal menghapus paket."
       );
     }
@@ -734,7 +801,7 @@ export default function PaketModulPage() {
 
   /* =======================================================
      TOGGLE STATUS
-  ======================================================= */
+======================================================= */
 
   async function toggleStatus(paket) {
     try {
@@ -743,14 +810,39 @@ export default function PaketModulPage() {
       const id =
         getPaketId(paket);
 
+      if (!id) {
+        throw new Error(
+          "ID paket tidak ditemukan."
+        );
+      }
+
       const nextStatus =
         paket.status === "aktif"
           ? "nonaktif"
           : "aktif";
 
+      /*
+        Ambil ID fitur/modul yang
+        memang dimiliki paket.
+      */
+
+      const modulIds =
+        getPaketFeatures(paket)
+          .map(
+            (feature) =>
+              feature?.id ??
+              feature?.modulId ??
+              feature?.modul_id
+          )
+          .filter(Boolean);
+
       await updatePaket(id, {
-        ...paket,
+        nama: paket.nama,
+        deskripsi: paket.deskripsi,
+        harga: paket.harga,
+        durasi: paket.siklus,
         status: nextStatus,
+        modulIds,
       });
 
       await loadData(false);
@@ -761,9 +853,7 @@ export default function PaketModulPage() {
       );
 
       setError(
-        err?.response?.data?.message ||
-          err?.response?.data?.error ||
-          err?.message ||
+        err?.message ||
           "Gagal mengubah status paket."
       );
     }
@@ -771,15 +861,26 @@ export default function PaketModulPage() {
 
   /* =======================================================
      DUPLICATE
-  ======================================================= */
+======================================================= */
 
   function duplikatPaket(paket) {
+    const modulIds =
+      getPaketFeatures(paket)
+        .map(
+          (feature) =>
+            feature?.id ??
+            feature?.modulId ??
+            feature?.modul_id
+        )
+        .filter(Boolean);
+
     const data = {
       ...paket,
       id: undefined,
       nama: `${paket.nama} (Salinan)`,
       populer: false,
       langganan: 0,
+      modulIds,
     };
 
     sessionStorage.setItem(
@@ -794,7 +895,7 @@ export default function PaketModulPage() {
 
   /* =======================================================
      LOADING
-  ======================================================= */
+======================================================= */
 
   if (loading) {
     return (
@@ -828,7 +929,7 @@ export default function PaketModulPage() {
             }}
           />
 
-          <main className="flex-1 flex items-center justify-center">
+          <main className="flex-1 flex items-center justify-center p-6">
             <div className="flex flex-col items-center gap-4">
               <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-600/20">
                 <Loader2
@@ -843,7 +944,7 @@ export default function PaketModulPage() {
                 </p>
 
                 <p className="text-xs text-slate-400 mt-1">
-                  Menyiapkan data langganan
+                  Menyiapkan data paket
                 </p>
               </div>
             </div>
@@ -855,7 +956,7 @@ export default function PaketModulPage() {
 
   /* =======================================================
      RETURN
-  ======================================================= */
+======================================================= */
 
   return (
     <div className="flex min-h-screen bg-white">
@@ -894,19 +995,14 @@ export default function PaketModulPage() {
 
         <main className="flex-1 p-4 sm:p-6 lg:p-8">
           <div className="max-w-[1500px] mx-auto space-y-6">
-
-            {/* =================================================
-                PAGE HEADER
-            ================================================= */}
+            {/* PAGE HEADER */}
 
             <section className="relative overflow-hidden rounded-2xl bg-slate-900 p-6 md:p-7 shadow-lg shadow-blue-900/10">
-
-              {/* decorative */}
               <div className="absolute -right-10 -top-16 w-56 h-56 rounded-full bg-blue-400/10 blur-2xl" />
+
               <div className="absolute right-24 bottom-[-80px] w-48 h-48 rounded-full bg-blue-400/10 blur-2xl" />
 
               <div className="relative flex flex-col xl:flex-row xl:items-center xl:justify-between gap-5">
-                
                 <div>
                   <div className="flex items-center gap-3">
                     <div className="w-11 h-11 rounded-xl bg-white/10 border border-white/10 backdrop-blur-sm flex items-center justify-center">
@@ -928,19 +1024,20 @@ export default function PaketModulPage() {
                   </div>
 
                   <p className="text-sm text-blue-100/80 mt-3 max-w-xl">
-                    Kelola paket langganan dan
-                    modul yang tersedia untuk
-                    setiap sekolah.
+                    Kelola paket langganan
+                    dan fitur yang
+                    tersedia untuk setiap
+                    sekolah.
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <button
                     onClick={() =>
                       loadData(false)
                     }
                     disabled={refreshing}
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white text-sm font-medium backdrop-blur-sm transition"
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white text-sm font-medium backdrop-blur-sm transition disabled:opacity-50"
                   >
                     <RefreshCw
                       size={15}
@@ -968,9 +1065,7 @@ export default function PaketModulPage() {
               </div>
             </section>
 
-            {/* =================================================
-                ERROR
-            ================================================= */}
+            {/* ERROR */}
 
             {error && (
               <div className="flex items-start gap-3 p-4 rounded-xl border border-rose-200 bg-rose-50">
@@ -979,12 +1074,12 @@ export default function PaketModulPage() {
                   className="text-rose-500 mt-0.5"
                 />
 
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-rose-700">
                     Terjadi kesalahan
                   </p>
 
-                  <p className="text-xs text-rose-600 mt-1">
+                  <p className="text-xs text-rose-600 mt-1 break-words">
                     {error}
                   </p>
                 </div>
@@ -1000,11 +1095,9 @@ export default function PaketModulPage() {
               </div>
             )}
 
-            {/* =================================================
-                STATS
-            ================================================= */}
+            {/* STATS */}
 
-            <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
               <StatCard
                 icon={Package}
                 label="Total Paket"
@@ -1040,9 +1133,7 @@ export default function PaketModulPage() {
               />
             </div>
 
-            {/* =================================================
-                SEARCH
-            ================================================= */}
+            {/* SEARCH */}
 
             <section className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
               <div>
@@ -1051,8 +1142,9 @@ export default function PaketModulPage() {
                 </h2>
 
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Pilih paket untuk melihat
-                  detail dan modulnya.
+                  Setiap paket
+                  menampilkan fitur yang
+                  didapatkan.
                 </p>
               </div>
 
@@ -1076,14 +1168,13 @@ export default function PaketModulPage() {
                 </div>
 
                 <span className="hidden sm:flex items-center whitespace-nowrap px-3 py-2.5 rounded-xl bg-white border border-slate-200 text-xs font-medium text-slate-500">
-                  {filteredPaket.length} paket
+                  {filteredPaket.length}{" "}
+                  paket
                 </span>
               </div>
             </section>
 
-            {/* =================================================
-                PACKAGE GRID
-            ================================================= */}
+            {/* PACKAGE GRID */}
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 items-stretch">
               {filteredPaket.map(
@@ -1091,9 +1182,6 @@ export default function PaketModulPage() {
                   <PaketCard
                     key={paket.id}
                     paket={paket}
-                    fiturList={
-                      fiturList
-                    }
                     onEdit={() =>
                       navigateToEdit(
                         paket
@@ -1120,7 +1208,7 @@ export default function PaketModulPage() {
 
               {filteredPaket.length ===
                 0 && (
-                <div className="md:col-span-2 xl:col-span-3 rounded-2xl border border-dashed border-slate-300 bg-white/70 py-16 text-center">
+                <div className="md:col-span-2 xl:col-span-3 rounded-2xl border border-dashed border-slate-300 bg-white py-16 text-center">
                   <div className="w-14 h-14 mx-auto rounded-2xl bg-slate-100 flex items-center justify-center">
                     <Package
                       size={25}
@@ -1133,23 +1221,21 @@ export default function PaketModulPage() {
                   </p>
 
                   <p className="text-xs text-slate-400 mt-1">
-                    Coba gunakan kata kunci
-                    pencarian lain.
+                    Coba gunakan kata
+                    kunci pencarian lain.
                   </p>
                 </div>
               )}
             </div>
 
-            {/* =================================================
-                MODULE MATRIX
-            ================================================= */}
+            {/* MODULE MATRIX */}
 
             <ModulMatrix
               paketList={
                 normalizedPaket
               }
               fiturList={
-                fiturList.length
+                fiturList.length > 0
                   ? fiturList
                   : DEFAULT_MODULES
               }
@@ -1158,9 +1244,7 @@ export default function PaketModulPage() {
         </main>
       </div>
 
-      {/* =====================================================
-          DELETE MODAL
-      ===================================================== */}
+      {/* DELETE MODAL */}
 
       {confirmDelete && (
         <ConfirmDeleteModal
@@ -1193,19 +1277,16 @@ function StatCard({
   const themes = {
     blue: {
       icon: "bg-blue-100 text-blue-700",
-      accent: "bg-blue-600",
       glow: "bg-blue-500/10",
     },
 
     emerald: {
       icon: "bg-emerald-100 text-emerald-700",
-      accent: "bg-emerald-600",
       glow: "bg-emerald-500/10",
     },
 
     slate: {
       icon: "bg-slate-200 text-slate-700",
-      accent: "bg-slate-600",
       glow: "bg-slate-500/10",
     },
   };
@@ -1251,7 +1332,6 @@ function StatCard({
 
 function PaketCard({
   paket,
-  fiturList,
   onEdit,
   onDelete,
   onDuplicate,
@@ -1267,15 +1347,19 @@ function PaketCard({
     paket.theme ||
     PACKAGE_THEMES.blue;
 
+  /*
+    FITUR DIAMBIL LANGSUNG
+    DARI paket.fitur
+  */
+
   const selectedFeatures =
-    paket.fiturIds || [];
+    Array.isArray(paket.fitur)
+      ? paket.fitur
+      : [];
 
   return (
     <div className="group relative flex flex-col h-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-300/30 transition-all duration-300">
-
-      {/* =================================================
-          COLOR HEADER
-      ================================================= */}
+      {/* HEADER */}
 
       <div
         className={`relative h-24 ${theme.card} overflow-hidden`}
@@ -1310,9 +1394,7 @@ function PaketCard({
             {menuOpen && (
               <div
                 onMouseLeave={() =>
-                  setMenuOpen(
-                    false
-                  )
+                  setMenuOpen(false)
                 }
                 className="absolute right-0 top-10 w-44 rounded-xl border border-slate-200 bg-white shadow-xl py-1.5 z-30"
               >
@@ -1339,9 +1421,7 @@ function PaketCard({
                 />
 
                 <MenuButton
-                  icon={
-                    ShieldCheck
-                  }
+                  icon={ShieldCheck}
                   label={
                     paket.status ===
                     "aktif"
@@ -1373,17 +1453,14 @@ function PaketCard({
         </div>
       </div>
 
-      {/* =================================================
-          CONTENT
-      ================================================= */}
+      {/* CONTENT */}
 
       <div className="flex flex-col flex-1 p-5">
-
-        {/* PACKAGE NAME */}
+        {/* NAME */}
 
         <div>
           <div className="flex items-start justify-between gap-3">
-            <h3 className="text-lg font-bold text-slate-800">
+            <h3 className="text-lg font-bold text-slate-800 break-words">
               {paket.nama}
             </h3>
 
@@ -1403,7 +1480,7 @@ function PaketCard({
         {/* PRICE */}
 
         <div className="mt-5">
-          <div className="flex items-end gap-1">
+          <div className="flex items-end gap-1 flex-wrap">
             <span className="text-2xl font-extrabold text-slate-800 tracking-tight">
               {formatRupiah(
                 paket.harga
@@ -1420,7 +1497,7 @@ function PaketCard({
 
         {/* STATUS */}
 
-        <div className="flex items-center justify-between mt-4 pb-4 border-b border-slate-100">
+        <div className="flex flex-wrap items-center justify-between gap-2 mt-4 pb-4 border-b border-slate-100">
           <span
             className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold ${
               paket.status ===
@@ -1445,107 +1522,136 @@ function PaketCard({
           </span>
 
           <span className="flex items-center gap-1.5 text-xs text-slate-400">
-            <Users
-              size={13}
-            />
+            <Users size={13} />
 
             {paket.langganan} sekolah
           </span>
         </div>
 
-        {/* MODULE */}
+        {/* =================================================
+            FITUR PAKET
+        ================================================= */}
 
         <div className="mt-4 flex-1">
           <div className="flex items-center justify-between mb-3">
             <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-              Modul tersedia
+              Fitur yang didapat
             </p>
 
-            <span className="text-[10px] font-bold text-slate-400">
-              {selectedFeatures.length}
+            <span className="text-[10px] font-bold text-blue-600">
+              {selectedFeatures.length}{" "}
+              fitur
             </span>
           </div>
 
           {selectedFeatures.length >
           0 ? (
-            <div className="space-y-2">
-              {selectedFeatures
-                .slice(0, 4)
-                .map(
-                  (
-                    featureId,
-                    index
-                  ) => {
-                    const feature =
-                      fiturList.find(
-                        (f) =>
-                          String(
-                            f.id
-                          ) ===
-                          String(
-                            featureId
-                          )
+            <div className="space-y-2.5">
+              {selectedFeatures.map(
+                (
+                  feature,
+                  index
+                ) => {
+                  const nama =
+                    feature?.nama ||
+                    "Fitur";
+
+                  const deskripsi =
+                    feature?.deskripsi ||
+                    "";
+
+                  const kode =
+                    String(
+                      feature?.kode ||
+                        ""
+                    ).toLowerCase();
+
+                  const namaKey =
+                    String(nama)
+                      .toLowerCase()
+                      .replace(
+                        /\s+/g,
+                        ""
+                      )
+                      .replace(
+                        /[^a-z]/g,
+                        ""
                       );
 
-                    const nama =
-                      feature?.nama ||
-                      String(
-                        featureId
-                      );
+                  const FeatureIcon =
+                    ICON_MAP[
+                      kode
+                    ] ||
+                    ICON_MAP[
+                      namaKey
+                    ] ||
+                    Layers;
 
-                    const FeatureIcon =
-                      feature?.icon ||
-                      Check;
-
-                    return (
-                      <div
-                        key={`${featureId}-${index}`}
-                        className="flex items-center gap-2.5"
-                      >
-                        <div className="w-6 h-6 rounded-md bg-slate-100 flex items-center justify-center shrink-0">
-                          <FeatureIcon
-                            size={
-                              12
-                            }
-                            className="text-slate-500"
-                          />
-                        </div>
-
-                        <span className="text-xs text-slate-600 truncate">
-                          {nama}
-                        </span>
-
-                        <Check
+                  return (
+                    <div
+                      key={
+                        feature?.id ||
+                        feature?.kode ||
+                        `${nama}-${index}`
+                      }
+                      className="flex items-center gap-2.5 min-w-0"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0">
+                        <FeatureIcon
                           size={
-                            13
+                            14
                           }
-                          className="ml-auto text-emerald-500 shrink-0"
+                          className="text-blue-600"
                         />
                       </div>
-                    );
-                  }
-                )}
 
-              {selectedFeatures.length >
-                4 && (
-                <p className="text-[10px] text-slate-400 pl-8 pt-1">
-                  +
-                  {selectedFeatures.length -
-                    4}{" "}
-                  modul lainnya
-                </p>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-semibold text-slate-700 truncate">
+                          {nama}
+                        </p>
+
+                        {deskripsi && (
+                          <p className="text-[10px] text-slate-400 truncate">
+                            {
+                              deskripsi
+                            }
+                          </p>
+                        )}
+                      </div>
+
+                      <Check
+                        size={
+                          15
+                        }
+                        className="text-emerald-500 shrink-0"
+                      />
+                    </div>
+                  );
+                }
               )}
             </div>
           ) : (
-            <div className="flex items-center gap-2.5 text-xs text-slate-400">
-              <div className="w-6 h-6 rounded-md bg-slate-50 flex items-center justify-center">
-                <X
-                  size={12}
-                  className="text-slate-300"
-                />
-              </div>
+            <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center shrink-0">
+                  <Layers
+                    size={14}
+                    className="text-slate-300"
+                  />
+                </div>
 
-              Belum ada modul
+                <div className="min-w-0">
+                  <p className="text-xs font-medium text-slate-500">
+                    Belum ada fitur
+                  </p>
+
+                  <p className="text-[10px] text-slate-400 mt-0.5">
+                    Belum ada modul yang
+                    ditambahkan ke paket
+                    ini.
+                  </p>
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -1604,7 +1710,6 @@ function ModulMatrix({
 }) {
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-
       {/* HEADER */}
 
       <div className="px-5 md:px-6 py-5 border-b border-slate-100 bg-slate-50">
@@ -1615,12 +1720,12 @@ function ModulMatrix({
 
           <div>
             <h3 className="text-sm font-bold text-slate-800">
-              Matriks Modul per Paket
+              Matriks Fitur per Paket
             </h3>
 
             <p className="text-xs text-slate-400 mt-0.5">
-              Perbandingan modul yang tersedia
-              di setiap paket.
+              Perbandingan fitur yang
+              tersedia di setiap paket.
             </p>
           </div>
         </div>
@@ -1628,8 +1733,7 @@ function ModulMatrix({
 
       {/* TABLE */}
 
-      {fiturList.length ===
-      0 ? (
+      {fiturList.length === 0 ? (
         <div className="py-12 text-center">
           <Layers
             size={28}
@@ -1637,7 +1741,7 @@ function ModulMatrix({
           />
 
           <p className="text-sm text-slate-400 mt-3">
-            Belum ada data modul.
+            Belum ada data fitur.
           </p>
         </div>
       ) : (
@@ -1646,7 +1750,7 @@ function ModulMatrix({
             <thead>
               <tr className="bg-slate-50/70 text-left">
                 <th className="px-5 py-3 text-[10px] uppercase tracking-wider font-bold text-slate-400 sticky left-0 bg-slate-50 z-10">
-                  Modul
+                  Fitur
                 </th>
 
                 {paketList.map(
@@ -1655,7 +1759,9 @@ function ModulMatrix({
                       key={paket.id}
                       className="px-4 py-3 text-center text-[10px] uppercase tracking-wider font-bold text-slate-400"
                     >
-                      {paket.nama}
+                      <div className="max-w-[130px] mx-auto truncate">
+                        {paket.nama}
+                      </div>
                     </th>
                   )
                 )}
@@ -1676,9 +1782,11 @@ function ModulMatrix({
                       }
                       className="border-t border-slate-100 hover:bg-blue-50/30 transition"
                     >
+                      {/* FEATURE */}
+
                       <td className="px-5 py-3.5 sticky left-0 bg-white">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center">
+                          <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
                             <Icon
                               size={
                                 14
@@ -1687,15 +1795,15 @@ function ModulMatrix({
                             />
                           </div>
 
-                          <div>
-                            <p className="font-semibold text-xs text-slate-700">
+                          <div className="min-w-0">
+                            <p className="font-semibold text-xs text-slate-700 truncate">
                               {
                                 fitur.nama
                               }
                             </p>
 
                             {fitur.deskripsi && (
-                              <p className="text-[10px] text-slate-400 mt-0.5">
+                              <p className="text-[10px] text-slate-400 mt-0.5 truncate max-w-[250px]">
                                 {
                                   fitur.deskripsi
                                 }
@@ -1705,19 +1813,72 @@ function ModulMatrix({
                         </div>
                       </td>
 
+                      {/* PACKAGE CHECK */}
+
                       {paketList.map(
                         (paket) => {
                           const active =
-                            paket.fiturIds.some(
+                            getPaketFeatures(
+                              paket
+                            ).some(
                               (
-                                id
-                              ) =>
-                                String(
-                                  id
-                                ) ===
-                                String(
-                                  fitur.id
-                                )
+                                feature
+                              ) => {
+                                const featureId =
+                                  typeof feature ===
+                                  "object"
+                                    ? feature?.id ??
+                                      feature?.modulId ??
+                                      feature?.modul_id ??
+                                      feature?.fiturId ??
+                                      feature?.fitur_id ??
+                                      feature?.kode
+                                    : feature;
+
+                                /*
+                                  Cocokkan ID terlebih dahulu.
+                                */
+
+                                if (
+                                  String(
+                                    featureId
+                                  ) ===
+                                  String(
+                                    fitur.id
+                                  )
+                                ) {
+                                  return true;
+                                }
+
+                                /*
+                                  Kalau ID berbeda,
+                                  coba cocokkan kode.
+                                */
+
+                                const featureKode =
+                                  typeof feature ===
+                                  "object"
+                                    ? String(
+                                        feature?.kode ||
+                                          ""
+                                      ).toLowerCase()
+                                    : "";
+
+                                const fiturKode =
+                                  String(
+                                    fitur?.kode ||
+                                      ""
+                                  ).toLowerCase();
+
+                                return (
+                                  featureKode !==
+                                    "" &&
+                                  fiturKode !==
+                                    "" &&
+                                  featureKode ===
+                                    fiturKode
+                                );
+                              }
                             );
 
                           return (
@@ -1787,7 +1948,6 @@ function ConfirmDeleteModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 backdrop-blur-sm p-4">
       <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
-
         {/* TOP */}
 
         <div className="bg-rose-600 p-6 text-center">
@@ -1807,12 +1967,13 @@ function ConfirmDeleteModal({
           </h3>
 
           <p className="text-center text-sm text-slate-500 mt-2 leading-relaxed">
-            Kamu akan menghapus paket{" "}
+            Kamu akan menghapus
+            paket{" "}
             <span className="font-semibold text-slate-700">
               "{paket.nama}"
             </span>
-            . Tindakan ini tidak dapat
-            dibatalkan.
+            . Tindakan ini tidak
+            dapat dibatalkan.
           </p>
 
           {paket.langganan >
@@ -1820,9 +1981,7 @@ function ConfirmDeleteModal({
             <div className="mt-4 p-3 rounded-xl bg-amber-50 border border-amber-100 text-xs text-amber-700">
               Paket ini masih memiliki{" "}
               <strong>
-                {
-                  paket.langganan
-                }{" "}
+                {paket.langganan}{" "}
                 sekolah
               </strong>{" "}
               yang berlangganan.
@@ -1834,9 +1993,7 @@ function ConfirmDeleteModal({
               onClick={
                 onCancel
               }
-              disabled={
-                deleting
-              }
+              disabled={deleting}
               className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition disabled:opacity-50"
             >
               Batal
@@ -1846,9 +2003,7 @@ function ConfirmDeleteModal({
               onClick={
                 handleDelete
               }
-              disabled={
-                deleting
-              }
+              disabled={deleting}
               className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-sm font-semibold shadow-sm transition disabled:opacity-60"
             >
               {deleting && (

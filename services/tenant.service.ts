@@ -1,18 +1,20 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
+function getApiUrl() {
+  if (!API_URL) {
+    throw new Error("NEXT_PUBLIC_API_URL belum dikonfigurasi.");
+  }
+
+  return API_URL;
+}
+
 /**
  * ==========================================
  * REGISTER TENANT / SEKOLAH
  * ==========================================
- *
- * Digunakan pada:
- * /onboarding/school
- *
- * POST:
- * /api/v1/tenant/register
  */
 export async function registerTenant(data: {
-  paketId: string | number;
+  paketId: string;
   nama: string;
   namaSekolah: string;
   jenjang: string;
@@ -22,30 +24,41 @@ export async function registerTenant(data: {
   alamatSekolah: string;
   kataSandi: string;
   logo?: string;
+  yayasanId?: string;
 }) {
-  if (!API_URL) {
-    throw new Error(
-      "NEXT_PUBLIC_API_URL belum dikonfigurasi."
-    );
-  }
-
   const response = await fetch(
-    `${API_URL}/api/v1/tenant/register`,
+    `${getApiUrl()}/api/v1/tenant/register`,
     {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        Accept: "application/json",
       },
       body: JSON.stringify(data),
     }
   );
 
-  const result = await response.json();
+  let result: any = null;
+
+  try {
+    result = await response.json();
+  } catch {
+    throw new Error(
+      `Server mengembalikan response yang tidak valid. Status: ${response.status}`
+    );
+  }
+
+  console.log("REGISTER TENANT RESPONSE:", {
+    status: response.status,
+    ok: response.ok,
+    result,
+  });
 
   if (!response.ok) {
     throw new Error(
       result?.message ||
-        "Gagal mendaftarkan sekolah."
+        result?.error ||
+        `Gagal mendaftarkan sekolah. Status: ${response.status}`
     );
   }
 
@@ -56,29 +69,18 @@ export async function registerTenant(data: {
  * ==========================================
  * VERIFY TENANT
  * ==========================================
- *
- * Digunakan pada:
- * /onboarding/verify
- *
- * POST:
- * /api/v1/tenant/verify
  */
 export async function verifyTenant(
   email: string,
   kodeOtp: string
 ) {
-  if (!API_URL) {
-    throw new Error(
-      "NEXT_PUBLIC_API_URL belum dikonfigurasi."
-    );
-  }
-
   const response = await fetch(
-    `${API_URL}/api/v1/tenant/verify`,
+    `${getApiUrl()}/api/v1/tenant/verify`,
     {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        Accept: "application/json",
       },
       body: JSON.stringify({
         email,
@@ -87,12 +89,27 @@ export async function verifyTenant(
     }
   );
 
-  const result = await response.json();
+  let result: any = null;
+
+  try {
+    result = await response.json();
+  } catch {
+    throw new Error(
+      `Server mengembalikan response yang tidak valid. Status: ${response.status}`
+    );
+  }
+
+  console.log("VERIFY TENANT RESPONSE:", {
+    status: response.status,
+    ok: response.ok,
+    result,
+  });
 
   if (!response.ok) {
     throw new Error(
       result?.message ||
-        "Verifikasi OTP gagal."
+        result?.error ||
+        `Verifikasi OTP gagal. Status: ${response.status}`
     );
   }
 
@@ -103,41 +120,37 @@ export async function verifyTenant(
  * ==========================================
  * GET TENANT STATUS
  * ==========================================
- *
- * Digunakan pada:
- * /onboarding/status
- *
- * GET:
- * /api/v1/tenant/status
  */
 export async function getTenantStatus() {
-  if (!API_URL) {
-    throw new Error(
-      "NEXT_PUBLIC_API_URL belum dikonfigurasi."
-    );
-  }
-
   const token =
-    localStorage.getItem("token");
+    typeof window !== "undefined"
+      ? localStorage.getItem("token")
+      : null;
 
   if (!token) {
-    throw new Error(
-      "Sesi login tidak ditemukan."
-    );
+    throw new Error("Sesi login tidak ditemukan.");
   }
 
   const response = await fetch(
-    `${API_URL}/api/v1/tenant/status`,
+    `${getApiUrl()}/api/v1/tenant/status`,
     {
       method: "GET",
       headers: {
-        "Content-Type": "application/json",
+        Accept: "application/json",
         Authorization: `Bearer ${token}`,
       },
     }
   );
 
-  const data = await response.json();
+  let data: any = null;
+
+  try {
+    data = await response.json();
+  } catch {
+    throw new Error(
+      `Server mengembalikan response yang tidak valid. Status: ${response.status}`
+    );
+  }
 
   if (response.status === 401) {
     localStorage.removeItem("token");
@@ -151,6 +164,7 @@ export async function getTenantStatus() {
   if (!response.ok) {
     throw new Error(
       data?.message ||
+        data?.error ||
         "Gagal mengecek status pembayaran."
     );
   }

@@ -265,6 +265,78 @@ const paketColorMap = {
 };
 
 // ============================================================
+// COMPONENT: SORT CONTROL
+// ============================================================
+
+function SortControl({ sortField, sortOrder, onSort }) {
+  const sortOptions = [
+    { value: "nama", label: "Nama Sekolah" },
+    { value: "npsn", label: "NPSN" },
+    { value: "jenjang", label: "Jenjang" },
+    { value: "status", label: "Status" },
+    { value: "paket", label: "Paket" },
+  ];
+
+  return (
+    <div className="flex items-center gap-2">
+      <select
+        value={sortField}
+        onChange={(e) => onSort(e.target.value, sortOrder)}
+        className="
+          h-9
+          rounded-xl
+          border
+          border-slate-200
+          bg-slate-50
+          px-3
+          text-xs
+          font-medium
+          text-slate-600
+          outline-none
+          transition-all
+          focus:border-blue-400
+          focus:bg-white
+          focus:ring-4
+          focus:ring-blue-500/10
+        "
+      >
+        {sortOptions.map((opt) => (
+          <option key={opt.value} value={opt.value}>
+            {opt.label}
+          </option>
+        ))}
+      </select>
+
+      <button
+        onClick={() => onSort(sortField, sortOrder === "asc" ? "desc" : "asc")}
+        className="
+          flex
+          h-9
+          w-9
+          items-center
+          justify-center
+          rounded-xl
+          border
+          border-slate-200
+          bg-slate-50
+          text-slate-500
+          transition-all
+          hover:border-slate-300
+          hover:bg-slate-100
+        "
+        title={sortOrder === "asc" ? "Urutkan menurun" : "Urutkan menaik"}
+      >
+        {sortOrder === "asc" ? (
+          <ArrowUp size={16} className="text-blue-500" />
+        ) : (
+          <ArrowDown size={16} className="text-blue-500" />
+        )}
+      </button>
+    </div>
+  );
+}
+
+// ============================================================
 // PAGE
 // ============================================================
 
@@ -408,7 +480,7 @@ export default function DataSekolahPage() {
   );
 
   // ==========================================================
-  // SORT
+  // SORT HANDLERS
   // ==========================================================
 
   const handleSort = (field) => {
@@ -420,6 +492,11 @@ export default function DataSekolahPage() {
       setSortField(field);
       setSortOrder("asc");
     }
+  };
+
+  const handleSortChange = (field, order) => {
+    setSortField(field);
+    setSortOrder(order);
   };
 
   const renderSortIcon = (field) => {
@@ -463,6 +540,11 @@ export default function DataSekolahPage() {
     setSelectedJenjang("Semua");
     setSelectedStatus("Semua");
     setCurrentPage(1);
+  };
+
+  const resetSort = () => {
+    setSortField("nama");
+    setSortOrder("asc");
   };
 
   // ==========================================================
@@ -875,34 +957,63 @@ export default function DataSekolahPage() {
 
               </div>
 
-              <div
-                className="
-                  mt-4
-                  flex
-                  flex-col
-                  gap-2
-                  border-t
-                  border-slate-100
-                  pt-3
-                  sm:flex-row
-                  sm:items-center
-                  sm:justify-between
-                "
-              >
+              {/* SORT CONTROL - MOBILE */}
+              {isMobile && (
+                <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
+                  <p className="text-xs text-slate-400">Urutkan berdasarkan</p>
+                  <SortControl
+                    sortField={sortField}
+                    sortOrder={sortOrder}
+                    onSort={handleSortChange}
+                  />
+                </div>
+              )}
 
-                <p className="text-xs text-slate-400">
-                  Menampilkan{" "}
-                  <span className="font-semibold text-slate-600">
-                    {filteredData.length}
-                  </span>{" "}
-                  data sekolah
-                </p>
-
-                <p className="text-xs text-slate-400">
-                  Klik nama kolom untuk mengurutkan
-                </p>
-
-              </div>
+              {/* SORT INDICATOR - DESKTOP */}
+              {!isMobile && (
+                <div className="mt-4 flex flex-col gap-2 border-t border-slate-100 pt-3 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-xs text-slate-400">
+                    Menampilkan{" "}
+                    <span className="font-semibold text-slate-600">
+                      {filteredData.length}
+                    </span>{" "}
+                    data sekolah
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs text-slate-400">
+                      Klik nama kolom untuk mengurutkan
+                    </p>
+                    {sortField && (
+                      <span className="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-600">
+                        <span>
+                          {sortField === "nama" ? "Nama" : 
+                           sortField === "npsn" ? "NPSN" :
+                           sortField === "jenjang" ? "Jenjang" :
+                           sortField === "status" ? "Status" : "Paket"}
+                        </span>
+                        {sortOrder === "asc" ? (
+                          <ArrowUp size={11} />
+                        ) : (
+                          <ArrowDown size={11} />
+                        )}
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={resetSort}
+                      className="
+                        text-[10px]
+                        text-slate-400
+                        transition-colors
+                        hover:text-slate-600
+                        hover:underline
+                      "
+                    >
+                      Reset Sort
+                    </button>
+                  </div>
+                </div>
+              )}
 
             </section>
 
@@ -937,6 +1048,8 @@ export default function DataSekolahPage() {
                         number={startIndex + index + 1}
                         router={router}
                         onDelete={handleDelete}
+                        sortField={sortField}
+                        sortOrder={sortOrder}
                       />
                     ))
                   )}
@@ -970,8 +1083,16 @@ export default function DataSekolahPage() {
                           No
                         </TableHead>
 
-                        <TableHead>
-                          Nama Sekolah
+                        <TableHead
+                          sortable
+                          onClick={() =>
+                            handleSort("nama")
+                          }
+                        >
+                          <span className="flex items-center gap-1">
+                            Nama Sekolah
+                            {renderSortIcon("nama")}
+                          </span>
                         </TableHead>
 
                         <TableHead
@@ -986,20 +1107,44 @@ export default function DataSekolahPage() {
                           </span>
                         </TableHead>
 
-                        <TableHead>
-                          Jenjang
+                        <TableHead
+                          sortable
+                          onClick={() =>
+                            handleSort("jenjang")
+                          }
+                        >
+                          <span className="flex items-center gap-1">
+                            Jenjang
+                            {renderSortIcon("jenjang")}
+                          </span>
                         </TableHead>
 
                         <TableHead>
                           Yayasan
                         </TableHead>
 
-                        <TableHead>
-                          Paket
+                        <TableHead
+                          sortable
+                          onClick={() =>
+                            handleSort("paket")
+                          }
+                        >
+                          <span className="flex items-center gap-1">
+                            Paket
+                            {renderSortIcon("paket")}
+                          </span>
                         </TableHead>
 
-                        <TableHead>
-                          Status
+                        <TableHead
+                          sortable
+                          onClick={() =>
+                            handleSort("status")
+                          }
+                        >
+                          <span className="flex items-center gap-1">
+                            Status
+                            {renderSortIcon("status")}
+                          </span>
                         </TableHead>
 
                         <TableHead align="right">
@@ -1646,6 +1791,8 @@ function MobileSchoolCard({
   number,
   router,
   onDelete,
+  sortField,
+  sortOrder,
 }) {
   const statusStyle =
     statusColorMap[item.status] ||
@@ -1655,8 +1802,16 @@ function MobileSchoolCard({
     paketColorMap[item.paket] ||
     paketColorMap.Starter;
 
+  // Highlight field yang sedang di-sort
+  const getHighlightClass = (field) => {
+    if (sortField === field) {
+      return "bg-blue-50 border-blue-200 text-blue-700";
+    }
+    return "";
+  };
+
   return (
-    <div className="p-4">
+    <div className="p-4 transition-colors hover:bg-slate-50/50">
 
       <div className="flex items-start gap-3">
 
@@ -1690,13 +1845,33 @@ function MobileSchoolCard({
         {/* INFORMATION */}
         <div className="min-w-0 flex-1">
 
-          <p className="truncate text-sm font-semibold text-slate-800">
+          <p className={`truncate text-sm font-semibold ${
+            sortField === "nama" 
+              ? "text-blue-700" 
+              : "text-slate-800"
+          }`}>
             {item.nama}
           </p>
 
-          <p className="mt-1 text-xs text-slate-400">
-            {item.statusSekolah} • {item.npsn}
-          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs">
+            <span className={`text-slate-400 ${
+              sortField === "npsn" ? "font-semibold text-blue-600" : ""
+            }`}>
+              {item.npsn}
+            </span>
+            <span className="text-slate-300">•</span>
+            <span className={`text-slate-400 ${
+              sortField === "jenjang" ? "font-semibold text-blue-600" : ""
+            }`}>
+              {item.jenjang}
+            </span>
+            <span className="text-slate-300">•</span>
+            <span className={`text-slate-400 ${
+              sortField === "status" ? "font-semibold text-blue-600" : ""
+            }`}>
+              {item.status}
+            </span>
+          </div>
 
         </div>
 
@@ -1726,6 +1901,14 @@ function MobileSchoolCard({
             <Edit size={15} />
           </ActionButton>
 
+          <ActionButton
+            title="Hapus"
+            hover="rose"
+            onClick={() => onDelete(item)}
+          >
+            <Trash2 size={15} />
+          </ActionButton>
+
         </div>
 
       </div>
@@ -1734,64 +1917,47 @@ function MobileSchoolCard({
       <div className="ml-8 mt-3 flex flex-wrap items-center gap-1.5">
 
         <span
-          className="
-            rounded-lg
-            border
-            border-slate-200
-            bg-slate-50
-            px-2.5
-            py-1
-            text-[10px]
-            font-medium
-            text-slate-600
-          "
+          className={`rounded-lg border px-2.5 py-1 text-[10px] font-medium ${
+            sortField === "jenjang" 
+              ? "border-blue-300 bg-blue-50 text-blue-700"
+              : "border-slate-200 bg-slate-50 text-slate-600"
+          }`}
         >
           {item.jenjang}
         </span>
 
         <span
-          className={`
-            rounded-lg
-            border
-            px-2.5
-            py-1
-            text-[10px]
-            font-medium
-            ${paketStyle.bg}
-            ${paketStyle.text}
-            ${paketStyle.border}
-          `}
+          className={`rounded-lg border px-2.5 py-1 text-[10px] font-medium ${
+            sortField === "paket"
+              ? "border-blue-300 bg-blue-50 text-blue-700"
+              : `${paketStyle.bg} ${paketStyle.text} ${paketStyle.border}`
+          }`}
         >
           {item.paket}
         </span>
 
         <span
-          className={`
-            inline-flex
-            items-center
-            gap-1
-            rounded-full
-            border
-            px-2.5
-            py-1
-            text-[10px]
-            font-medium
-            ${statusStyle.bg}
-            ${statusStyle.text}
-            ${statusStyle.border}
-          `}
+          className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-medium ${
+            sortField === "status"
+              ? "border-blue-300 bg-blue-50 text-blue-700"
+              : `${statusStyle.bg} ${statusStyle.text} ${statusStyle.border}`
+          }`}
         >
           <span
-            className={`
-              h-1.5
-              w-1.5
-              rounded-full
-              ${statusStyle.dot}
-            `}
+            className={`h-1.5 w-1.5 rounded-full ${
+              sortField === "status" ? "bg-blue-500" : statusStyle.dot
+            }`}
           />
 
           {item.status}
         </span>
+
+        {/* Tampilkan indikator sort */}
+        {sortField && (
+          <span className="ml-auto text-[10px] text-slate-300">
+            {sortOrder === "asc" ? "↑" : "↓"}
+          </span>
+        )}
 
       </div>
 

@@ -7,6 +7,7 @@ import {
   ShieldCheck,
   FileText,
   Settings,
+  History,
   Bell,
   User,
 } from "lucide-react";
@@ -38,6 +39,7 @@ export const superadminSidebarConfig = {
 
     { type: "header", label: "SISTEM" },
     { type: "item", key: "pengaturanSistem", icon: Settings, label: "Pengaturan Sistem", path: "/super-admin/pengaturanSistem" },
+    { type: "item", key: "logAktivitas", icon: History, label: "Log Aktivitas", path: "/super-admin/logAktivitas" },
     { type: "item", key: "notifikasiPengumuman", icon: Bell, label: "Notifikasi & Pengumuman", path: "/super-admin/notifikasiPengumuman" },
     { type: "item", key: "profileLogout", icon: User, label: "Profil & Logout", path: "/super-admin/profileLogout" },
   ],

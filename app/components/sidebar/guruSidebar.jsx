@@ -10,6 +10,7 @@ import {
   NotebookPen,
   FileCheck2,
   Package,
+  User,
   History,
   Settings,
   CalendarDays,
@@ -79,5 +80,6 @@ export const guruSidebarConfig = {
 
     { type: "header", label: "AKUN" },
     { type: "item", key: "pengaturan", icon: Settings, label: "Pengaturan", path: "/guru/pengaturan" },
+    { type: "item", key: "profile", icon: User, label: "Profile", path: "/guru/profile" },
   ],
 };

@@ -6,6 +6,7 @@ import {
   CalendarDays,
   BookOpen,
   BookMarked,
+  UserCog,
   CalendarClock,
   IdCard,
   GraduationCap,
@@ -14,7 +15,9 @@ import {
   Warehouse,
   Settings,
   NotebookPen,
+  School,
   Award,
+  User,
   FileSpreadsheet,
   Smile,
   DoorOpen, // for Ruang
@@ -191,6 +194,12 @@ export const adminSidebarConfig = {
           path: "/admin/sarpras/aset",
         },
         {
+          key: "gedung",
+          icon: School,
+          label: "Gedung",
+          path: "/admin/sarpras/gedung",
+        },
+        {
           key: "sarprasGudang",
           icon: Warehouse,
           label: "Gudang",
@@ -198,6 +207,21 @@ export const adminSidebarConfig = {
         },
       ],
     },
+     // MANAJEMEN
+    {
+      type: "header",
+      label: "MANAJEMEN",
+    },
+
+     {
+      type: "item",
+      key: "kelola-user",
+      icon: UserCog,
+      label: "Kelola User",
+      path: "/admin/kelola-user",
+    },
+
+
 
     // SISTEM
     {
@@ -211,6 +235,13 @@ export const adminSidebarConfig = {
       icon: Settings,
       label: "Pengaturan",
       path: "/admin/settings",
+    },
+    {
+      type: "item",
+      key: "profile",
+      icon: User,
+      label: "Profile",
+      path: "/admin/profile",
     },
   ],
 };

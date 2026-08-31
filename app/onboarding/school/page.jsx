@@ -172,146 +172,193 @@ export default function SchoolOnboardingPage() {
   // SUBMIT
   // ================================
   const handleSubmit = async (e) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    setError("");
+  setError("");
 
-    if (!paket?.id) {
-      setError("Paket belum dipilih.");
-      return;
+  if (!paket?.id) {
+    setError("Paket belum dipilih.");
+    return;
+  }
+
+  // ================================
+  // VALIDASI DATA WAJIB
+  // ================================
+
+  if (
+    !form.nama.trim() ||
+    !form.email.trim() ||
+    !form.namaSekolah.trim() ||
+    !form.jenjang ||
+    !form.subdomain.trim() ||
+    !form.alamatSekolah.trim() ||
+    !form.teleponSekolah.trim() ||
+    !form.kataSandi
+  ) {
+    setError(
+      "Mohon lengkapi seluruh data yang wajib diisi."
+    );
+    return;
+  }
+
+  // ================================
+  // VALIDASI SUBDOMAIN
+  // ================================
+
+  const subdomain = form.subdomain
+    .trim()
+    .toLowerCase();
+
+  if (
+    !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(
+      subdomain
+    )
+  ) {
+    setError(
+      "Subdomain hanya boleh menggunakan huruf kecil, angka, dan tanda strip (-)."
+    );
+    return;
+  }
+
+  // ================================
+  // VALIDASI PASSWORD
+  // ================================
+
+  if (
+    form.kataSandi !==
+    form.konfirmasiKataSandi
+  ) {
+    setError(
+      "Konfirmasi kata sandi tidak sama."
+    );
+    return;
+  }
+
+  if (form.kataSandi.length < 8) {
+    setError(
+      "Kata sandi minimal 8 karakter."
+    );
+    return;
+  }
+
+  if (!/[A-Z]/.test(form.kataSandi)) {
+    setError(
+      "Kata sandi harus memiliki minimal 1 huruf kapital."
+    );
+    return;
+  }
+
+  if (!/[0-9]/.test(form.kataSandi)) {
+    setError(
+      "Kata sandi harus memiliki minimal 1 angka."
+    );
+    return;
+  }
+
+  // ================================
+  // VALIDASI PAKET ID
+  // ================================
+
+  const paketId = String(paket.id);
+
+  if (!paketId) {
+    setError("ID paket tidak ditemukan.");
+    return;
+  }
+
+  setLoading(true);
+
+  try {
+    // ================================
+    // PAYLOAD SESUAI BE
+    // ================================
+
+    const payload = {
+      nama: form.nama.trim(),
+
+      email: form.email
+        .trim()
+        .toLowerCase(),
+
+      namaSekolah:
+        form.namaSekolah.trim(),
+
+      jenjang: form.jenjang,
+
+      subdomain,
+
+      alamatSekolah:
+        form.alamatSekolah.trim(),
+
+      teleponSekolah:
+        form.teleponSekolah.trim(),
+
+      kataSandi: form.kataSandi,
+
+      paketId,
+
+      ...(form.logo.trim()
+        ? {
+            logo: form.logo.trim(),
+          }
+        : {}),
+    };
+
+    console.log(
+      "Payload register tenant:",
+      payload
+    );
+
+    const response =
+      await registerTenant(payload);
+
+    console.log(
+      "Response register tenant:",
+      response
+    );
+
+    if (!response?.success) {
+      throw new Error(
+        response?.message ||
+          "Pendaftaran sekolah gagal."
+      );
     }
 
-    // VALIDASI DATA WAJIB
-    if (
-      !form.nama.trim() ||
-      !form.email.trim() ||
-      !form.namaSekolah.trim() ||
-      !form.jenjang ||
-      !form.subdomain.trim() ||
-      !form.alamatSekolah.trim() ||
-      !form.teleponSekolah.trim()
-    ) {
-      setError(
-        "Mohon lengkapi seluruh data yang wajib diisi."
-      );
-      return;
-    }
+    // ================================
+    // SIMPAN DATA ONBOARDING
+    // ================================
 
-    // VALIDASI SUBDOMAIN
-    const subdomain = form.subdomain
-      .trim()
-      .toLowerCase();
+    sessionStorage.setItem(
+      "onboarding_email",
+      form.email.trim().toLowerCase()
+    );
 
-    if (
-      !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(
-        subdomain
-      )
-    ) {
-      setError(
-        "Subdomain hanya boleh menggunakan huruf kecil, angka, dan tanda strip (-)."
-      );
-      return;
-    }
+    sessionStorage.setItem(
+      "onboarding_paket_id",
+      paketId
+    );
 
-    // VALIDASI PASSWORD
-    if (
-      form.kataSandi !==
-      form.konfirmasiKataSandi
-    ) {
-      setError(
-        "Konfirmasi kata sandi tidak sama."
-      );
-      return;
-    }
+    // ================================
+    // KE HALAMAN VERIFIKASI
+    // ================================
 
-    if (form.kataSandi.length < 8) {
-      setError(
-        "Kata sandi minimal 8 karakter."
-      );
-      return;
-    }
+    window.location.href =
+      "/onboarding/verify";
+  } catch (error) {
+    console.error(
+      "Register tenant error:",
+      error
+    );
 
-    if (!/[A-Z]/.test(form.kataSandi)) {
-      setError(
-        "Kata sandi harus memiliki minimal 1 huruf kapital."
-      );
-      return;
-    }
-
-    if (!/[0-9]/.test(form.kataSandi)) {
-      setError(
-        "Kata sandi harus memiliki minimal 1 angka."
-      );
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      // PAYLOAD YANG DIKIRIM KE BACKEND
-      const payload = {
-        nama: form.nama.trim(),
-        email: form.email.trim(),
-        namaSekolah:
-          form.namaSekolah.trim(),
-        jenjang: form.jenjang,
-        subdomain: subdomain,
-        alamatSekolah:
-          form.alamatSekolah.trim(),
-        teleponSekolah:
-          form.teleponSekolah.trim(),
-        kataSandi: form.kataSandi,
-        paketId: paket.id,
-      };
-
-      if (form.logo.trim()) {
-        payload.logo = form.logo.trim();
-      }
-
-      console.log(
-        "Payload register tenant:",
-        payload
-      );
-
-      const response =
-        await registerTenant(payload);
-
-      if (!response?.success) {
-        throw new Error(
-          response?.message ||
-            "Pendaftaran gagal."
-        );
-      }
-
-      // SIMPAN DATA UNTUK HALAMAN VERIFIKASI
-      sessionStorage.setItem(
-        "onboarding_email",
-        form.email.trim()
-      );
-
-      sessionStorage.setItem(
-        "onboarding_paket_id",
-        paket.id
-      );
-
-      // PINDAH KE VERIFIKASI
-      window.location.href =
-        "/onboarding/verify";
-    } catch (error) {
-      console.error(
-        "Register tenant error:",
-        error
-      );
-
-      setError(
-        error instanceof Error
-          ? error.message
-          : "Gagal melakukan pendaftaran."
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
+    setError(
+      error instanceof Error
+        ? error.message
+        : "Gagal melakukan pendaftaran sekolah."
+    );
+  } finally {
+    setLoading(false);
+  }
+};
 
   // ================================
   // LOADING PAKET

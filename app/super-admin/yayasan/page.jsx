@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "../../components/Sidebar";
 import Header from "../../components/Header";
@@ -29,7 +29,7 @@ import {
     SlidersHorizontal,
     RotateCcw,
     ArrowUpRight,
-    MoreHorizontal,
+    ArrowDownAZ,
 } from "lucide-react";
 
 // =========================================================
@@ -75,6 +75,73 @@ const statusOptions = [
 ];
 
 // =========================================================
+// SORT OPTIONS
+// =========================================================
+
+const sortOptions = [
+    {
+        value: "nama-asc",
+        label: "Nama Yayasan — A → Z",
+        field: "nama",
+        order: "asc",
+    },
+    {
+        value: "nama-desc",
+        label: "Nama Yayasan — Z → A",
+        field: "nama",
+        order: "desc",
+    },
+    {
+        value: "npyp-asc",
+        label: "Kode Yayasan — A → Z",
+        field: "npyp",
+        order: "asc",
+    },
+    {
+        value: "npyp-desc",
+        label: "Kode Yayasan — Z → A",
+        field: "npyp",
+        order: "desc",
+    },
+    {
+        value: "ketua-asc",
+        label: "Ketua Yayasan — A → Z",
+        field: "ketua",
+        order: "asc",
+    },
+    {
+        value: "ketua-desc",
+        label: "Ketua Yayasan — Z → A",
+        field: "ketua",
+        order: "desc",
+    },
+    {
+        value: "jumlahSekolah-asc",
+        label: "Jumlah Sekolah — Terkecil → Terbesar",
+        field: "jumlahSekolah",
+        order: "asc",
+    },
+    {
+        value: "jumlahSekolah-desc",
+        label: "Jumlah Sekolah — Terbesar → Terkecil",
+        field: "jumlahSekolah",
+        order: "desc",
+    },
+    {
+        value: "status-asc",
+        label: "Status — A → Z",
+        field: "status",
+        order: "asc",
+    },
+    {
+        value: "status-desc",
+        label: "Status — Z → A",
+        field: "status",
+        order: "desc",
+    },
+];
+
+// =========================================================
 // STATUS STYLE
 // =========================================================
 
@@ -112,15 +179,20 @@ export default function DataYayasanPage() {
     const [sidebarOpen, setSidebarOpen] = useState(true);
 
     const [searchQuery, setSearchQuery] = useState("");
-    const [selectedProvinsi, setSelectedProvinsi] = useState("Semua");
-    const [selectedKota, setSelectedKota] = useState("Semua");
-    const [selectedStatus, setSelectedStatus] = useState("Semua");
+    const [selectedProvinsi, setSelectedProvinsi] =
+        useState("Semua");
+    const [selectedKota, setSelectedKota] =
+        useState("Semua");
+    const [selectedStatus, setSelectedStatus] =
+        useState("Semua");
 
     const [currentPage, setCurrentPage] = useState(1);
     const [isMobile, setIsMobile] = useState(false);
 
+    // DEFAULT SORT: NAMA A-Z
     const [sortField, setSortField] = useState("nama");
     const [sortOrder, setSortOrder] = useState("asc");
+    const [sortValue, setSortValue] = useState("nama-asc");
 
     const itemsPerPage = 5;
 
@@ -143,7 +215,7 @@ export default function DataYayasanPage() {
     }, []);
 
     // =====================================================
-    // RESET PAGE SAAT FILTER BERUBAH
+    // RESET PAGE SAAT FILTER / SORT BERUBAH
     // =====================================================
 
     useEffect(() => {
@@ -153,6 +225,7 @@ export default function DataYayasanPage() {
         selectedProvinsi,
         selectedKota,
         selectedStatus,
+        sortValue,
     ]);
 
     // =====================================================
@@ -181,55 +254,88 @@ export default function DataYayasanPage() {
     ];
 
     // =====================================================
-    // FILTER DATA
+    // FILTER + SORT DATA
     // =====================================================
 
-    const filteredData = yayasanData.filter((item) => {
-        const search = searchQuery.toLowerCase();
+    const sortedData = useMemo(() => {
+        const search = searchQuery.toLowerCase().trim();
 
-        const matchSearch =
-            item.nama?.toLowerCase().includes(search) ||
-            item.npyp?.toLowerCase().includes(search) ||
-            item.ketua?.toLowerCase().includes(search);
+        const filtered = yayasanData.filter((item) => {
+            const matchSearch =
+                item.nama
+                    ?.toLowerCase()
+                    .includes(search) ||
+                item.npyp
+                    ?.toLowerCase()
+                    .includes(search) ||
+                item.ketua
+                    ?.toLowerCase()
+                    .includes(search);
 
-        const matchProvinsi =
-            selectedProvinsi === "Semua" ||
-            item.provinsi === selectedProvinsi;
+            const matchProvinsi =
+                selectedProvinsi === "Semua" ||
+                item.provinsi === selectedProvinsi;
 
-        const matchKota =
-            selectedKota === "Semua" ||
-            item.kota === selectedKota;
+            const matchKota =
+                selectedKota === "Semua" ||
+                item.kota === selectedKota;
 
-        const matchStatus =
-            selectedStatus === "Semua" ||
-            item.status === selectedStatus;
+            const matchStatus =
+                selectedStatus === "Semua" ||
+                item.status === selectedStatus;
 
-        return (
-            matchSearch &&
-            matchProvinsi &&
-            matchKota &&
-            matchStatus
-        );
-    });
+            return (
+                matchSearch &&
+                matchProvinsi &&
+                matchKota &&
+                matchStatus
+            );
+        });
 
-    // =====================================================
-    // SORTING
-    // =====================================================
+        return [...filtered].sort((a, b) => {
+            let valA = a[sortField];
+            let valB = b[sortField];
 
-    const sortedData = [...filteredData].sort((a, b) => {
-        const valA = a[sortField]?.toString().toLowerCase() || "";
-        const valB = b[sortField]?.toString().toLowerCase() || "";
+            // Untuk jumlah sekolah gunakan angka
+            if (sortField === "jumlahSekolah") {
+                valA = Number(valA) || 0;
+                valB = Number(valB) || 0;
 
-        if (valA < valB) {
-            return sortOrder === "asc" ? -1 : 1;
-        }
+                return sortOrder === "asc"
+                    ? valA - valB
+                    : valB - valA;
+            }
 
-        if (valA > valB) {
-            return sortOrder === "asc" ? 1 : -1;
-        }
+            // Untuk data text
+            valA = String(valA ?? "")
+                .toLowerCase()
+                .trim();
 
-        return 0;
-    });
+            valB = String(valB ?? "")
+                .toLowerCase()
+                .trim();
+
+            const result = valA.localeCompare(
+                valB,
+                "id",
+                {
+                    numeric: true,
+                    sensitivity: "base",
+                }
+            );
+
+            return sortOrder === "asc"
+                ? result
+                : -result;
+        });
+    }, [
+        searchQuery,
+        selectedProvinsi,
+        selectedKota,
+        selectedStatus,
+        sortField,
+        sortOrder,
+    ]);
 
     // =====================================================
     // PAGINATION
@@ -258,13 +364,34 @@ export default function DataYayasanPage() {
 
     const handleSort = (field) => {
         if (sortField === field) {
-            setSortOrder(
-                sortOrder === "asc" ? "desc" : "asc"
-            );
+            const newOrder =
+                sortOrder === "asc"
+                    ? "desc"
+                    : "asc";
+
+            setSortOrder(newOrder);
+            setSortValue(`${field}-${newOrder}`);
         } else {
             setSortField(field);
             setSortOrder("asc");
+            setSortValue(`${field}-asc`);
         }
+    };
+
+    // =====================================================
+    // SORT SELECT HANDLER
+    // =====================================================
+
+    const handleSortChange = (value) => {
+        const selected = sortOptions.find(
+            (option) => option.value === value
+        );
+
+        if (!selected) return;
+
+        setSortValue(value);
+        setSortField(selected.field);
+        setSortOrder(selected.order);
     };
 
     // =====================================================
@@ -325,6 +452,12 @@ export default function DataYayasanPage() {
         setSelectedProvinsi("Semua");
         setSelectedKota("Semua");
         setSelectedStatus("Semua");
+
+        // Reset sorting ke Nama A-Z
+        setSortField("nama");
+        setSortOrder("asc");
+        setSortValue("nama-asc");
+
         setCurrentPage(1);
     };
 
@@ -345,9 +478,7 @@ export default function DataYayasanPage() {
     return (
         <div className="flex min-h-screen bg-[#f8fafc]">
 
-            {/* =================================================
-                SIDEBAR
-            ================================================= */}
+            {/* SIDEBAR */}
 
             <Sidebar
                 active={activeMenu}
@@ -358,9 +489,7 @@ export default function DataYayasanPage() {
                 }
             />
 
-            {/* =================================================
-                MAIN WRAPPER
-            ================================================= */}
+            {/* MAIN */}
 
             <div className="flex-1 flex flex-col min-w-0">
 
@@ -378,9 +507,7 @@ export default function DataYayasanPage() {
                     }}
                 />
 
-                {/* =================================================
-                    MAIN CONTENT
-                ================================================= */}
+                {/* CONTENT */}
 
                 <main className="flex-1 p-4 sm:p-6 lg:p-8">
 
@@ -391,8 +518,6 @@ export default function DataYayasanPage() {
                         ================================================= */}
 
                         <section className="relative overflow-hidden rounded-2xl bg-white border border-slate-200/80 shadow-sm">
-
-                            {/* Decorative background */}
 
                             <div className="absolute right-0 top-0 w-72 h-72 bg-blue-50/60 rounded-full blur-3xl pointer-events-none" />
 
@@ -407,7 +532,10 @@ export default function DataYayasanPage() {
                                         <div className="flex items-center gap-3">
 
                                             <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-lg shadow-blue-600/20 flex-shrink-0">
-                                                <Landmark size={22} strokeWidth={1.8} />
+                                                <Landmark
+                                                    size={22}
+                                                    strokeWidth={1.8}
+                                                />
                                             </div>
 
                                             <div className="min-w-0">
@@ -435,7 +563,7 @@ export default function DataYayasanPage() {
 
                                     </div>
 
-                                    {/* ACTION BUTTON */}
+                                    {/* ACTION */}
 
                                     <div className="flex items-center gap-2">
 
@@ -531,12 +659,10 @@ export default function DataYayasanPage() {
                         </section>
 
                         {/* =================================================
-                            FILTER SECTION
+                            FILTER
                         ================================================= */}
 
                         <section className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
-
-                            {/* FILTER HEADER */}
 
                             <div className="px-4 sm:px-5 py-4 border-b border-slate-100">
 
@@ -549,13 +675,15 @@ export default function DataYayasanPage() {
                                         </div>
 
                                         <div>
+
                                             <h2 className="text-sm font-semibold text-slate-800">
-                                                Filter Data
+                                                Filter & Urutkan Data
                                             </h2>
 
                                             <p className="text-[11px] text-slate-400">
-                                                Gunakan filter untuk menemukan yayasan dengan cepat
+                                                Gunakan pencarian, filter, dan urutan data yayasan
                                             </p>
+
                                         </div>
 
                                     </div>
@@ -570,11 +698,9 @@ export default function DataYayasanPage() {
 
                             </div>
 
-                            {/* FILTER BODY */}
-
                             <div className="p-4 sm:p-5">
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-[minmax(260px,1.8fr)_1fr_1fr_1fr_auto] gap-3">
+                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-[minmax(260px,1.7fr)_1fr_1fr_1fr_1.3fr_auto] gap-3">
 
                                     {/* SEARCH */}
 
@@ -630,6 +756,13 @@ export default function DataYayasanPage() {
                                         label="Status"
                                     />
 
+                                    {/* SORT BY */}
+
+                                    <SortSelect
+                                        value={sortValue}
+                                        onChange={handleSortChange}
+                                    />
+
                                     {/* RESET */}
 
                                     <button
@@ -646,32 +779,51 @@ export default function DataYayasanPage() {
 
                                 </div>
 
-                                {/* RESULT COUNT */}
+                                {/* ACTIVE SORT */}
 
                                 <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
 
                                     <p className="text-xs text-slate-400">
+
                                         Menampilkan{" "}
+
                                         <span className="font-semibold text-slate-600">
                                             {paginatedData.length}
-                                        </span>{" "}
-                                        dari{" "}
+                                        </span>
+
+                                        {" "}dari{" "}
+
                                         <span className="font-semibold text-slate-600">
                                             {sortedData.length}
-                                        </span>{" "}
-                                        yayasan
+                                        </span>
+
+                                        {" "}yayasan
+
                                     </p>
 
-                                    <p className="text-xs text-slate-400">
-                                        Halaman{" "}
-                                        <span className="font-semibold text-slate-600">
-                                            {safeCurrentPage}
-                                        </span>{" "}
-                                        dari{" "}
-                                        <span className="font-semibold text-slate-600">
-                                            {totalPages || 1}
+                                    <div className="flex items-center gap-2 text-xs text-slate-400">
+
+                                        <span>
+                                            Diurutkan:
                                         </span>
-                                    </p>
+
+                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 border border-blue-100 text-blue-600 font-medium">
+
+                                            {sortOrder === "asc" ? (
+                                                <ArrowUp size={12} />
+                                            ) : (
+                                                <ArrowDown size={12} />
+                                            )}
+
+                                            {sortOptions.find(
+                                                (option) =>
+                                                    option.value ===
+                                                    sortValue
+                                            )?.label}
+
+                                        </span>
+
+                                    </div>
 
                                 </div>
 
@@ -713,13 +865,10 @@ export default function DataYayasanPage() {
                                 </div>
 
                                 <div className="inline-flex items-center gap-2 text-xs text-slate-400">
-
                                     <Users size={14} />
-
                                     <span>
                                         {sortedData.length} data
                                     </span>
-
                                 </div>
 
                             </div>
@@ -741,12 +890,6 @@ export default function DataYayasanPage() {
                                         paginatedData.map(
                                             (item, index) => {
 
-                                                const statusStyle =
-                                                    statusColorMap[
-                                                        item.status
-                                                    ] ||
-                                                    statusColorMap.Aktif;
-
                                                 const rowNumber =
                                                     startIndex +
                                                     index +
@@ -760,13 +903,9 @@ export default function DataYayasanPage() {
 
                                                         <div className="flex items-start gap-3">
 
-                                                            {/* NUMBER */}
-
                                                             <div className="w-6 pt-2 text-xs font-medium text-slate-400 text-center">
                                                                 {rowNumber}
                                                             </div>
-
-                                                            {/* ICON */}
 
                                                             <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0">
                                                                 <Landmark
@@ -774,8 +913,6 @@ export default function DataYayasanPage() {
                                                                     strokeWidth={1.7}
                                                                 />
                                                             </div>
-
-                                                            {/* CONTENT */}
 
                                                             <div className="flex-1 min-w-0">
 
@@ -820,8 +957,6 @@ export default function DataYayasanPage() {
                                                             </div>
 
                                                         </div>
-
-                                                        {/* MOBILE ACTION */}
 
                                                         <div className="mt-3 ml-9 flex items-center gap-2">
 
@@ -879,8 +1014,16 @@ export default function DataYayasanPage() {
                                                     No
                                                 </TableHeader>
 
-                                                <TableHeader>
-                                                    Yayasan
+                                                <TableHeader
+                                                    sortable
+                                                    onClick={() =>
+                                                        handleSort("nama")
+                                                    }
+                                                >
+                                                    <span className="inline-flex items-center">
+                                                        Yayasan
+                                                        {renderSortIcon("nama")}
+                                                    </span>
                                                 </TableHeader>
 
                                                 <TableHeader
@@ -895,16 +1038,46 @@ export default function DataYayasanPage() {
                                                     </span>
                                                 </TableHeader>
 
-                                                <TableHeader>
-                                                    Ketua Yayasan
+                                                <TableHeader
+                                                    sortable
+                                                    onClick={() =>
+                                                        handleSort("ketua")
+                                                    }
+                                                >
+                                                    <span className="inline-flex items-center">
+                                                        Ketua Yayasan
+                                                        {renderSortIcon("ketua")}
+                                                    </span>
                                                 </TableHeader>
 
-                                                <TableHeader>
-                                                    Sekolah
+                                                <TableHeader
+                                                    sortable
+                                                    onClick={() =>
+                                                        handleSort(
+                                                            "jumlahSekolah"
+                                                        )
+                                                    }
+                                                >
+                                                    <span className="inline-flex items-center">
+                                                        Sekolah
+                                                        {renderSortIcon(
+                                                            "jumlahSekolah"
+                                                        )}
+                                                    </span>
                                                 </TableHeader>
 
-                                                <TableHeader>
-                                                    Status
+                                                <TableHeader
+                                                    sortable
+                                                    onClick={() =>
+                                                        handleSort("status")
+                                                    }
+                                                >
+                                                    <span className="inline-flex items-center">
+                                                        Status
+                                                        {renderSortIcon(
+                                                            "status"
+                                                        )}
+                                                    </span>
                                                 </TableHeader>
 
                                                 <TableHeader align="right">
@@ -922,9 +1095,7 @@ export default function DataYayasanPage() {
                                                 <tr>
 
                                                     <td colSpan={7}>
-
                                                         <EmptyState />
-
                                                     </td>
 
                                                 </tr>
@@ -1003,9 +1174,7 @@ export default function DataYayasanPage() {
                                                                     <div className="flex items-center gap-2.5">
 
                                                                         <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center">
-                                                                            <Users
-                                                                                size={14}
-                                                                            />
+                                                                            <Users size={14} />
                                                                         </div>
 
                                                                         <div className="min-w-0">
@@ -1118,9 +1287,7 @@ export default function DataYayasanPage() {
 
                             )}
 
-                            {/* =================================================
-                                PAGINATION
-                            ================================================= */}
+                            {/* PAGINATION */}
 
                             <div className="px-4 sm:px-5 py-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
 
@@ -1234,9 +1401,7 @@ export default function DataYayasanPage() {
 
                         </section>
 
-                        {/* =================================================
-                            FOOTER
-                        ================================================= */}
+                        {/* FOOTER */}
 
                         <div className="flex flex-col sm:flex-row items-center justify-between gap-2 py-2 border-t border-slate-200/60">
 
@@ -1245,8 +1410,11 @@ export default function DataYayasanPage() {
                             </p>
 
                             <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
+
                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+
                                 Sistem berjalan normal
+
                             </div>
 
                         </div>
@@ -1276,27 +1444,22 @@ function StatCard({
             icon: "bg-blue-50 text-blue-600",
             accent: "bg-blue-500",
         },
-
         emerald: {
             icon: "bg-emerald-50 text-emerald-600",
             accent: "bg-emerald-500",
         },
-
         amber: {
             icon: "bg-amber-50 text-amber-600",
             accent: "bg-amber-500",
         },
-
         rose: {
             icon: "bg-rose-50 text-rose-600",
             accent: "bg-rose-500",
         },
-
         violet: {
             icon: "bg-violet-50 text-violet-600",
             accent: "bg-violet-500",
         },
-
         teal: {
             icon: "bg-teal-50 text-teal-600",
             accent: "bg-teal-500",
@@ -1309,8 +1472,6 @@ function StatCard({
 
     return (
         <div className="group relative overflow-hidden bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
-
-            {/* Accent */}
 
             <div
                 className={`absolute top-0 left-0 right-0 h-[2px] ${current.accent} opacity-70`}
@@ -1389,6 +1550,53 @@ function FilterSelect({
                         value={option}
                     >
                         {option}
+                    </option>
+                ))}
+            </select>
+
+            <ChevronRight
+                size={14}
+                className="absolute right-3 top-1/2 -translate-y-1/2 rotate-90 text-slate-400 pointer-events-none"
+            />
+
+        </div>
+    );
+}
+
+// =========================================================
+// SORT SELECT
+// =========================================================
+
+function SortSelect({
+    value,
+    onChange,
+}) {
+    return (
+        <div className="relative">
+
+            <ArrowDownAZ
+                size={16}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+            />
+
+            <select
+                value={value}
+                onChange={(e) =>
+                    onChange(e.target.value)
+                }
+                aria-label="Urutkan data"
+                className="w-full h-10 appearance-none pl-9 pr-8 text-sm text-slate-600 bg-slate-50 border border-slate-200 rounded-xl outline-none cursor-pointer transition-all focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10"
+            >
+                <option value="" disabled>
+                    Sort By
+                </option>
+
+                {sortOptions.map((option) => (
+                    <option
+                        key={option.value}
+                        value={option.value}
+                    >
+                        {option.label}
                     </option>
                 ))}
             </select>
@@ -1491,10 +1699,12 @@ function EmptyState() {
         <div className="flex flex-col items-center justify-center py-16 px-5">
 
             <div className="w-14 h-14 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mb-4">
+
                 <Search
                     size={24}
                     strokeWidth={1.7}
                 />
+
             </div>
 
             <h3 className="text-sm font-semibold text-slate-700">
@@ -1556,3 +1766,4 @@ function getPaginationPages(
         totalPages,
     ];
 }
+
