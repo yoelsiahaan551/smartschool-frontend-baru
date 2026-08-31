@@ -28,72 +28,68 @@ import {
   RefreshCw,
   Filter,
   SlidersHorizontal,
+  Download,
+  FileText,
+  Printer,
 } from "lucide-react";
 
 // ===== DATA DUMMY =====
-const stafData = [
-  {
-    id: 1,
-    nama: "Dr. Ahmad Fauzi, M.Pd.",
-    email: "ahmad.fauzi@smartschool.com",
-    telepon: "0812-3456-7890",
-    role: "Super Admin",
-    status: "Aktif",
-    terakhirLogin: "2026-08-26T08:30:00Z",
-    bergabung: "2024-01-15",
-    avatar: "AF",
-  },
-  {
-    id: 2,
-    nama: "Dewi Lestari, S.Kom.",
-    email: "dewi.lestari@smartschool.com",
-    telepon: "0813-4567-8901",
-    role: "Admin Sekolah",
-    status: "Aktif",
-    terakhirLogin: "2026-08-25T14:20:00Z",
-    bergabung: "2024-02-10",
-    avatar: "DL",
-  },
-  {
-    id: 3,
-    nama: "Budi Santoso, S.E.",
-    email: "budi.santoso@smartschool.com",
-    telepon: "0814-5678-9012",
-    role: "Admin Yayasan",
-    status: "Aktif",
-    terakhirLogin: "2026-08-24T09:15:00Z",
-    bergabung: "2024-03-01",
-    avatar: "BS",
-  },
-  {
-    id: 4,
-    nama: "Siti Rahayu, S.Pd.",
-    email: "siti.rahayu@smartschool.com",
-    telepon: "0815-6789-0123",
-    role: "Guru",
-    status: "Nonaktif",
-    terakhirLogin: "2026-08-20T11:00:00Z",
-    bergabung: "2024-04-15",
-    avatar: "SR",
-  },
-  {
-    id: 5,
-    nama: "M. Rizki Firmansyah, S.Si.",
-    email: "rizki.firmansyah@smartschool.com",
-    telepon: "0816-7890-1234",
-    role: "Staf TU",
-    status: "Trial",
-    terakhirLogin: "2026-08-22T16:45:00Z",
-    bergabung: "2024-05-20",
-    avatar: "RF",
-  },
-];
+const generateDummyData = () => {
+  const names = [
+    { nama: "Dr. Ahmad Fauzi, M.Pd.", role: "Super Admin", avatar: "AF" },
+    { nama: "Dewi Lestari, S.Kom.", role: "Admin Sekolah", avatar: "DL" },
+    { nama: "Budi Santoso, S.E.", role: "Admin Yayasan", avatar: "BS" },
+    { nama: "Siti Rahayu, S.Pd.", role: "Guru", avatar: "SR" },
+    { nama: "M. Rizki Firmansyah, S.Si.", role: "Staf TU", avatar: "RF" },
+    { nama: "Nina Susanti, S.Pd.", role: "Guru", avatar: "NS" },
+    { nama: "Agus Salim, S.Pd.I.", role: "Guru", avatar: "AS" },
+    { nama: "Rina Marlina, S.E.", role: "Staf TU", avatar: "RM" },
+    { nama: "Dodi Saputra, S.Kom.", role: "Admin Sekolah", avatar: "DS" },
+    { nama: "Tuti Rahayu, S.Pd.", role: "Guru", avatar: "TR" },
+    { nama: "Hendra Gunawan, S.Si.", role: "Guru", avatar: "HG" },
+    { nama: "Maya Sari, S.Pd.", role: "Guru", avatar: "MS" },
+    { nama: "Rahmat Hidayat, S.Pd.", role: "Guru", avatar: "RH" },
+    { nama: "Yuli Astuti, S.Pd.", role: "Guru", avatar: "YA" },
+    { nama: "Anton Budiman, S.Kom.", role: "Staf TU", avatar: "AB" },
+    { nama: "Diana Kusuma, S.Pd.", role: "Guru", avatar: "DK" },
+    { nama: "Rudi Hartono, S.Pd.", role: "Guru", avatar: "RH" },
+    { nama: "Sari Wulandari, S.Pd.", role: "Guru", avatar: "SW" },
+    { nama: "Irwan Setiawan, S.Pd.", role: "Guru", avatar: "IS" },
+    { nama: "Nurul Hikmah, S.Pd.", role: "Guru", avatar: "NH" },
+  ];
+
+  const statuses = ["Aktif", "Trial", "Nonaktif"];
+  const phones = [
+    "0812-3456-7890",
+    "0813-4567-8901",
+    "0814-5678-9012",
+    "0815-6789-0123",
+    "0816-7890-1234",
+  ];
+
+  return names.map((item, index) => {
+    const statusIdx = index % 10 < 7 ? 0 : index % 3;
+    return {
+      id: index + 1,
+      nama: item.nama,
+      email: `${item.nama.split(" ")[0].toLowerCase()}.${item.nama.split(" ")[1]?.toLowerCase() || "staf"}@smartschool.com`,
+      telepon: phones[index % phones.length],
+      role: item.role,
+      status: statuses[statusIdx],
+      terakhirLogin: `2026-08-${String(20 - (index % 5)).padStart(2, "0")}T${String(8 + (index % 8)).padStart(2, "0")}:${String(30 + (index % 30)).padStart(2, "0")}:00Z`,
+      bergabung: `202${String(4 + (index % 3))}-${String(1 + (index % 12)).padStart(2, "0")}-${String(1 + (index % 28)).padStart(2, "0")}`,
+      avatar: item.avatar,
+    };
+  });
+};
+
+const stafData = generateDummyData();
 
 const stats = {
-  total: 45,
-  aktif: 38,
-  nonaktif: 5,
-  trial: 2,
+  total: stafData.length,
+  aktif: stafData.filter((s) => s.status === "Aktif").length,
+  nonaktif: stafData.filter((s) => s.status === "Nonaktif").length,
+  trial: stafData.filter((s) => s.status === "Trial").length,
 };
 
 const roleOptions = ["Semua", "Super Admin", "Admin Sekolah", "Admin Yayasan", "Guru", "Staf TU"];
@@ -151,8 +147,7 @@ export default function StafPage() {
   const [isMobile, setIsMobile] = useState(false);
   const [sortField, setSortField] = useState("nama");
   const [sortOrder, setSortOrder] = useState("asc");
-
-  const itemsPerPage = 5;
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const notifications = [
     { id: 1, title: "Pembaruan Sistem v2.0", desc: "Dikirim 2 jam lalu", read: false },
@@ -220,6 +215,127 @@ export default function StafPage() {
     }
   };
 
+  // =======================================================
+  // EXPORT FUNCTIONS
+  // =======================================================
+
+  const exportCSV = () => {
+    const headers = ["Nama", "Email", "Telepon", "Role", "Status", "Terakhir Login", "Bergabung"];
+    const rows = sortedData.map((s) => [
+      s.nama,
+      s.email,
+      s.telepon,
+      s.role,
+      s.status,
+      formatTanggal(s.terakhirLogin),
+      formatTanggal(s.bergabung),
+    ]);
+
+    let csv = headers.join(",") + "\n";
+    rows.forEach((row) => {
+      csv += row.join(",") + "\n";
+    });
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `data_staf_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const exportExcel = () => {
+    const headers = ["Nama", "Email", "Telepon", "Role", "Status", "Terakhir Login", "Bergabung"];
+    let tableHtml = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office" 
+            xmlns:x="urn:schemas-microsoft-com:office:excel" 
+            xmlns="http://www.w3.org/TR/REC-html40">
+      <head><meta charset="UTF-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Data Staf</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->
+      <style>th,td{border:1px solid #ccc;padding:6px 10px;font-size:12px;font-family:Arial,sans-serif;} th{background:#f0f0f0;font-weight:bold;}</style>
+      </head><body><table>
+      <tr>${headers.map((h) => `<th>${h}</th>`).join("")}</tr>
+    `;
+
+    sortedData.forEach((s) => {
+      tableHtml += `<tr>
+        <td>${s.nama}</td>
+        <td>${s.email}</td>
+        <td>${s.telepon}</td>
+        <td>${s.role}</td>
+        <td>${s.status}</td>
+        <td>${formatTanggal(s.terakhirLogin)}</td>
+        <td>${formatTanggal(s.bergabung)}</td>
+      </tr>`;
+    });
+
+    tableHtml += `</table></body></html>`;
+
+    const blob = new Blob([tableHtml], { type: "application/vnd.ms-excel" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `data_staf_${new Date().toISOString().slice(0, 10)}.xls`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const exportPDF = () => {
+    const printWindow = window.open("", "_blank", "width=1024,height=768");
+    if (!printWindow) {
+      alert("Mohon izinkan popup untuk mencetak PDF");
+      return;
+    }
+
+    const headers = ["Nama", "Email", "Role", "Status"];
+    let tableHtml = `
+      <html>
+      <head><title>Data Staf</title>
+      <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        h1 { font-size: 18px; color: #1e293b; margin-bottom: 10px; }
+        p { font-size: 12px; color: #64748b; margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; font-size: 11px; }
+        th { background: #2563eb; color: white; padding: 8px 10px; text-align: left; }
+        td { border: 1px solid #e2e8f0; padding: 6px 10px; }
+        tr:nth-child(even) { background: #f8fafc; }
+        .total { margin-top: 15px; font-size: 12px; color: #475569; }
+      </style>
+      </head>
+      <body>
+      <h1>📋 Data Staf</h1>
+      <p>Total: ${sortedData.length} staf | ${new Date().toLocaleDateString("id-ID")}</p>
+      <table>
+      <tr>${headers.map((h) => `<th>${h}</th>`).join("")}</tr>
+    `;
+
+    sortedData.forEach((s) => {
+      tableHtml += `<tr>
+        <td>${s.nama}</td>
+        <td>${s.email}</td>
+        <td>${s.role}</td>
+        <td>${s.status}</td>
+      </tr>`;
+    });
+
+    tableHtml += `</table>
+      <p class="total">Dicetak dari SmartSchool - ${new Date().toLocaleString("id-ID")}</p>
+      </body></html>
+    `;
+
+    printWindow.document.write(tableHtml);
+    printWindow.document.close();
+
+    printWindow.onload = function () {
+      printWindow.focus();
+      printWindow.print();
+    };
+  };
+
   return (
     <div className="flex min-h-screen bg-slate-50">
       <Sidebar
@@ -259,7 +375,40 @@ export default function StafPage() {
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-2.5">
+              <div className="flex flex-wrap items-center gap-2.5">
+                {/* EXPORT DROPDOWN */}
+                <div className="relative group">
+                  <button
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-600 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-600 transition-all"
+                  >
+                    <Download size={16} />
+                    <span>Export</span>
+                  </button>
+                  <div className="absolute right-0 top-full mt-1 w-44 bg-white rounded-xl border border-slate-200 shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
+                    <button
+                      onClick={exportPDF}
+                      className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-slate-600 hover:bg-blue-50 hover:text-blue-600 rounded-t-xl transition"
+                    >
+                      <Printer size={16} />
+                      PDF
+                    </button>
+                    <button
+                      onClick={exportExcel}
+                      className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-slate-600 hover:bg-blue-50 hover:text-blue-600 transition"
+                    >
+                      <FileSpreadsheet size={16} />
+                      Excel
+                    </button>
+                    <button
+                      onClick={exportCSV}
+                      className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-slate-600 hover:bg-blue-50 hover:text-blue-600 rounded-b-xl transition"
+                    >
+                      <FileText size={16} />
+                      CSV
+                    </button>
+                  </div>
+                </div>
+
                 <button
                   onClick={() => window.location.reload()}
                   className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 hover:border-slate-300 transition-colors shadow-sm"
@@ -502,71 +651,85 @@ export default function StafPage() {
               )}
 
               {/* PAGINATION */}
-              <div className="px-4 py-3 border-t border-slate-200/80 flex flex-col xs:flex-row items-center justify-between gap-2">
-                <p className="text-xs text-slate-500 text-center xs:text-left">
-                  <span className="hidden xs:inline">Menampilkan </span>
-                  <span className="font-medium text-slate-700">{paginatedData.length === 0 ? 0 : startIndex + 1}</span>
-                  <span className="hidden xs:inline"> sampai </span>
-                  <span className="font-medium text-slate-700">{Math.min(startIndex + paginatedData.length, sortedData.length)}</span>
-                  <span className="hidden xs:inline"> dari </span>
-                  <span className="font-medium text-slate-700">{sortedData.length}</span>
-                  <span className="hidden xs:inline"> staf</span>
-                </p>
-                <div className="flex items-center gap-0.5">
-                  <button
-                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                    disabled={currentPage === 1}
-                    className="px-3 py-1 text-sm text-slate-500 hover:bg-slate-100 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <span className="hidden xs:inline">Previous</span>
-                    <span className="xs:hidden">‹</span>
-                  </button>
-                  {[...Array(Math.min(totalPages, 5))].map((_, i) => {
-                    const page = i + 1;
-                    return (
-                      <button
-                        key={page}
-                        onClick={() => setCurrentPage(page)}
-                        className={`w-8 h-8 text-sm rounded-lg transition-colors ${
-                          currentPage === page
-                            ? "bg-blue-600 text-white shadow-sm"
-                            : "text-slate-500 hover:bg-slate-100"
-                        }`}
+              {sortedData.length > 0 && (
+                <div className="flex flex-col sm:flex-row items-center justify-between px-4 py-3 border-t border-slate-200/80 gap-3">
+                  <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
+                    <span>
+                      Menampilkan {startIndex + 1} - {Math.min(startIndex + paginatedData.length, sortedData.length)} dari {sortedData.length} staf
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <span>Tampil</span>
+                      <select
+                        value={itemsPerPage}
+                        onChange={(e) => {
+                          setItemsPerPage(Number(e.target.value));
+                          setCurrentPage(1);
+                        }}
+                        className="py-1 px-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer"
                       >
-                        {page}
-                      </button>
-                    );
-                  })}
-                  {totalPages > 5 && (
-                    <>
-                      <span className="text-slate-400 px-0.5">…</span>
-                      <button
-                        onClick={() => setCurrentPage(totalPages)}
-                        className={`w-8 h-8 text-sm rounded-lg transition-colors ${
-                          currentPage === totalPages
-                            ? "bg-blue-600 text-white shadow-sm"
-                            : "text-slate-500 hover:bg-slate-100"
-                        }`}
-                      >
-                        {totalPages}
-                      </button>
-                    </>
-                  )}
-                  <button
-                    onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                    disabled={currentPage === totalPages || totalPages === 0}
-                    className="px-3 py-1 text-sm text-slate-500 hover:bg-slate-100 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <span className="hidden xs:inline">Next</span>
-                    <span className="xs:hidden">›</span>
-                  </button>
+                        <option value={10}>10</option>
+                        <option value={20}>20</option>
+                        <option value={40}>40</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-0.5">
+                    <button
+                      onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                      disabled={currentPage === 1}
+                      className="px-3 py-1 text-sm text-slate-500 hover:bg-slate-100 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <span className="hidden xs:inline">Previous</span>
+                      <span className="xs:hidden">‹</span>
+                    </button>
+                    {[...Array(Math.min(totalPages, 5))].map((_, i) => {
+                      const page = i + 1;
+                      return (
+                        <button
+                          key={page}
+                          onClick={() => setCurrentPage(page)}
+                          className={`w-8 h-8 text-sm rounded-lg transition-colors ${
+                            currentPage === page
+                              ? "bg-blue-600 text-white shadow-sm"
+                              : "text-slate-500 hover:bg-slate-100"
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      );
+                    })}
+                    {totalPages > 5 && (
+                      <>
+                        <span className="text-slate-400 px-0.5">…</span>
+                        <button
+                          onClick={() => setCurrentPage(totalPages)}
+                          className={`w-8 h-8 text-sm rounded-lg transition-colors ${
+                            currentPage === totalPages
+                              ? "bg-blue-600 text-white shadow-sm"
+                              : "text-slate-500 hover:bg-slate-100"
+                          }`}
+                        >
+                          {totalPages}
+                        </button>
+                      </>
+                    )}
+                    <button
+                      onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                      disabled={currentPage === totalPages || totalPages === 0}
+                      className="px-3 py-1 text-sm text-slate-500 hover:bg-slate-100 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <span className="hidden xs:inline">Next</span>
+                      <span className="xs:hidden">›</span>
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* FOOTER */}
             <div className="text-center text-xs text-slate-400/80 py-2 border-t border-slate-200/40">
-              © 2026 SmartSchool • Data staf terakhir diperbarui hari ini
+              © 2026 SmartSchool • Data staf terakhir diperbaruhi hari ini
             </div>
           </div>
         </main>

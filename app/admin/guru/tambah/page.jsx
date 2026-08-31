@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Header from "../../../components/Header";
 import Sidebar from "../../../components/Sidebar";
@@ -69,11 +69,35 @@ export default function TambahGuruPage() {
   });
 
   // =========================
+  // SEARCHABLE SELECT STATE
+  // =========================
+  const [mapelSearch, setMapelSearch] = useState("");
+  const [isMapelOpen, setIsMapelOpen] = useState(false);
+  const mapelRef = useRef(null);
+
+  const filteredMapel = MAPEL_LIST.filter((m) =>
+    m.toLowerCase().includes(mapelSearch.toLowerCase())
+  );
+
+  // =========================
   // IMPORT STATE
   // =========================
   const [file, setFile] = useState(null);
   const [importStatus, setImportStatus] = useState(null);
   const [importMessage, setImportMessage] = useState("");
+
+  // =========================
+  // CLOSE DROPDOWN ON OUTSIDE CLICK
+  // =========================
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (mapelRef.current && !mapelRef.current.contains(e.target)) {
+        setIsMapelOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // =========================
   // FORM CHANGE
@@ -259,8 +283,8 @@ export default function TambahGuruPage() {
                   items-center
                   justify-center
                   rounded-xl
-                  bg-emerald-50
-                  text-emerald-600
+                  bg-indigo-50
+                  text-indigo-600
                   sm:h-10
                   sm:w-10
                 ">
@@ -315,7 +339,7 @@ export default function TambahGuruPage() {
                     sm:text-sm
                     ${
                       activeTab === "form"
-                        ? "border-b-2 border-emerald-500 bg-white text-emerald-600 shadow-sm"
+                        ? "border-b-2 border-indigo-500 bg-white text-indigo-600 shadow-sm"
                         : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
                     }
                   `}
@@ -337,7 +361,7 @@ export default function TambahGuruPage() {
                     sm:text-sm
                     ${
                       activeTab === "import"
-                        ? "border-b-2 border-emerald-500 bg-white text-emerald-600 shadow-sm"
+                        ? "border-b-2 border-indigo-500 bg-white text-indigo-600 shadow-sm"
                         : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
                     }
                   `}
@@ -409,9 +433,9 @@ export default function TambahGuruPage() {
                             outline-none
                             transition
                             placeholder:text-slate-400
-                            focus:border-emerald-400
+                            focus:border-indigo-400
                             focus:ring-2
-                            focus:ring-emerald-500/20
+                            focus:ring-indigo-500/20
                           "
                         />
                       </div>
@@ -449,15 +473,15 @@ export default function TambahGuruPage() {
                             outline-none
                             transition
                             placeholder:text-slate-400
-                            focus:border-emerald-400
+                            focus:border-indigo-400
                             focus:ring-2
-                            focus:ring-emerald-500/20
+                            focus:ring-indigo-500/20
                           "
                         />
                       </div>
 
-                      {/* MAPEL */}
-                      <div className="min-w-0">
+                      {/* MAPEL — SEARCHABLE SELECT */}
+                      <div ref={mapelRef} className="min-w-0 relative">
                         <label className="
                           mb-1.5
                           block
@@ -467,40 +491,49 @@ export default function TambahGuruPage() {
                         ">
                           Mata Pelajaran *
                         </label>
-
-                        <select
-                          name="mapel"
-                          value={formData.mapel}
-                          onChange={handleFormChange}
-                          required
-                          className="
-                            w-full
-                            min-w-0
-                            rounded-xl
-                            border
-                            border-slate-200
-                            bg-slate-50
-                            px-4
-                            py-2.5
-                            text-sm
-                            text-slate-700
-                            outline-none
-                            transition
-                            focus:border-emerald-400
-                            focus:ring-2
-                            focus:ring-emerald-500/20
-                          "
+                        <div
+                          className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-700 outline-none transition focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-500/20"
+                          onClick={() => setIsMapelOpen((prev) => !prev)}
                         >
-                          <option value="">
-                            Pilih Mapel
-                          </option>
+                          <input
+                            type="text"
+                            placeholder={formData.mapel || "Cari mata pelajaran..."}
+                            value={mapelSearch}
+                            onChange={(e) => {
+                              setMapelSearch(e.target.value);
+                              setIsMapelOpen(true);
+                            }}
+                            onFocus={() => setIsMapelOpen(true)}
+                            className="w-full bg-transparent outline-none placeholder:text-slate-400"
+                            autoComplete="off"
+                          />
+                        </div>
 
-                          {MAPEL_LIST.map((m) => (
-                            <option key={m} value={m}>
-                              {m}
-                            </option>
-                          ))}
-                        </select>
+                        {isMapelOpen && (
+                          <ul className="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg">
+                            {filteredMapel.length === 0 ? (
+                              <li className="px-4 py-2 text-sm text-slate-500">
+                                Tidak ada mata pelajaran
+                              </li>
+                            ) : (
+                              filteredMapel.map((m) => (
+                                <li
+                                  key={m}
+                                  className={`cursor-pointer px-4 py-2 text-sm transition hover:bg-indigo-50 ${
+                                    formData.mapel === m ? "bg-indigo-100 font-semibold text-indigo-700" : ""
+                                  }`}
+                                  onClick={() => {
+                                    setFormData({ ...formData, mapel: m });
+                                    setMapelSearch("");
+                                    setIsMapelOpen(false);
+                                  }}
+                                >
+                                  {m}
+                                </li>
+                              ))
+                            )}
+                          </ul>
+                        )}
                       </div>
 
                       {/* EMAIL */}
@@ -535,9 +568,9 @@ export default function TambahGuruPage() {
                             outline-none
                             transition
                             placeholder:text-slate-400
-                            focus:border-emerald-400
+                            focus:border-indigo-400
                             focus:ring-2
-                            focus:ring-emerald-500/20
+                            focus:ring-indigo-500/20
                           "
                         />
                       </div>
@@ -574,14 +607,14 @@ export default function TambahGuruPage() {
                             outline-none
                             transition
                             placeholder:text-slate-400
-                            focus:border-emerald-400
+                            focus:border-indigo-400
                             focus:ring-2
-                            focus:ring-emerald-500/20
+                            focus:ring-indigo-500/20
                           "
                         />
                       </div>
 
-                      {/* STATUS */}
+                      {/* STATUS — dropdown biasa */}
                       <div className="min-w-0">
                         <label className="
                           mb-1.5
@@ -610,18 +643,13 @@ export default function TambahGuruPage() {
                             text-slate-700
                             outline-none
                             transition
-                            focus:border-emerald-400
+                            focus:border-indigo-400
                             focus:ring-2
-                            focus:ring-emerald-500/20
+                            focus:ring-indigo-500/20
                           "
                         >
-                          <option value="Aktif">
-                            Aktif
-                          </option>
-
-                          <option value="Nonaktif">
-                            Nonaktif
-                          </option>
+                          <option value="Aktif">Aktif</option>
+                          <option value="Nonaktif">Nonaktif</option>
                         </select>
                       </div>
 
@@ -660,9 +688,9 @@ export default function TambahGuruPage() {
                             outline-none
                             transition
                             placeholder:text-slate-400
-                            focus:border-emerald-400
+                            focus:border-indigo-400
                             focus:ring-2
-                            focus:ring-emerald-500/20
+                            focus:ring-indigo-500/20
                           "
                         />
                       </div>
@@ -697,14 +725,14 @@ export default function TambahGuruPage() {
                             text-slate-700
                             outline-none
                             transition
-                            focus:border-emerald-400
+                            focus:border-indigo-400
                             focus:ring-2
-                            focus:ring-emerald-500/20
+                            focus:ring-indigo-500/20
                           "
                         />
                       </div>
 
-                      {/* GENDER */}
+                      {/* GENDER — dropdown biasa */}
                       <div className="min-w-0">
                         <label className="
                           mb-1.5
@@ -733,18 +761,13 @@ export default function TambahGuruPage() {
                             text-slate-700
                             outline-none
                             transition
-                            focus:border-emerald-400
+                            focus:border-indigo-400
                             focus:ring-2
-                            focus:ring-emerald-500/20
+                            focus:ring-indigo-500/20
                           "
                         >
-                          <option value="L">
-                            Laki-laki
-                          </option>
-
-                          <option value="P">
-                            Perempuan
-                          </option>
+                          <option value="L">Laki-laki</option>
+                          <option value="P">Perempuan</option>
                         </select>
                       </div>
 
@@ -782,9 +805,9 @@ export default function TambahGuruPage() {
                             text-slate-700
                             outline-none
                             transition
-                            focus:border-emerald-400
+                            focus:border-indigo-400
                             focus:ring-2
-                            focus:ring-emerald-500/20
+                            focus:ring-indigo-500/20
                           "
                         />
                       </div>
@@ -829,9 +852,7 @@ export default function TambahGuruPage() {
                         className="
                           w-full
                           rounded-xl
-                          bg-gradient-to-r
-                          from-emerald-600
-                          to-teal-600
+                          bg-indigo-600
                           px-5
                           py-2.5
                           text-sm
@@ -839,8 +860,8 @@ export default function TambahGuruPage() {
                           text-white
                           shadow-sm
                           transition
-                          hover:shadow-lg
-                          hover:shadow-emerald-200
+                          hover:bg-indigo-700
+                          hover:shadow-md
                           sm:w-auto
                           sm:px-6
                         "
@@ -879,7 +900,7 @@ export default function TambahGuruPage() {
                       className="
                         mx-auto
                         mb-2
-                        text-emerald-500
+                        text-indigo-500
                       "
                     />
 
@@ -919,7 +940,7 @@ export default function TambahGuruPage() {
                       p-5
                       text-center
                       transition-all
-                      hover:border-emerald-400
+                      hover:border-indigo-400
                       sm:p-8
                     "
                   >
@@ -993,7 +1014,7 @@ export default function TambahGuruPage() {
                           size={20}
                           className="
                             shrink-0
-                            text-emerald-500
+                            text-indigo-500
                           "
                         />
 
@@ -1123,9 +1144,7 @@ export default function TambahGuruPage() {
                         justify-center
                         gap-2
                         rounded-xl
-                        bg-gradient-to-r
-                        from-emerald-600
-                        to-teal-600
+                        bg-indigo-600
                         px-5
                         py-2.5
                         text-sm
@@ -1133,8 +1152,8 @@ export default function TambahGuruPage() {
                         text-white
                         shadow-sm
                         transition
-                        hover:shadow-lg
-                        hover:shadow-emerald-200
+                        hover:bg-indigo-700
+                        hover:shadow-md
                         sm:w-auto
                         sm:px-6
                       "
