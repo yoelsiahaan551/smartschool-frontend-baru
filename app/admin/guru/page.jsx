@@ -771,7 +771,7 @@ export default function AdminGuruPage() {
 
                 <div className="bg-white rounded-xl border border-slate-300 p-4 shadow-sm">
                   <div className="flex items-center gap-2">
-                    <div className="p-1.5 rounded-lg bg-emerald-100 text-emerald-700">
+                    <div className="p-1.5 rounded-lg bg-slate-100 text-slate-600">
                       <CheckCircle size={16} />
                     </div>
 
@@ -780,14 +780,14 @@ export default function AdminGuruPage() {
                     </p>
                   </div>
 
-                  <p className="text-2xl font-bold text-emerald-700 mt-1">
+                  <p className="text-2xl font-bold text-slate-800 mt-1">
                     {totalAktif}
                   </p>
                 </div>
 
                 <div className="bg-white rounded-xl border border-slate-300 p-4 shadow-sm">
                   <div className="flex items-center gap-2">
-                    <div className="p-1.5 rounded-lg bg-rose-100 text-rose-700">
+                    <div className="p-1.5 rounded-lg bg-slate-100 text-slate-600">
                       <XCircle size={16} />
                     </div>
 
@@ -796,7 +796,7 @@ export default function AdminGuruPage() {
                     </p>
                   </div>
 
-                  <p className="text-2xl font-bold text-rose-700 mt-1">
+                  <p className="text-2xl font-bold text-slate-800 mt-1">
                     {totalNonaktif}
                   </p>
                 </div>
@@ -920,40 +920,40 @@ export default function AdminGuruPage() {
                     </colgroup>
 
                     <thead>
-                      <tr className="border-b border-slate-300 bg-slate-100">
+                      <tr className="border-b border-blue-700 bg-gradient-to-r from-blue-600 to-blue-700">
 
                         {/* NO */}
-                        <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-slate-600 whitespace-nowrap">
+                        <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-white whitespace-nowrap">
                           No
                         </th>
 
-                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-600 whitespace-nowrap">
+                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white whitespace-nowrap">
                           Profil
                         </th>
 
-                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-600 whitespace-nowrap">
+                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white whitespace-nowrap">
                           NIP
                         </th>
 
-                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-600 whitespace-nowrap">
+                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white whitespace-nowrap">
                           Mapel
                         </th>
 
-                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-600 whitespace-nowrap">
+                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white whitespace-nowrap">
                           Email
                         </th>
 
-                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-600 whitespace-nowrap">
+                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white whitespace-nowrap">
                           Status
                         </th>
 
-                        <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-slate-600 whitespace-nowrap">
+                        <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-white whitespace-nowrap">
                           Aksi
                         </th>
                       </tr>
                     </thead>
 
-                    <tbody className="divide-y divide-slate-200">
+                    <tbody className="divide-y divide-blue-100">
 
                       {currentItems.map((item, index) => {
                         const rowNumber =
@@ -962,7 +962,9 @@ export default function AdminGuruPage() {
                         return (
                           <tr
                             key={item.id}
-                            className="hover:bg-slate-50 transition-colors"
+                            className={`transition-colors hover:bg-blue-100 ${
+                              index % 2 === 0 ? "bg-blue-50/60" : "bg-white"
+                            }`}
                           >
 
                             {/* NO */}

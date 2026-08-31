@@ -1,21 +1,23 @@
 import {
   LayoutDashboard,
   Users,
-  UserCheck,      // for Guru & Mapel
-   UserRoundCog,
-  CalendarDays,   // for Tahun Ajaran
-  BookOpen,       // for Akademik
-  UploadCloud,
-  GraduationCap,    // for Impor Siswa
-  Boxes,          // for Sarpras
-  Package,        // for Aset
-  Warehouse,      // for Gudang
+  UserCheck,
+  UserRoundCog,
+  CalendarDays,
+  BookOpen,
+  BookMarked,
+  CalendarClock,
+  IdCard,
+  GraduationCap,
+  Boxes,
+  Package,
+  Warehouse,
   Settings,
-  ClipboardList,  // for Monitoring Siswa
-  NotebookPen,    // for Nilai
-  Award,          // for Prestasi
-  FileSpreadsheet,// for Rapor
-  Smile,          // for Sikap & Perilaku
+  NotebookPen,
+  Award,
+  FileSpreadsheet,
+  Smile,
+  DoorOpen, // for Ruang
 } from "lucide-react";
 
 export const adminSidebarConfig = {
@@ -23,8 +25,9 @@ export const adminSidebarConfig = {
   brandName: "Admin",
   initials: "AD",
   email: "admin@smartschool.com",
+
   menuSections: [
-    // Dashboard
+    // DASHBOARD
     {
       type: "item",
       key: "dashboard",
@@ -34,35 +37,75 @@ export const adminSidebarConfig = {
     },
 
     // DATA MASTER
-    { type: "header", label: "DATA MASTER" },
+    {
+      type: "header",
+      label: "DATA MASTER",
+    },
+
     {
       type: "item",
       key: "guru",
       icon: Users,
       label: "Data Guru",
       path: "/admin/guru",
+      children: [
+        {
+          key: "guruMapel",
+          icon: BookMarked,
+          label: "Mapel",
+          path: "/admin/guru/mapel",
+        },
+        {
+          key: "guruJadwalMengajar",
+          icon: CalendarClock,
+          label: "Jadwal Mengajar",
+          path: "/admin/guru/jadwal-mengajar",
+        },
+        {
+          key: "guruWaliKelas",
+          icon: UserCheck,
+          label: "Wali Kelas",
+          path: "/admin/guru/wali-kelas",
+        },
+        {
+          key: "guruKartuIdentitas",
+          icon: IdCard,
+          label: "Kartu Identitas Guru",
+          path: "/admin/guru/kartu-identitas",
+        },
+      ],
     },
+
     {
       type: "item",
       key: "staf",
-      icon:  UserRoundCog,
+      icon: UserRoundCog,
       label: "Data Staf",
       path: "/admin/staf",
     },
+
     {
       type: "item",
       key: "siswa",
       icon: GraduationCap,
       label: "Data Siswa",
       path: "/admin/siswa",
+      children: [
+        {
+          key: "siswaJadwalMapel",
+          icon: CalendarClock,
+          label: "Jadwal Mata Pelajaran",
+          path: "/admin/siswa/jadwal-mapel",
+        },
+        {
+          key: "siswaKartuIdentitas",
+          icon: IdCard,
+          label: "Kartu Identitas",
+          path: "/admin/siswa/kartu-identitas",
+        },
+      ],
     },
-    {
-      type: "item",
-      key: "guruMapel",
-      icon: UserCheck,
-      label: "Guru & Mapel",
-      path: "/admin/guru-mapel",
-    },
+
     {
       type: "item",
       key: "kelas",
@@ -70,6 +113,7 @@ export const adminSidebarConfig = {
       label: "Kelas",
       path: "/admin/kelas",
     },
+
     {
       type: "item",
       key: "tahunAjaran",
@@ -77,36 +121,29 @@ export const adminSidebarConfig = {
       label: "Tahun Ajaran",
       path: "/admin/tahun-ajaran",
     },
+
+    // RUANG
     {
       type: "item",
-      key: "imporSiswa",
-      icon: UploadCloud,
-      label: "Impor Siswa",
-      path: "/admin/impor-siswa",
+      key: "ruang",
+      icon: DoorOpen,
+      label: "Ruangan",
+      path: "/admin/ruangan",
     },
 
     // AKADEMIK
-    { type: "header", label: "AKADEMIK" },
+    {
+      type: "header",
+      label: "AKADEMIK",
+    },
+
     {
       type: "item",
       key: "akademik",
       icon: BookOpen,
       label: "Akademik",
-      // Punya path sendiri -> klik pertama langsung membuka halaman ringkasan
-      // Akademik. Klik lagi saat sudah di halaman ini akan toggle submenu
-      // (Sidebar.jsx sudah menangani ini otomatis lewat handleMenuClick).
       path: "/admin/akademik",
-      // Children ini disesuaikan PERSIS dengan folder yang ada di
-      // app/admin/akademik/*: monitoringSiswa, nilai, prestasi, rapor,
-      // sikapPerilaku. Kalau nanti ada folder baru, tambahin entri baru
-      // di sini dengan bentuk yang sama.
       children: [
-        {
-          key: "akademikMonitoringSiswa",
-          icon: ClipboardList,
-          label: "Monitoring Siswa",
-          path: "/admin/akademik/monitoringSiswa",
-        },
         {
           key: "akademikNilai",
           icon: NotebookPen,
@@ -135,15 +172,16 @@ export const adminSidebarConfig = {
     },
 
     // SARANA & PRASARANA
-    { type: "header", label: "SARANA & PRASARANA" },
+    {
+      type: "header",
+      label: "SARANA & PRASARANA",
+    },
+
     {
       type: "item",
       key: "sarpras",
       icon: Boxes,
       label: "Sarpras",
-      // Punya path sendiri -> klik pertama langsung membuka halaman ringkasan
-      // Sarpras. Klik lagi saat sudah di halaman ini akan toggle submenu
-      // (Sidebar.jsx sudah menangani ini otomatis lewat handleMenuClick).
       path: "/admin/sarpras",
       children: [
         {
@@ -162,7 +200,11 @@ export const adminSidebarConfig = {
     },
 
     // SISTEM
-    { type: "header", label: "SISTEM" },
+    {
+      type: "header",
+      label: "SISTEM",
+    },
+
     {
       type: "item",
       key: "settings",

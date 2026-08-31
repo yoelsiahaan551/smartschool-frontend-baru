@@ -35,6 +35,9 @@ const DEFAULT_ROLE = "super-admin";
 // terakhir yang dipilih user.
 const SIDEBAR_COLLAPSED_KEY = "sidebar-collapsed";
 
+// Lebar rail mini (mode ciut) yang dipakai konsisten di desktop & mobile.
+const RAIL_WIDTH_CLASS = "w-[72px]";
+
 function resolveRole(pathname) {
   if (pathname?.startsWith("/guru")) return "guru";
   if (pathname?.startsWith("/yayasan")) return "yayasan";
@@ -124,6 +127,17 @@ useEffect(() => {
       // Hanya update flag isMobile saat breakpoint berubah (resize / rotate).
       // Status collapsed yang sudah dipilih user tidak diutak-atik lagi di sini,
       // supaya klik logo/toggle tidak ketiban reset oleh listener resize.
+      //
+      // CATATAN PENTING: karena status collapsed TIDAK direset di sini, di
+      // mode mobile sidebar TIDAK BOLEH lagi ikut "mendorong" (push) lebar
+      // konten utama seperti di desktop — kalau ikut push, begitu breakpoint
+      // dilewati sambil sidebar sedang dalam kondisi "terbuka" (256px),
+      // konten utama di layar sempit akan mendadak diremas ruang sekaligus
+      // aside berubah jadi overlay + backdrop muncul, semua di frame yang
+      // sama. Itu yang bikin tampilannya kelihatan "ngebug"/lompat-lompat
+      // saat resize. Makanya reserved width di mobile dibekukan (lihat
+      // wrapperClasses di bawah) dan sidebar mobile SELALU berupa overlay,
+      // bukan push-layout.
       setIsMobile(e.matches);
     };
 
@@ -381,32 +395,49 @@ useEffect(() => {
 
   const transitionClass = allowTransition ? "transition-all duration-300 ease-in-out" : "transition-none";
 
+  // Aside = elemen yang benar-benar tampak di layar.
+  // - Desktop: bagian dari alur flex layout biasa (sticky), lebar berubah
+  //   push konten (memang tujuannya sidebar permanen di desktop).
+  // - Mobile: SELALU fixed + jadi overlay di atas konten (dengan backdrop),
+  //   tidak pernah mendorong (push) konten utama.
   const asideClasses = isMobile
     ? `
         fixed inset-y-0 left-0 z-50
-        ${collapsed ? "w-[72px]" : "w-64 max-w-[85vw]"}
-        bg-blue-50
+        ${collapsed ? RAIL_WIDTH_CLASS : "w-64 max-w-[85vw]"}
+        bg-[#0f1729]
         flex flex-col
         ${transitionClass}
-        overflow-hidden border-r border-slate-200
+        border-r border-white/10
       `
     : `
-        ${collapsed ? "w-[72px]" : "w-64"}
-        bg-blue-100
+        ${collapsed ? RAIL_WIDTH_CLASS : "w-64"}
+        bg-[#0f1729]
         flex flex-col
         ${transitionClass}
         flex-shrink-0 h-screen sticky top-0
-        relative overflow-hidden
-        border-r border-slate-200
+        relative
+        border-r border-white/10
       `;
 
-
+  // Wrapper = elemen yang menentukan berapa banyak RUANG yang dijatahkan
+  // sidebar di dalam flex layout halaman (Sidebar + konten utama).
+  //
+  // Di desktop, wrapper ini sengaja disamakan lebarnya dengan aside karena
+  // sidebar memang "mendorong" konten (persistent layout).
+  //
+  // Di mobile, wrapper DIBEKUKAN di lebar rail mini (72px) apa pun status
+  // collapsed-nya. Sidebar mobile murni overlay (lihat asideClasses di
+  // atas + backdrop di bawah), jadi tidak butuh reservasi ruang tambahan
+  // saat drawer dibuka. Inilah perbaikan utamanya: sebelumnya wrapper ikut
+  // melebar ke 256px setiap drawer mobile dibuka, sehingga begitu breakpoint
+  // dilewati saat sidebar dalam kondisi "terbuka", konten utama mendadak
+  // diremas ruang di layar sempit BERSAMAAN dengan aside berubah jadi
+  // overlay + backdrop muncul — kombinasi itulah yang kelihatan seperti
+  // "ngebug gerak-gerak" saat resize ke ukuran HP.
   const wrapperClasses = isMobile
-    ? `relative flex-shrink-0 h-screen z-40 ${transitionClass} ${
-        collapsed ? "w-[72px]" : "w-64 max-w-[85vw]"
-      }`
+    ? `relative flex-shrink-0 h-screen z-40 ${RAIL_WIDTH_CLASS}`
     : `relative flex-shrink-0 sticky top-0 h-screen z-40 ${transitionClass} ${
-        collapsed ? "w-[72px]" : "w-64"
+        collapsed ? RAIL_WIDTH_CLASS : "w-64"
       }`;
 
   return (
@@ -421,182 +452,211 @@ useEffect(() => {
 
       <div className={wrapperClasses}>
         <aside className={asideClasses}>
-          <div className="relative z-10 h-[3px] w-full bg-[#155DFC]" />
+          {/* Pembungkus internal ini yang kena overflow-hidden (bukan aside
+              itu sendiri), supaya tombol toggle di bawah — yang sengaja
+              "nongol" sedikit keluar dari tepi kanan aside — tidak ikut
+              terpotong. Tombol dipindah jadi anak langsung <aside> supaya
+              posisinya selalu presisi mengikuti tepi sidebar yang
+              sesungguhnya, baik di mode push (desktop) maupun overlay
+              (mobile). */}
+          <div className="relative z-10 flex flex-col h-full overflow-hidden">
+            <div className="h-[3px] w-full bg-[#155DFC] flex-shrink-0" />
 
-          <div className="relative z-10 flex items-center px-4 h-20 border-b-2 border-[#155DFC]/20 bg-white/40">
-            <div
-              ref={logoWrapRef}
-              onMouseEnter={showLogoTooltip}
-              onMouseLeave={hideLogoTooltip}
-              className={`flex items-center gap-3 min-w-0 ${collapsed ? "w-full justify-center" : ""}`}
-            >
-              <div className="relative w-11 h-11 flex-shrink-0">
-                <Image
-                  src="/logo/logoSS.png"
-                  alt="Logo SmartSchool"
-                  fill
-                  sizes="44px"
-                  className="object-contain"
-                  priority
-                />
-              </div>
-
-              {showLabels && (
-                <div className="flex flex-col leading-tight text-left min-w-0">
-                  <span className="font-bold text-slate-800 text-xl tracking-tight truncate">
-                    Smart<span className="text-blue-600">School</span>
-                  </span>
-                  <div className="flex items-center gap-1.5">
-                    <Crown size={10} className="text-yellow-500 flex-shrink-0" />
-                    <span className="text-[10px] text-slate-500 font-medium tracking-wider uppercase truncate">
-                      {config.brandName}
-                    </span>
-                  </div>
+            <div className="flex items-center px-4 h-20 border-b border-white/10 bg-[#1c2a4a] flex-shrink-0">
+              <div
+                ref={logoWrapRef}
+                onMouseEnter={showLogoTooltip}
+                onMouseLeave={hideLogoTooltip}
+                className={`flex items-center gap-3 min-w-0 ${collapsed ? "w-full justify-center" : ""}`}
+              >
+                <div className="relative w-11 h-11 flex-shrink-0 rounded-lg bg-white/90 p-1.5 shadow-sm">
+                  <Image
+                    src="/logo/logoSS.png"
+                    alt="Logo SmartSchool"
+                    fill
+                    sizes="44px"
+                    className="object-contain p-1"
+                    priority
+                  />
                 </div>
-              )}
-            </div>
-          </div>
 
-          <nav
-            ref={sidebarNavRef}
-            className="relative z-10 flex-1 overflow-y-auto px-3 py-4 mt-2 space-y-0.5 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent pb-6"
-          >
-            {menuSections.map((item, index) => {
-              if (item.type === "header") {
-                if (!showLabels) return null;
-                return (
-                  <div key={`header-${index}`} className="px-2 pt-5 pb-2">
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 h-px bg-blue-200" />
-                      <span className="text-[9px] font-semibold text-blue-500/80 uppercase tracking-[0.2em]">
-                        {item.label}
+                {showLabels && (
+                  <div className="flex flex-col leading-tight text-left min-w-0">
+                    <span className="font-bold text-white text-xl tracking-tight truncate">
+                      Smart<span className="text-blue-400">School</span>
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <Crown size={10} className="text-yellow-500 flex-shrink-0" />
+                      <span className="text-[10px] text-slate-400 font-medium tracking-wider uppercase truncate">
+                        {config.brandName}
                       </span>
-                      <div className="flex-1 h-px bg-blue-200" />
                     </div>
                   </div>
-                );
-              }
+                )}
+              </div>
+            </div>
 
-              const hasChildren = !!item.children;
-              const isChildActive = hasChildren && item.children.some((c) => pathname === c.path);
-              const isActive = pathname === item.path || isChildActive;
-              const isOpen = !!openMenus[item.key];
-              const collapsedIconMode = collapsed;
-              const isFlyoutActive = flyoutState?.key === item.key;
-
-              return (
-                <div key={item.key} className="relative">
-                  <div
-                    onClick={(e) => handleMenuClick(item, collapsedIconMode, e.currentTarget)}
-                    onMouseEnter={(e) => {
-                      // FIX: hover flyout/tooltip hanya untuk desktop.
-                      // Di mobile, tap ditangani sepenuhnya oleh onClick,
-                      // dan flyout tidak pernah dipakai (lihat handleMenuClick).
-                      if (isMobile) return;
-                      if (collapsedIconMode && hasChildren) openFlyoutFor(item, e.currentTarget);
-                      if (collapsedIconMode && !hasChildren) showItemTooltip(item, e.currentTarget);
-                    }}
-                    onMouseLeave={() => {
-                      if (isMobile) return;
-                      if (collapsedIconMode && hasChildren) scheduleCloseFlyout();
-                      if (collapsedIconMode && !hasChildren) hideItemTooltip();
-                    }}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        handleMenuClick(item, collapsedIconMode, e.currentTarget);
-                      }
-                    }}
-                    className={`
-                      relative flex items-center gap-3 w-full px-3 py-2.5 rounded-xl 
-                      text-sm font-medium transition-all duration-200 ease-out cursor-pointer select-none
-                      ${isActive ? "text-blue-700 bg-white border border-blue-200" : "text-slate-600 hover:text-blue-700 hover:bg-white/60"}
-                      ${collapsedIconMode ? "justify-center px-2" : ""}
-                      group
-                    `}
-                  >
-                    {isActive && (
-                      <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 rounded-r-full bg-gradient-to-b from-blue-500 to-indigo-500" />
-                    )}
-
-                    <div
-                      className={`
-                      relative flex items-center justify-center
-                      transition-all duration-200
-                      ${isActive ? "text-blue-600" : "text-blue-400 group-hover:text-blue-500"}
-                      ${collapsedIconMode ? "w-10 h-10" : ""}
-                    `}
-                    >
-                      <item.icon
-                        size={20}
-                        className={`
-                          transition-all duration-200
-                          ${isActive ? "scale-110" : ""}
-                          group-hover:scale-110
-                        `}
-                      />
-                    </div>
-
-                    {showLabels && <span className="flex-1 text-left text-xs tracking-wide">{item.label}</span>}
-
-                    {showLabels && hasChildren && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleSubmenu(item.key);
-                        }}
-                        className="p-1 -m-1 rounded-md hover:bg-slate-200/60 transition-colors duration-150"
-                        title={isOpen ? "Tutup submenu" : "Buka submenu"}
-                      >
-                        <ChevronDown
-                          size={14}
-                          className={`text-slate-400 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
-                        />
-                      </button>
-                    )}
-
-                    {showLabels && !hasChildren && isActive && <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />}
-                  </div>
-
-                  {hasChildren && showLabels && (
-                    <div
-                      className={`overflow-hidden transition-all duration-200 ease-out ${
-                        isOpen ? "max-h-96 opacity-100 mt-0.5" : "max-h-0 opacity-0"
-                      }`}
-                    >
-                      <div className="ml-4 pl-3 border-l border-blue-200 space-y-0.5 py-1">
-                        {item.children.map((child) => {
-                          const isChildItemActive = pathname === child.path;
-                          return (
-                            <button
-                              key={child.key}
-                              onClick={() => handleSubItemClick(item.key, child)}
-                              className={`
-                                flex items-center gap-2.5 w-full px-3 py-2 rounded-lg
-                                text-xs font-medium transition-all duration-200
-                                ${
-                                  isChildItemActive
-                                    ? "text-blue-700 bg-white border border-blue-200"
-                                    : "text-slate-500 hover:text-slate-800 hover:bg-white/60"
-                                }
-                              `}
-                            >
-                              <child.icon size={15} className={isChildItemActive ? "text-blue-600" : "text-slate-400"} />
-                              <span className="flex-1 text-left tracking-wide">{child.label}</span>
-                              {isChildItemActive && <div className="w-1 h-1 rounded-full bg-blue-500" />}
-                            </button>
-                          );
-                        })}
+            <nav
+              ref={sidebarNavRef}
+              className="flex-1 overflow-y-auto px-3 py-4 mt-2 space-y-0.5 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent pb-6"
+            >
+              {menuSections.map((item, index) => {
+                if (item.type === "header") {
+                  if (!showLabels) return null;
+                  return (
+                    <div key={`header-${index}`} className="px-2 pt-5 pb-2">
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 h-px bg-white/10" />
+                        <span className="text-[9px] font-semibold text-blue-300/70 uppercase tracking-[0.2em]">
+                          {item.label}
+                        </span>
+                        <div className="flex-1 h-px bg-white/10" />
                       </div>
                     </div>
-                  )}
-                </div>
-              );
-            })}
-          </nav>
+                  );
+                }
+
+                const hasChildren = !!item.children;
+                const isChildActive = hasChildren && item.children.some((c) => pathname === c.path);
+                const isActive = pathname === item.path || isChildActive;
+                const isOpen = !!openMenus[item.key];
+                const collapsedIconMode = collapsed;
+                const isFlyoutActive = flyoutState?.key === item.key;
+
+                return (
+                  <div key={item.key} className="relative">
+                    <div
+                      onClick={(e) => handleMenuClick(item, collapsedIconMode, e.currentTarget)}
+                      onMouseEnter={(e) => {
+                        // FIX: hover flyout/tooltip hanya untuk desktop.
+                        // Di mobile, tap ditangani sepenuhnya oleh onClick,
+                        // dan flyout tidak pernah dipakai (lihat handleMenuClick).
+                        if (isMobile) return;
+                        if (collapsedIconMode && hasChildren) openFlyoutFor(item, e.currentTarget);
+                        if (collapsedIconMode && !hasChildren) showItemTooltip(item, e.currentTarget);
+                      }}
+                      onMouseLeave={() => {
+                        if (isMobile) return;
+                        if (collapsedIconMode && hasChildren) scheduleCloseFlyout();
+                        if (collapsedIconMode && !hasChildren) hideItemTooltip();
+                      }}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          handleMenuClick(item, collapsedIconMode, e.currentTarget);
+                        }
+                      }}
+                      className={`
+                        relative flex items-center gap-3 w-full px-3 py-2.5 rounded-xl 
+                        text-sm font-medium transition-all duration-200 ease-out cursor-pointer select-none
+                        ${isActive ? "text-white bg-white/10 border border-blue-500/30" : "text-slate-300 hover:text-white hover:bg-white/10"}
+                        ${collapsedIconMode ? "justify-center px-2" : ""}
+                        group
+                      `}
+                    >
+                      {isActive && (
+                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 rounded-r-full bg-gradient-to-b from-blue-500 to-indigo-500" />
+                      )}
+
+                      <div
+                        className={`
+                        relative flex items-center justify-center
+                        transition-all duration-200
+                        ${isActive ? "text-blue-400" : "text-blue-400/70 group-hover:text-blue-300"}
+                        ${collapsedIconMode ? "w-10 h-10" : ""}
+                      `}
+                      >
+                        <item.icon
+                          size={20}
+                          className={`
+                            transition-all duration-200
+                            ${isActive ? "scale-110" : ""}
+                            group-hover:scale-110
+                          `}
+                        />
+                      </div>
+
+                      {showLabels && <span className="flex-1 text-left text-xs tracking-wide">{item.label}</span>}
+
+                      {showLabels && hasChildren && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleSubmenu(item.key);
+                          }}
+                          className="p-1 -m-1 rounded-md hover:bg-white/10 transition-colors duration-150"
+                          title={isOpen ? "Tutup submenu" : "Buka submenu"}
+                        >
+                          <ChevronDown
+                            size={14}
+                            className={`text-slate-400 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
+                          />
+                        </button>
+                      )}
+
+                      {showLabels && !hasChildren && isActive && <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />}
+                    </div>
+
+                    {hasChildren && showLabels && (
+                      <div
+                        className={`overflow-hidden transition-all duration-200 ease-out ${
+                          isOpen ? "max-h-96 opacity-100 mt-0.5" : "max-h-0 opacity-0"
+                        }`}
+                      >
+                        <div className="ml-4 pl-3 border-l border-white/10 space-y-0.5 py-1">
+                          {item.children.map((child) => {
+                            const isChildItemActive = pathname === child.path;
+                            return (
+                              <button
+                                key={child.key}
+                                onClick={() => handleSubItemClick(item.key, child)}
+                                className={`
+                                  flex items-center gap-2.5 w-full px-3 py-2 rounded-lg
+                                  text-xs font-medium transition-all duration-200
+                                  ${
+                                    isChildItemActive
+                                      ? "text-white bg-white/10 border border-blue-500/30"
+                                      : "text-slate-400 hover:text-white hover:bg-white/10"
+                                  }
+                                `}
+                              >
+                                <child.icon size={15} className={isChildItemActive ? "text-blue-400" : "text-slate-500"} />
+                                <span className="flex-1 text-left tracking-wide">{child.label}</span>
+                                {isChildItemActive && <div className="w-1 h-1 rounded-full bg-blue-500" />}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </nav>
+          </div>
+
+          <button
+            onClick={toggleSidebar}
+            title={collapsed ? "Buka Sidebar" : "Ciutkan Sidebar"}
+            aria-label={collapsed ? "Buka Sidebar" : "Ciutkan Sidebar"}
+            aria-expanded={!collapsed}
+            className="absolute z-[100] top-8 -right-3 w-7 h-7 rounded-full
+              bg-white
+              border border-blue-200
+              flex items-center justify-center text-blue-500
+              shadow-md shadow-blue-100
+              hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300
+              hover:scale-110 active:scale-95
+              transition-all duration-200 ease-in-out"
+          >
+            <ChevronRight
+              size={14}
+              className={`transition-transform duration-300 ease-in-out ${collapsed ? "" : "rotate-180"}`}
+            />
+          </button>
         </aside>
 
         {/* Flyout submenu via Portal (desktop only, lihat handleMenuClick & onMouseEnter) */}
@@ -613,9 +673,9 @@ useEffect(() => {
                 left: flyoutState.left,
                 zIndex: 9999,
               }}
-              className="min-w-[230px] bg-white rounded-xl shadow-xl border border-slate-200 p-2"
+              className="min-w-[230px] bg-[#0f1729] rounded-xl shadow-xl border border-white/10 p-2"
             >
-              <div className="absolute -left-1.5 top-5 w-3 h-3 bg-white border-l border-b border-slate-200 rotate-45" />
+              <div className="absolute -left-1.5 top-5 w-3 h-3 bg-[#0f1729] border-l border-b border-white/10 rotate-45" />
 
               <div className="px-2 pt-1 pb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">
                 {flyoutState.item.label}
@@ -633,12 +693,12 @@ useEffect(() => {
                         text-xs font-medium text-left transition-all duration-200
                         ${
                           isChildItemActive
-                            ? "text-blue-700 bg-blue-50 border border-blue-200"
-                            : "text-slate-600 hover:text-blue-700 hover:bg-sky-50"
+                            ? "text-white bg-blue-500/20 border border-blue-500/30"
+                            : "text-slate-300 hover:text-white hover:bg-white/10"
                         }
                       `}
                     >
-                      <child.icon size={15} className={isChildItemActive ? "text-blue-600" : "text-slate-400"} />
+                      <child.icon size={15} className={isChildItemActive ? "text-blue-400" : "text-slate-500"} />
                       <span className="flex-1 truncate">{child.label}</span>
                       {isChildItemActive && <div className="w-1 h-1 rounded-full bg-blue-500 flex-shrink-0" />}
                     </button>
@@ -688,26 +748,6 @@ useEffect(() => {
             </div>,
             document.body
           )}
-
-        <button
-          onClick={toggleSidebar}
-          title={collapsed ? "Buka Sidebar" : "Ciutkan Sidebar"}
-          aria-label={collapsed ? "Buka Sidebar" : "Ciutkan Sidebar"}
-          aria-expanded={!collapsed}
-          className="absolute z-[100] top-8 -right-3 w-7 h-7 rounded-full
-            bg-white
-            border border-blue-200
-            flex items-center justify-center text-blue-500
-            shadow-md shadow-blue-100
-            hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300
-            hover:scale-110 active:scale-95
-            transition-all duration-200 ease-in-out"
-        >
-          <ChevronRight
-            size={14}
-            className={`transition-transform duration-300 ease-in-out ${collapsed ? "" : "rotate-180"}`}
-          />
-        </button>
       </div>
     </>
   );

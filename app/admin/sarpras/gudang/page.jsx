@@ -17,9 +17,6 @@ import {
   AlertTriangle,
   XCircle,
   Filter,
-  ChevronDown,
-  Boxes,
-  ClipboardList,
 } from "lucide-react";
 
 // =========================================================
@@ -205,19 +202,21 @@ const stokStatusConfig = {
   aman: {
     label: "Aman",
     icon: CheckCircle,
-    className: "bg-emerald-50 text-emerald-600 border-emerald-200",
+    textClassName: "text-emerald-600",
   },
   menipis: {
     label: "Menipis",
     icon: AlertTriangle,
-    className: "bg-amber-50 text-amber-600 border-amber-200",
+    textClassName: "text-amber-600",
   },
   habis: {
     label: "Habis",
     icon: XCircle,
-    className: "bg-rose-50 text-rose-600 border-rose-200",
+    textClassName: "text-rose-600",
   },
 };
+
+const kategoriKeys = ["ATK", "Kebersihan", "Bahan Praktik", "Konsumsi"];
 
 // =========================================================
 // MAIN COMPONENT
@@ -229,12 +228,6 @@ export default function AdminSarprasGudangPage() {
   const [search, setSearch] = useState("");
   const [kategoriFilter, setKategoriFilter] = useState("Semua");
   const [stokFilter, setStokFilter] = useState("Semua");
-  const [expandedKategori, setExpandedKategori] = useState([
-    "ATK",
-    "Kebersihan",
-    "Bahan Praktik",
-    "Konsumsi",
-  ]);
 
   const toggleSidebar = () => setIsCollapsed(!isCollapsed);
 
@@ -260,36 +253,18 @@ export default function AdminSarprasGudangPage() {
     saveGudang(updated);
   };
 
-  const toggleKategori = (kategori) => {
-    setExpandedKategori((prev) =>
-      prev.includes(kategori) ? prev.filter((k) => k !== kategori) : [...prev, kategori]
-    );
-  };
-
-  const filtered = gudang.filter((item) => {
-    const matchSearch =
-      item.nama.toLowerCase().includes(search.toLowerCase()) ||
-      item.kode_barang.toLowerCase().includes(search.toLowerCase()) ||
-      item.lokasi_rak.toLowerCase().includes(search.toLowerCase());
-    const matchKategori = kategoriFilter === "Semua" || item.kategori === kategoriFilter;
-    const status = getStokStatus(item.stok, item.stok_minimum);
-    const matchStok = stokFilter === "Semua" || status === stokFilter;
-    return matchSearch && matchKategori && matchStok;
-  });
-
-  const groupedByKategori = filtered.reduce((acc, item) => {
-    if (!acc[item.kategori]) acc[item.kategori] = [];
-    acc[item.kategori].push(item);
-    return acc;
-  }, {});
-
-  const kategoriKeys = ["ATK", "Kebersihan", "Bahan Praktik", "Konsumsi"];
-
-  // Statistics
-  const totalJenis = gudang.length;
-  const totalAman = gudang.filter((g) => getStokStatus(g.stok, g.stok_minimum) === "aman").length;
-  const totalMenipis = gudang.filter((g) => getStokStatus(g.stok, g.stok_minimum) === "menipis").length;
-  const totalHabis = gudang.filter((g) => getStokStatus(g.stok, g.stok_minimum) === "habis").length;
+  const filtered = gudang
+    .filter((item) => {
+      const matchSearch =
+        item.nama.toLowerCase().includes(search.toLowerCase()) ||
+        item.kode_barang.toLowerCase().includes(search.toLowerCase()) ||
+        item.lokasi_rak.toLowerCase().includes(search.toLowerCase());
+      const matchKategori = kategoriFilter === "Semua" || item.kategori === kategoriFilter;
+      const status = getStokStatus(item.stok, item.stok_minimum);
+      const matchStok = stokFilter === "Semua" || status === stokFilter;
+      return matchSearch && matchKategori && matchStok;
+    })
+    .sort((a, b) => a.kategori.localeCompare(b.kategori) || a.nama.localeCompare(b.nama));
 
   return (
     <div className="flex h-screen w-full bg-slate-50 overflow-hidden">
@@ -308,12 +283,12 @@ export default function AdminSarprasGudangPage() {
               {/* HEADER */}
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-gradient-to-br from-cyan-600 to-blue-600 text-white shadow-lg shadow-cyan-200 flex-shrink-0">
+                  <div className="p-2.5 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-200 flex-shrink-0">
                     <Warehouse size={20} />
                   </div>
                   <div>
-                    <h1 className="text-xl font-semibold text-slate-800">Gudang Sarana & Prasarana</h1>
-                    <p className="text-sm text-slate-500">Pantau stok barang habis pakai dan kebutuhan restok</p>
+                    <h1 className="text-xl font-semibold text-slate-900">Gudang Sarana & Prasarana</h1>
+                    <p className="text-sm text-slate-600">Pantau stok barang habis pakai dan kebutuhan restok</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
@@ -329,61 +304,12 @@ export default function AdminSarprasGudangPage() {
                   </button>
                   <button
                     onClick={() => router.push("/admin/sarpras/gudang/tambah")}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-cyan-600 to-blue-600 text-white rounded-xl hover:shadow-lg hover:shadow-cyan-200 transition-all shadow-sm font-medium"
+                    className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:shadow-lg hover:shadow-blue-200 transition-all shadow-sm font-semibold"
                   >
                     <Plus size={18} /> Tambah Barang
                   </button>
                 </div>
               </div>
-
-              {/* STATISTICS */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm">
-                  <div className="flex items-center gap-2">
-                    <div className="p-1.5 rounded-lg bg-blue-50 text-blue-600"><Boxes size={16} /></div>
-                    <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Jenis Barang</p>
-                  </div>
-                  <p className="text-2xl font-bold text-slate-800 mt-1">{totalJenis}</p>
-                </div>
-                <div className="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm">
-                  <div className="flex items-center gap-2">
-                    <div className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600"><CheckCircle size={16} /></div>
-                    <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Stok Aman</p>
-                  </div>
-                  <p className="text-2xl font-bold text-emerald-600 mt-1">{totalAman}</p>
-                </div>
-                <div className="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm">
-                  <div className="flex items-center gap-2">
-                    <div className="p-1.5 rounded-lg bg-amber-50 text-amber-600"><AlertTriangle size={16} /></div>
-                    <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Stok Menipis</p>
-                  </div>
-                  <p className="text-2xl font-bold text-amber-600 mt-1">{totalMenipis}</p>
-                </div>
-                <div className="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm">
-                  <div className="flex items-center gap-2">
-                    <div className="p-1.5 rounded-lg bg-rose-50 text-rose-600"><XCircle size={16} /></div>
-                    <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Stok Habis</p>
-                  </div>
-                  <p className="text-2xl font-bold text-rose-600 mt-1">{totalHabis}</p>
-                </div>
-              </div>
-
-              {/* PERINGATAN RESTOK */}
-              {(totalMenipis > 0 || totalHabis > 0) && (
-                <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl p-4">
-                  <div className="p-1.5 rounded-lg bg-amber-100 text-amber-600 flex-shrink-0">
-                    <ClipboardList size={16} />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-amber-800">
-                      {totalHabis > 0 && `${totalHabis} barang habis`}
-                      {totalHabis > 0 && totalMenipis > 0 && " dan "}
-                      {totalMenipis > 0 && `${totalMenipis} barang menipis`}
-                      , perlu segera direstok.
-                    </p>
-                  </div>
-                </div>
-              )}
 
               {/* SEARCH & FILTER */}
               <div className="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm">
@@ -395,7 +321,7 @@ export default function AdminSarprasGudangPage() {
                       placeholder="Cari nama barang, kode, atau lokasi rak..."
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-400 transition"
+                      className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition text-slate-800"
                     />
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">
@@ -403,7 +329,7 @@ export default function AdminSarprasGudangPage() {
                     <select
                       value={kategoriFilter}
                       onChange={(e) => setKategoriFilter(e.target.value)}
-                      className="px-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-400 text-slate-600 min-w-[140px] cursor-pointer"
+                      className="px-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 text-slate-800 font-medium min-w-[140px] cursor-pointer"
                     >
                       <option value="Semua">Semua Kategori</option>
                       {kategoriKeys.map((k) => (
@@ -413,7 +339,7 @@ export default function AdminSarprasGudangPage() {
                     <select
                       value={stokFilter}
                       onChange={(e) => setStokFilter(e.target.value)}
-                      className="px-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-400 text-slate-600 min-w-[140px] cursor-pointer"
+                      className="px-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 text-slate-800 font-medium min-w-[140px] cursor-pointer"
                     >
                       <option value="Semua">Semua Status Stok</option>
                       <option value="aman">Aman</option>
@@ -426,7 +352,7 @@ export default function AdminSarprasGudangPage() {
                         setKategoriFilter("Semua");
                         setStokFilter("Semua");
                       }}
-                      className="px-3 py-2.5 text-sm text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors whitespace-nowrap"
+                      className="px-3 py-2.5 text-sm text-slate-600 font-medium hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors whitespace-nowrap"
                     >
                       Reset
                     </button>
@@ -434,175 +360,111 @@ export default function AdminSarprasGudangPage() {
                 </div>
               </div>
 
-              {/* STOCK TABLE PER KATEGORI */}
-              <div className="space-y-4">
-                {kategoriKeys.map((kategori) => {
-                  const items = groupedByKategori[kategori] || [];
-                  const isExpanded = expandedKategori.includes(kategori);
-                  const totalItem = items.length;
-                  const adaMasalah = items.some(
-                    (g) => getStokStatus(g.stok, g.stok_minimum) !== "aman"
-                  );
-
-                  if (items.length === 0 && (kategoriFilter !== "Semua" || stokFilter !== "Semua")) return null;
-                  if (items.length === 0 && search) return null;
-
-                  return (
-                    <div key={kategori} className="bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
-                      {/* Kategori Header */}
-                      <div
-                        className="flex items-center justify-between px-5 py-4 bg-gradient-to-r from-cyan-50/60 to-blue-50/60 border-b border-slate-200/80 cursor-pointer hover:from-cyan-100/40 hover:to-blue-100/40 transition-all"
-                        onClick={() => toggleKategori(kategori)}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-500 text-white shadow-md">
-                            <Warehouse size={18} />
-                          </div>
-                          <div>
-                            <h3 className="font-semibold text-slate-800 text-base">{kategori}</h3>
-                            <p className="text-xs text-slate-500">
-                              {totalItem} jenis barang
-                              {adaMasalah && (
-                                <span className="ml-2 inline-flex items-center gap-1 text-amber-600 font-medium">
-                                  <AlertTriangle size={12} /> Perlu perhatian
-                                </span>
-                              )}
+              {/* TABEL GUDANG - SATU TABEL, KATEGORI JADI KOLOM */}
+              <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+                        <th className="text-left font-semibold px-4 py-3 min-w-[200px]">Nama Barang</th>
+                        <th className="text-left font-semibold px-4 py-3 whitespace-nowrap">Kategori</th>
+                        <th className="text-left font-semibold px-4 py-3 whitespace-nowrap">Kode Barang</th>
+                        <th className="text-left font-semibold px-4 py-3 whitespace-nowrap">Lokasi Rak</th>
+                        <th className="text-left font-semibold px-4 py-3 whitespace-nowrap">Stok</th>
+                        <th className="text-left font-semibold px-4 py-3 whitespace-nowrap">Status</th>
+                        <th className="text-left font-semibold px-4 py-3 whitespace-nowrap">Supplier</th>
+                        <th className="text-left font-semibold px-4 py-3 whitespace-nowrap">Update Terakhir</th>
+                        <th className="text-center font-semibold px-4 py-3 whitespace-nowrap">Aksi</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtered.map((item, idx) => {
+                        const status = getStokStatus(item.stok, item.stok_minimum);
+                        const cfg = stokStatusConfig[status];
+                        const StatusIcon = cfg.icon;
+                        return (
+                          <tr
+                            key={item.id}
+                            className={`border-b border-slate-100 last:border-0 transition-colors hover:bg-blue-100/60 ${
+                              idx % 2 === 0 ? "bg-blue-50/50" : "bg-white"
+                            }`}
+                          >
+                            <td className="px-4 py-2.5 text-slate-900 font-semibold">{item.nama}</td>
+                            <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap">{item.kategori}</td>
+                            <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap">{item.kode_barang}</td>
+                            <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap">{item.lokasi_rak}</td>
+                            <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap">
+                              {item.stok} {item.satuan}{" "}
+                              <span className="text-slate-400">(min. {item.stok_minimum})</span>
+                            </td>
+                            <td className="px-4 py-2.5 whitespace-nowrap">
+                              <span
+                                className={`inline-flex items-center gap-1.5 text-sm font-medium ${cfg.textClassName}`}
+                              >
+                                <StatusIcon size={14} />
+                                {cfg.label}
+                              </span>
+                            </td>
+                            <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap">{item.supplier}</td>
+                            <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap">{item.terakhir_update}</td>
+                            <td className="px-4 py-2.5">
+                              <div className="flex items-center justify-center gap-1.5">
+                                <button
+                                  onClick={() => handleStokChange(item.id, -1)}
+                                  className="p-2 rounded-lg hover:bg-rose-50 text-slate-500 hover:text-rose-600 transition-all"
+                                  title="Kurangi Stok"
+                                >
+                                  <PackageMinus size={16} />
+                                </button>
+                                <button
+                                  onClick={() => handleStokChange(item.id, 1)}
+                                  className="p-2 rounded-lg hover:bg-emerald-50 text-slate-500 hover:text-emerald-600 transition-all"
+                                  title="Tambah Stok"
+                                >
+                                  <PackagePlus size={16} />
+                                </button>
+                                <button
+                                  onClick={() => router.push(`/admin/sarpras/gudang/edit/${item.id}`)}
+                                  className="p-2 rounded-lg hover:bg-amber-50 text-slate-500 hover:text-amber-600 transition-all"
+                                  title="Edit Barang"
+                                >
+                                  <Edit size={16} />
+                                </button>
+                                <button
+                                  onClick={() => handleDelete(item.id, item.nama)}
+                                  className="p-2 rounded-lg hover:bg-rose-50 text-slate-500 hover:text-rose-600 transition-all"
+                                  title="Hapus Barang"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      {filtered.length === 0 && (
+                        <tr>
+                          <td colSpan={9} className="px-4 py-12 text-center">
+                            <div className="flex justify-center mb-3">
+                              <div className="p-3 rounded-full bg-blue-50">
+                                <Warehouse size={36} className="text-blue-300" />
+                              </div>
+                            </div>
+                            <p className="text-sm font-medium text-slate-600">Tidak ada data gudang</p>
+                            <p className="text-xs text-slate-400 mt-1">
+                              {search || kategoriFilter !== "Semua" || stokFilter !== "Semua"
+                                ? "Coba ubah filter pencarian"
+                                : "Silakan tambahkan barang baru"}
                             </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-slate-400 font-medium">
-                            {isExpanded ? "Sembunyikan" : "Tampilkan"}
-                          </span>
-                          <div className="p-1 rounded-full hover:bg-white/50 transition-colors">
-                            <ChevronDown
-                              size={18}
-                              className={`text-slate-500 transition-transform duration-300 ${
-                                isExpanded ? "rotate-180" : ""
-                              }`}
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Item Table */}
-                      {isExpanded && (
-                        items.length === 0 ? (
-                          <div className="p-6 text-center text-sm text-slate-400">Belum ada barang di kategori ini</div>
-                        ) : (
-                          <div className="overflow-x-auto">
-                            <table className="w-full text-sm">
-                              <thead>
-                                <tr className="bg-slate-50/60 text-slate-500 text-[11px] uppercase tracking-wide">
-                                  <th className="text-left font-medium px-5 py-2.5">Nama Barang</th>
-                                  <th className="text-left font-medium px-5 py-2.5">Kode Barang</th>
-                                  <th className="text-left font-medium px-5 py-2.5">Lokasi Rak</th>
-                                  <th className="text-left font-medium px-5 py-2.5">Stok</th>
-                                  <th className="text-left font-medium px-5 py-2.5">Status</th>
-                                  <th className="text-left font-medium px-5 py-2.5">Supplier</th>
-                                  <th className="text-left font-medium px-5 py-2.5">Update Terakhir</th>
-                                  <th className="text-right font-medium px-5 py-2.5">Aksi</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {items.map((item) => {
-                                  const status = getStokStatus(item.stok, item.stok_minimum);
-                                  const cfg = stokStatusConfig[status];
-                                  const StatusIcon = cfg.icon;
-                                  return (
-                                    <tr
-                                      key={item.id}
-                                      className={`border-t border-slate-100 hover:bg-slate-50/60 transition-colors ${
-                                        status !== "aman" ? "bg-slate-50/30" : ""
-                                      }`}
-                                    >
-                                      <td className="px-5 py-3 font-medium text-slate-700 whitespace-nowrap">{item.nama}</td>
-                                      <td className="px-5 py-3 text-slate-500 whitespace-nowrap">{item.kode_barang}</td>
-                                      <td className="px-5 py-3 text-slate-500 whitespace-nowrap">{item.lokasi_rak}</td>
-                                      <td className="px-5 py-3 text-slate-600 whitespace-nowrap">
-                                        {item.stok} {item.satuan}{" "}
-                                        <span className="text-slate-400">(min. {item.stok_minimum})</span>
-                                      </td>
-                                      <td className="px-5 py-3 whitespace-nowrap">
-                                        <span
-                                          className={`inline-flex items-center gap-1.5 text-[10px] font-medium px-2.5 py-1 rounded-full border ${cfg.className}`}
-                                        >
-                                          <StatusIcon size={11} />
-                                          {cfg.label}
-                                        </span>
-                                      </td>
-                                      <td className="px-5 py-3 text-slate-500 whitespace-nowrap">{item.supplier}</td>
-                                      <td className="px-5 py-3 text-slate-500 whitespace-nowrap">{item.terakhir_update}</td>
-                                      <td className="px-5 py-3">
-                                        <div className="flex items-center justify-end gap-1.5">
-                                          <button
-                                            onClick={() => handleStokChange(item.id, -1)}
-                                            className="p-2 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-all hover:shadow-sm"
-                                            title="Kurangi Stok"
-                                          >
-                                            <PackageMinus size={16} />
-                                          </button>
-                                          <button
-                                            onClick={() => handleStokChange(item.id, 1)}
-                                            className="p-2 rounded-lg hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 transition-all hover:shadow-sm"
-                                            title="Tambah Stok"
-                                          >
-                                            <PackagePlus size={16} />
-                                          </button>
-                                          <button
-                                            onClick={() => router.push(`/admin/sarpras/gudang/edit/${item.id}`)}
-                                            className="p-2 rounded-lg hover:bg-amber-50 text-slate-400 hover:text-amber-600 transition-all hover:shadow-sm"
-                                            title="Edit Barang"
-                                          >
-                                            <Edit size={16} />
-                                          </button>
-                                          <button
-                                            onClick={() => handleDelete(item.id, item.nama)}
-                                            className="p-2 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-all hover:shadow-sm"
-                                            title="Hapus Barang"
-                                          >
-                                            <Trash2 size={16} />
-                                          </button>
-                                        </div>
-                                      </td>
-                                    </tr>
-                                  );
-                                })}
-                              </tbody>
-                            </table>
-                          </div>
-                        )
+                          </td>
+                        </tr>
                       )}
-                    </div>
-                  );
-                })}
+                    </tbody>
+                  </table>
+                </div>
               </div>
 
-              {filtered.length === 0 && (
-                <div className="bg-white rounded-xl border border-slate-200/80 p-12 text-center shadow-sm">
-                  <div className="flex justify-center mb-4">
-                    <div className="p-4 rounded-full bg-cyan-50">
-                      <Warehouse size={48} className="text-cyan-300" />
-                    </div>
-                  </div>
-                  <p className="text-sm font-medium text-slate-600">Tidak ada data gudang</p>
-                  <p className="text-xs text-slate-400 mt-1">
-                    {search || kategoriFilter !== "Semua" || stokFilter !== "Semua"
-                      ? "Coba ubah filter pencarian"
-                      : "Silakan tambahkan barang baru"}
-                  </p>
-                  {!search && kategoriFilter === "Semua" && stokFilter === "Semua" && (
-                    <button
-                      onClick={() => router.push("/admin/sarpras/gudang/tambah")}
-                      className="mt-3 text-sm text-cyan-600 font-medium hover:text-cyan-700 hover:underline transition-all"
-                    >
-                      Tambah barang pertama →
-                    </button>
-                  )}
-                </div>
-              )}
-
-              <footer className="text-center text-[11px] text-slate-400 py-3 border-t border-slate-200/60">
+              <footer className="text-center text-[11px] text-slate-500 py-3 border-t border-slate-200/60">
                 © 2026 SmartSchool • Gudang Sarana & Prasarana
               </footer>
             </div>

@@ -3,93 +3,189 @@
 import { useState, useMemo } from "react";
 import Header from "../../../components/Header";
 import Sidebar from "../../../components/Sidebar";
-import { Search, Filter, NotebookPen, TrendingUp, ChevronRight } from "lucide-react";
+import { Search, Filter, NotebookPen, Printer, Trash2, Users, GraduationCap, TrendingUp } from "lucide-react";
 
 /**
  * app/admin/akademik/nilai/page.jsx
  *
- * Halaman Nilai — menampilkan nilai siswa PER SEMESTER dalam bentuk tabel.
- * Tiap kolom semester adalah ANGKA RINGKASAN (persentase) yang sudah
- * dirata-ratakan dari seluruh tugas/penilaian di semester tersebut — bukan
- * daftar tugas satu-satu.
+ * Halaman Nilai — tabel rekap nilai siswa per mata pelajaran, mengikuti
+ * struktur kolom: No, Kelas, Induk, Nama Siswa, L/P, lalu satu kolom per
+ * mata pelajaran, dan kolom Aksi di paling kanan (cetak & hapus).
  *
- * Kolom paling kanan ("Total Keseluruhan") ada di luar layar pada tampilan
- * default — user perlu geser tabel ke kanan (scroll horizontal) untuk
- * melihatnya, isinya adalah rata-rata dari SEMUA semester yang ada.
+ * Skema warna memakai palet biru/indigo (bukan hijau) supaya konsisten
+ * dengan tema halaman-halaman lain di project ini.
  *
  * CATATAN DATA:
- * MOCK_SISWA di bawah masih dummy. Struktur `nilaiSemester` adalah array
- * angka persentase per semester (index 0 = Semester 1, dst). Kalau nanti
- * nyambung ke API, tiap elemen array ini idealnya sudah hasil kalkulasi
- * backend dari (total poin tugas semester itu / total poin maksimal
- * semester itu * 100) — jadi frontend tinggal menampilkan, tidak perlu
- * hitung ulang dari tugas mentah.
+ * MOCK_NILAI di bawah masih dummy. Tiap siswa punya objek `nilai` yang
+ * key-nya kode mata pelajaran (lihat MAPEL) dan value-nya angka 0-100.
+ * Kalau nanti nyambung ke API, tinggal ganti MOCK_NILAI dengan hasil
+ * fetch yang bentuknya sama.
  */
 
-const SEMESTER_LABELS = ["Semester 1", "Semester 2", "Semester 3", "Semester 4", "Semester 5", "Semester 6"];
+const MAPEL = [
+  { key: "agm", label: "Agm" },
+  { key: "pkn", label: "PKn" },
+  { key: "indo", label: "Indo" },
+  { key: "mat", label: "Mat" },
+  { key: "sej", label: "Sej" },
+  { key: "ingg", label: "Ingg" },
+  { key: "seni", label: "Seni" },
+  { key: "penj", label: "Penj" },
+  { key: "pkwu", label: "PKWU" },
+];
 
-const MOCK_SISWA = [
+const MOCK_NILAI = [
   {
     id: 1,
-    nama: "Ahmad Fauzan Ramadhan",
-    nis: "2024001",
-    kelas: "VII-A",
-    nilaiSemester: [88.6, 90.2, 91.0, 87.4, 89.8, 92.1],
+    kelas: "X RPL 1",
+    induk: "10231",
+    nama: "Alya Ramadhani",
+    lp: "P",
+    nilai: { agm: 86, pkn: 75, indo: 86, mat: 75, sej: 86, ingg: 75, seni: 86, penj: 75, pkwu: 86 },
   },
   {
     id: 2,
-    nama: "Siti Nur Halimah",
-    nis: "2024002",
-    kelas: "VII-A",
-    nilaiSemester: [67.6, 70.4, 66.2, 72.8, 69.0, 71.5],
+    kelas: "X RPL 1",
+    induk: "10232",
+    nama: "Bunga Citra Lestari",
+    lp: "P",
+    nilai: { agm: 86, pkn: 75, indo: 86, mat: 75, sej: 86, ingg: 75, seni: 86, penj: 75, pkwu: 86 },
   },
   {
     id: 3,
-    nama: "Muhammad Rizky Pratama",
-    nis: "2024003",
-    kelas: "VII-B",
-    nilaiSemester: [79.0, 81.5, 78.2, 80.6, 82.0, 79.9],
+    kelas: "X RPL 1",
+    induk: "10233",
+    nama: "Cahyo Nugroho",
+    lp: "L",
+    nilai: { agm: 75, pkn: 87, indo: 75, mat: 87, sej: 75, ingg: 87, seni: 75, penj: 87, pkwu: 75 },
   },
   {
     id: 4,
-    nama: "Aisyah Putri Wulandari",
-    nis: "2024004",
-    kelas: "VII-B",
-    nilaiSemester: [98.6, 96.4, 97.8, 95.2, 96.9, 98.0],
+    kelas: "X RPL 2",
+    induk: "10301",
+    nama: "Dimas Prasetyo",
+    lp: "L",
+    nilai: { agm: 87, pkn: 86, indo: 87, mat: 86, sej: 87, ingg: 86, seni: 87, penj: 86, pkwu: 87 },
   },
   {
     id: 5,
-    nama: "Bagus Setiawan",
-    nis: "2024005",
-    kelas: "VIII-A",
-    nilaiSemester: [58.0, 61.2, 55.6, 59.4, 60.1, 57.8],
+    kelas: "X TKJ 1",
+    induk: "10401",
+    nama: "Eka Wulandari",
+    lp: "P",
+    nilai: { agm: 75, pkn: 87, indo: 75, mat: 87, sej: 75, ingg: 87, seni: 75, penj: 87, pkwu: 75 },
   },
   {
     id: 6,
-    nama: "Dewi Anggraini",
-    nis: "2024006",
-    kelas: "VIII-A",
-    nilaiSemester: [84.2, 85.6, 83.0, 86.4, 84.8, 85.9],
+    kelas: "X TKJ 1",
+    induk: "10501",
+    nama: "Fajar Setiawan",
+    lp: "P",
+    nilai: { agm: 87, pkn: 86, indo: 87, mat: 86, sej: 87, ingg: 86, seni: 87, penj: 86, pkwu: 87 },
+  },
+  {
+    id: 7,
+    kelas: "X TKJ 2",
+    induk: "10601",
+    nama: "Gilang Ramadhan",
+    lp: "L",
+    nilai: { agm: 75, pkn: 87, indo: 75, mat: 87, sej: 75, ingg: 87, seni: 75, penj: 87, pkwu: 75 },
+  },
+  {
+    id: 8,
+    kelas: "X TKJ 2",
+    induk: "10602",
+    nama: "Hana Permatasari",
+    lp: "P",
+    nilai: { agm: 87, pkn: 86, indo: 87, mat: 86, sej: 87, ingg: 86, seni: 87, penj: 86, pkwu: 87 },
+  },
+  {
+    id: 9,
+    kelas: "XII RPL 1",
+    induk: "12101",
+    nama: "Indra Kusuma",
+    lp: "L",
+    nilai: { agm: 75, pkn: 86, indo: 75, mat: 86, sej: 75, ingg: 86, seni: 75, penj: 86, pkwu: 75 },
+  },
+  {
+    id: 10,
+    kelas: "XII RPL 1",
+    induk: "12102",
+    nama: "Julia Anggraeni",
+    lp: "P",
+    nilai: { agm: 88, pkn: 79, indo: 90, mat: 82, sej: 85, ingg: 91, seni: 87, penj: 80, pkwu: 89 },
+  },
+  {
+    id: 11,
+    kelas: "XII RPL 2",
+    induk: "12201",
+    nama: "Krisna Aditya",
+    lp: "L",
+    nilai: { agm: 70, pkn: 65, indo: 72, mat: 60, sej: 74, ingg: 68, seni: 75, penj: 78, pkwu: 66 },
+  },
+  {
+    id: 12,
+    kelas: "XII RPL 2",
+    induk: "12202",
+    nama: "Larasati Dewi",
+    lp: "P",
+    nilai: { agm: 95, pkn: 92, indo: 96, mat: 90, sej: 93, ingg: 97, seni: 94, penj: 89, pkwu: 95 },
+  },
+  {
+    id: 13,
+    kelas: "XII TKJ 1",
+    induk: "12301",
+    nama: "Muhammad Fadli",
+    lp: "L",
+    nilai: { agm: 80, pkn: 83, indo: 78, mat: 76, sej: 85, ingg: 79, seni: 82, penj: 88, pkwu: 81 },
+  },
+  {
+    id: 14,
+    kelas: "XII TKJ 1",
+    induk: "12302",
+    nama: "Naila Zahra",
+    lp: "P",
+    nilai: { agm: 84, pkn: 86, indo: 88, mat: 79, sej: 90, ingg: 85, seni: 91, penj: 77, pkwu: 86 },
+  },
+  {
+    id: 15,
+    kelas: "XI RPL 1",
+    induk: "11101",
+    nama: "Oka Wijaya",
+    lp: "L",
+    nilai: { agm: 77, pkn: 74, indo: 80, mat: 71, sej: 76, ingg: 73, seni: 78, penj: 82, pkwu: 75 },
+  },
+  {
+    id: 16,
+    kelas: "XI RPL 1",
+    induk: "11102",
+    nama: "Putri Ayuningtyas",
+    lp: "P",
+    nilai: { agm: 91, pkn: 88, indo: 93, mat: 85, sej: 89, ingg: 94, seni: 90, penj: 83, pkwu: 92 },
+  },
+  {
+    id: 17,
+    kelas: "XI TKJ 1",
+    induk: "11201",
+    nama: "Reza Firmansyah",
+    lp: "L",
+    nilai: { agm: 68, pkn: 71, indo: 65, mat: 69, sej: 72, ingg: 66, seni: 70, penj: 74, pkwu: 67 },
+  },
+  {
+    id: 18,
+    kelas: "XI TKJ 2",
+    induk: "11202",
+    nama: "Salsabila Putri",
+    lp: "P",
+    nilai: { agm: 86, pkn: 84, indo: 87, mat: 80, sej: 88, ingg: 85, seni: 89, penj: 81, pkwu: 87 },
   },
 ];
 
-const KELAS_OPTIONS = ["Semua Kelas", ...Array.from(new Set(MOCK_SISWA.map((s) => s.kelas))).sort()];
+const KELAS_OPTIONS = ["Semua Kelas", ...Array.from(new Set(MOCK_NILAI.map((s) => s.kelas))).sort()];
 
-function getTotalKeseluruhan(siswa) {
-  const total = siswa.nilaiSemester.reduce((a, n) => a + n, 0);
-  return total / siswa.nilaiSemester.length;
-}
-
-function getStatus(totalPersen) {
-  if (totalPersen < 65) return { label: "Perlu Perhatian", tone: "text-rose-600 bg-rose-50 border-rose-200" };
-  if (totalPersen < 75) return { label: "Perlu Dipantau", tone: "text-amber-600 bg-amber-50 border-amber-200" };
-  return { label: "Baik", tone: "text-emerald-600 bg-emerald-50 border-emerald-200" };
-}
-
-function nilaiTextColor(n) {
-  if (n < 65) return "text-rose-600";
-  if (n < 75) return "text-amber-600";
-  return "text-slate-700";
+function getRataRata(siswa) {
+  const nilaiArr = Object.values(siswa.nilai);
+  return nilaiArr.reduce((a, n) => a + n, 0) / nilaiArr.length;
 }
 
 export default function NilaiPage() {
@@ -100,19 +196,21 @@ export default function NilaiPage() {
   const toggleSidebar = () => setIsCollapsed(!isCollapsed);
 
   const filteredSiswa = useMemo(() => {
-    return MOCK_SISWA.filter((s) => {
-      const matchSearch = s.nama.toLowerCase().includes(search.toLowerCase()) || s.nis.includes(search);
+    return MOCK_NILAI.filter((s) => {
+      const matchSearch =
+        s.nama.toLowerCase().includes(search.toLowerCase()) || s.induk.includes(search);
       const matchKelas = kelasFilter === "Semua Kelas" || s.kelas === kelasFilter;
       return matchSearch && matchKelas;
     });
   }, [search, kelasFilter]);
 
-  // ===== Statistik ringkas =====
-  const totalSiswa = MOCK_SISWA.length;
-  const rataTotalKeseluruhan =
-    MOCK_SISWA.reduce((a, s) => a + getTotalKeseluruhan(s), 0) / MOCK_SISWA.length;
-  const siswaTertinggi = [...MOCK_SISWA].sort((a, b) => getTotalKeseluruhan(b) - getTotalKeseluruhan(a))[0];
-  const siswaPerluPerhatian = MOCK_SISWA.filter((s) => getTotalKeseluruhan(s) < 65).length;
+  const handlePrint = (siswa) => {
+    console.log("Cetak nilai:", siswa.nama);
+  };
+
+  const handleDelete = (siswa) => {
+    console.log("Hapus nilai:", siswa.nama);
+  };
 
   return (
     <div className="flex h-screen w-full bg-slate-50 overflow-hidden">
@@ -138,37 +236,41 @@ export default function NilaiPage() {
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-slate-800">Nilai</h1>
-                <p className="text-sm text-slate-500">
-                  Ringkasan nilai siswa per semester. Geser tabel ke kanan untuk melihat total keseluruhan.
-                </p>
+                <p className="text-sm text-slate-500">Rekap nilai siswa per mata pelajaran.</p>
               </div>
             </div>
 
             {/* STATISTIK RINGKAS */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div className="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm">
-                <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Total Siswa</p>
-                <p className="text-2xl font-bold text-slate-800 mt-1">{totalSiswa}</p>
+                <div className="flex items-center gap-2">
+                  <Users size={14} className="text-blue-600" />
+                  <p className="text-[11px] font-medium text-slate-500 tracking-wide">Total Siswa</p>
+                </div>
+                <p className="text-2xl font-bold text-slate-900 mt-1.5">{MOCK_NILAI.length}</p>
+              </div>
+              <div className="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm">
+                <div className="flex items-center gap-2">
+                  <GraduationCap size={14} className="text-indigo-600" />
+                  <p className="text-[11px] font-medium text-slate-500 tracking-wide">Jumlah Kelas</p>
+                </div>
+                <p className="text-2xl font-bold text-slate-900 mt-1.5">{KELAS_OPTIONS.length - 1}</p>
               </div>
               <div className="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm">
                 <div className="flex items-center gap-2">
                   <TrendingUp size={14} className="text-emerald-600" />
-                  <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">
-                    Rata Total Keseluruhan
-                  </p>
+                  <p className="text-[11px] font-medium text-slate-500 tracking-wide">Rata-rata Nilai</p>
                 </div>
-                <p className="text-2xl font-bold text-slate-800 mt-1">{rataTotalKeseluruhan.toFixed(2)}%</p>
-              </div>
-              <div className="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm">
-                <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Nilai Tertinggi</p>
-                <p className="text-sm font-bold text-slate-800 mt-1.5 truncate">{siswaTertinggi.nama}</p>
-                <p className="text-xs text-emerald-600 font-medium mt-0.5">
-                  {getTotalKeseluruhan(siswaTertinggi).toFixed(2)}%
+                <p className="text-2xl font-bold text-slate-900 mt-1.5">
+                  {(MOCK_NILAI.reduce((a, s) => a + getRataRata(s), 0) / MOCK_NILAI.length).toFixed(2)}
                 </p>
               </div>
               <div className="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm">
-                <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Perlu Perhatian</p>
-                <p className="text-2xl font-bold text-slate-800 mt-1">{siswaPerluPerhatian}</p>
+                <div className="flex items-center gap-2">
+                  <NotebookPen size={14} className="text-rose-600" />
+                  <p className="text-[11px] font-medium text-slate-500 tracking-wide">Mata Pelajaran</p>
+                </div>
+                <p className="text-2xl font-bold text-slate-900 mt-1.5">{MAPEL.length}</p>
               </div>
             </div>
 
@@ -180,8 +282,8 @@ export default function NilaiPage() {
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Cari nama atau NIS siswa..."
-                  className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+                  placeholder="Cari nama atau nomor induk siswa..."
+                  className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 text-slate-800"
                 />
               </div>
               <div className="flex items-center gap-2">
@@ -189,7 +291,7 @@ export default function NilaiPage() {
                 <select
                   value={kelasFilter}
                   onChange={(e) => setKelasFilter(e.target.value)}
-                  className="text-sm rounded-lg border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 bg-white"
+                  className="text-sm rounded-lg border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 bg-white text-slate-800 font-medium"
                 >
                   {KELAS_OPTIONS.map((k) => (
                     <option key={k} value={k}>
@@ -200,74 +302,70 @@ export default function NilaiPage() {
               </div>
             </div>
 
-            {/* PETUNJUK GESER */}
-            <div className="flex items-center gap-1.5 text-xs text-slate-400 sm:hidden">
-              <ChevronRight size={13} />
-              Geser tabel ke kanan untuk lihat Total Keseluruhan
-            </div>
-
-            {/* TABEL NILAI PER SEMESTER */}
+            {/* TABEL NILAI */}
             <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full text-sm border-collapse">
                   <thead>
-                    <tr className="border-b border-slate-100 bg-slate-50/60">
-                      <th className="text-left font-medium text-slate-500 px-4 py-3 sticky left-0 bg-slate-50/95 backdrop-blur-sm z-10 min-w-[220px]">
-                        Nama
-                      </th>
-                      <th className="text-left font-medium text-slate-500 px-4 py-3 whitespace-nowrap">Kelas</th>
-                      {SEMESTER_LABELS.map((label) => (
-                        <th key={label} className="text-left font-medium text-slate-500 px-4 py-3 whitespace-nowrap">
-                          {label}
+                    <tr className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+                      <th className="text-left font-semibold px-4 py-3 whitespace-nowrap">No.</th>
+                      <th className="text-left font-semibold px-4 py-3 whitespace-nowrap">Kelas</th>
+                      <th className="text-left font-semibold px-4 py-3 whitespace-nowrap">Induk</th>
+                      <th className="text-left font-semibold px-4 py-3 min-w-[220px]">Nama Siswa</th>
+                      <th className="text-center font-semibold px-4 py-3 whitespace-nowrap">L/P</th>
+                      {MAPEL.map((m) => (
+                        <th key={m.key} className="text-center font-semibold px-4 py-3 whitespace-nowrap">
+                          {m.label}
                         </th>
                       ))}
-                      <th className="text-left font-semibold text-blue-700 px-4 py-3 whitespace-nowrap bg-blue-50/60">
-                        Total Keseluruhan
-                      </th>
-                      <th className="text-left font-medium text-slate-500 px-4 py-3 whitespace-nowrap">Status</th>
+                      <th className="text-center font-semibold px-4 py-3 whitespace-nowrap">#</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredSiswa.map((s) => {
-                      const total = getTotalKeseluruhan(s);
-                      const status = getStatus(total);
-                      return (
-                        <tr key={s.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/70 transition-colors">
-                          <td className="px-4 py-3 sticky left-0 bg-white z-10">
-                            <div className="flex items-center gap-3">
-                              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                                {s.nama
-                                  .split(" ")
-                                  .slice(0, 2)
-                                  .map((w) => w[0])
-                                  .join("")}
-                              </div>
-                              <div>
-                                <p className="font-medium text-slate-800">{s.nama}</p>
-                                <p className="text-xs text-slate-400">NIS {s.nis}</p>
-                              </div>
-                            </div>
+                    {filteredSiswa.map((s, idx) => (
+                      <tr
+                        key={s.id}
+                        className={`border-b border-slate-100 last:border-0 transition-colors hover:bg-blue-100/60 ${
+                          idx % 2 === 0 ? "bg-blue-50/60" : "bg-white"
+                        }`}
+                      >
+                        <td className="px-4 py-2.5 text-slate-700 font-medium">{idx + 1}</td>
+                        <td className="px-4 py-2.5">
+                          <span className="text-blue-700 font-semibold hover:underline cursor-pointer">
+                            {s.kelas}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5 text-slate-700">{s.induk}</td>
+                        <td className="px-4 py-2.5 text-slate-900 font-semibold">{s.nama}</td>
+                        <td className="px-4 py-2.5 text-center text-slate-700 font-medium">{s.lp}</td>
+                        {MAPEL.map((m) => (
+                          <td key={m.key} className="px-4 py-2.5 text-center text-slate-700 font-medium">
+                            {s.nilai[m.key].toFixed(2)}
                           </td>
-                          <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{s.kelas}</td>
-                          {s.nilaiSemester.map((n, i) => (
-                            <td key={i} className={`px-4 py-3 font-medium whitespace-nowrap ${nilaiTextColor(n)}`}>
-                              {n.toFixed(2)}%
-                            </td>
-                          ))}
-                          <td className="px-4 py-3 font-bold text-blue-700 whitespace-nowrap bg-blue-50/40">
-                            {total.toFixed(2)}%
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            <span className={`text-xs font-medium px-2 py-1 rounded-md border ${status.tone}`}>
-                              {status.label}
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })}
+                        ))}
+                        <td className="px-4 py-2.5">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              onClick={() => handlePrint(s)}
+                              title="Cetak nilai"
+                              className="p-1.5 rounded-md text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors"
+                            >
+                              <Printer size={14} />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(s)}
+                              title="Hapus nilai"
+                              className="p-1.5 rounded-md text-rose-600 bg-rose-50 hover:bg-rose-100 transition-colors"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
                     {filteredSiswa.length === 0 && (
                       <tr>
-                        <td colSpan={SEMESTER_LABELS.length + 4} className="px-4 py-10 text-center text-sm text-slate-400">
+                        <td colSpan={MAPEL.length + 6} className="px-4 py-10 text-center text-sm text-slate-400">
                           Tidak ada siswa yang cocok dengan filter ini.
                         </td>
                       </tr>

@@ -1,165 +1,88 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import Header from "../../../components/Header";
 import Sidebar from "../../../components/Sidebar";
-import {
-  Search,
-  Filter,
-  GraduationCap,
-  BookOpen,
-  FileText,
-  X,
-  Printer,
-  ChevronRight,
-} from "lucide-react";
+import { Search, FileText, ChevronLeft, Users, GraduationCap, Printer, Eye } from "lucide-react";
 
 /**
  * app/admin/akademik/rapor/page.jsx
  *
- * Halaman Rapor — menampilkan nilai akhir siswa per mata pelajaran
- * (Pengetahuan & Keterampilan) untuk semester berjalan, lengkap dengan
- * predikat otomatis berdasarkan KKM dan catatan wali kelas.
+ * Halaman Rapor — dua tingkat tampilan:
+ * 1) Grid kartu kelas (RPL/TKJ, X-XII) — menampilkan jumlah siswa & wali kelas.
+ * 2) Klik salah satu kartu kelas -> tampil daftar siswa di kelas itu,
+ *    lengkap dengan tombol untuk melihat/mencetak rapor per siswa.
  *
  * CATATAN DATA:
- * MOCK_SISWA / nilai di bawah masih dummy. Kalau backend/API sudah siap,
- * tinggal ganti `useState(MOCK_SISWA)` dengan fetch ke endpoint yang sesuai —
- * bentuk data per siswa (termasuk array `nilai` per mapel) dipertahankan
- * sama supaya UI di bawah tidak perlu diubah.
+ * MOCK_SISWA masih dummy, strukturnya sama dengan yang dipakai di halaman
+ * Nilai supaya konsisten. Kalau nanti nyambung ke API, tinggal ganti
+ * MOCK_SISWA dengan hasil fetch dan WALI_KELAS dengan data guru wali.
  */
 
-const KKM = 75;
-
-const MATA_PELAJARAN = [
-  "Pendidikan Agama dan Budi Pekerti",
-  "Pendidikan Pancasila",
-  "Bahasa Indonesia",
-  "Matematika",
-  "Ilmu Pengetahuan Alam",
-  "Ilmu Pengetahuan Sosial",
-  "Bahasa Inggris",
-  "Seni Budaya",
-  "PJOK",
-  "Informatika",
-];
-
-const SEMESTER_OPTIONS = ["Ganjil", "Genap"];
-const TAHUN_AJARAN_OPTIONS = ["2025/2026", "2026/2027"];
-
-function getPredikat(nilai) {
-  if (nilai >= 90) return { label: "A", tone: "text-emerald-600 bg-emerald-50 border-emerald-200" };
-  if (nilai >= 80) return { label: "B", tone: "text-blue-600 bg-blue-50 border-blue-200" };
-  if (nilai >= KKM) return { label: "C", tone: "text-amber-600 bg-amber-50 border-amber-200" };
-  return { label: "D", tone: "text-rose-600 bg-rose-50 border-rose-200" };
-}
-
-// Generator nilai dummy yang konsisten per siswa (bukan acak tiap render)
-function buatNilai(seed) {
-  return MATA_PELAJARAN.map((mapel, i) => {
-    const base = 72 + ((seed * (i + 3)) % 26); // sebaran 72–97
-    const pengetahuan = base;
-    const keterampilan = Math.max(70, Math.min(99, base + (((seed + i) % 5) - 2)));
-    return { mapel, pengetahuan, keterampilan };
-  });
-}
+const WALI_KELAS = {
+  "X RPL 1": "Dewi Anggraini, S.Kom.",
+  "X RPL 2": "Fajar Nugroho, S.Kom.",
+  "X TKJ 1": "Rina Kartika, S.T.",
+  "X TKJ 2": "Andi Saputra, S.T.",
+  "XI RPL 1": "Yuni Astuti, S.Kom.",
+  "XI TKJ 1": "Bayu Pratama, S.T.",
+  "XI TKJ 2": "Sri Wahyuni, S.T.",
+  "XII RPL 1": "Hendra Gunawan, S.Kom.",
+  "XII RPL 2": "Lina Marlina, S.Kom.",
+  "XII TKJ 1": "Agus Setiawan, S.T.",
+};
 
 const MOCK_SISWA = [
-  {
-    id: 1,
-    nama: "Ahmad Fauzan Ramadhan",
-    kelas: "VII-A",
-    nis: "24010001",
-    waliKelas: "Siti Rahmawati, S.Pd.",
-    catatan: "Menunjukkan kemajuan yang baik dalam Matematika, perlu lebih aktif dalam diskusi kelompok.",
-    kehadiran: { hadir: 96, sakit: 2, izin: 1, alpa: 1 },
-    nilai: buatNilai(3),
-  },
-  {
-    id: 2,
-    nama: "Aisyah Putri Wulandari",
-    kelas: "VII-B",
-    nis: "24010002",
-    waliKelas: "Budi Santoso, S.Pd.",
-    catatan: "Sangat aktif dan berprestasi di bidang akademik maupun non-akademik. Pertahankan!",
-    kehadiran: { hadir: 99, sakit: 0, izin: 1, alpa: 0 },
-    nilai: buatNilai(7),
-  },
-  {
-    id: 3,
-    nama: "Muhammad Rizky Pratama",
-    kelas: "VII-B",
-    nis: "24010003",
-    waliKelas: "Budi Santoso, S.Pd.",
-    catatan: "Perlu meningkatkan konsistensi belajar di rumah, terutama pada mata pelajaran eksakta.",
-    kehadiran: { hadir: 92, sakit: 3, izin: 2, alpa: 3 },
-    nilai: buatNilai(2),
-  },
-  {
-    id: 4,
-    nama: "Dewi Anggraini",
-    kelas: "VIII-A",
-    nis: "24020004",
-    waliKelas: "Rina Kartika, S.Pd.",
-    catatan: "Kreatif dan menonjol di bidang seni. Terus kembangkan minat menulis dan bermusik.",
-    kehadiran: { hadir: 98, sakit: 1, izin: 1, alpa: 0 },
-    nilai: buatNilai(9),
-  },
-  {
-    id: 5,
-    nama: "Fajar Nugroho",
-    kelas: "VIII-A",
-    nis: "24020005",
-    waliKelas: "Rina Kartika, S.Pd.",
-    catatan: "Perlu bimbingan tambahan pada mata pelajaran Bahasa Inggris dan IPA.",
-    kehadiran: { hadir: 90, sakit: 4, izin: 3, alpa: 3 },
-    nilai: buatNilai(4),
-  },
-  {
-    id: 6,
-    nama: "Nadia Salsabila",
-    kelas: "IX-A",
-    nis: "24030006",
-    waliKelas: "Agus Prasetyo, S.Pd.",
-    catatan: "Konsisten menjadi peringkat 3 besar di kelas. Pertahankan semangat belajarnya.",
-    kehadiran: { hadir: 100, sakit: 0, izin: 0, alpa: 0 },
-    nilai: buatNilai(8),
-  },
+  { id: 1, kelas: "X RPL 1", induk: "10231", nama: "Alya Ramadhani", lp: "P" },
+  { id: 2, kelas: "X RPL 1", induk: "10232", nama: "Bunga Citra Lestari", lp: "P" },
+  { id: 3, kelas: "X RPL 1", induk: "10233", nama: "Cahyo Nugroho", lp: "L" },
+  { id: 4, kelas: "X RPL 2", induk: "10301", nama: "Dimas Prasetyo", lp: "L" },
+  { id: 5, kelas: "X TKJ 1", induk: "10401", nama: "Eka Wulandari", lp: "P" },
+  { id: 6, kelas: "X TKJ 1", induk: "10501", nama: "Fajar Setiawan", lp: "P" },
+  { id: 7, kelas: "X TKJ 2", induk: "10601", nama: "Gilang Ramadhan", lp: "L" },
+  { id: 8, kelas: "X TKJ 2", induk: "10602", nama: "Hana Permatasari", lp: "P" },
+  { id: 9, kelas: "XII RPL 1", induk: "12101", nama: "Indra Kusuma", lp: "L" },
+  { id: 10, kelas: "XII RPL 1", induk: "12102", nama: "Julia Anggraeni", lp: "P" },
+  { id: 11, kelas: "XII RPL 2", induk: "12201", nama: "Krisna Aditya", lp: "L" },
+  { id: 12, kelas: "XII RPL 2", induk: "12202", nama: "Larasati Dewi", lp: "P" },
+  { id: 13, kelas: "XII TKJ 1", induk: "12301", nama: "Muhammad Fadli", lp: "L" },
+  { id: 14, kelas: "XII TKJ 1", induk: "12302", nama: "Naila Zahra", lp: "P" },
+  { id: 15, kelas: "XI RPL 1", induk: "11101", nama: "Oka Wijaya", lp: "L" },
+  { id: 16, kelas: "XI RPL 1", induk: "11102", nama: "Putri Ayuningtyas", lp: "P" },
+  { id: 17, kelas: "XI TKJ 1", induk: "11201", nama: "Reza Firmansyah", lp: "L" },
+  { id: 18, kelas: "XI TKJ 2", induk: "11202", nama: "Salsabila Putri", lp: "P" },
 ];
 
-const KELAS_OPTIONS = ["Semua Kelas", ...Array.from(new Set(MOCK_SISWA.map((s) => s.kelas))).sort()];
-
-function rataRata(nilaiArr, kunci) {
-  const total = nilaiArr.reduce((sum, n) => sum + n[kunci], 0);
-  return Math.round((total / nilaiArr.length) * 10) / 10;
-}
+const KELAS_LIST = Array.from(new Set(MOCK_SISWA.map((s) => s.kelas))).sort();
 
 export default function RaporPage() {
+  const router = useRouter();
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [kelasFilter, setKelasFilter] = useState("");
+  const [selectedKelas, setSelectedKelas] = useState(null);
   const [search, setSearch] = useState("");
-  const [kelasFilter, setKelasFilter] = useState("Semua Kelas");
-  const [semester, setSemester] = useState("Ganjil");
-  const [tahunAjaran, setTahunAjaran] = useState("2025/2026");
-  const [selectedSiswa, setSelectedSiswa] = useState(null);
 
   const toggleSidebar = () => setIsCollapsed(!isCollapsed);
 
-  const filteredSiswa = useMemo(() => {
-    return MOCK_SISWA.filter((s) => {
-      const matchSearch =
-        s.nama.toLowerCase().includes(search.toLowerCase()) || s.nis.includes(search);
-      const matchKelas = kelasFilter === "Semua Kelas" || s.kelas === kelasFilter;
-      return matchSearch && matchKelas;
-    }).sort((a, b) => a.nama.localeCompare(b.nama));
-  }, [search, kelasFilter]);
+  const filteredKelas = useMemo(() => {
+    return KELAS_LIST.filter((k) => k.toLowerCase().includes(kelasFilter.toLowerCase()));
+  }, [kelasFilter]);
 
-  // ===== Statistik ringkas =====
-  const totalSiswa = MOCK_SISWA.length;
-  const rataRataSekolah =
-    Math.round(
-      (MOCK_SISWA.reduce((sum, s) => sum + rataRata(s.nilai, "pengetahuan"), 0) / MOCK_SISWA.length) * 10
-    ) / 10;
-  const siswaDiBawahKkm = MOCK_SISWA.filter((s) => rataRata(s.nilai, "pengetahuan") < KKM).length;
-  const totalMapel = MATA_PELAJARAN.length;
+  const siswaDiKelas = useMemo(() => {
+    if (!selectedKelas) return [];
+    return MOCK_SISWA.filter(
+      (s) => s.kelas === selectedKelas && s.nama.toLowerCase().includes(search.toLowerCase())
+    );
+  }, [selectedKelas, search]);
+
+  const handleLihatRapor = (siswa) => {
+    router.push(`/admin/akademik/rapor/${siswa.id}`);
+  };
+
+  const handleCetakRapor = (siswa) => {
+    console.log("Cetak rapor:", siswa.nama);
+  };
 
   return (
     <div className="flex h-screen w-full bg-slate-50 overflow-hidden">
@@ -179,338 +102,175 @@ export default function RaporPage() {
         <main className="flex-1 overflow-y-auto">
           <div className="p-4 sm:p-6 lg:p-8 space-y-6">
             {/* HEADER */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-200">
-                  <GraduationCap size={20} />
-                </div>
-                <div>
-                  <h1 className="text-2xl font-bold text-slate-800">Rapor</h1>
-                  <p className="text-sm text-slate-500">Nilai akhir siswa per mata pelajaran untuk semester berjalan.</p>
-                </div>
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-200">
+                <FileText size={20} />
               </div>
-              <div className="flex items-center gap-2 self-start sm:self-auto">
-                <select
-                  value={semester}
-                  onChange={(e) => setSemester(e.target.value)}
-                  className="text-sm rounded-lg border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 bg-white"
-                >
-                  {SEMESTER_OPTIONS.map((s) => (
-                    <option key={s} value={s}>
-                      Semester {s}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  value={tahunAjaran}
-                  onChange={(e) => setTahunAjaran(e.target.value)}
-                  className="text-sm rounded-lg border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 bg-white"
-                >
-                  {TAHUN_AJARAN_OPTIONS.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
-                </select>
+              <div>
+                <h1 className="text-2xl font-bold text-slate-900">Rapor</h1>
+                <p className="text-sm text-slate-600">
+                  {selectedKelas
+                    ? `Daftar siswa kelas ${selectedKelas}`
+                    : "Pilih kelas untuk melihat daftar siswa dan rapornya."}
+                </p>
               </div>
             </div>
 
-            {/* STATISTIK RINGKAS */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm">
-                <div className="flex items-center gap-2">
-                  <div className="p-1.5 rounded-lg bg-blue-50 text-blue-600">
-                    <GraduationCap size={16} />
+            {selectedKelas === null ? (
+              <>
+                {/* CARI KELAS */}
+                <div className="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm">
+                  <div className="relative">
+                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      value={kelasFilter}
+                      onChange={(e) => setKelasFilter(e.target.value)}
+                      placeholder="Cari kelas..."
+                      className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 text-slate-800"
+                    />
                   </div>
-                  <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Total Siswa</p>
                 </div>
-                <p className="text-2xl font-bold text-slate-800 mt-1">{totalSiswa}</p>
-              </div>
-              <div className="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm">
-                <div className="flex items-center gap-2">
-                  <div className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600">
-                    <BookOpen size={16} />
-                  </div>
-                  <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Rata-rata Sekolah</p>
-                </div>
-                <p className="text-2xl font-bold text-slate-800 mt-1">{rataRataSekolah}</p>
-              </div>
-              <div className="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm">
-                <div className="flex items-center gap-2">
-                  <div className="p-1.5 rounded-lg bg-rose-50 text-rose-600">
-                    <FileText size={16} />
-                  </div>
-                  <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Di Bawah KKM</p>
-                </div>
-                <p className="text-2xl font-bold text-slate-800 mt-1">{siswaDiBawahKkm}</p>
-              </div>
-              <div className="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm">
-                <div className="flex items-center gap-2">
-                  <div className="p-1.5 rounded-lg bg-purple-50 text-purple-600">
-                    <BookOpen size={16} />
-                  </div>
-                  <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Mata Pelajaran</p>
-                </div>
-                <p className="text-2xl font-bold text-slate-800 mt-1">{totalMapel}</p>
-              </div>
-            </div>
 
-            {/* FILTER BAR */}
-            <div className="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm flex flex-col lg:flex-row gap-3">
-              <div className="relative flex-1">
-                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="text"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Cari nama siswa atau NIS..."
-                  className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
-                />
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <Filter size={15} className="text-slate-400 hidden lg:block" />
-                <select
-                  value={kelasFilter}
-                  onChange={(e) => setKelasFilter(e.target.value)}
-                  className="text-sm rounded-lg border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 bg-white"
-                >
-                  {KELAS_OPTIONS.map((k) => (
-                    <option key={k} value={k}>
-                      {k}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
+                {/* GRID KELAS */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {filteredKelas.map((kelas) => {
+                    const jumlahSiswa = MOCK_SISWA.filter((s) => s.kelas === kelas).length;
+                    return (
+                      <button
+                        key={kelas}
+                        onClick={() => {
+                          setSelectedKelas(kelas);
+                          setSearch("");
+                        }}
+                        className="text-left bg-white rounded-xl border border-slate-200/80 p-5 shadow-sm hover:shadow-md hover:border-blue-300 transition-all"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="p-2.5 rounded-lg bg-gradient-to-br from-blue-50 to-indigo-50 text-blue-600">
+                            <GraduationCap size={20} />
+                          </div>
+                          <span className="flex items-center gap-1 text-xs font-medium text-slate-600 bg-slate-100 px-2 py-1 rounded-md">
+                            <Users size={12} />
+                            {jumlahSiswa} siswa
+                          </span>
+                        </div>
+                        <p className="text-lg font-bold text-slate-900 mt-3">{kelas}</p>
+                        <p className="text-sm text-slate-600 mt-0.5">
+                          Wali Kelas: {WALI_KELAS[kelas] || "-"}
+                        </p>
+                      </button>
+                    );
+                  })}
+                  {filteredKelas.length === 0 && (
+                    <div className="col-span-full bg-white rounded-xl border border-slate-200/80 p-10 text-center text-sm text-slate-400 shadow-sm">
+                      Tidak ada kelas yang cocok dengan pencarian.
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              <>
+                {/* NAV KEMBALI + CARI SISWA */}
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                  <button
+                    onClick={() => setSelectedKelas(null)}
+                    className="flex items-center gap-1.5 text-sm font-semibold text-blue-700 hover:text-blue-800 transition-colors"
+                  >
+                    <ChevronLeft size={16} />
+                    Kembali ke daftar kelas
+                  </button>
+                  <div className="relative flex-1 sm:max-w-xs sm:ml-auto">
+                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder="Cari nama siswa..."
+                      className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 text-slate-800 bg-white"
+                    />
+                  </div>
+                </div>
 
-            {/* TABEL SISWA */}
-            <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-100 bg-slate-50/60">
-                      <th className="text-left font-medium text-slate-500 px-4 py-3">Siswa</th>
-                      <th className="text-left font-medium text-slate-500 px-4 py-3">NIS</th>
-                      <th className="text-left font-medium text-slate-500 px-4 py-3">Wali Kelas</th>
-                      <th className="text-left font-medium text-slate-500 px-4 py-3">Rata-rata</th>
-                      <th className="text-left font-medium text-slate-500 px-4 py-3">Predikat</th>
-                      <th className="text-right font-medium text-slate-500 px-4 py-3">Aksi</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredSiswa.map((s) => {
-                      const avg = rataRata(s.nilai, "pengetahuan");
-                      const predikat = getPredikat(avg);
-                      return (
-                        <tr key={s.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/70 transition-colors">
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-3">
-                              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                                {s.nama
-                                  .split(" ")
-                                  .slice(0, 2)
-                                  .map((w) => w[0])
-                                  .join("")}
-                              </div>
-                              <div>
-                                <p className="font-medium text-slate-800">{s.nama}</p>
-                                <p className="text-xs text-slate-400">{s.kelas}</p>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-slate-600">{s.nis}</td>
-                          <td className="px-4 py-3 text-slate-600">{s.waliKelas}</td>
-                          <td className="px-4 py-3 text-slate-700 font-medium">{avg}</td>
-                          <td className="px-4 py-3">
-                            <span className={`text-xs font-medium px-2 py-1 rounded-md border whitespace-nowrap ${predikat.tone}`}>
-                              {predikat.label}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            <button
-                              onClick={() => setSelectedSiswa(s)}
-                              className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-700"
-                            >
-                              Lihat Rapor
-                              <ChevronRight size={14} />
-                            </button>
-                          </td>
+                {/* INFO KELAS */}
+                <div className="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm flex items-center justify-between flex-wrap gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 rounded-lg bg-gradient-to-br from-blue-50 to-indigo-50 text-blue-600">
+                      <GraduationCap size={20} />
+                    </div>
+                    <div>
+                      <p className="text-base font-bold text-slate-900">{selectedKelas}</p>
+                      <p className="text-sm text-slate-600">Wali Kelas: {WALI_KELAS[selectedKelas] || "-"}</p>
+                    </div>
+                  </div>
+                  <span className="flex items-center gap-1.5 text-sm font-semibold text-slate-700 bg-slate-100 px-3 py-1.5 rounded-lg">
+                    <Users size={14} />
+                    {MOCK_SISWA.filter((s) => s.kelas === selectedKelas).length} siswa
+                  </span>
+                </div>
+
+                {/* TABEL SISWA */}
+                <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+                          <th className="text-left font-semibold px-4 py-3 whitespace-nowrap">No.</th>
+                          <th className="text-left font-semibold px-4 py-3 whitespace-nowrap">Induk</th>
+                          <th className="text-left font-semibold px-4 py-3 min-w-[220px]">Nama Siswa</th>
+                          <th className="text-center font-semibold px-4 py-3 whitespace-nowrap">L/P</th>
+                          <th className="text-center font-semibold px-4 py-3 whitespace-nowrap">Aksi</th>
                         </tr>
-                      );
-                    })}
-                    {filteredSiswa.length === 0 && (
-                      <tr>
-                        <td colSpan={6} className="px-4 py-10 text-center text-sm text-slate-400">
-                          Tidak ada siswa yang cocok dengan filter ini.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+                      </thead>
+                      <tbody>
+                        {siswaDiKelas.map((s, idx) => (
+                          <tr
+                            key={s.id}
+                            className={`border-b border-slate-100 last:border-0 transition-colors hover:bg-blue-100/60 ${
+                              idx % 2 === 0 ? "bg-blue-50/60" : "bg-white"
+                            }`}
+                          >
+                            <td className="px-4 py-2.5 text-slate-700 font-medium">{idx + 1}</td>
+                            <td className="px-4 py-2.5 text-slate-700">{s.induk}</td>
+                            <td className="px-4 py-2.5 text-slate-900 font-semibold">{s.nama}</td>
+                            <td className="px-4 py-2.5 text-center text-slate-700 font-medium">{s.lp}</td>
+                            <td className="px-4 py-2.5">
+                              <div className="flex items-center justify-center gap-1.5">
+                                <button
+                                  onClick={() => handleLihatRapor(s)}
+                                  title="Lihat rapor"
+                                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-blue-700 bg-blue-50 hover:bg-blue-100 text-xs font-semibold transition-colors"
+                                >
+                                  <Eye size={13} />
+                                  Lihat
+                                </button>
+                                <button
+                                  onClick={() => handleCetakRapor(s)}
+                                  title="Cetak rapor"
+                                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-slate-700 bg-slate-100 hover:bg-slate-200 text-xs font-semibold transition-colors"
+                                >
+                                  <Printer size={13} />
+                                  Cetak
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                        {siswaDiKelas.length === 0 && (
+                          <tr>
+                            <td colSpan={5} className="px-4 py-10 text-center text-sm text-slate-400">
+                              Tidak ada siswa yang cocok dengan pencarian.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </main>
       </div>
-
-      {/* MODAL RAPOR */}
-      {selectedSiswa && (
-        <>
-          <div onClick={() => setSelectedSiswa(null)} className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm" />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between px-5 h-16 border-b border-slate-100 sticky top-0 bg-white z-10">
-                <div>
-                  <h2 className="text-sm font-semibold text-slate-800">Rapor Siswa</h2>
-                  <p className="text-xs text-slate-400">
-                    Semester {semester} · Tahun Ajaran {tahunAjaran}
-                  </p>
-                </div>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => window.print()}
-                    className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors"
-                    title="Cetak"
-                  >
-                    <Printer size={17} />
-                  </button>
-                  <button
-                    onClick={() => setSelectedSiswa(null)}
-                    className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors"
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
-              </div>
-
-              <div className="p-5 space-y-5">
-                {/* Identitas siswa */}
-                <div className="flex items-center gap-4 bg-slate-50/80 border border-slate-100 rounded-xl p-4">
-                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white text-lg font-bold flex-shrink-0">
-                    {selectedSiswa.nama
-                      .split(" ")
-                      .slice(0, 2)
-                      .map((w) => w[0])
-                      .join("")}
-                  </div>
-                  <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm flex-1">
-                    <p className="text-slate-500">
-                      Nama <span className="text-slate-800 font-medium ml-1">{selectedSiswa.nama}</span>
-                    </p>
-                    <p className="text-slate-500">
-                      NIS <span className="text-slate-800 font-medium ml-1">{selectedSiswa.nis}</span>
-                    </p>
-                    <p className="text-slate-500">
-                      Kelas <span className="text-slate-800 font-medium ml-1">{selectedSiswa.kelas}</span>
-                    </p>
-                    <p className="text-slate-500">
-                      Wali Kelas <span className="text-slate-800 font-medium ml-1">{selectedSiswa.waliKelas}</span>
-                    </p>
-                  </div>
-                </div>
-
-                {/* Tabel nilai per mapel */}
-                <div className="border border-slate-100 rounded-xl overflow-hidden">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-slate-100 bg-slate-50/60">
-                        <th className="text-left font-medium text-slate-500 px-3 py-2.5">Mata Pelajaran</th>
-                        <th className="text-center font-medium text-slate-500 px-3 py-2.5">Pengetahuan</th>
-                        <th className="text-center font-medium text-slate-500 px-3 py-2.5">Keterampilan</th>
-                        <th className="text-center font-medium text-slate-500 px-3 py-2.5">Predikat</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {selectedSiswa.nilai.map((n) => {
-                        const predikat = getPredikat(n.pengetahuan);
-                        return (
-                          <tr key={n.mapel} className="border-b border-slate-50 last:border-0">
-                            <td className="px-3 py-2.5 text-slate-700">{n.mapel}</td>
-                            <td className="px-3 py-2.5 text-center text-slate-700 font-medium">{n.pengetahuan}</td>
-                            <td className="px-3 py-2.5 text-center text-slate-700 font-medium">{n.keterampilan}</td>
-                            <td className="px-3 py-2.5 text-center">
-                              <span className={`text-xs font-medium px-2 py-0.5 rounded-md border whitespace-nowrap ${predikat.tone}`}>
-                                {predikat.label}
-                              </span>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                    <tfoot>
-                      <tr className="bg-slate-50/60 border-t border-slate-100">
-                        <td className="px-3 py-2.5 font-semibold text-slate-700">Rata-rata</td>
-                        <td className="px-3 py-2.5 text-center font-semibold text-slate-800">
-                          {rataRata(selectedSiswa.nilai, "pengetahuan")}
-                        </td>
-                        <td className="px-3 py-2.5 text-center font-semibold text-slate-800">
-                          {rataRata(selectedSiswa.nilai, "keterampilan")}
-                        </td>
-                        <td className="px-3 py-2.5 text-center">
-                          <span
-                            className={`text-xs font-semibold px-2 py-0.5 rounded-md border whitespace-nowrap ${
-                              getPredikat(rataRata(selectedSiswa.nilai, "pengetahuan")).tone
-                            }`}
-                          >
-                            {getPredikat(rataRata(selectedSiswa.nilai, "pengetahuan")).label}
-                          </span>
-                        </td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                </div>
-
-                {/* Kehadiran */}
-                <div>
-                  <p className="text-xs font-medium text-slate-600 mb-2">Ketidakhadiran</p>
-                  <div className="grid grid-cols-4 gap-2">
-                    <div className="bg-slate-50/80 border border-slate-100 rounded-lg px-3 py-2 text-center">
-                      <p className="text-[10px] text-slate-400 uppercase tracking-wider">Hadir</p>
-                      <p className="text-sm font-semibold text-slate-800">{selectedSiswa.kehadiran.hadir}%</p>
-                    </div>
-                    <div className="bg-slate-50/80 border border-slate-100 rounded-lg px-3 py-2 text-center">
-                      <p className="text-[10px] text-slate-400 uppercase tracking-wider">Sakit</p>
-                      <p className="text-sm font-semibold text-slate-800">{selectedSiswa.kehadiran.sakit}</p>
-                    </div>
-                    <div className="bg-slate-50/80 border border-slate-100 rounded-lg px-3 py-2 text-center">
-                      <p className="text-[10px] text-slate-400 uppercase tracking-wider">Izin</p>
-                      <p className="text-sm font-semibold text-slate-800">{selectedSiswa.kehadiran.izin}</p>
-                    </div>
-                    <div className="bg-slate-50/80 border border-slate-100 rounded-lg px-3 py-2 text-center">
-                      <p className="text-[10px] text-slate-400 uppercase tracking-wider">Alpa</p>
-                      <p className="text-sm font-semibold text-slate-800">{selectedSiswa.kehadiran.alpa}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Catatan wali kelas */}
-                <div>
-                  <p className="text-xs font-medium text-slate-600 mb-1.5">Catatan Wali Kelas</p>
-                  <p className="text-sm text-slate-600 bg-slate-50/80 border border-slate-100 rounded-lg p-3 leading-relaxed">
-                    {selectedSiswa.catatan}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-slate-100">
-                <button
-                  onClick={() => setSelectedSiswa(null)}
-                  className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
-                >
-                  Tutup
-                </button>
-                <button
-                  onClick={() => window.print()}
-                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-sm shadow-blue-200"
-                >
-                  <Printer size={15} />
-                  Cetak Rapor
-                </button>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
     </div>
   );
 }
