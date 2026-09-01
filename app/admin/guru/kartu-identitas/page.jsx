@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Header from "../../../components/Header";
 import Sidebar from "../../../components/Sidebar";
 import {
@@ -13,28 +14,39 @@ import {
   GraduationCap,
   Briefcase,
   CheckCircle2,
-  X,
-  Phone,
-  Mail,
-  MapPin,
-  CalendarDays,
-  Printer,
-  Download,
-  QrCode,
+  Plus,
 } from "lucide-react";
 
 /**
  * app/admin/guru/kartu-identitas/page.jsx
  *
  * Halaman Kartu Identitas — daftar guru & staff dengan aksi untuk melihat
- * detail profil dan mencetak/preview kartu identitas (ID card) masing-masing.
+ * detail profil masing-masing. Tombol "Tambah Pegawai" membuka halaman
+ * tambah terpisah; pegawai baru yang disimpan di sana otomatis muncul di
+ * sini setelah kembali.
+ *
+ * CATATAN ROUTE DETAIL & ID CARD:
+ * Detail pegawai TIDAK LAGI modal — sekarang halaman sendiri di
+ * app/admin/guru/kartu-identitas/[id]/page.jsx (dynamic segment). Tombol
+ * "Detail" di tabel mengarah ke /admin/guru/kartu-identitas/{id}.
+ *
+ * Preview kartu identitas JUGA TIDAK LAGI modal — sekarang halaman sendiri
+ * di app/admin/guru/kartu-identitas/card/page.jsx (route STATIS, bukan
+ * dynamic segment). Karena itu id pegawai dikirim lewat QUERY STRING,
+ * bukan lewat path — tombol "ID Card" di tabel mengarah ke
+ * /admin/guru/kartu-identitas/card?id={id}, dan halaman card membaca id
+ * itu pakai useSearchParams().
  *
  * Skema warna memakai biru brand SmartSchool (#155DFC), sama dengan warna
  * teks "School" di logo sidebar, supaya konsisten dengan identitas aplikasi.
  *
  * CATATAN DATA:
- * MOCK_PEGAWAI di bawah masih dummy. Kalau nanti nyambung ke API, tinggal
- * ganti MOCK_PEGAWAI dengan hasil fetch yang bentuknya sama.
+ * MOCK_PEGAWAI di bawah masih dummy dan dipakai sebagai initial state. Data
+ * pegawai baru dari halaman /tambah dititipkan sebentar lewat localStorage
+ * (key "ki_new_pegawai_queue") lalu digabung ke state di sini saat halaman
+ * ini dibuka lagi. Kalau nanti nyambung ke API, ganti MOCK_PEGAWAI dengan
+ * hasil fetch dan ganti mekanisme "titip lewat localStorage" ini dengan
+ * POST ke endpoint tambah pegawai.
  */
 
 const MOCK_PEGAWAI = [
@@ -130,6 +142,8 @@ const MOCK_PEGAWAI = [
   },
 ];
 
+const QUEUE_KEY = "ki_new_pegawai_queue";
+
 const TIPE_OPTIONS = ["Semua Tipe", "Guru", "Staff"];
 const STATUS_OPTIONS = ["Semua Status", "Aktif", "Nonaktif"];
 
@@ -185,17 +199,39 @@ function Avatar({ nama, size = "md" }) {
 }
 
 export default function KartuIdentitasPage() {
+  const router = useRouter();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [search, setSearch] = useState("");
   const [tipeFilter, setTipeFilter] = useState("Semua Tipe");
   const [statusFilter, setStatusFilter] = useState("Semua Status");
-  const [detailPegawai, setDetailPegawai] = useState(null);
-  const [cardPegawai, setCardPegawai] = useState(null);
+  const [pegawaiList, setPegawaiList] = useState(MOCK_PEGAWAI);
+
+  // Ambil pegawai baru yang "dititipkan" oleh halaman /tambah lewat localStorage,
+  // gabungkan ke daftar, lalu bersihkan titipannya supaya tidak dobel kalau
+  // halaman ini dibuka ulang.
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(QUEUE_KEY);
+      if (raw) {
+        const queued = JSON.parse(raw);
+        if (Array.isArray(queued) && queued.length > 0) {
+          setPegawaiList((prev) => {
+            let nextId = prev.length ? Math.max(...prev.map((p) => p.id)) + 1 : 1;
+            const withIds = queued.map((q) => ({ ...q, id: nextId++ }));
+            return [...prev, ...withIds];
+          });
+        }
+        window.localStorage.removeItem(QUEUE_KEY);
+      }
+    } catch (err) {
+      console.error("Gagal memuat data pegawai baru:", err);
+    }
+  }, []);
 
   const toggleSidebar = () => setIsCollapsed(!isCollapsed);
 
   const filteredPegawai = useMemo(() => {
-    return MOCK_PEGAWAI.filter((p) => {
+    return pegawaiList.filter((p) => {
       const matchSearch =
         p.nama.toLowerCase().includes(search.toLowerCase()) || p.nip.includes(search);
       const matchTipe = tipeFilter === "Semua Tipe" || p.tipe === tipeFilter;
@@ -204,11 +240,24 @@ export default function KartuIdentitasPage() {
         (statusFilter === "Aktif" ? p.status === "aktif" : p.status === "nonaktif");
       return matchSearch && matchTipe && matchStatus;
     });
-  }, [search, tipeFilter, statusFilter]);
+  }, [pegawaiList, search, tipeFilter, statusFilter]);
 
-  const totalGuru = MOCK_PEGAWAI.filter((p) => p.tipe === "Guru").length;
-  const totalStaff = MOCK_PEGAWAI.filter((p) => p.tipe === "Staff").length;
-  const totalAktif = MOCK_PEGAWAI.filter((p) => p.status === "aktif").length;
+  const totalGuru = pegawaiList.filter((p) => p.tipe === "Guru").length;
+  const totalStaff = pegawaiList.filter((p) => p.tipe === "Staff").length;
+  const totalAktif = pegawaiList.filter((p) => p.status === "aktif").length;
+
+  // PENTING: route detail itu DYNAMIC SEGMENT ([id]/page.jsx), id dikirim
+  // lewat path, bukan modal lagi.
+  const handleDetail = (p) => {
+    router.push(`/admin/guru/kartu-identitas/${p.id}`);
+  };
+
+  // PENTING: halaman card ini route STATIS (kartu-identitas/card/page.jsx),
+  // bukan dynamic segment. Id pegawai dikirim lewat QUERY STRING (?id=...),
+  // lalu dibaca di halaman card pakai useSearchParams().
+  const handleIdCard = (p) => {
+    router.push(`/admin/guru/kartu-identitas/card?id=${p.id}`);
+  };
 
   return (
     <div className="flex h-screen w-full bg-slate-50 overflow-hidden">
@@ -228,14 +277,23 @@ export default function KartuIdentitasPage() {
         <main className="flex-1 overflow-y-auto">
           <div className="p-4 sm:p-6 lg:p-8 space-y-6">
             {/* HEADER */}
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-gradient-to-br from-[#155DFC] to-[#0d47c9] text-white shadow-lg shadow-slate-900/10">
-                <IdCard size={20} />
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-gradient-to-br from-[#155DFC] to-[#0d47c9] text-white shadow-lg shadow-slate-900/10">
+                  <IdCard size={20} />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold text-slate-800">Kartu Identitas</h1>
+                  <p className="text-sm text-slate-500">Data identitas guru & staff dan lihat detail profil.</p>
+                </div>
               </div>
-              <div>
-                <h1 className="text-2xl font-bold text-slate-800">Kartu Identitas</h1>
-                <p className="text-sm text-slate-500">Data identitas guru & staff, lihat detail atau cetak ID card.</p>
-              </div>
+              <button
+                onClick={() => router.push("/admin/guru/kartu-identitas/tambah")}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-br from-[#155DFC] to-[#0d47c9] text-white text-sm font-semibold shadow-lg shadow-[#155DFC]/20 hover:opacity-90 transition-opacity"
+              >
+                <Plus size={16} />
+                Tambah Pegawai
+              </button>
             </div>
 
             {/* STATISTIK RINGKAS */}
@@ -245,7 +303,7 @@ export default function KartuIdentitasPage() {
                   <Users size={14} className="text-[#155DFC]" />
                   <p className="text-[11px] font-medium text-slate-500 tracking-wide">Total Pegawai</p>
                 </div>
-                <p className="text-2xl font-bold text-slate-900 mt-1.5">{MOCK_PEGAWAI.length}</p>
+                <p className="text-2xl font-bold text-slate-900 mt-1.5">{pegawaiList.length}</p>
               </div>
               <div className="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm">
                 <div className="flex items-center gap-2">
@@ -333,10 +391,17 @@ export default function KartuIdentitasPage() {
                         }`}
                       >
                         <td className="px-4 py-2.5">
-                          <div className="flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={() => handleDetail(p)}
+                            title="Lihat detail pegawai"
+                            className="flex items-center gap-3 text-left group"
+                          >
                             <Avatar nama={p.nama} size="sm" />
-                            <span className="font-semibold text-slate-900">{p.nama}</span>
-                          </div>
+                            <span className="font-semibold text-slate-900 group-hover:text-[#155DFC] group-hover:underline underline-offset-2 transition-colors">
+                              {p.nama}
+                            </span>
+                          </button>
                         </td>
                         <td className="px-4 py-2.5">
                           <span className="font-mono text-xs text-slate-600">{p.nip}</span>
@@ -352,7 +417,7 @@ export default function KartuIdentitasPage() {
                         <td className="px-4 py-2.5">
                           <div className="flex items-center justify-center gap-1.5">
                             <button
-                              onClick={() => setDetailPegawai(p)}
+                              onClick={() => handleDetail(p)}
                               title="Detail"
                               className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[#155DFC] bg-[#eaf1ff] hover:bg-[#d6e6ff] text-xs font-medium transition-colors"
                             >
@@ -360,7 +425,7 @@ export default function KartuIdentitasPage() {
                               Detail
                             </button>
                             <button
-                              onClick={() => setCardPegawai(p)}
+                              onClick={() => handleIdCard(p)}
                               title="ID Card"
                               className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-white bg-gradient-to-r from-[#155DFC] to-[#0d47c9] hover:brightness-110 text-xs font-medium transition-all"
                             >
@@ -385,169 +450,6 @@ export default function KartuIdentitasPage() {
           </div>
         </main>
       </div>
-
-      {/* MODAL DETAIL */}
-      {detailPegawai && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full overflow-hidden">
-            <div className="bg-gradient-to-r from-[#155DFC] to-[#0d47c9] px-5 py-5 flex items-start justify-between">
-              <div className="flex items-center gap-3">
-                <Avatar nama={detailPegawai.nama} />
-                <div>
-                  <p className="font-bold text-white text-base leading-tight">{detailPegawai.nama}</p>
-                  <p className="text-white/80 text-xs mt-0.5">{detailPegawai.jabatan}</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setDetailPegawai(null)}
-                className="w-7 h-7 rounded-lg flex items-center justify-center text-white/80 hover:bg-white/15"
-              >
-                <X size={15} />
-              </button>
-            </div>
-
-            <div className="p-5 space-y-4">
-              <div className="flex items-center gap-2">
-                <TipeBadge tipe={detailPegawai.tipe} />
-                <StatusBadge status={detailPegawai.status} />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <p className="text-[11px] text-slate-400">NIP</p>
-                  <p className="font-medium text-slate-800 font-mono text-xs mt-0.5">{detailPegawai.nip}</p>
-                </div>
-                <div>
-                  <p className="text-[11px] text-slate-400">Golongan</p>
-                  <p className="font-medium text-slate-800 mt-0.5">{detailPegawai.golongan}</p>
-                </div>
-                <div className="col-span-2">
-                  <p className="text-[11px] text-slate-400">Unit / Bidang</p>
-                  <p className="font-medium text-slate-800 mt-0.5">{detailPegawai.unit}</p>
-                </div>
-              </div>
-
-              <div className="border-t border-slate-100 pt-4 space-y-2.5">
-                <div className="flex items-center gap-2.5 text-sm text-slate-600">
-                  <Phone size={14} className="text-[#155DFC] flex-shrink-0" />
-                  {detailPegawai.telp}
-                </div>
-                <div className="flex items-center gap-2.5 text-sm text-slate-600">
-                  <Mail size={14} className="text-[#155DFC] flex-shrink-0" />
-                  {detailPegawai.email}
-                </div>
-                <div className="flex items-center gap-2.5 text-sm text-slate-600">
-                  <MapPin size={14} className="text-[#155DFC] flex-shrink-0" />
-                  {detailPegawai.alamat}
-                </div>
-                <div className="flex items-center gap-2.5 text-sm text-slate-600">
-                  <CalendarDays size={14} className="text-[#155DFC] flex-shrink-0" />
-                  Bergabung {detailPegawai.tglMasuk}
-                </div>
-              </div>
-
-              <button
-                onClick={() => {
-                  setCardPegawai(detailPegawai);
-                  setDetailPegawai(null);
-                }}
-                className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#155DFC] to-[#0d47c9] text-white text-sm font-semibold hover:brightness-110 transition-all"
-              >
-                <CreditCard size={15} />
-                Lihat ID Card
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL ID CARD */}
-      {cardPegawai && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-5">
-            <div className="flex items-center justify-between mb-4">
-              <p className="font-semibold text-slate-800 text-sm">Preview Kartu Identitas</p>
-              <button
-                onClick={() => setCardPegawai(null)}
-                className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100"
-              >
-                <X size={15} />
-              </button>
-            </div>
-
-            {/* Kartu identitas — desain kartu fisik, rasio ~ kartu ID standar */}
-            <div className="rounded-2xl overflow-hidden shadow-lg border border-slate-200">
-              <div className="bg-gradient-to-br from-[#155DFC] to-[#0d47c9] px-4 pt-4 pb-8 relative">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-white/95 flex items-center justify-center flex-shrink-0">
-                    <span className="text-[#155DFC] font-black text-xs">S</span>
-                  </div>
-                  <div className="leading-tight">
-                    <p className="text-white font-bold text-xs">SmartSchool</p>
-                    <p className="text-white/70 text-[9px] tracking-wide uppercase">
-                      {cardPegawai.tipe === "Guru" ? "Kartu Identitas Guru" : "Kartu Identitas Staff"}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white px-4 pb-4 -mt-6 relative">
-                <div className="flex items-end gap-3">
-                  <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-[#155DFC] to-[#0d47c9] text-white flex items-center justify-center font-bold text-lg border-4 border-white shadow-md flex-shrink-0">
-                    {getInitials(cardPegawai.nama)}
-                  </div>
-                  <div className="pb-1 min-w-0">
-                    <p className="font-bold text-slate-900 text-sm leading-tight truncate">{cardPegawai.nama}</p>
-                    <p className="text-xs text-slate-500 truncate">{cardPegawai.jabatan}</p>
-                  </div>
-                </div>
-
-                <div className="mt-4 space-y-1.5 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">NIP</span>
-                    <span className="font-mono font-medium text-slate-700">{cardPegawai.nip}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Tipe</span>
-                    <span className="font-medium text-slate-700">{cardPegawai.tipe}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Unit</span>
-                    <span className="font-medium text-slate-700 text-right">{cardPegawai.unit}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Berlaku s/d</span>
-                    <span className="font-medium text-slate-700">31 Des 2027</span>
-                  </div>
-                </div>
-
-                <div className="mt-4 pt-3 border-t border-dashed border-slate-200 flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <span className={`w-1.5 h-1.5 rounded-full ${cardPegawai.status === "aktif" ? "bg-emerald-500" : "bg-slate-400"}`} />
-                    <span className="text-[10px] font-medium text-slate-500">
-                      {cardPegawai.status === "aktif" ? "Aktif" : "Nonaktif"}
-                    </span>
-                  </div>
-                  <div className="w-9 h-9 rounded-md bg-slate-100 flex items-center justify-center">
-                    <QrCode size={18} className="text-slate-400" />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 mt-4">
-              <button className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50 transition-colors">
-                <Download size={15} />
-                Unduh
-              </button>
-              <button className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#155DFC] to-[#0d47c9] text-white text-sm font-semibold hover:brightness-110 transition-all">
-                <Printer size={15} />
-                Cetak
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

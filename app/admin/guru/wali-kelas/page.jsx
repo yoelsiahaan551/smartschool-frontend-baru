@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import Header from "../../../components/Header";
 import Sidebar from "../../../components/Sidebar";
 import {
@@ -11,10 +12,6 @@ import {
   Users,
   School,
   CheckCircle2,
-  X,
-  Phone,
-  Mail,
-  ClipboardList,
   Plus,
   Trash2,
   PowerOff,
@@ -25,20 +22,21 @@ import {
 /**
  * app/admin/guru/wali-kelas/page.jsx
  *
- * Halaman Wali Kelas — daftar penugasan wali kelas per kelas, beserta
- * jumlah siswa binaan dan aksi untuk melihat detail kelas & daftar siswa.
- * Sekarang mendukung: tambah wali kelas baru, nonaktifkan/aktifkan, dan hapus.
- *
- * Skema warna memakai biru brand SmartSchool (#155DFC), sama dengan warna
- * teks "School" di logo sidebar, supaya konsisten dengan identitas aplikasi.
+ * Halaman Wali Kelas — daftar penugasan wali kelas per kelas.
+ * "Detail" sekarang mengarah ke halaman /wali-kelas/[id] (bukan modal lagi),
+ * dan dari halaman detail itu bisa lanjut ke /wali-kelas/[id]/edit.
+ * Nonaktifkan/aktifkan & hapus tetap bisa langsung dari tabel di sini.
  *
  * CATATAN DATA:
  * MOCK_WALIKELAS di bawah masih dummy dan dipakai sebagai initial state.
- * Kalau nanti nyambung ke API, ganti initial state `wali` dengan hasil fetch,
- * dan sambungkan handleAdd/handleDelete/handleToggleStatus ke endpoint terkait.
+ * Karena setiap route (page.jsx, [id]/page.jsx, [id]/edit/page.jsx) adalah
+ * file terpisah, masing-masing saat ini punya salinan MOCK_WALIKELAS sendiri
+ * supaya bisa langsung dibuka lewat URL. Begitu backend API tersedia, ganti
+ * semua salinan ini dengan fetch by id, dan sambungkan submit edit ke
+ * endpoint updateWaliKelas.
  */
 
-const MOCK_WALIKELAS = [
+export const MOCK_WALIKELAS = [
   {
     id: 1,
     kelas: "7A",
@@ -119,24 +117,13 @@ const MOCK_WALIKELAS = [
   },
 ];
 
-const JENJANG_LIST = ["VII", "VIII", "IX"];
 const STATUS_OPTIONS = ["Semua Status", "Aktif", "Nonaktif"];
-
-const EMPTY_FORM = {
-  kelas: "",
-  jenjang: "VII",
-  waliKelas: "",
-  nip: "",
-  telp: "",
-  email: "",
-  jumlahSiswa: "",
-  tahunAjaran: "2025/2026",
-};
 
 function getInitials(nama) {
   return nama
     .replace(/,.*/, "")
     .split(" ")
+    .filter(Boolean)
     .slice(0, 2)
     .map((w) => w[0])
     .join("")
@@ -171,22 +158,15 @@ function Avatar({ nama, size = "md" }) {
 }
 
 export default function WaliKelasPage() {
+  const router = useRouter();
+
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [search, setSearch] = useState("");
   const [jenjangFilter, setJenjangFilter] = useState("Semua Jenjang");
   const [statusFilter, setStatusFilter] = useState("Semua Status");
-  const [detailKelas, setDetailKelas] = useState(null);
 
-  // Data wali kelas sekarang disimpan di state supaya bisa ditambah/dihapus/diubah.
   const [wali, setWali] = useState(MOCK_WALIKELAS);
-
-  // Modal tambah
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [form, setForm] = useState(EMPTY_FORM);
-  const [formError, setFormError] = useState("");
-
-  // Konfirmasi hapus
-  const [confirmDelete, setConfirmDelete] = useState(null); // objek wali yang mau dihapus
+  const [confirmDelete, setConfirmDelete] = useState(null);
 
   const jenjangOptions = useMemo(
     () => ["Semua Jenjang", ...Array.from(new Set(wali.map((w) => w.jenjang))).sort()],
@@ -211,61 +191,23 @@ export default function WaliKelasPage() {
   const totalSiswa = wali.reduce((sum, w) => sum + Number(w.jumlahSiswa || 0), 0);
   const totalKelasAktif = wali.filter((w) => w.status === "aktif").length;
 
-  // ---- Handlers ----
-
   function handleToggleStatus(id) {
     setWali((prev) =>
       prev.map((w) => (w.id === id ? { ...w, status: w.status === "aktif" ? "nonaktif" : "aktif" } : w))
-    );
-    setDetailKelas((prev) =>
-      prev && prev.id === id ? { ...prev, status: prev.status === "aktif" ? "nonaktif" : "aktif" } : prev
     );
   }
 
   function handleDelete(id) {
     setWali((prev) => prev.filter((w) => w.id !== id));
     setConfirmDelete(null);
-    setDetailKelas((prev) => (prev && prev.id === id ? null : prev));
   }
 
-  function openAddModal() {
-    setForm(EMPTY_FORM);
-    setFormError("");
-    setShowAddModal(true);
+  function handleTambah() {
+    router.push("/admin/guru/wali-kelas/tambah");
   }
 
-  function handleFormChange(field, value) {
-    setForm((prev) => ({ ...prev, [field]: value }));
-  }
-
-  function handleAddSubmit(e) {
-    e.preventDefault();
-
-    if (!form.kelas.trim() || !form.waliKelas.trim() || !form.nip.trim()) {
-      setFormError("Kelas, nama wali kelas, dan NIP wajib diisi.");
-      return;
-    }
-    if (wali.some((w) => w.kelas.toLowerCase() === form.kelas.trim().toLowerCase())) {
-      setFormError("Kelas tersebut sudah punya wali kelas. Gunakan nama kelas lain.");
-      return;
-    }
-
-    const newEntry = {
-      id: Date.now(),
-      kelas: form.kelas.trim(),
-      jenjang: form.jenjang,
-      waliKelas: form.waliKelas.trim(),
-      nip: form.nip.trim(),
-      telp: form.telp.trim() || "-",
-      email: form.email.trim() || "-",
-      jumlahSiswa: Number(form.jumlahSiswa) || 0,
-      tahunAjaran: form.tahunAjaran.trim() || "2025/2026",
-      status: "aktif",
-      siswa: [],
-    };
-
-    setWali((prev) => [newEntry, ...prev]);
-    setShowAddModal(false);
+  function handleDetail(id) {
+    router.push(`/admin/guru/wali-kelas/${id}`);
   }
 
   return (
@@ -297,7 +239,7 @@ export default function WaliKelasPage() {
                 </div>
               </div>
               <button
-                onClick={openAddModal}
+                onClick={handleTambah}
                 className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-br from-[#155DFC] to-[#0d47c9] text-white text-sm font-semibold shadow-lg shadow-[#155DFC]/20 hover:opacity-90 transition-opacity"
               >
                 <Plus size={16} />
@@ -428,7 +370,7 @@ export default function WaliKelasPage() {
                         <td className="px-4 py-2.5">
                           <div className="flex items-center justify-center gap-1.5">
                             <button
-                              onClick={() => setDetailKelas(w)}
+                              onClick={() => handleDetail(w.id)}
                               title="Detail kelas"
                               className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[#155DFC] bg-[#eaf1ff] hover:bg-[#d6e6ff] text-xs font-medium transition-colors"
                             >
@@ -471,251 +413,6 @@ export default function WaliKelasPage() {
           </div>
         </main>
       </div>
-
-      {/* MODAL DETAIL KELAS */}
-      {detailKelas && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full overflow-hidden max-h-[85vh] flex flex-col">
-            <div className="bg-gradient-to-r from-[#155DFC] to-[#0d47c9] px-5 py-5 flex items-start justify-between flex-shrink-0">
-              <div className="flex items-center gap-3">
-                <Avatar nama={detailKelas.waliKelas} />
-                <div>
-                  <p className="text-white/80 text-xs">Wali Kelas {detailKelas.kelas}</p>
-                  <p className="font-bold text-white text-base leading-tight">{detailKelas.waliKelas}</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setDetailKelas(null)}
-                className="w-7 h-7 rounded-lg flex items-center justify-center text-white/80 hover:bg-white/15 flex-shrink-0"
-              >
-                <X size={15} />
-              </button>
-            </div>
-
-            <div className="p-5 space-y-4 overflow-y-auto">
-              <div className="flex items-center gap-2">
-                <StatusBadge status={detailKelas.status} />
-                <span className="text-xs text-slate-400">Tahun Ajaran {detailKelas.tahunAjaran}</span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <p className="text-[11px] text-slate-400">NIP</p>
-                  <p className="font-medium text-slate-800 font-mono text-xs mt-0.5">{detailKelas.nip}</p>
-                </div>
-                <div>
-                  <p className="text-[11px] text-slate-400">Jenjang</p>
-                  <p className="font-medium text-slate-800 mt-0.5">Kelas {detailKelas.jenjang}</p>
-                </div>
-              </div>
-
-              <div className="border-t border-slate-100 pt-4 space-y-2.5">
-                <div className="flex items-center gap-2.5 text-sm text-slate-600">
-                  <Phone size={14} className="text-[#155DFC] flex-shrink-0" />
-                  {detailKelas.telp}
-                </div>
-                <div className="flex items-center gap-2.5 text-sm text-slate-600">
-                  <Mail size={14} className="text-[#155DFC] flex-shrink-0" />
-                  {detailKelas.email}
-                </div>
-              </div>
-
-              <div className="border-t border-slate-100 pt-4">
-                <div className="flex items-center justify-between mb-2.5">
-                  <p className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
-                    <ClipboardList size={14} className="text-[#155DFC]" />
-                    Siswa Binaan
-                  </p>
-                  <span className="text-xs font-medium text-slate-400">{detailKelas.jumlahSiswa} siswa</span>
-                </div>
-                <div className="space-y-1.5">
-                  {detailKelas.siswa.map((nama, i) => (
-                    <div
-                      key={nama}
-                      className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-[#f5f8ff] border border-slate-100 text-sm text-slate-700"
-                    >
-                      <span className="w-5 h-5 rounded-full bg-white border border-slate-200 flex items-center justify-center text-[10px] font-semibold text-slate-400 flex-shrink-0">
-                        {i + 1}
-                      </span>
-                      {nama}
-                    </div>
-                  ))}
-                  {detailKelas.siswa.length === 0 && (
-                    <p className="text-xs text-slate-400 text-center py-2">Belum ada data siswa binaan.</p>
-                  )}
-                  {detailKelas.jumlahSiswa > detailKelas.siswa.length && (
-                    <p className="text-xs text-slate-400 text-center pt-1">
-                      +{detailKelas.jumlahSiswa - detailKelas.siswa.length} siswa lainnya
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* AKSI: Nonaktifkan/Aktifkan & Hapus */}
-              <div className="border-t border-slate-100 pt-4 flex gap-2">
-                <button
-                  onClick={() => handleToggleStatus(detailKelas.id)}
-                  className={`flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                    detailKelas.status === "aktif"
-                      ? "text-amber-600 bg-amber-50 hover:bg-amber-100 border border-amber-200"
-                      : "text-emerald-600 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200"
-                  }`}
-                >
-                  {detailKelas.status === "aktif" ? <PowerOff size={14} /> : <Power size={14} />}
-                  {detailKelas.status === "aktif" ? "Nonaktifkan" : "Aktifkan"}
-                </button>
-                <button
-                  onClick={() => setConfirmDelete(detailKelas)}
-                  className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 transition-colors"
-                >
-                  <Trash2 size={14} />
-                  Hapus
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL TAMBAH WALI KELAS */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full overflow-hidden max-h-[85vh] flex flex-col">
-            <div className="bg-gradient-to-r from-[#155DFC] to-[#0d47c9] px-5 py-4 flex items-center justify-between flex-shrink-0">
-              <p className="font-bold text-white text-base flex items-center gap-2">
-                <Plus size={16} />
-                Tambah Wali Kelas
-              </p>
-              <button
-                onClick={() => setShowAddModal(false)}
-                className="w-7 h-7 rounded-lg flex items-center justify-center text-white/80 hover:bg-white/15 flex-shrink-0"
-              >
-                <X size={15} />
-              </button>
-            </div>
-
-            <form onSubmit={handleAddSubmit} className="p-5 space-y-3.5 overflow-y-auto">
-              {formError && (
-                <div className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-600 text-xs rounded-lg px-3 py-2">
-                  <AlertTriangle size={14} className="flex-shrink-0 mt-0.5" />
-                  {formError}
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-medium text-slate-500">Kelas *</label>
-                  <input
-                    type="text"
-                    value={form.kelas}
-                    onChange={(e) => handleFormChange("kelas", e.target.value)}
-                    placeholder="mis. 7C"
-                    className="mt-1 w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#155DFC]/25 focus:border-[#155DFC]/50 text-slate-800"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-slate-500">Jenjang</label>
-                  <select
-                    value={form.jenjang}
-                    onChange={(e) => handleFormChange("jenjang", e.target.value)}
-                    className="mt-1 w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#155DFC]/25 focus:border-[#155DFC]/50 bg-white text-slate-800"
-                  >
-                    {JENJANG_LIST.map((j) => (
-                      <option key={j} value={j}>
-                        Kelas {j}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-medium text-slate-500">Nama Wali Kelas *</label>
-                <input
-                  type="text"
-                  value={form.waliKelas}
-                  onChange={(e) => handleFormChange("waliKelas", e.target.value)}
-                  placeholder="mis. Rina Marlina, S.Pd"
-                  className="mt-1 w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#155DFC]/25 focus:border-[#155DFC]/50 text-slate-800"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-medium text-slate-500">NIP *</label>
-                <input
-                  type="text"
-                  value={form.nip}
-                  onChange={(e) => handleFormChange("nip", e.target.value)}
-                  placeholder="mis. 199001012015011001"
-                  className="mt-1 w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#155DFC]/25 focus:border-[#155DFC]/50 text-slate-800 font-mono"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-medium text-slate-500">No. Telepon</label>
-                  <input
-                    type="text"
-                    value={form.telp}
-                    onChange={(e) => handleFormChange("telp", e.target.value)}
-                    placeholder="0812-xxxx-xxxx"
-                    className="mt-1 w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#155DFC]/25 focus:border-[#155DFC]/50 text-slate-800"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-slate-500">Jumlah Siswa</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={form.jumlahSiswa}
-                    onChange={(e) => handleFormChange("jumlahSiswa", e.target.value)}
-                    placeholder="0"
-                    className="mt-1 w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#155DFC]/25 focus:border-[#155DFC]/50 text-slate-800"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-medium text-slate-500">Email</label>
-                <input
-                  type="email"
-                  value={form.email}
-                  onChange={(e) => handleFormChange("email", e.target.value)}
-                  placeholder="nama@smartschool.sch.id"
-                  className="mt-1 w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#155DFC]/25 focus:border-[#155DFC]/50 text-slate-800"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-medium text-slate-500">Tahun Ajaran</label>
-                <input
-                  type="text"
-                  value={form.tahunAjaran}
-                  onChange={(e) => handleFormChange("tahunAjaran", e.target.value)}
-                  placeholder="2025/2026"
-                  className="mt-1 w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#155DFC]/25 focus:border-[#155DFC]/50 text-slate-800"
-                />
-              </div>
-
-              <div className="flex gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold text-white bg-gradient-to-br from-[#155DFC] to-[#0d47c9] hover:opacity-90 transition-opacity"
-                >
-                  Simpan
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* MODAL KONFIRMASI HAPUS */}
       {confirmDelete && (

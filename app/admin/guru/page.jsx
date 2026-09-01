@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+
 import Header from "../../components/Header";
 import Sidebar from "../../components/Sidebar";
 
@@ -28,587 +29,453 @@ import {
   FileSpreadsheet,
   FileText,
   Printer,
+  AlertCircle,
+  Loader2,
 } from "lucide-react";
 
-// =========================================================
-// STORAGE
-// =========================================================
+import {
+  getUsers,
+  deleteUser,
+} from "../../../services/user.service";
 
-const STORAGE_KEY = "guru_data";
-
-// =========================================================
-// DEFAULT DATA
-// =========================================================
-
-const getDefaultGuru = () => {
-  const data = [];
-
-  const names = [
-    "Dr. Ahmad Fauzi, M.Pd.",
-    "Siti Rahma, S.Pd.",
-    "Budi Santoso, S.Si.",
-    "Dewi Lestari, S.Pd.",
-    "Eko Prasetyo, S.Pd.",
-    "Rina Wulandari, S.Pd.",
-    "Andi Wijaya, S.Kom.",
-    "Maya Sari, S.Pd.",
-    "Fajar Nugroho, S.Pd.",
-    "Lina Marlina, S.Pd.",
-    "Bambang Sutejo, S.Pd.",
-    "Nurul Hikmah, S.Pd.",
-    "Dodi Saputra, S.Si.",
-    "Ratna Dewi, S.Pd.",
-    "Hendra Gunawan, S.Kom.",
-    "Tuti Rahayu, S.Pd.",
-    "Agus Salim, S.Pd.I.",
-    "Diana Kusuma, S.Pd.",
-    "Rudi Hartono, S.Pd.",
-    "Sari Wulandari, S.Pd.",
-    "Irwan Setiawan, S.Pd.",
-    "Yuli Astuti, S.Pd.",
-    "Anton Budiman, S.Si.",
-    "Nina Susanti, S.Pd.",
-    "Rahmat Hidayat, S.Pd.",
-  ];
-
-  const mapels = [
-    "Matematika",
-    "Bahasa Indonesia",
-    "Fisika",
-    "Biologi",
-    "Kimia",
-    "Bahasa Inggris",
-    "Informatika",
-    "IPS",
-    "PJOK",
-    "Seni Budaya",
-    "PKN",
-    "Agama",
-    "Prakarya",
-    "Geografi",
-    "Sejarah",
-    "Ekonomi",
-    "Sosiologi",
-    "Antropologi",
-  ];
-
-  const statuses = ["Aktif", "Nonaktif"];
-  const genders = ["L", "P"];
-
-  for (let i = 0; i < 45; i++) {
-    const nameIdx = i % names.length;
-    const mapelIdx = i % mapels.length;
-    const statusIdx = i % 5 === 3 ? 1 : 0;
-    const genderIdx = i % 2;
-
-    data.push({
-      id: i + 1,
-      nama: names[nameIdx],
-      nip: `198${String(50 + i).padStart(2, "0")}${String(
-        10 + i
-      ).padStart(2, "0")}${String(2010 + (i % 7)).padStart(2, "0")}${String(
-        1001 + i
-      ).padStart(4, "0")}`,
-      mapel: mapels[mapelIdx],
-      email: `${names[nameIdx].split(" ")[0].toLowerCase()}@sekolah.com`,
-      phone: `081234567${String(800 + i).padStart(3, "0")}`,
-      status: statuses[statusIdx],
-      alamat: `Jl. Contoh No. ${i + 1}, Jakarta`,
-      tglLahir: `198${String(50 + i).padStart(2, "0")}-${String(
-        1 + (i % 12)
-      ).padStart(2, "0")}-${String(1 + (i % 28)).padStart(2, "0")}`,
-      gender: genders[genderIdx],
-      joinDate: `${2010 + (i % 7)}-${String(1 + (i % 12)).padStart(
-        2,
-        "0"
-      )}-${String(1 + (i % 28)).padStart(2, "0")}`,
-    });
-  }
-
-  return data;
-};
-
-// =========================================================
-// LOCAL STORAGE
-// =========================================================
-
-const loadGuru = () => {
-  if (typeof window === "undefined") {
-    return getDefaultGuru();
-  }
-
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-
-    if (!stored) {
-      const defaultData = getDefaultGuru();
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultData));
-      return defaultData;
-    }
-
-    return JSON.parse(stored);
-  } catch (error) {
-    console.error("Gagal membaca data guru:", error);
-    return getDefaultGuru();
-  }
-};
-
-const saveGuru = (data) => {
-  if (typeof window !== "undefined") {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  }
-};
-
-// =========================================================
-// PAGE
-// =========================================================
+/**
+ * =========================================================
+ * PAGE
+ * =========================================================
+ */
 
 export default function AdminGuruPage() {
   const router = useRouter();
 
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [guru, setGuru] = useState([]);
-  const [search, setSearch] = useState("");
-  const [showModal, setShowModal] = useState(false);
 
-  const [sortBy, setSortBy] = useState("nama_asc");
+  // DATA ASLI DARI API
+  const [guru, setGuru] = useState([]);
+
+  // LOADING
+  const [loading, setLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState(null);
+
+  // ERROR
+  const [error, setError] = useState("");
+
+  // FILTER
+  const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("semua");
 
+  // SORT
+  const [sortBy, setSortBy] = useState("namaLengkap");
+  const [sortOrder, setSortOrder] = useState("asc");
+
+  // PAGINATION
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  // =======================================================
-  // LOAD DATA
-  // =======================================================
+  // SERVER PAGINATION
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 10,
+    totalData: 0,
+    totalPages: 0,
+  });
+
+  // MODAL
+  const [showModal, setShowModal] = useState(false);
+
+  /**
+   * =======================================================
+   * FETCH DATA GURU
+   * =======================================================
+   */
+
+  const fetchGuru = useCallback(
+    async (showLoading = true) => {
+      try {
+        if (showLoading) {
+          setLoading(true);
+        }
+
+        setError("");
+
+        const response = await getUsers({
+          page: currentPage,
+          limit: itemsPerPage,
+          search: search.trim(),
+          status: filterStatus,
+          role: "guru",
+          sortBy,
+          sortOrder,
+        });
+
+        if (!response?.success) {
+          throw new Error(
+            response?.message ||
+              "Gagal mengambil data guru."
+          );
+        }
+
+        setGuru(
+          Array.isArray(response.data)
+            ? response.data
+            : []
+        );
+
+        if (response.pagination) {
+          setPagination(response.pagination);
+        } else {
+          setPagination({
+            page: currentPage,
+            limit: itemsPerPage,
+            totalData: response.data?.length || 0,
+            totalPages: 1,
+          });
+        }
+      } catch (err) {
+        console.error(
+          "[browser] Error fetch guru:",
+          err
+        );
+
+        setGuru([]);
+
+        setError(
+          err?.message ||
+            "Gagal mengambil data guru."
+        );
+      } finally {
+        if (showLoading) {
+          setLoading(false);
+        }
+      }
+    },
+    [
+      currentPage,
+      itemsPerPage,
+      search,
+      filterStatus,
+      sortBy,
+      sortOrder,
+    ]
+  );
+
+  /**
+   * =======================================================
+   * LOAD DATA
+   * =======================================================
+   */
 
   useEffect(() => {
-    setGuru(loadGuru());
-  }, []);
+    fetchGuru();
+  }, [fetchGuru]);
 
-  // =======================================================
-  // DELETE
-  // =======================================================
+  /**
+   * =======================================================
+   * REFRESH
+   * =======================================================
+   */
 
-  const handleDelete = (id, nama) => {
+  const handleRefresh = async () => {
+    await fetchGuru();
+  };
+
+  /**
+   * =======================================================
+   * SEARCH
+   * =======================================================
+   */
+
+  const handleSearchChange = (value) => {
+    setSearch(value);
+    setCurrentPage(1);
+  };
+
+  /**
+   * =======================================================
+   * FILTER STATUS
+   * =======================================================
+   */
+
+  const handleStatusChange = (value) => {
+    setFilterStatus(value);
+    setCurrentPage(1);
+  };
+
+  /**
+   * =======================================================
+   * SORT
+   * =======================================================
+   */
+
+  const handleSortChange = (value) => {
+    setCurrentPage(1);
+
+    if (value === "nama_asc") {
+      setSortBy("namaLengkap");
+      setSortOrder("asc");
+      return;
+    }
+
+    if (value === "nama_desc") {
+      setSortBy("namaLengkap");
+      setSortOrder("desc");
+      return;
+    }
+
+    if (value === "nip_asc") {
+      setSortBy("nip");
+      setSortOrder("asc");
+      return;
+    }
+
+    if (value === "nip_desc") {
+      setSortBy("nip");
+      setSortOrder("desc");
+      return;
+    }
+
+    if (value === "status_asc") {
+      setSortBy("status");
+      setSortOrder("asc");
+      return;
+    }
+
+    if (value === "status_desc") {
+      setSortBy("status");
+      setSortOrder("desc");
+    }
+  };
+
+  const sortValue = useMemo(() => {
+    if (
+      sortBy === "namaLengkap" &&
+      sortOrder === "asc"
+    ) {
+      return "nama_asc";
+    }
+
+    if (
+      sortBy === "namaLengkap" &&
+      sortOrder === "desc"
+    ) {
+      return "nama_desc";
+    }
+
+    if (
+      sortBy === "nip" &&
+      sortOrder === "asc"
+    ) {
+      return "nip_asc";
+    }
+
+    if (
+      sortBy === "nip" &&
+      sortOrder === "desc"
+    ) {
+      return "nip_desc";
+    }
+
+    if (
+      sortBy === "status" &&
+      sortOrder === "asc"
+    ) {
+      return "status_asc";
+    }
+
+    return "status_desc";
+  }, [sortBy, sortOrder]);
+
+  /**
+   * =======================================================
+   * DELETE
+   * =======================================================
+   */
+
+  const handleDelete = async (id, nama) => {
+    if (!id) return;
+
     const confirmed = window.confirm(
-      `Yakin ingin menghapus guru "${nama}"?`
+      `Yakin ingin menonaktifkan guru "${nama}"?`
     );
 
     if (!confirmed) return;
 
-    const updated = guru.filter((item) => item.id !== id);
+    try {
+      setDeletingId(id);
+      setError("");
 
-    setGuru(updated);
-    saveGuru(updated);
+      const response = await deleteUser(id);
 
-    const totalItemsAfterDelete = updated.length;
-    const maxPage = Math.ceil(totalItemsAfterDelete / itemsPerPage);
+      if (!response?.success) {
+        throw new Error(
+          response?.message ||
+            "Gagal menghapus guru."
+        );
+      }
 
-    if (currentPage > maxPage && maxPage > 0) {
-      setCurrentPage(maxPage);
-    } else if (totalItemsAfterDelete === 0) {
-      setCurrentPage(1);
+      // Jika halaman terakhir hanya berisi 1 data,
+      // kembali ke halaman sebelumnya.
+      if (
+        guru.length === 1 &&
+        currentPage > 1
+      ) {
+        setCurrentPage(
+          currentPage - 1
+        );
+      } else {
+        await fetchGuru(false);
+      }
+
+      window.alert(
+        response.message ||
+          `Guru "${nama}" berhasil dinonaktifkan.`
+      );
+    } catch (err) {
+      console.error(
+        "Error delete guru:",
+        err
+      );
+
+      window.alert(
+        err?.message ||
+          "Gagal menonaktifkan guru."
+      );
+    } finally {
+      setDeletingId(null);
     }
-
-    alert(`Guru "${nama}" berhasil dihapus!`);
   };
 
-  // =======================================================
-  // REFRESH
-  // =======================================================
+  /**
+   * =======================================================
+   * PAGINATION
+   * =======================================================
+   */
 
-  const handleRefresh = () => {
-    const data = loadGuru();
-    setGuru(data);
-    setCurrentPage(1);
-  };
+  const totalPages =
+    pagination?.totalPages || 0;
 
-  // =======================================================
-  // SEARCH
-  // =======================================================
+  const totalData =
+    pagination?.totalData || 0;
 
-  const filteredBySearch = guru.filter((g) => {
-    const keyword = search.toLowerCase();
+  const startIndex =
+    totalData === 0
+      ? 0
+      : (currentPage - 1) *
+          itemsPerPage +
+        1;
 
-    return (
-      g.nama.toLowerCase().includes(keyword) ||
-      g.nip.includes(search) ||
-      g.mapel.toLowerCase().includes(keyword) ||
-      g.email.toLowerCase().includes(keyword)
-    );
-  });
-
-  // =======================================================
-  // FILTER STATUS
-  // =======================================================
-
-  const filteredByStatus =
-    filterStatus === "semua"
-      ? filteredBySearch
-      : filteredBySearch.filter((g) => g.status === filterStatus);
-
-  // =======================================================
-  // SORT
-  // =======================================================
-
-  const sorted = [...filteredByStatus].sort((a, b) => {
-    switch (sortBy) {
-      case "nama_asc":
-        return a.nama.localeCompare(b.nama);
-
-      case "nama_desc":
-        return b.nama.localeCompare(a.nama);
-
-      case "nip_asc":
-        return a.nip.localeCompare(b.nip);
-
-      case "nip_desc":
-        return b.nip.localeCompare(a.nip);
-
-      case "status":
-        return a.status.localeCompare(b.status);
-
-      default:
-        return 0;
-    }
-  });
-
-  // =======================================================
-  // PAGINATION
-  // =======================================================
-
-  const totalItems = sorted.length;
-  const totalPages = Math.ceil(totalItems / itemsPerPage);
-
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
-
-  const currentItems = sorted.slice(startIndex, endIndex);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [search, filterStatus, sortBy, itemsPerPage]);
+  const endIndex =
+    totalData === 0
+      ? 0
+      : Math.min(
+          currentPage *
+            itemsPerPage,
+          totalData
+        );
 
   const goToPage = (page) => {
-    if (page >= 1 && page <= totalPages) {
+    if (
+      page >= 1 &&
+      page <= totalPages
+    ) {
       setCurrentPage(page);
     }
   };
 
-  // =======================================================
-  // EXPORT CSV
-  // =======================================================
-
-  const exportCSV = () => {
-    const headers = [
-      "No",
-      "Nama",
-      "NIP",
-      "Mapel",
-      "Email",
-      "Telepon",
-      "Status",
-      "Alamat",
-      "Tanggal Lahir",
-      "Jenis Kelamin",
-      "Tanggal Bergabung",
-    ];
-
-    const rows = sorted.map((g, idx) => [
-      idx + 1,
-      g.nama,
-      g.nip,
-      g.mapel,
-      g.email,
-      g.phone,
-      g.status,
-      g.alamat,
-      g.tglLahir,
-      g.gender === "L" ? "Laki-laki" : "Perempuan",
-      g.joinDate,
-    ]);
-
-    const escapeCSV = (value) => {
-      const stringValue = String(value ?? "");
-      return `"${stringValue.replace(/"/g, '""')}"`;
-    };
-
-    let csv = headers.map(escapeCSV).join(",") + "\n";
-
-    rows.forEach((row) => {
-      csv += row.map(escapeCSV).join(",") + "\n";
-    });
-
-    const blob = new Blob([csv], {
-      type: "text/csv;charset=utf-8;",
-    });
-
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-
-    link.href = url;
-    link.download = `data_guru_${new Date()
-      .toISOString()
-      .slice(0, 10)}.csv`;
-
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    URL.revokeObjectURL(url);
-  };
-
-  // =======================================================
-  // EXPORT EXCEL
-  // =======================================================
-
-  const exportExcel = () => {
-    const headers = [
-      "No",
-      "Nama",
-      "NIP",
-      "Mapel",
-      "Email",
-      "Telepon",
-      "Status",
-      "Alamat",
-      "Tanggal Lahir",
-      "Jenis Kelamin",
-      "Tanggal Bergabung",
-    ];
-
-    let tableHtml = `
-      <html xmlns:o="urn:schemas-microsoft-com:office:office"
-            xmlns:x="urn:schemas-microsoft-com:office:excel"
-            xmlns="http://www.w3.org/TR/REC-html40">
-
-      <head>
-        <meta charset="UTF-8">
-
-        <style>
-          th, td {
-            border: 1px solid #ccc;
-            padding: 6px 10px;
-            font-size: 12px;
-            font-family: Arial, sans-serif;
-          }
-
-          th {
-            background: #f0f0f0;
-            font-weight: bold;
-          }
-        </style>
-      </head>
-
-      <body>
-        <table>
-          <tr>
-            ${headers.map((h) => `<th>${h}</th>`).join("")}
-          </tr>
-    `;
-
-    sorted.forEach((g, idx) => {
-      tableHtml += `
-        <tr>
-          <td>${idx + 1}</td>
-          <td>${g.nama}</td>
-          <td>${g.nip}</td>
-          <td>${g.mapel}</td>
-          <td>${g.email}</td>
-          <td>${g.phone}</td>
-          <td>${g.status}</td>
-          <td>${g.alamat}</td>
-          <td>${g.tglLahir}</td>
-          <td>${g.gender === "L" ? "Laki-laki" : "Perempuan"}</td>
-          <td>${g.joinDate}</td>
-        </tr>
-      `;
-    });
-
-    tableHtml += `
-        </table>
-      </body>
-      </html>
-    `;
-
-    const blob = new Blob([tableHtml], {
-      type: "application/vnd.ms-excel",
-    });
-
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-
-    link.href = url;
-    link.download = `data_guru_${new Date()
-      .toISOString()
-      .slice(0, 10)}.xls`;
-
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    URL.revokeObjectURL(url);
-  };
-
-  // =======================================================
-  // EXPORT PDF / PRINT
-  // =======================================================
-
-  const exportPDF = () => {
-    const printWindow = window.open(
-      "",
-      "_blank",
-      "width=1024,height=768"
-    );
-
-    if (!printWindow) {
-      alert("Mohon izinkan popup untuk mencetak PDF");
-      return;
+  const pageNumbers = useMemo(() => {
+    if (totalPages <= 0) {
+      return [];
     }
 
-    const headers = [
-      "No",
-      "Nama",
-      "NIP",
-      "Mapel",
-      "Email",
-      "Status",
+    const maxButtons = 5;
+
+    if (totalPages <= maxButtons) {
+      return Array.from(
+        { length: totalPages },
+        (_, i) => i + 1
+      );
+    }
+
+    if (currentPage <= 3) {
+      return [1, 2, 3, 4, 5];
+    }
+
+    if (
+      currentPage >=
+      totalPages - 2
+    ) {
+      return [
+        totalPages - 4,
+        totalPages - 3,
+        totalPages - 2,
+        totalPages - 1,
+        totalPages,
+      ];
+    }
+
+    return [
+      currentPage - 2,
+      currentPage - 1,
+      currentPage,
+      currentPage + 1,
+      currentPage + 2,
     ];
+  }, [currentPage, totalPages]);
 
-    let tableHtml = `
-      <html>
-        <head>
-          <title>Data Guru</title>
+  /**
+   * =======================================================
+   * STATISTICS
+   * =======================================================
+   *
+   * Karena endpoint /users sekarang menggunakan pagination,
+   * statistik total dihitung dari totalData.
+   *
+   * Untuk Aktif/Nonaktif secara keseluruhan, backend saat ini
+   * belum menyediakan endpoint statistik khusus.
+   *
+   * Jadi kita TIDAK membuat angka dummy.
+   */
 
-          <style>
-            body {
-              font-family: Arial, sans-serif;
-              padding: 20px;
-            }
+  const totalGuru = totalData;
 
-            h1 {
-              font-size: 18px;
-              color: #1e293b;
-              margin-bottom: 10px;
-            }
+  const totalAktif =
+    guru.filter(
+      (item) =>
+        String(
+          item.status || ""
+        ).toLowerCase() === "aktif"
+    ).length;
 
-            p {
-              font-size: 12px;
-              color: #64748b;
-              margin-bottom: 20px;
-            }
+  const totalNonaktif =
+    guru.filter(
+      (item) =>
+        String(
+          item.status || ""
+        ).toLowerCase() !== "aktif"
+    ).length;
 
-            table {
-              width: 100%;
-              border-collapse: collapse;
-              font-size: 11px;
-            }
+  const totalMapel = "-";
 
-            th {
-              background: #2563eb;
-              color: white;
-              padding: 8px 10px;
-              text-align: left;
-            }
-
-            td {
-              border: 1px solid #e2e8f0;
-              padding: 6px 10px;
-            }
-
-            tr:nth-child(even) {
-              background: #f8fafc;
-            }
-
-            .total {
-              margin-top: 15px;
-              font-size: 12px;
-              color: #475569;
-            }
-          </style>
-        </head>
-
-        <body>
-          <h1>Data Guru</h1>
-
-          <p>
-            Total: ${sorted.length} guru |
-            ${new Date().toLocaleDateString("id-ID")}
-          </p>
-
-          <table>
-            <tr>
-              ${headers.map((h) => `<th>${h}</th>`).join("")}
-            </tr>
-    `;
-
-    sorted.forEach((g, idx) => {
-      tableHtml += `
-        <tr>
-          <td>${idx + 1}</td>
-          <td>${g.nama}</td>
-          <td>${g.nip}</td>
-          <td>${g.mapel}</td>
-          <td>${g.email}</td>
-          <td>${g.status}</td>
-        </tr>
-      `;
-    });
-
-    tableHtml += `
-          </table>
-
-          <p class="total">
-            Dicetak dari SmartSchool -
-            ${new Date().toLocaleString("id-ID")}
-          </p>
-        </body>
-      </html>
-    `;
-
-    printWindow.document.write(tableHtml);
-    printWindow.document.close();
-
-    printWindow.onload = () => {
-      printWindow.focus();
-      printWindow.print();
-    };
-  };
-
-  // =======================================================
-  // STATISTICS
-  // =======================================================
-
-  const totalGuru = guru.length;
-
-  const totalAktif = guru.filter(
-    (g) => g.status === "Aktif"
-  ).length;
-
-  const totalNonaktif = guru.filter(
-    (g) => g.status !== "Aktif"
-  ).length;
-
-  const totalMapel = new Set(
-    guru.map((g) => g.mapel)
-  ).size;
-
-  // =======================================================
-  // INITIALS
-  // =======================================================
+  /**
+   * =======================================================
+   * INITIALS
+   * =======================================================
+   */
 
   const getInitials = (nama) => {
     if (!nama) return "GU";
 
-    const cleanName = nama
+    const cleanName = String(nama)
       .replace(/,.*$/, "")
       .trim();
 
-    const parts = cleanName.split(" ");
+    const parts = cleanName
+      .split(/\s+/)
+      .filter(Boolean);
 
     if (parts.length >= 2) {
       return (
-        parts[0][0] + parts[1][0]
+        parts[0][0] +
+        parts[1][0]
       ).toUpperCase();
     }
 
@@ -617,7 +484,13 @@ export default function AdminGuruPage() {
       .toUpperCase();
   };
 
-  const getAvatarColor = (nama) => {
+  /**
+   * =======================================================
+   * AVATAR
+   * =======================================================
+   */
+
+  const getAvatarColor = (nama = "") => {
     const colors = [
       "bg-blue-600",
       "bg-indigo-600",
@@ -630,16 +503,409 @@ export default function AdminGuruPage() {
     ];
 
     return colors[
-      nama.length % colors.length
+      nama.length %
+        colors.length
     ];
   };
 
-  // =======================================================
-  // RENDER
-  // =======================================================
+  /**
+   * =======================================================
+   * STATUS
+   * =======================================================
+   */
+
+  const normalizeStatus = (status) => {
+    const value = String(
+      status || ""
+    ).toLowerCase();
+
+    if (
+      value === "aktif" ||
+      value === "active"
+    ) {
+      return "Aktif";
+    }
+
+    return "Nonaktif";
+  };
+
+  /**
+   * =======================================================
+   * EXPORT CSV
+   * =======================================================
+   *
+   * Export berdasarkan data yang sedang tampil.
+   * Tidak membuat data dummy.
+   */
+
+  const exportCSV = () => {
+    if (!guru.length) {
+      window.alert(
+        "Tidak ada data guru untuk diekspor."
+      );
+      return;
+    }
+
+    const headers = [
+      "No",
+      "Nama",
+      "Username",
+      "NIP",
+      "NUPTK",
+      "Email",
+      "Telepon",
+      "Status",
+      "Jabatan",
+      "Golongan",
+      "Jenis Kelamin",
+      "Sekolah",
+    ];
+
+    const rows = guru.map(
+      (item, index) => [
+        startIndex + index,
+        item.namaLengkap || "",
+        item.namaPengguna || "",
+        item.nip || "",
+        item.nuptk || "",
+        item.email || "",
+        "",
+        normalizeStatus(
+          item.status
+        ),
+        item.jabatan || "",
+        item.golongan || "",
+        item.jenisKelamin || "",
+        item.sekolah?.nama || "",
+      ]
+    );
+
+    const escapeCSV = (value) => {
+      return `"${String(
+        value ?? ""
+      ).replace(/"/g, '""')}"`;
+    };
+
+    const csv =
+      [
+        headers,
+        ...rows,
+      ]
+        .map((row) =>
+          row
+            .map(escapeCSV)
+            .join(",")
+        )
+        .join("\n") +
+      "\n";
+
+    const blob = new Blob(
+      ["\ufeff", csv],
+      {
+        type: "text/csv;charset=utf-8;",
+      }
+    );
+
+    const url =
+      URL.createObjectURL(blob);
+
+    const link =
+      document.createElement("a");
+
+    link.href = url;
+
+    link.download = `data_guru_${new Date()
+      .toISOString()
+      .slice(0, 10)}.csv`;
+
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    URL.revokeObjectURL(url);
+  };
+
+  /**
+   * =======================================================
+   * EXPORT EXCEL
+   * =======================================================
+   */
+
+  const exportExcel = () => {
+    if (!guru.length) {
+      window.alert(
+        "Tidak ada data guru untuk diekspor."
+      );
+      return;
+    }
+
+    const headers = [
+      "No",
+      "Nama",
+      "Username",
+      "NIP",
+      "NUPTK",
+      "Email",
+      "Status",
+      "Jabatan",
+      "Golongan",
+      "Jenis Kelamin",
+      "Sekolah",
+    ];
+
+    let html = `
+      <html>
+        <head>
+          <meta charset="UTF-8">
+          <style>
+            table {
+              border-collapse: collapse;
+            }
+
+            th, td {
+              border: 1px solid #cccccc;
+              padding: 8px;
+              font-family: Arial, sans-serif;
+              font-size: 12px;
+            }
+
+            th {
+              background: #2563eb;
+              color: white;
+              font-weight: bold;
+            }
+          </style>
+        </head>
+
+        <body>
+          <h2>Data Guru SmartSchool</h2>
+
+          <table>
+            <thead>
+              <tr>
+                ${headers
+                  .map(
+                    (header) =>
+                      `<th>${header}</th>`
+                  )
+                  .join("")}
+              </tr>
+            </thead>
+
+            <tbody>
+    `;
+
+    guru.forEach(
+      (item, index) => {
+        html += `
+          <tr>
+            <td>${startIndex + index}</td>
+            <td>${item.namaLengkap || ""}</td>
+            <td>${item.namaPengguna || ""}</td>
+            <td>${item.nip || ""}</td>
+            <td>${item.nuptk || ""}</td>
+            <td>${item.email || ""}</td>
+            <td>${normalizeStatus(
+              item.status
+            )}</td>
+            <td>${item.jabatan || ""}</td>
+            <td>${item.golongan || ""}</td>
+            <td>${item.jenisKelamin || ""}</td>
+            <td>${item.sekolah?.nama || ""}</td>
+          </tr>
+        `;
+      }
+    );
+
+    html += `
+            </tbody>
+          </table>
+        </body>
+      </html>
+    `;
+
+    const blob = new Blob(
+      [html],
+      {
+        type: "application/vnd.ms-excel",
+      }
+    );
+
+    const url =
+      URL.createObjectURL(blob);
+
+    const link =
+      document.createElement("a");
+
+    link.href = url;
+
+    link.download = `data_guru_${new Date()
+      .toISOString()
+      .slice(0, 10)}.xls`;
+
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    URL.revokeObjectURL(url);
+  };
+
+  /**
+   * =======================================================
+   * PRINT / PDF
+   * =======================================================
+   */
+
+  const exportPDF = () => {
+    if (!guru.length) {
+      window.alert(
+        "Tidak ada data guru untuk dicetak."
+      );
+      return;
+    }
+
+    const printWindow =
+      window.open(
+        "",
+        "_blank",
+        "width=1200,height=800"
+      );
+
+    if (!printWindow) {
+      window.alert(
+        "Mohon izinkan popup pada browser untuk mencetak."
+      );
+      return;
+    }
+
+    let rows = "";
+
+    guru.forEach(
+      (item, index) => {
+        rows += `
+          <tr>
+            <td>${startIndex + index}</td>
+            <td>${item.namaLengkap || "-"}</td>
+            <td>${item.nip || "-"}</td>
+            <td>${item.nuptk || "-"}</td>
+            <td>${item.email || "-"}</td>
+            <td>${normalizeStatus(
+              item.status
+            )}</td>
+          </tr>
+        `;
+      }
+    );
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="UTF-8">
+
+          <title>Data Guru SmartSchool</title>
+
+          <style>
+            * {
+              box-sizing: border-box;
+            }
+
+            body {
+              font-family: Arial, sans-serif;
+              padding: 24px;
+              color: #0f172a;
+            }
+
+            h1 {
+              margin: 0 0 6px;
+              font-size: 22px;
+            }
+
+            p {
+              margin: 0 0 20px;
+              color: #64748b;
+              font-size: 12px;
+            }
+
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              font-size: 11px;
+            }
+
+            th {
+              background: #2563eb;
+              color: white;
+              padding: 8px;
+              text-align: left;
+            }
+
+            td {
+              border: 1px solid #cbd5e1;
+              padding: 7px 8px;
+            }
+
+            tr:nth-child(even) {
+              background: #f8fafc;
+            }
+
+            @media print {
+              body {
+                padding: 0;
+              }
+            }
+          </style>
+        </head>
+
+        <body>
+          <h1>Data Guru</h1>
+
+          <p>
+            SmartSchool •
+            Total data: ${totalData} guru •
+            ${new Date().toLocaleDateString(
+              "id-ID"
+            )}
+          </p>
+
+          <table>
+            <thead>
+              <tr>
+                <th>No</th>
+                <th>Nama</th>
+                <th>NIP</th>
+                <th>NUPTK</th>
+                <th>Email</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              ${rows}
+            </tbody>
+          </table>
+        </body>
+      </html>
+    `);
+
+    printWindow.document.close();
+
+    setTimeout(() => {
+      printWindow.focus();
+      printWindow.print();
+    }, 300);
+  };
+
+  /**
+   * =======================================================
+   * RENDER
+   * =======================================================
+   */
 
   return (
     <div className="flex h-screen w-full bg-slate-100 overflow-hidden">
+      {/* SIDEBAR */}
+
       <Sidebar
         active="guru"
         setActive={() => {}}
@@ -647,15 +913,20 @@ export default function AdminGuruPage() {
         setCollapsed={setIsCollapsed}
       />
 
+      {/* CONTENT */}
+
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         <Header
           toggleSidebar={() =>
-            setIsCollapsed(!isCollapsed)
+            setIsCollapsed(
+              !isCollapsed
+            )
           }
           notifications={[]}
           user={{
             name: "Admin Sekolah",
-            email: "admin@smartschool.com",
+            email:
+              "admin@smartschool.com",
             avatar: "AD",
           }}
         />
@@ -665,11 +936,13 @@ export default function AdminGuruPage() {
             <div className="w-full space-y-5">
 
               {/* =================================================
-                  PAGE HEADER
+                  HEADER
               ================================================= */}
 
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+
                 <div className="flex items-center gap-3">
+
                   <div className="w-11 h-11 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-200">
                     <Users size={21} />
                   </div>
@@ -683,6 +956,7 @@ export default function AdminGuruPage() {
                       Data induk tenaga pendidik
                     </p>
                   </div>
+
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
@@ -690,71 +964,132 @@ export default function AdminGuruPage() {
                   {/* EXPORT */}
 
                   <div className="relative group">
+
                     <button
+                      type="button"
                       className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-700 hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700 transition-all text-sm font-medium"
                     >
                       <Download size={17} />
-                      <span>Export</span>
+
+                      <span>
+                        Export
+                      </span>
                     </button>
 
-                    <div className="absolute right-0 top-full mt-1 w-44 bg-white rounded-xl border border-slate-300 shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20">
+                    <div className="absolute right-0 top-full mt-1 w-44 bg-white rounded-xl border border-slate-300 shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-30">
+
                       <button
+                        type="button"
                         onClick={exportPDF}
-                        className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 rounded-t-xl transition"
+                        className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 rounded-t-xl"
                       >
                         <Printer size={16} />
-                        PDF
+                        PDF / Print
                       </button>
 
                       <button
+                        type="button"
                         onClick={exportExcel}
-                        className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition"
+                        className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700"
                       >
                         <FileSpreadsheet size={16} />
                         Excel
                       </button>
 
                       <button
+                        type="button"
                         onClick={exportCSV}
-                        className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 rounded-b-xl transition"
+                        className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 rounded-b-xl"
                       >
                         <FileText size={16} />
                         CSV
                       </button>
+
                     </div>
                   </div>
 
                   {/* REFRESH */}
 
                   <button
+                    type="button"
                     onClick={handleRefresh}
-                    className="p-2.5 rounded-xl border border-slate-300 bg-white text-slate-600 hover:text-blue-700 hover:bg-blue-50 hover:border-blue-300 transition-all"
+                    disabled={loading}
+                    className="p-2.5 rounded-xl border border-slate-300 bg-white text-slate-600 hover:text-blue-700 hover:bg-blue-50 hover:border-blue-300 disabled:opacity-50 transition-all"
                     title="Refresh data"
                   >
-                    <RefreshCw size={17} />
+                    <RefreshCw
+                      size={17}
+                      className={
+                        loading
+                          ? "animate-spin"
+                          : ""
+                      }
+                    />
                   </button>
 
                   {/* ADD */}
 
                   <button
+                    type="button"
                     onClick={() =>
                       setShowModal(true)
                     }
                     className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all shadow-sm hover:shadow-md hover:shadow-blue-200 font-medium"
                   >
                     <Plus size={18} />
-                    <span>Tambah Guru</span>
+                    Tambah Guru
                   </button>
+
                 </div>
               </div>
+
+              {/* =================================================
+                  ERROR
+              ================================================= */}
+
+              {error && (
+                <div className="flex items-start gap-3 p-4 rounded-xl border border-rose-200 bg-rose-50">
+
+                  <AlertCircle
+                    size={20}
+                    className="text-rose-600 mt-0.5 shrink-0"
+                  />
+
+                  <div className="flex-1">
+
+                    <p className="text-sm font-semibold text-rose-800">
+                      Gagal mengambil data guru
+                    </p>
+
+                    <p className="text-sm text-rose-700 mt-1">
+                      {error}
+                    </p>
+
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleRefresh}
+                    className="text-sm font-medium text-rose-700 hover:text-rose-900"
+                  >
+                    Coba lagi
+                  </button>
+
+                </div>
+              )}
 
               {/* =================================================
                   STATISTICS
               ================================================= */}
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+
+                {/* TOTAL */}
+
                 <div className="bg-white rounded-xl border border-slate-300 p-4 shadow-sm">
+
                   <div className="flex items-center gap-2">
+
                     <div className="p-1.5 rounded-lg bg-blue-100 text-blue-700">
                       <Users size={16} />
                     </div>
@@ -762,47 +1097,79 @@ export default function AdminGuruPage() {
                     <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wider">
                       Total Guru
                     </p>
+
                   </div>
 
                   <p className="text-2xl font-bold text-slate-800 mt-1">
-                    {totalGuru}
+                    {loading
+                      ? "—"
+                      : totalGuru}
                   </p>
+
                 </div>
 
+                {/* AKTIF */}
+
                 <div className="bg-white rounded-xl border border-slate-300 p-4 shadow-sm">
+
                   <div className="flex items-center gap-2">
-                    <div className="p-1.5 rounded-lg bg-slate-100 text-slate-600">
+
+                    <div className="p-1.5 rounded-lg bg-emerald-100 text-emerald-700">
                       <CheckCircle size={16} />
                     </div>
 
                     <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wider">
                       Aktif
                     </p>
+
                   </div>
 
                   <p className="text-2xl font-bold text-slate-800 mt-1">
-                    {totalAktif}
+                    {loading
+                      ? "—"
+                      : totalAktif}
                   </p>
+
                 </div>
 
+                {/* NONAKTIF */}
+
                 <div className="bg-white rounded-xl border border-slate-300 p-4 shadow-sm">
+
                   <div className="flex items-center gap-2">
-                    <div className="p-1.5 rounded-lg bg-slate-100 text-slate-600">
+
+                    <div className="p-1.5 rounded-lg bg-rose-100 text-rose-700">
                       <XCircle size={16} />
                     </div>
 
                     <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wider">
                       Nonaktif
                     </p>
+
                   </div>
 
                   <p className="text-2xl font-bold text-slate-800 mt-1">
-                    {totalNonaktif}
+                    {loading
+                      ? "—"
+                      : totalNonaktif}
                   </p>
+
+                  {!loading &&
+                    totalGuru >
+                      guru.length && (
+                      <p className="text-[10px] text-slate-400 mt-1">
+                        dari halaman aktif
+                      </p>
+                    )}
+
                 </div>
 
+                {/* MAPEL */}
+
                 <div className="bg-white rounded-xl border border-slate-300 p-4 shadow-sm">
+
                   <div className="flex items-center gap-2">
+
                     <div className="p-1.5 rounded-lg bg-indigo-100 text-indigo-700">
                       <Users size={16} />
                     </div>
@@ -810,12 +1177,19 @@ export default function AdminGuruPage() {
                     <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wider">
                       Mapel
                     </p>
+
                   </div>
 
                   <p className="text-2xl font-bold text-indigo-700 mt-1">
                     {totalMapel}
                   </p>
+
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    Belum tersedia dari API pengguna
+                  </p>
+
                 </div>
+
               </div>
 
               {/* =================================================
@@ -823,9 +1197,13 @@ export default function AdminGuruPage() {
               ================================================= */}
 
               <div className="bg-white rounded-xl border border-slate-300 p-4 shadow-sm">
+
                 <div className="flex flex-col sm:flex-row gap-3">
 
+                  {/* SEARCH */}
+
                   <div className="relative flex-1">
+
                     <Search
                       size={17}
                       className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500"
@@ -833,16 +1211,22 @@ export default function AdminGuruPage() {
 
                     <input
                       type="text"
-                      placeholder="Cari nama, NIP, atau mata pelajaran..."
+                      placeholder="Cari nama, NIP, email, atau username..."
                       value={search}
                       onChange={(e) =>
-                        setSearch(e.target.value)
+                        handleSearchChange(
+                          e.target.value
+                        )
                       }
                       className="w-full pl-10 pr-4 py-2.5 text-sm text-slate-800 bg-slate-50 border border-slate-300 rounded-xl placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition"
                     />
+
                   </div>
 
+                  {/* STATUS */}
+
                   <div className="flex items-center gap-2">
+
                     <Filter
                       size={17}
                       className="text-slate-500 shrink-0"
@@ -851,53 +1235,74 @@ export default function AdminGuruPage() {
                     <select
                       value={filterStatus}
                       onChange={(e) =>
-                        setFilterStatus(e.target.value)
+                        handleStatusChange(
+                          e.target.value
+                        )
                       }
                       className="py-2.5 px-3 pr-8 text-sm text-slate-700 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition appearance-none cursor-pointer"
                     >
                       <option value="semua">
                         Semua Status
                       </option>
-                      <option value="Aktif">
+
+                      <option value="aktif">
                         Aktif
                       </option>
-                      <option value="Nonaktif">
+
+                      <option value="nonaktif">
                         Nonaktif
                       </option>
                     </select>
+
                   </div>
 
+                  {/* SORT */}
+
                   <div className="flex items-center gap-2">
+
                     <ArrowUpDown
                       size={17}
                       className="text-slate-500 shrink-0"
                     />
 
                     <select
-                      value={sortBy}
+                      value={sortValue}
                       onChange={(e) =>
-                        setSortBy(e.target.value)
+                        handleSortChange(
+                          e.target.value
+                        )
                       }
                       className="py-2.5 px-3 pr-8 text-sm text-slate-700 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition appearance-none cursor-pointer"
                     >
                       <option value="nama_asc">
                         Nama A-Z
                       </option>
+
                       <option value="nama_desc">
                         Nama Z-A
                       </option>
+
                       <option value="nip_asc">
                         NIP A-Z
                       </option>
+
                       <option value="nip_desc">
                         NIP Z-A
                       </option>
-                      <option value="status">
-                        Status
+
+                      <option value="status_asc">
+                        Status A-Z
+                      </option>
+
+                      <option value="status_desc">
+                        Status Z-A
                       </option>
                     </select>
+
                   </div>
+
                 </div>
+
               </div>
 
               {/* =================================================
@@ -907,376 +1312,558 @@ export default function AdminGuruPage() {
               <div className="bg-white rounded-xl border border-slate-300 shadow-sm overflow-hidden">
 
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[900px] table-fixed">
+
+                  <table className="w-full min-w-[1000px]">
 
                     <colgroup>
                       <col className="w-[6%]" />
-                      <col className="w-[25%]" />
+                      <col className="w-[27%]" />
                       <col className="w-[15%]" />
+                      <col className="w-[18%]" />
                       <col className="w-[12%]" />
-                      <col className="w-[17%]" />
+                      <col className="w-[12%]" />
                       <col className="w-[10%]" />
-                      <col className="w-[15%]" />
                     </colgroup>
 
                     <thead>
+
                       <tr className="border-b border-blue-700 bg-gradient-to-r from-blue-600 to-blue-700">
 
-                        {/* NO */}
-                        <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-white whitespace-nowrap">
+                        <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-white">
                           No
                         </th>
 
-                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white whitespace-nowrap">
+                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white">
                           Profil
                         </th>
 
-                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white whitespace-nowrap">
+                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white">
                           NIP
                         </th>
 
-                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white whitespace-nowrap">
-                          Mapel
-                        </th>
-
-                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white whitespace-nowrap">
+                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white">
                           Email
                         </th>
 
-                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white whitespace-nowrap">
+                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white">
+                          Jabatan
+                        </th>
+
+                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white">
                           Status
                         </th>
 
-                        <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-white whitespace-nowrap">
+                        <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-white">
                           Aksi
                         </th>
+
                       </tr>
+
                     </thead>
 
-                    <tbody className="divide-y divide-blue-100">
+                    <tbody className="divide-y divide-slate-200">
 
-                      {currentItems.map((item, index) => {
-                        const rowNumber =
-                          startIndex + index + 1;
+                      {/* LOADING */}
 
-                        return (
-                          <tr
-                            key={item.id}
-                            className={`transition-colors hover:bg-blue-100 ${
-                              index % 2 === 0 ? "bg-blue-50/60" : "bg-white"
-                            }`}
+                      {loading && (
+                        <tr>
+                          <td
+                            colSpan={7}
+                            className="px-4 py-14 text-center"
                           >
+                            <div className="flex flex-col items-center">
 
-                            {/* NO */}
-                            <td className="px-4 py-4 text-center align-middle text-sm font-medium text-slate-700">
-                              <span className="inline-flex items-center justify-center min-w-[24px]">
-                                {rowNumber}
-                              </span>
-                            </td>
+                              <Loader2
+                                size={28}
+                                className="animate-spin text-blue-600"
+                              />
 
-                            {/* PROFIL */}
-                            <td className="px-4 py-4 align-middle">
-                              <div className="flex items-center gap-3 min-w-0">
-                                <div
-                                  className={`w-10 h-10 rounded-full ${getAvatarColor(
-                                    item.nama
-                                  )} flex items-center justify-center text-white font-bold text-sm shadow-sm flex-shrink-0`}
-                                >
-                                  {getInitials(
-                                    item.nama
-                                  )}
-                                </div>
+                              <p className="text-sm font-medium text-slate-700 mt-3">
+                                Mengambil data guru...
+                              </p>
 
-                                <div className="min-w-0">
-                                  <p className="font-semibold text-slate-800 text-sm truncate">
-                                    {item.nama}
-                                  </p>
+                              <p className="text-xs text-slate-500 mt-1">
+                                Menghubungkan ke server
+                              </p>
 
-                                  <p className="text-xs text-slate-500 truncate">
-                                    {item.mapel} ·{" "}
-                                    {item.nip}
-                                  </p>
-                                </div>
-                              </div>
-                            </td>
-
-                            {/* NIP */}
-                            <td className="px-4 py-4 align-middle">
-                              <span className="text-sm text-slate-700 whitespace-nowrap">
-                                {item.nip}
-                              </span>
-                            </td>
-
-                            {/* MAPEL */}
-                            <td className="px-4 py-4 align-middle">
-                              <span className="text-sm text-slate-700">
-                                {item.mapel}
-                              </span>
-                            </td>
-
-                            {/* EMAIL */}
-                            <td className="px-4 py-4 align-middle">
-                              <span className="text-sm text-slate-600 break-all">
-                                {item.email}
-                              </span>
-                            </td>
-
-                            {/* STATUS */}
-                            <td className="px-4 py-4 align-middle">
-                              <span
-                                className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border whitespace-nowrap ${
-                                  item.status ===
-                                  "Aktif"
-                                    ? "bg-emerald-100 text-emerald-700 border-emerald-300"
-                                    : "bg-rose-100 text-rose-700 border-rose-300"
-                                }`}
-                              >
-                                <span className="w-1.5 h-1.5 rounded-full bg-current" />
-
-                                {item.status}
-                              </span>
-                            </td>
-
-                            {/* AKSI */}
-                            <td className="px-4 py-4 align-middle">
-                              <div className="flex justify-center gap-1.5">
-
-                                <button
-                                  onClick={() =>
-                                    router.push(
-                                      `/admin/guru/${item.id}`
-                                    )
-                                  }
-                                  className="p-2 rounded-lg text-slate-500 hover:bg-blue-100 hover:text-blue-700 transition-all"
-                                  title="Lihat Profil"
-                                >
-                                  <Eye size={17} />
-                                </button>
-
-                                <button
-                                  onClick={() =>
-                                    router.push(
-                                      `/admin/guru/edit/${item.id}`
-                                    )
-                                  }
-                                  className="p-2 rounded-lg text-slate-500 hover:bg-amber-100 hover:text-amber-700 transition-all"
-                                  title="Edit Guru"
-                                >
-                                  <Edit size={17} />
-                                </button>
-
-                                <button
-                                  onClick={() =>
-                                    handleDelete(
-                                      item.id,
-                                      item.nama
-                                    )
-                                  }
-                                  className="p-2 rounded-lg text-slate-500 hover:bg-rose-100 hover:text-rose-700 transition-all"
-                                  title="Hapus Guru"
-                                >
-                                  <Trash2 size={17} />
-                                </button>
-
-                              </div>
-                            </td>
-
-                          </tr>
-                        );
-                      })}
-
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* EMPTY STATE */}
-
-                {sorted.length === 0 && (
-                  <div className="p-10 text-center">
-                    <div className="w-12 h-12 rounded-full bg-blue-100 text-blue-500 flex items-center justify-center mx-auto mb-3">
-                      <Users size={24} />
-                    </div>
-
-                    <p className="text-sm font-medium text-slate-700">
-                      Tidak ada data guru
-                    </p>
-
-                    <p className="text-xs text-slate-500 mt-1">
-                      {search
-                        ? "Coba ubah kata pencarian"
-                        : "Silakan tambahkan guru baru"}
-                    </p>
-
-                    {!search && (
-                      <button
-                        onClick={() =>
-                          setShowModal(true)
-                        }
-                        className="mt-3 text-sm text-blue-700 font-medium hover:text-blue-800 hover:underline"
-                      >
-                        Tambah guru pertama →
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {/* PAGINATION */}
-
-                {totalPages > 1 && (
-                  <div className="flex flex-col lg:flex-row items-center justify-between px-4 py-3 border-t border-slate-300 bg-slate-50 gap-3">
-
-                    <div className="flex flex-wrap items-center justify-center gap-3 text-sm text-slate-600">
-
-                      <span>
-                        Menampilkan{" "}
-                        <strong className="font-semibold text-slate-700">
-                          {startIndex + 1}
-                        </strong>{" "}
-                        -{" "}
-                        <strong className="font-semibold text-slate-700">
-                          {endIndex}
-                        </strong>{" "}
-                        dari{" "}
-                        <strong className="font-semibold text-slate-700">
-                          {totalItems}
-                        </strong>{" "}
-                        data
-                      </span>
-
-                      <div className="flex items-center gap-1.5">
-                        <span>Tampil</span>
-
-                        <select
-                          value={itemsPerPage}
-                          onChange={(e) => {
-                            setItemsPerPage(
-                              Number(e.target.value)
-                            );
-                            setCurrentPage(1);
-                          }}
-                          className="py-1 px-2 text-sm border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/30 text-slate-700 cursor-pointer"
-                        >
-                          <option value={10}>10</option>
-                          <option value={20}>20</option>
-                          <option value={40}>40</option>
-                        </select>
-                      </div>
-
-                    </div>
-
-                    {/* PAGINATION BUTTONS */}
-
-                    <div className="flex items-center gap-1">
-
-                      <button
-                        onClick={() =>
-                          goToPage(1)
-                        }
-                        disabled={currentPage === 1}
-                        className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-200 hover:text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent transition"
-                        title="Halaman pertama"
-                      >
-                        <ChevronsLeft size={16} />
-                      </button>
-
-                      <button
-                        onClick={() =>
-                          goToPage(
-                            currentPage - 1
-                          )
-                        }
-                        disabled={currentPage === 1}
-                        className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-200 hover:text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent transition"
-                        title="Halaman sebelumnya"
-                      >
-                        <ChevronLeft size={16} />
-                      </button>
-
-                      {Array.from(
-                        {
-                          length: Math.min(
-                            5,
-                            totalPages
-                          ),
-                        },
-                        (_, i) => {
-                          let pageNumber;
-
-                          if (totalPages <= 5) {
-                            pageNumber = i + 1;
-                          } else if (
-                            currentPage <= 3
-                          ) {
-                            pageNumber = i + 1;
-                          } else if (
-                            currentPage >=
-                            totalPages - 2
-                          ) {
-                            pageNumber =
-                              totalPages - 4 + i;
-                          } else {
-                            pageNumber =
-                              currentPage - 2 + i;
-                          }
-
-                          return (
-                            <button
-                              key={pageNumber}
-                              onClick={() =>
-                                goToPage(
-                                  pageNumber
-                                )
-                              }
-                              className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm font-medium transition ${
-                                currentPage ===
-                                pageNumber
-                                  ? "bg-blue-600 text-white shadow-sm"
-                                  : "text-slate-700 hover:bg-slate-200"
-                              }`}
-                            >
-                              {pageNumber}
-                            </button>
-                          );
-                        }
+                            </div>
+                          </td>
+                        </tr>
                       )}
 
-                      <button
-                        onClick={() =>
-                          goToPage(
-                            currentPage + 1
-                          )
-                        }
-                        disabled={
-                          currentPage === totalPages
-                        }
-                        className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-200 hover:text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent transition"
-                        title="Halaman berikutnya"
-                      >
-                        <ChevronRight size={16} />
-                      </button>
+                      {/* DATA */}
 
-                      <button
-                        onClick={() =>
-                          goToPage(totalPages)
-                        }
-                        disabled={
-                          currentPage === totalPages
-                        }
-                        className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-200 hover:text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent transition"
-                        title="Halaman terakhir"
-                      >
-                        <ChevronsRight size={16} />
-                      </button>
+                      {!loading &&
+                        guru.map(
+                          (
+                            item,
+                            index
+                          ) => {
+                            const rowNumber =
+                              startIndex +
+                              index;
+
+                            const status =
+                              normalizeStatus(
+                                item.status
+                              );
+
+                            return (
+                              <tr
+                                key={
+                                  item.id
+                                }
+                                className="transition-colors hover:bg-blue-50"
+                              >
+
+                                {/* NO */}
+
+                                <td className="px-4 py-4 text-center align-middle text-sm font-medium text-slate-700">
+                                  {rowNumber}
+                                </td>
+
+                                {/* PROFIL */}
+
+                                <td className="px-4 py-4 align-middle">
+
+                                  <div className="flex items-center gap-3 min-w-0">
+
+                                    {item.avatar ? (
+                                      <img
+                                        src={
+                                          item.avatar
+                                        }
+                                        alt={
+                                          item.namaLengkap ||
+                                          "Guru"
+                                        }
+                                        className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+                                      />
+                                    ) : (
+                                      <div
+                                        className={`w-10 h-10 rounded-full ${getAvatarColor(
+                                          item.namaLengkap
+                                        )} flex items-center justify-center text-white font-bold text-sm shadow-sm flex-shrink-0`}
+                                      >
+                                        {getInitials(
+                                          item.namaLengkap
+                                        )}
+                                      </div>
+                                    )}
+
+                                    <div className="min-w-0">
+
+                                      <p className="font-semibold text-slate-800 text-sm truncate">
+                                        {item.namaLengkap ||
+                                          "-"}
+                                      </p>
+
+                                      <p className="text-xs text-slate-500 truncate">
+                                        {item.namaPengguna ||
+                                          "-"}
+                                      </p>
+
+                                    </div>
+
+                                  </div>
+
+                                </td>
+
+                                {/* NIP */}
+
+                                <td className="px-4 py-4 align-middle">
+
+                                  <span className="text-sm text-slate-700 whitespace-nowrap">
+                                    {item.nip ||
+                                      "-"}
+                                  </span>
+
+                                </td>
+
+                                {/* EMAIL */}
+
+                                <td className="px-4 py-4 align-middle">
+
+                                  <span className="text-sm text-slate-600 break-all">
+                                    {item.email ||
+                                      "-"}
+                                  </span>
+
+                                </td>
+
+                                {/* JABATAN */}
+
+                                <td className="px-4 py-4 align-middle">
+
+                                  <span className="text-sm text-slate-700">
+                                    {item.jabatan ||
+                                      item.peran
+                                        ?.namaTampilan ||
+                                      "Guru"}
+                                  </span>
+
+                                </td>
+
+                                {/* STATUS */}
+
+                                <td className="px-4 py-4 align-middle">
+
+                                  <span
+                                    className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border whitespace-nowrap ${
+                                      status ===
+                                      "Aktif"
+                                        ? "bg-emerald-100 text-emerald-700 border-emerald-300"
+                                        : "bg-rose-100 text-rose-700 border-rose-300"
+                                    }`}
+                                  >
+
+                                    <span className="w-1.5 h-1.5 rounded-full bg-current" />
+
+                                    {status}
+
+                                  </span>
+
+                                </td>
+
+                                {/* AKSI */}
+
+                                <td className="px-4 py-4 align-middle">
+
+                                  <div className="flex justify-center gap-1.5">
+
+                                    {/* VIEW */}
+
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        router.push(
+                                          `/admin/guru/${item.id}`
+                                        )
+                                      }
+                                      className="p-2 rounded-lg text-slate-500 hover:bg-blue-100 hover:text-blue-700 transition-all"
+                                      title="Lihat Profil"
+                                    >
+                                      <Eye
+                                        size={
+                                          17
+                                        }
+                                      />
+                                    </button>
+
+                                    {/* EDIT */}
+
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        router.push(
+                                          `/admin/guru/edit/${item.id}`
+                                        )
+                                      }
+                                      className="p-2 rounded-lg text-slate-500 hover:bg-amber-100 hover:text-amber-700 transition-all"
+                                      title="Edit Guru"
+                                    >
+                                      <Edit
+                                        size={
+                                          17
+                                        }
+                                      />
+                                    </button>
+
+                                    {/* DELETE */}
+
+                                    <button
+                                      type="button"
+                                      disabled={
+                                        deletingId ===
+                                        item.id
+                                      }
+                                      onClick={() =>
+                                        handleDelete(
+                                          item.id,
+                                          item.namaLengkap
+                                        )
+                                      }
+                                      className="p-2 rounded-lg text-slate-500 hover:bg-rose-100 hover:text-rose-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                                      title="Nonaktifkan Guru"
+                                    >
+                                      {deletingId ===
+                                      item.id ? (
+                                        <Loader2
+                                          size={
+                                            17
+                                          }
+                                          className="animate-spin"
+                                        />
+                                      ) : (
+                                        <Trash2
+                                          size={
+                                            17
+                                          }
+                                        />
+                                      )}
+                                    </button>
+
+                                  </div>
+
+                                </td>
+
+                              </tr>
+                            );
+                          }
+                        )}
+
+                    </tbody>
+
+                  </table>
+
+                </div>
+
+                {/* EMPTY */}
+
+                {!loading &&
+                  guru.length ===
+                    0 && (
+                    <div className="p-12 text-center">
+
+                      <div className="w-12 h-12 rounded-full bg-blue-100 text-blue-500 flex items-center justify-center mx-auto mb-3">
+                        <Users size={24} />
+                      </div>
+
+                      <p className="text-sm font-medium text-slate-700">
+                        {error
+                          ? "Data guru tidak dapat dimuat"
+                          : "Tidak ada data guru"}
+                      </p>
+
+                      <p className="text-xs text-slate-500 mt-1">
+                        {error
+                          ? "Periksa koneksi API dan sesi login."
+                          : search
+                          ? "Coba ubah kata pencarian."
+                          : "Belum terdapat data guru pada server."}
+                      </p>
+
+                      {error && (
+                        <button
+                          type="button"
+                          onClick={
+                            handleRefresh
+                          }
+                          className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700"
+                        >
+                          <RefreshCw
+                            size={15}
+                          />
+                          Coba Lagi
+                        </button>
+                      )}
 
                     </div>
-                  </div>
-                )}
+                  )}
+
+                {/* =================================================
+                    PAGINATION
+                ================================================= */}
+
+                {!loading &&
+                  totalData >
+                    0 && (
+                    <div className="flex flex-col lg:flex-row items-center justify-between px-4 py-3 border-t border-slate-300 bg-slate-50 gap-3">
+
+                      {/* INFO */}
+
+                      <div className="flex flex-wrap items-center justify-center gap-3 text-sm text-slate-600">
+
+                        <span>
+                          Menampilkan{" "}
+                          <strong className="font-semibold text-slate-700">
+                            {startIndex}
+                          </strong>{" "}
+                          -{" "}
+                          <strong className="font-semibold text-slate-700">
+                            {endIndex}
+                          </strong>{" "}
+                          dari{" "}
+                          <strong className="font-semibold text-slate-700">
+                            {totalData}
+                          </strong>{" "}
+                          data
+                        </span>
+
+                        <div className="flex items-center gap-1.5">
+
+                          <span>
+                            Tampil
+                          </span>
+
+                          <select
+                            value={
+                              itemsPerPage
+                            }
+                            onChange={(
+                              e
+                            ) => {
+                              setItemsPerPage(
+                                Number(
+                                  e.target
+                                    .value
+                                )
+                              );
+
+                              setCurrentPage(
+                                1
+                              );
+                            }}
+                            className="py-1 px-2 text-sm border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/30 text-slate-700 cursor-pointer"
+                          >
+                            <option value={10}>
+                              10
+                            </option>
+
+                            <option value={20}>
+                              20
+                            </option>
+
+                            <option value={40}>
+                              40
+                            </option>
+                          </select>
+
+                        </div>
+
+                      </div>
+
+                      {/* BUTTONS */}
+
+                      {totalPages >
+                        1 && (
+                        <div className="flex items-center gap-1">
+
+                          {/* FIRST */}
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              goToPage(
+                                1
+                              )
+                            }
+                            disabled={
+                              currentPage ===
+                              1
+                            }
+                            className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                          >
+                            <ChevronsLeft
+                              size={16}
+                            />
+                          </button>
+
+                          {/* PREV */}
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              goToPage(
+                                currentPage -
+                                  1
+                              )
+                            }
+                            disabled={
+                              currentPage ===
+                              1
+                            }
+                            className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                          >
+                            <ChevronLeft
+                              size={16}
+                            />
+                          </button>
+
+                          {/* PAGE */}
+
+                          {pageNumbers.map(
+                            (
+                              page
+                            ) => (
+                              <button
+                                key={
+                                  page
+                                }
+                                type="button"
+                                onClick={() =>
+                                  goToPage(
+                                    page
+                                  )
+                                }
+                                className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm font-medium transition ${
+                                  currentPage ===
+                                  page
+                                    ? "bg-blue-600 text-white shadow-sm"
+                                    : "text-slate-700 hover:bg-slate-200"
+                                }`}
+                              >
+                                {
+                                  page
+                                }
+                              </button>
+                            )
+                          )}
+
+                          {/* NEXT */}
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              goToPage(
+                                currentPage +
+                                  1
+                              )
+                            }
+                            disabled={
+                              currentPage ===
+                              totalPages
+                            }
+                            className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                          >
+                            <ChevronRight
+                              size={16}
+                            />
+                          </button>
+
+                          {/* LAST */}
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              goToPage(
+                                totalPages
+                              )
+                            }
+                            disabled={
+                              currentPage ===
+                              totalPages
+                            }
+                            className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                          >
+                            <ChevronsRight
+                              size={16}
+                            />
+                          </button>
+
+                        </div>
+                      )}
+
+                    </div>
+                  )}
+
               </div>
 
               {/* FOOTER */}
 
               <footer className="text-center text-sm text-slate-500 py-3 border-t border-slate-300">
-                © 2026 SmartSchool • Data Guru
+                © 2026 SmartSchool •
+                Data Guru
               </footer>
 
             </div>
@@ -1295,6 +1882,7 @@ export default function AdminGuruPage() {
             setShowModal(false)
           }
         >
+
           <div
             className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6"
             onClick={(e) =>
@@ -1303,6 +1891,7 @@ export default function AdminGuruPage() {
           >
 
             <div className="text-center mb-6">
+
               <div className="w-16 h-16 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center mx-auto mb-3">
                 <UserPlus size={28} />
               </div>
@@ -1314,13 +1903,19 @@ export default function AdminGuruPage() {
               <p className="text-sm text-slate-500 mt-1">
                 Pilih metode penambahan guru
               </p>
+
             </div>
 
             <div className="space-y-3">
 
+              {/* FORM */}
+
               <button
+                type="button"
                 onClick={() => {
-                  setShowModal(false);
+                  setShowModal(
+                    false
+                  );
 
                   router.push(
                     "/admin/guru/tambah?mode=form"
@@ -1328,11 +1923,13 @@ export default function AdminGuruPage() {
                 }}
                 className="w-full flex items-center gap-4 p-4 border border-slate-300 rounded-xl hover:border-blue-400 hover:bg-blue-50/50 transition-all group"
               >
-                <div className="p-2.5 rounded-xl bg-blue-100 text-blue-700 group-hover:bg-blue-200 transition">
+
+                <div className="p-2.5 rounded-xl bg-blue-100 text-blue-700 group-hover:bg-blue-200">
                   <User size={20} />
                 </div>
 
                 <div className="flex-1 text-left">
+
                   <p className="font-semibold text-slate-700">
                     Form Biasa
                   </p>
@@ -1340,17 +1937,24 @@ export default function AdminGuruPage() {
                   <p className="text-xs text-slate-500 mt-0.5">
                     Isi data guru secara manual
                   </p>
+
                 </div>
 
                 <ChevronRight
                   size={18}
-                  className="text-slate-400 group-hover:text-blue-600 transition"
+                  className="text-slate-400 group-hover:text-blue-600"
                 />
+
               </button>
 
+              {/* IMPORT */}
+
               <button
+                type="button"
                 onClick={() => {
-                  setShowModal(false);
+                  setShowModal(
+                    false
+                  );
 
                   router.push(
                     "/admin/guru/tambah?mode=import"
@@ -1358,11 +1962,13 @@ export default function AdminGuruPage() {
                 }}
                 className="w-full flex items-center gap-4 p-4 border border-slate-300 rounded-xl hover:border-indigo-400 hover:bg-indigo-50/50 transition-all group"
               >
-                <div className="p-2.5 rounded-xl bg-indigo-100 text-indigo-700 group-hover:bg-indigo-200 transition">
+
+                <div className="p-2.5 rounded-xl bg-indigo-100 text-indigo-700 group-hover:bg-indigo-200">
                   <Upload size={20} />
                 </div>
 
                 <div className="flex-1 text-left">
+
                   <p className="font-semibold text-slate-700">
                     Import Data
                   </p>
@@ -1370,28 +1976,33 @@ export default function AdminGuruPage() {
                   <p className="text-xs text-slate-500 mt-0.5">
                     Upload file Excel atau CSV
                   </p>
+
                 </div>
 
                 <ChevronRight
                   size={18}
-                  className="text-slate-400 group-hover:text-indigo-600 transition"
+                  className="text-slate-400 group-hover:text-indigo-600"
                 />
+
               </button>
 
             </div>
 
             <button
+              type="button"
               onClick={() =>
                 setShowModal(false)
               }
-              className="mt-4 w-full py-2.5 text-sm text-slate-600 hover:text-slate-800 transition"
+              className="mt-4 w-full py-2.5 text-sm text-slate-600 hover:text-slate-800"
             >
               Batal
             </button>
 
           </div>
+
         </div>
       )}
+
     </div>
   );
 }

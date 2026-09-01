@@ -20,7 +20,7 @@ import {
   User,
   FileSpreadsheet,
   Smile,
-  DoorOpen, // for Ruang
+  DoorOpen,
 } from "lucide-react";
 
 export const adminSidebarConfig = {
@@ -30,7 +30,9 @@ export const adminSidebarConfig = {
   email: "admin@smartschool.com",
 
   menuSections: [
+    // ==========================================
     // DASHBOARD
+    // ==========================================
     {
       type: "item",
       key: "dashboard",
@@ -39,12 +41,17 @@ export const adminSidebarConfig = {
       path: "/admin/dashboard",
     },
 
+    // ==========================================
     // DATA MASTER
+    // ==========================================
     {
       type: "header",
       label: "DATA MASTER",
     },
 
+    // ==========================================
+    // DATA GURU
+    // ==========================================
     {
       type: "item",
       key: "guru",
@@ -79,6 +86,9 @@ export const adminSidebarConfig = {
       ],
     },
 
+    // ==========================================
+    // DATA STAF
+    // ==========================================
     {
       type: "item",
       key: "staf",
@@ -87,6 +97,9 @@ export const adminSidebarConfig = {
       path: "/admin/staf",
     },
 
+    // ==========================================
+    // DATA SISWA
+    // ==========================================
     {
       type: "item",
       key: "siswa",
@@ -101,6 +114,12 @@ export const adminSidebarConfig = {
           path: "/admin/siswa/jadwal-mapel",
         },
         {
+          key: "siswaAbsen",
+          icon: CalendarDays,
+          label: "Absen",
+          path: "/admin/siswa/absen",
+        },
+        {
           key: "siswaKartuIdentitas",
           icon: IdCard,
           label: "Kartu Identitas",
@@ -109,6 +128,9 @@ export const adminSidebarConfig = {
       ],
     },
 
+    // ==========================================
+    // KELAS
+    // ==========================================
     {
       type: "item",
       key: "kelas",
@@ -117,6 +139,9 @@ export const adminSidebarConfig = {
       path: "/admin/kelas",
     },
 
+    // ==========================================
+    // TAHUN AJARAN
+    // ==========================================
     {
       type: "item",
       key: "tahunAjaran",
@@ -125,7 +150,9 @@ export const adminSidebarConfig = {
       path: "/admin/tahun-ajaran",
     },
 
+    // ==========================================
     // RUANG
+    // ==========================================
     {
       type: "item",
       key: "ruang",
@@ -134,7 +161,9 @@ export const adminSidebarConfig = {
       path: "/admin/ruangan",
     },
 
+    // ==========================================
     // AKADEMIK
+    // ==========================================
     {
       type: "header",
       label: "AKADEMIK",
@@ -174,7 +203,9 @@ export const adminSidebarConfig = {
       ],
     },
 
+    // ==========================================
     // SARANA & PRASARANA
+    // ==========================================
     {
       type: "header",
       label: "SARANA & PRASARANA",
@@ -207,13 +238,16 @@ export const adminSidebarConfig = {
         },
       ],
     },
-     // MANAJEMEN
+
+    // ==========================================
+    // MANAJEMEN
+    // ==========================================
     {
       type: "header",
       label: "MANAJEMEN",
     },
 
-     {
+    {
       type: "item",
       key: "kelola-user",
       icon: UserCog,
@@ -221,9 +255,9 @@ export const adminSidebarConfig = {
       path: "/admin/kelola-user",
     },
 
-
-
+    // ==========================================
     // SISTEM
+    // ==========================================
     {
       type: "header",
       label: "SISTEM",
@@ -236,6 +270,7 @@ export const adminSidebarConfig = {
       label: "Pengaturan",
       path: "/admin/settings",
     },
+
     {
       type: "item",
       key: "profile",
