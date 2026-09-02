@@ -1,27 +1,46 @@
-const API_URL = "http://localhost:5000/api/v1/paket";
+const API_URL = "http://localhost:5000/api/v1";
 
-// ============================================================
-// HELPER RESPONSE
-// ============================================================
-async function parseResponse(response) {
-  const result = await response.json().catch(() => null);
+// =========================
+// PARSE RESPONSE
+// =========================
+async function parseResponse(response: Response) {
+  const text = await response.text();
+
+  let result: any = null;
+
+  try {
+    result = text ? JSON.parse(text) : null;
+  } catch {
+    result = null;
+  }
+
+  console.log("========== PAKET API ==========");
+  console.log("STATUS:", response.status);
+  console.log("RAW RESPONSE:", text);
+  console.log("PARSED RESPONSE:", result);
+  console.log("===============================");
 
   if (!response.ok) {
     throw new Error(
       result?.message ||
         result?.error ||
-        `HTTP Error: ${response.status}`
+        result?.errors?.[0]?.message ||
+        `HTTP ${response.status}: ${response.statusText}`
     );
   }
 
   return result;
 }
 
-// ============================================================
-// GET ALL PAKET
-// ============================================================
+// =========================
+// GET SEMUA PAKET
+// =========================
 export const getPaket = async () => {
-  const response = await fetch(API_URL, {
+  const url = `${API_URL}/paket`;
+
+  console.log("GET PAKET URL:", url);
+
+  const response = await fetch(url, {
     method: "GET",
     headers: {
       Accept: "application/json",
@@ -31,20 +50,43 @@ export const getPaket = async () => {
 
   const result = await parseResponse(response);
 
-  console.log("GET PAKET RESPONSE:", result);
-
-  return result;
-};
-
-// ============================================================
-// GET PAKET BY ID
-// ============================================================
-export const getPaketById = async (id) => {
-  if (!id) {
-    throw new Error("ID paket tidak ditemukan.");
+  // Jika backend mengembalikan array langsung
+  if (Array.isArray(result)) {
+    return {
+      success: true,
+      data: result,
+    };
   }
 
-  const response = await fetch(`${API_URL}/${id}`, {
+  // Jika backend mengembalikan:
+  // { success: true, data: [...] }
+  if (Array.isArray(result?.data)) {
+    return {
+      success: result?.success !== false,
+      data: result.data,
+    };
+  }
+
+  return {
+    success: result?.success !== false,
+    data: [],
+    message: result?.message || "Data paket tidak ditemukan",
+  };
+};
+
+// =========================
+// GET PAKET BERDASARKAN ID
+// =========================
+export const getPaketById = async (id: string) => {
+  if (!id) {
+    throw new Error("ID paket tidak ditemukan");
+  }
+
+  const url = `${API_URL}/paket/${id}`;
+
+  console.log("GET PAKET BY ID URL:", url);
+
+  const response = await fetch(url, {
     method: "GET",
     headers: {
       Accept: "application/json",
@@ -52,18 +94,18 @@ export const getPaketById = async (id) => {
     cache: "no-store",
   });
 
-  const result = await parseResponse(response);
-
-  console.log("GET PAKET BY ID RESPONSE:", result);
-
-  return result;
+  return await parseResponse(response);
 };
 
-// ============================================================
-// GET SEMUA FITUR / MODUL
-// ============================================================
+// =========================
+// GET FITUR
+// =========================
 export const getFitur = async () => {
-  const response = await fetch(`${API_URL}/fitur/list`, {
+  const url = `${API_URL}/paket/fitur/list`;
+
+  console.log("GET FITUR URL:", url);
+
+  const response = await fetch(url, {
     method: "GET",
     headers: {
       Accept: "application/json",
@@ -73,78 +115,118 @@ export const getFitur = async () => {
 
   const result = await parseResponse(response);
 
-  console.log("GET FITUR RESPONSE:", result);
+  // Jika array langsung
+  if (Array.isArray(result)) {
+    return {
+      success: true,
+      data: result,
+    };
+  }
 
-  return result;
+  // Jika { success, data }
+  if (Array.isArray(result?.data)) {
+    return {
+      success: result?.success !== false,
+      data: result.data,
+    };
+  }
+
+  return {
+    success: result?.success !== false,
+    data: [],
+  };
 };
 
-// ============================================================
+// =========================
 // CREATE PAKET
-// ============================================================
-export const createPaket = async (data) => {
-  console.log("CREATE PAKET PAYLOAD:", data);
+// =========================
+export const createPaket = async (
+  data: any,
+  token?: string
+) => {
+  const url = `${API_URL}/paket`;
 
-  const response = await fetch(API_URL, {
+  console.log("CREATE PAKET URL:", url);
+
+  const response = await fetch(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Accept: "application/json",
+
+      ...(token
+        ? {
+            Authorization: `Bearer ${token}`,
+          }
+        : {}),
     },
     body: JSON.stringify(data),
   });
 
-  const result = await parseResponse(response);
-
-  console.log("CREATE PAKET RESPONSE:", result);
-
-  return result;
+  return await parseResponse(response);
 };
 
-// ============================================================
+// =========================
 // UPDATE PAKET
-// ============================================================
-export const updatePaket = async (id, data) => {
+// =========================
+export const updatePaket = async (
+  id: string,
+  data: any,
+  token?: string
+) => {
   if (!id) {
-    throw new Error("ID paket tidak ditemukan.");
+    throw new Error("ID paket tidak ditemukan");
   }
 
-  console.log("UPDATE PAKET ID:", id);
-  console.log("UPDATE PAKET PAYLOAD:", data);
+  const url = `${API_URL}/paket/${id}`;
 
-  const response = await fetch(`${API_URL}/${id}`, {
+  console.log("UPDATE PAKET URL:", url);
+
+  const response = await fetch(url, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
       Accept: "application/json",
+
+      ...(token
+        ? {
+            Authorization: `Bearer ${token}`,
+          }
+        : {}),
     },
     body: JSON.stringify(data),
   });
 
-  const result = await parseResponse(response);
-
-  console.log("UPDATE PAKET RESPONSE:", result);
-
-  return result;
+  return await parseResponse(response);
 };
 
-// ============================================================
+// =========================
 // DELETE PAKET
-// ============================================================
-export const deletePaket = async (id) => {
+// =========================
+export const deletePaket = async (
+  id: string,
+  token?: string
+) => {
   if (!id) {
-    throw new Error("ID paket tidak ditemukan.");
+    throw new Error("ID paket tidak ditemukan");
   }
 
-  const response = await fetch(`${API_URL}/${id}`, {
+  const url = `${API_URL}/paket/${id}`;
+
+  console.log("DELETE PAKET URL:", url);
+
+  const response = await fetch(url, {
     method: "DELETE",
     headers: {
       Accept: "application/json",
+
+      ...(token
+        ? {
+            Authorization: `Bearer ${token}`,
+          }
+        : {}),
     },
   });
 
-  const result = await parseResponse(response);
-
-  console.log("DELETE PAKET RESPONSE:", result);
-
-  return result;
+  return await parseResponse(response);
 };

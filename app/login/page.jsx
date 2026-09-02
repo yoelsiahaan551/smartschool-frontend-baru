@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -32,7 +31,9 @@ export default function LoginPage() {
 
     setError("");
 
-    if (!identifier.trim()) {
+    const loginIdentifier = identifier.trim();
+
+    if (!loginIdentifier) {
       setError("Email atau username wajib diisi.");
       return;
     }
@@ -46,8 +47,9 @@ export default function LoginPage() {
 
     try {
       // ==========================================
-      // AMBIL API URL
+      // API URL
       // ==========================================
+
       const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
       if (!API_URL) {
@@ -57,17 +59,19 @@ export default function LoginPage() {
       }
 
       // ==========================================
-      // REQUEST LOGIN KE BACKEND
+      // LOGIN KE BACKEND
       // ==========================================
+
       const response = await fetch(
         `${API_URL}/api/auth/login`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            Accept: "application/json",
           },
           body: JSON.stringify({
-            identifier: identifier.trim(),
+            identifier: loginIdentifier,
             kataSandi,
           }),
         }
@@ -76,27 +80,38 @@ export default function LoginPage() {
       // ==========================================
       // BACA RESPONSE
       // ==========================================
-      const data = await response.json();
+
+      let data = null;
+
+      try {
+        data = await response.json();
+      } catch {
+        throw new Error(
+          `Response server tidak valid. Status: ${response.status}`
+        );
+      }
 
       console.log("LOGIN RESPONSE:", data);
 
       // ==========================================
-      // CEK RESPONSE BACKEND
+      // CEK RESPONSE
       // ==========================================
+
       if (!response.ok) {
         throw new Error(
           data?.message ||
             data?.error ||
-            "Login gagal."
+            "Email/username atau password salah."
         );
       }
 
       // ==========================================
       // TOKEN HARUS ADA
       // ==========================================
+
       if (!data?.token) {
         console.error(
-          "Response login tidak memiliki token:",
+          "Token tidak ditemukan:",
           data
         );
 
@@ -108,31 +123,56 @@ export default function LoginPage() {
       // ==========================================
       // SIMPAN TOKEN
       // ==========================================
+
       localStorage.setItem(
         "token",
         data.token
       );
 
       // ==========================================
-      // SIMPAN USER JIKA BACKEND MENGIRIM USER
+      // SIMPAN INFO LOGIN SEDERHANA
+      // Backend kamu hanya mengirim token,
+      // jadi jangan mengharapkan data.user
       // ==========================================
-      if (data.user) {
-        localStorage.setItem(
-          "user",
-          JSON.stringify(data.user)
-        );
-      }
 
+      localStorage.setItem(
+        "user",
+        JSON.stringify({
+          identifier: loginIdentifier,
+        })
+      );
+
+      // ==========================================
+      // HAPUS DATA ONBOARDING LAMA
+      // ==========================================
+
+      sessionStorage.removeItem(
+        "onboarding_email"
+      );
+
+      sessionStorage.removeItem(
+        "onboarding_paket_id"
+      );
+
+      sessionStorage.removeItem(
+        "onboarding_pendaftaran_id"
+      );
+
+      // ==========================================
+      // DEBUG
+      // ==========================================
+
+      console.log("LOGIN BERHASIL");
       console.log(
-        "TOKEN BERHASIL DISIMPAN:",
-        data.token
+        "Identifier:",
+        loginIdentifier
       );
 
       // ==========================================
       // REDIRECT
       // ==========================================
-      router.push("/admin/dashboard");
 
+      router.push("/admin/dashboard");
     } catch (err) {
       console.error("LOGIN ERROR:", err);
 
@@ -148,10 +188,10 @@ export default function LoginPage() {
 
   return (
     <section className="relative min-h-screen overflow-hidden flex items-center justify-center">
-
       {/* ==========================================
           BACKGROUND
       ========================================== */}
+
       <div className="absolute inset-0">
         <Image
           src="/hero/hero.png"
@@ -181,19 +221,20 @@ export default function LoginPage() {
       {/* ==========================================
           CONTENT
       ========================================== */}
-      <div className="relative z-10 w-full max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
 
+      <div className="relative z-10 w-full max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
         <div className="grid lg:grid-cols-2 gap-10 lg:gap-12 items-center">
 
-          {/* ==========================================
+          {/* ========================================
               LEFT CONTENT
-          ========================================== */}
+          ======================================== */}
+
           <div className="space-y-5">
 
             {/* LOGO */}
+
             <div className="flex items-center gap-3">
               <div className="relative w-12 h-12 rounded-2xl bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-xl border border-white/50">
-
                 <Image
                   src="/logo/logoSS.png"
                   alt="Smart School Logo"
@@ -201,7 +242,6 @@ export default function LoginPage() {
                   height={32}
                   className="object-contain"
                 />
-
               </div>
 
               <span className="font-extrabold text-2xl text-white drop-shadow-[0_3px_8px_rgba(15,23,42,0.75)]">
@@ -213,29 +253,26 @@ export default function LoginPage() {
             </div>
 
             {/* TITLE */}
+
             <div className="space-y-4">
-
               <h1 className="text-4xl sm:text-5xl font-extrabold leading-tight text-white drop-shadow-[0_4px_10px_rgba(15,23,42,0.8)]">
-
                 Selamat Datang
                 <br />
 
                 <span className="text-blue-300 drop-shadow-[0_4px_10px_rgba(37,99,235,0.7)]">
                   Kembali!
                 </span>
-
               </h1>
 
               <p className="text-white leading-relaxed text-sm sm:text-base max-w-md drop-shadow-[0_3px_8px_rgba(15,23,42,0.75)] font-medium">
                 Masuk ke akun Anda untuk mengelola
                 seluruh aktivitas sekolah dengan mudah.
               </p>
-
             </div>
 
             {/* FEATURES */}
-            <div className="flex flex-wrap gap-2">
 
+            <div className="flex flex-wrap gap-2">
               {[
                 {
                   icon: GraduationCap,
@@ -254,12 +291,10 @@ export default function LoginPage() {
                   label: "Kolaboratif",
                 },
               ].map(({ icon: Icon, label }) => (
-
                 <div
                   key={label}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 backdrop-blur-md border border-white/10 shadow-lg"
                 >
-
                   <Icon
                     size={14}
                     className="text-blue-300"
@@ -268,16 +303,13 @@ export default function LoginPage() {
                   <span className="text-xs font-semibold text-white">
                     {label}
                   </span>
-
                 </div>
-
               ))}
-
             </div>
 
             {/* REGISTER */}
-            <p className="text-sm text-white/80 drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)]">
 
+            <p className="text-sm text-white/80 drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)]">
               Belum punya akun?{" "}
 
               <Link
@@ -286,25 +318,23 @@ export default function LoginPage() {
               >
                 Daftar di sini
               </Link>
-
             </p>
-
           </div>
 
-          {/* ==========================================
+          {/* ========================================
               LOGIN CARD
-          ========================================== */}
-          <div className="flex justify-center lg:justify-end">
+          ======================================== */}
 
+          <div className="flex justify-center lg:justify-end">
             <div className="w-full max-w-sm">
 
               <div className="bg-white rounded-2xl shadow-2xl p-5 sm:p-6">
 
                 {/* HEADER */}
+
                 <div className="text-center mb-6">
 
                   <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-white shadow-lg shadow-blue-500/20 mb-3">
-
                     <Image
                       src="/logo/logoSS.png"
                       alt="Smart School Logo"
@@ -312,7 +342,6 @@ export default function LoginPage() {
                       height={32}
                       className="object-contain"
                     />
-
                   </div>
 
                   <h2 className="text-xl font-bold text-slate-800">
@@ -326,25 +355,25 @@ export default function LoginPage() {
                 </div>
 
                 {/* ERROR */}
+
                 {error && (
                   <div className="mb-4 rounded-xl bg-red-50 border border-red-200 px-3 py-2.5">
-
                     <p className="text-xs text-red-600 text-center">
                       {error}
                     </p>
-
                   </div>
                 )}
 
                 {/* FORM */}
+
                 <form
                   onSubmit={handleLogin}
                   className="space-y-4"
                 >
 
                   {/* EMAIL / USERNAME */}
-                  <div>
 
+                  <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                       Email atau Username
                     </label>
@@ -369,12 +398,11 @@ export default function LoginPage() {
                       />
 
                     </div>
-
                   </div>
 
                   {/* PASSWORD */}
-                  <div>
 
+                  <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                       Password
                     </label>
@@ -417,24 +445,21 @@ export default function LoginPage() {
                             : "Tampilkan password"
                         }
                       >
-
                         {showPassword ? (
                           <EyeOff size={16} />
                         ) : (
                           <Eye size={16} />
                         )}
-
                       </button>
 
                     </div>
-
                   </div>
 
                   {/* REMEMBER / FORGOT */}
+
                   <div className="flex items-center justify-between gap-3">
 
                     <div className="flex items-center gap-2">
-
                       <input
                         type="checkbox"
                         id="remember"
@@ -447,7 +472,6 @@ export default function LoginPage() {
                       >
                         Ingat saya
                       </label>
-
                     </div>
 
                     <Link
@@ -460,6 +484,7 @@ export default function LoginPage() {
                   </div>
 
                   {/* LOGIN BUTTON */}
+
                   <button
                     type="submit"
                     disabled={loading}
@@ -501,6 +526,7 @@ export default function LoginPage() {
                   </button>
 
                   {/* DIVIDER */}
+
                   <div className="relative">
 
                     <div className="absolute inset-0 flex items-center">
@@ -508,40 +534,31 @@ export default function LoginPage() {
                     </div>
 
                     <div className="relative flex justify-center">
-
                       <span className="px-3 bg-white text-gray-400 text-xs">
                         atau
                       </span>
-
                     </div>
 
                   </div>
 
                   {/* GOOGLE */}
+
                   <button
                     type="button"
                     disabled={loading}
                     className="w-full flex items-center justify-center gap-2 border border-gray-200 bg-white hover:bg-gray-50 hover:border-gray-300 disabled:bg-gray-50 disabled:cursor-not-allowed text-slate-700 text-sm font-semibold py-2.5 rounded-xl transition-all duration-300"
                   >
-
                     <GoogleIcon />
-
                     Masuk dengan Google
-
                   </button>
 
                 </form>
-
               </div>
-
             </div>
-
           </div>
 
         </div>
-
       </div>
-
     </section>
   );
 }
@@ -549,6 +566,7 @@ export default function LoginPage() {
 // ==========================================
 // GOOGLE ICON
 // ==========================================
+
 function GoogleIcon() {
   return (
     <svg
@@ -559,7 +577,7 @@ function GoogleIcon() {
     >
       <path
         fill="#4285F4"
-        d="M21.35 12.27c0-.79-.07-1.55-.2-2.27H12v4.3h5.24a4.48 4.48 0 0 1-1.94 2.94v2.45h3.14c1.84-1.69 2.91-4.18 2.91-7.42Z"
+        d="M21.35 12.27c0-.79-.07-1.55-.2-2.27H12v4.3h5.24a4.48 4.48 0 0 1-1.94 2.94v2.45h3.14c1.84-1.69 2.91-4.18 2.91-7.42 0-.7-.06-1.38-.17-2.04Z"
       />
 
       <path

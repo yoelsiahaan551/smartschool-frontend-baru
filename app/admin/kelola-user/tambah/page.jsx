@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+
 import Header from "../../../components/Header";
 import Sidebar from "../../../components/Sidebar";
 
 import {
-  Users,
   ArrowLeft,
   Save,
   X,
@@ -22,83 +22,235 @@ import {
   Hash,
   UserPlus,
   UserCog,
-  Briefcase,
-  Building2,
-  GraduationCap,
-  Award,
-  Star,
-  BookOpen,
-  UserCheck,
+  Loader2,
 } from "lucide-react";
 
-const roleLevels = [
-  { level: 1, name: "Kepala Sekolah", icon: Star, color: "bg-purple-100 text-purple-600" },
-  { level: 2, name: "Wakil Kepala Sekolah", icon: Award, color: "bg-indigo-100 text-indigo-600" },
-  { level: 3, name: "Kepala Jurusan", icon: BookOpen, color: "bg-blue-100 text-blue-600" },
-  { level: 4, name: "Koordinator BK", icon: UserCheck, color: "bg-cyan-100 text-cyan-600" },
-  { level: 5, name: "Bendahara", icon: Shield, color: "bg-emerald-100 text-emerald-600" },
-  { level: 6, name: "Guru", icon: GraduationCap, color: "bg-amber-100 text-amber-600" },
-  { level: 7, name: "Wali Kelas", icon: Users, color: "bg-rose-100 text-rose-600" },
-  { level: 8, name: "Guru BK", icon: UserCog, color: "bg-violet-100 text-violet-600" },
+const dummyRoles = [
+  {
+    id: 1,
+    nama: "kepala_sekolah",
+    namaTampilan: "Kepala Sekolah",
+    deskripsi: "Memimpin sekolah",
+  },
+  {
+    id: 2,
+    nama: "wakil_kepala",
+    namaTampilan: "Wakil Kepala Sekolah",
+    deskripsi: "Membantu Kepala Sekolah",
+  },
+  {
+    id: 3,
+    nama: "kepala_jurusan",
+    namaTampilan: "Kepala Jurusan",
+    deskripsi: "Mengelola jurusan",
+  },
+  {
+    id: 4,
+    nama: "guru_bk",
+    namaTampilan: "Guru BK",
+    deskripsi: "Bimbingan Konseling",
+  },
+  {
+    id: 5,
+    nama: "bendahara",
+    namaTampilan: "Bendahara",
+    deskripsi: "Mengelola keuangan",
+  },
+  {
+    id: 6,
+    nama: "guru",
+    namaTampilan: "Guru",
+    deskripsi: "Tenaga pendidik",
+  },
+  {
+    id: 7,
+    nama: "wali_kelas",
+    namaTampilan: "Wali Kelas",
+    deskripsi: "Mengelola kelas",
+  },
+  {
+    id: 8,
+    nama: "koordinator_bk",
+    namaTampilan: "Koordinator BK",
+    deskripsi: "Koordinator BK",
+  },
 ];
 
 export default function TambahUserPage() {
   const router = useRouter();
+
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isLoadingRoles, setIsLoadingRoles] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [errors, setErrors] = useState({});
+  const [serverError, setServerError] = useState("");
+  const [roles, setRoles] = useState([]);
 
   const [formData, setFormData] = useState({
-    nama: "",
+    namaLengkap: "",
     email: "",
-    phone: "",
-    role: "",
+    noTelepon: "",
+    peranId: "",
     nip: "",
-    jenis_kelamin: "",
-    tgl_lahir: "",
+    jenisKelamin: "",
+    tanggalLahir: "",
     alamat: "",
     status: "aktif",
+    namaPengguna: "",
+    kataSandi: "",
   });
 
-  const handleChange = (field, value) => {
-    setFormData({ ...formData, [field]: value });
-    if (errors[field]) {
-      setErrors({ ...errors, [field]: "" });
+  useEffect(() => {
+    loadRoles();
+  }, []);
+
+  const loadRoles = async () => {
+    try {
+      setIsLoadingRoles(true);
+      setServerError("");
+
+      await new Promise((resolve) => setTimeout(resolve, 400));
+
+      setRoles(dummyRoles);
+    } catch (error) {
+      console.error("LOAD ROLE ERROR:", error);
+      setServerError("Gagal memuat data role.");
+    } finally {
+      setIsLoadingRoles(false);
     }
+  };
+
+  const handleChange = (field, value) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+
+    if (errors[field]) {
+      setErrors((prev) => ({
+        ...prev,
+        [field]: "",
+      }));
+    }
+
+    setServerError("");
+  };
+
+  const generateUsername = () => {
+    if (!formData.email) return;
+
+    const username = formData.email
+      .split("@")[0]
+      .toLowerCase()
+      .replace(/[^a-z0-9._-]/g, "");
+
+    handleChange("namaPengguna", username);
+  };
+
+  const generatePassword = () => {
+    const random = Math.random().toString(36).slice(-8);
+
+    handleChange("kataSandi", `Smart@${random}`);
   };
 
   const validate = () => {
     const newErrors = {};
-    if (!formData.nama.trim()) newErrors.nama = "Nama lengkap wajib diisi";
-    if (!formData.email.trim()) newErrors.email = "Email wajib diisi";
-    if (!formData.phone.trim()) newErrors.phone = "Nomor telepon wajib diisi";
-    if (!formData.role) newErrors.role = "Role wajib dipilih";
-    if (!formData.nip.trim()) newErrors.nip = "NIP wajib diisi";
-    if (!formData.jenis_kelamin) newErrors.jenis_kelamin = "Jenis kelamin wajib dipilih";
-    if (!formData.tgl_lahir) newErrors.tgl_lahir = "Tanggal lahir wajib diisi";
-    if (!formData.alamat.trim()) newErrors.alamat = "Alamat wajib diisi";
+
+    if (!formData.namaLengkap.trim()) {
+      newErrors.namaLengkap = "Nama lengkap wajib diisi";
+    }
+
+    if (!formData.email.trim()) {
+      newErrors.email = "Email wajib diisi";
+    }
+
+    if (!formData.noTelepon.trim()) {
+      newErrors.noTelepon = "Nomor telepon wajib diisi";
+    }
+
+    if (!formData.peranId) {
+      newErrors.peranId = "Role wajib dipilih";
+    }
+
+    if (!formData.nip.trim()) {
+      newErrors.nip = "NIP wajib diisi";
+    }
+
+    if (!formData.jenisKelamin) {
+      newErrors.jenisKelamin = "Jenis kelamin wajib dipilih";
+    }
+
+    if (!formData.tanggalLahir) {
+      newErrors.tanggalLahir = "Tanggal lahir wajib diisi";
+    }
+
+    if (!formData.alamat.trim()) {
+      newErrors.alamat = "Alamat wajib diisi";
+    }
+
+    if (!formData.namaPengguna.trim()) {
+      newErrors.namaPengguna = "Username wajib diisi";
+    }
+
+    if (!formData.kataSandi.trim()) {
+      newErrors.kataSandi = "Password wajib diisi";
+    }
+
     setErrors(newErrors);
+
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+
+    setServerError("");
+
     if (!validate()) return;
 
-    setIsSaving(true);
-    setTimeout(() => {
-      console.log("Data user baru:", formData);
-      setIsSaving(false);
+    try {
+      setIsSaving(true);
+
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      const payload = {
+        namaPengguna: formData.namaPengguna.trim(),
+        email: formData.email.trim(),
+        kataSandi: formData.kataSandi,
+        namaLengkap: formData.namaLengkap.trim(),
+        peranId: formData.peranId,
+        nip: formData.nip.trim(),
+        jenisKelamin: formData.jenisKelamin,
+        tanggalLahir: formData.tanggalLahir,
+        alamat: formData.alamat.trim(),
+        noTelepon: formData.noTelepon.trim(),
+        status: formData.status,
+      };
+
+      console.log("DUMMY PAYLOAD:", payload);
+
       setSaved(true);
+
       setTimeout(() => {
         router.push("/admin/kelola-user");
-      }, 1500);
-    }, 1000);
+        router.refresh();
+      }, 1200);
+    } catch (error) {
+      console.error("CREATE USER ERROR:", error);
+      setServerError("Gagal menyimpan user.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
+  const selectedRole = roles.find(
+    (role) => String(role.id) === String(formData.peranId)
+  );
+
   return (
-    <div className="flex h-screen w-full bg-[#f8fafc] overflow-hidden">
+    <div className="flex h-screen w-full overflow-hidden bg-[#f8fafc]">
+      {/* SIDEBAR */}
       <Sidebar
         active="kelolaUser"
         setActive={() => {}}
@@ -106,9 +258,10 @@ export default function TambahUserPage() {
         setCollapsed={setIsCollapsed}
       />
 
-      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+      {/* CONTENT AREA */}
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <Header
-          toggleSidebar={() => setIsCollapsed(!isCollapsed)}
+          toggleSidebar={() => setIsCollapsed((prev) => !prev)}
           notifications={[]}
           user={{
             name: "Admin Sekolah",
@@ -117,382 +270,587 @@ export default function TambahUserPage() {
           }}
         />
 
-        <main className="flex-1 overflow-y-auto">
-          <div className="w-full p-3 sm:p-5 lg:p-7 xl:p-8">
-            <div className="mx-auto w-full max-w-[1000px] space-y-4 sm:space-y-5 lg:space-y-6">
+        {/* MAIN SCROLL */}
+        <main className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden">
+          <div className="w-full px-3 py-4 sm:px-5 sm:py-6 lg:px-6 xl:px-8">
+            <div className="mx-auto w-full max-w-5xl space-y-5">
 
-              {/* BACK BUTTON */}
+              {/* BACK */}
               <button
+                type="button"
                 onClick={() => router.push("/admin/kelola-user")}
-                className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 transition-colors hover:text-blue-600 group"
+                className="group inline-flex max-w-full items-center gap-2 text-sm font-medium text-slate-600 transition hover:text-blue-600"
               >
-                <ArrowLeft size={18} className="transition-transform group-hover:-translate-x-0.5" />
-                Kembali ke Daftar User
+                <ArrowLeft
+                  size={18}
+                  className="shrink-0 transition-transform group-hover:-translate-x-1"
+                />
+
+                <span className="truncate">
+                  Kembali ke Daftar User
+                </span>
               </button>
 
-              {/* PAGE HEADER */}
-              <section className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_2px_10px_rgba(15,23,42,0.05)]">
-                <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-blue-50/70 blur-3xl" />
+              {/* HEADER */}
+              <section className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-blue-50 blur-3xl" />
 
-                <div className="relative flex flex-col gap-4 p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between lg:px-8 lg:py-6">
+                <div className="relative flex min-w-0 flex-col gap-5 p-4 sm:p-5 lg:flex-row lg:items-center lg:justify-between lg:p-6">
+
+                  {/* TITLE */}
                   <div className="flex min-w-0 items-start gap-3 sm:gap-4">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-[0_8px_20px_rgba(37,99,235,0.25)] sm:h-14 sm:w-14">
-                      <UserPlus size={22} strokeWidth={1.9} className="sm:h-[25px] sm:w-[25px]" />
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-lg sm:h-14 sm:w-14">
+                      <UserPlus size={23} />
                     </div>
+
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <h1 className="text-xl font-semibold tracking-[-0.025em] text-slate-900 sm:text-2xl lg:text-[26px]">
+                        <h1 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">
                           Tambah User
                         </h1>
-                        <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-100 bg-blue-50 px-2.5 py-0.5 text-[10px] font-semibold text-blue-600 sm:px-3 sm:py-1 sm:text-[11px]">
-                          <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
+
+                        <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-600">
                           Level Sekolah
                         </span>
                       </div>
-                      <div className="mt-1 flex items-center gap-1.5 sm:gap-2">
-                        <UserCog size={13} className="shrink-0 text-blue-400 sm:h-[14px] sm:w-[14px]" strokeWidth={2} />
-                        <p className="text-xs leading-5 text-slate-500 sm:text-sm">
+
+                      <div className="mt-1.5 flex min-w-0 items-start gap-2">
+                        <UserCog
+                          size={15}
+                          className="mt-0.5 shrink-0 text-blue-400"
+                        />
+
+                        <p className="text-sm leading-relaxed text-slate-500">
                           Tambahkan user baru ke lingkungan sekolah.
                         </p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex w-full flex-wrap gap-2 sm:flex-row lg:w-auto">
+                  {/* HEADER BUTTON */}
+                  <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
                     <button
                       type="button"
                       onClick={() => router.push("/admin/kelola-user")}
-                      className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-600 shadow-[0_2px_5px_rgba(15,23,42,0.05)] transition-all hover:border-slate-300 hover:bg-slate-50 hover:text-slate-800 active:scale-[0.98] sm:h-11 sm:px-5"
+                      className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-600 transition hover:bg-slate-50 sm:flex-none sm:px-5"
                     >
-                      <X size={16} className="sm:h-[17px] sm:w-[17px]" />
+                      <X size={17} />
                       Batal
                     </button>
+
                     <button
-                      type="button"
-                      onClick={handleSubmit}
-                      disabled={isSaving}
-                      className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 text-sm font-semibold text-white shadow-[0_7px_18px_rgba(15,23,42,0.16)] transition-all hover:bg-slate-800 hover:shadow-[0_9px_22px_rgba(15,23,42,0.20)] active:scale-[0.98] disabled:opacity-60 sm:h-11 sm:px-5"
+                      type="submit"
+                      form="user-form"
+                      disabled={isSaving || isLoadingRoles}
+                      className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none sm:px-5"
                     >
-                      <Save size={16} strokeWidth={2.3} className="sm:h-[17px] sm:w-[17px]" />
-                      {isSaving ? "Menyimpan..." : "Simpan User"}
+                      {isSaving ? (
+                        <Loader2 size={17} className="animate-spin" />
+                      ) : (
+                        <Save size={17} />
+                      )}
+
+                      <span>
+                        {isSaving ? "Menyimpan..." : "Simpan User"}
+                      </span>
                     </button>
                   </div>
                 </div>
               </section>
 
-              {/* SUCCESS MESSAGE */}
+              {/* SUCCESS */}
               {saved && (
-                <div className="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-                  <CheckCircle size={18} className="text-emerald-600" />
-                  <span>User berhasil ditambahkan! Mengalihkan ke daftar user...</span>
+                <div className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
+                  <CheckCircle
+                    size={19}
+                    className="mt-0.5 shrink-0 text-emerald-600"
+                  />
+
+                  <span className="leading-relaxed">
+                    User berhasil ditambahkan! Mengalihkan ke daftar user...
+                  </span>
                 </div>
               )}
 
-              {/* FORM */}
-              <section className="rounded-2xl border border-slate-200 bg-white shadow-[0_2px_10px_rgba(15,23,42,0.04)] p-5 sm:p-6 lg:p-7">
-                <div className="mb-5 flex items-center gap-3 border-b border-slate-100 pb-4">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
-                    <Info size={16} />
+              {/* ERROR */}
+              {serverError && (
+                <div className="flex items-start gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+                  <AlertCircle
+                    size={19}
+                    className="mt-0.5 shrink-0 text-rose-600"
+                  />
+
+                  <div className="min-w-0">
+                    <p className="font-semibold">
+                      Gagal menyimpan user
+                    </p>
+
+                    <p className="mt-1 leading-relaxed">
+                      {serverError}
+                    </p>
                   </div>
-                  <div>
-                    <p className="text-sm font-semibold text-slate-800">Informasi User</p>
-                    <p className="text-xs text-slate-400">Masukkan data user secara lengkap</p>
+                </div>
+              )}
+
+              {/* FORM CARD */}
+              <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 lg:p-6">
+
+                {/* FORM TITLE */}
+                <div className="mb-6 flex items-center gap-3 border-b border-slate-100 pb-4">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
+                    <Info size={17} />
+                  </div>
+
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-slate-800">
+                      Informasi User
+                    </p>
+
+                    <p className="mt-0.5 text-xs leading-relaxed text-slate-400">
+                      Masukkan data user secara lengkap
+                    </p>
                   </div>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-5">
-                  <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-                    {/* Nama Lengkap */}
-                    <div className="md:col-span-2">
-                      <label className="mb-1.5 block text-xs font-medium text-slate-700">
-                        Nama Lengkap <span className="text-rose-500">*</span>
+                <form
+                  id="user-form"
+                  onSubmit={handleSubmit}
+                  className="space-y-6"
+                >
+                  {/* DATA UTAMA */}
+                  <div className="grid min-w-0 grid-cols-1 gap-x-5 gap-y-5 md:grid-cols-2">
+
+                    {/* NAMA */}
+                    <div className="min-w-0 md:col-span-2">
+                      <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                        Nama Lengkap{" "}
+                        <span className="text-rose-500">*</span>
                       </label>
+
                       <div className="relative">
-                        <User size={17} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <User
+                          size={17}
+                          className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
+                        />
+
                         <input
                           type="text"
-                          value={formData.nama}
-                          onChange={(e) => handleChange("nama", e.target.value)}
-                          placeholder="Contoh: Dr. Ahmad Fauzi, M.Pd."
-                          className={`w-full rounded-xl border bg-slate-50 py-2.5 pl-10 pr-4 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-500/10 ${
-                            errors.nama ? "border-rose-300" : "border-slate-200"
-                          }`}
+                          value={formData.namaLengkap}
+                          onChange={(e) =>
+                            handleChange(
+                              "namaLengkap",
+                              e.target.value
+                            )
+                          }
+                          placeholder="Contoh: Ahmad Fauzi, M.Pd."
+                          className={inputClass(errors.namaLengkap)}
                         />
                       </div>
-                      {errors.nama && (
-                        <p className="mt-1.5 flex items-center gap-1 text-xs text-rose-600">
-                          <AlertCircle size={12} />
-                          {errors.nama}
-                        </p>
+
+                      {errors.namaLengkap && (
+                        <ErrorText>
+                          {errors.namaLengkap}
+                        </ErrorText>
                       )}
                     </div>
 
-                    {/* Email */}
-                    <div>
-                      <label className="mb-1.5 block text-xs font-medium text-slate-700">
-                        Email <span className="text-rose-500">*</span>
-                      </label>
-                      <div className="relative">
-                        <Mail size={17} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                        <input
-                          type="email"
-                          value={formData.email}
-                          onChange={(e) => handleChange("email", e.target.value)}
-                          placeholder="user@sekolah.sch.id"
-                          className={`w-full rounded-xl border bg-slate-50 py-2.5 pl-10 pr-4 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-500/10 ${
-                            errors.email ? "border-rose-300" : "border-slate-200"
-                          }`}
-                        />
-                      </div>
-                      {errors.email && (
-                        <p className="mt-1.5 flex items-center gap-1 text-xs text-rose-600">
-                          <AlertCircle size={12} />
-                          {errors.email}
-                        </p>
-                      )}
-                    </div>
+                    {/* EMAIL */}
+                    <Field
+                      label="Email"
+                      required
+                      icon={<Mail size={17} />}
+                      error={errors.email}
+                    >
+                      <input
+                        type="email"
+                        value={formData.email}
+                        onChange={(e) =>
+                          handleChange("email", e.target.value)
+                        }
+                        placeholder="user@sekolah.sch.id"
+                        className={inputClass(errors.email)}
+                      />
+                    </Field>
 
-                    {/* Phone */}
-                    <div>
-                      <label className="mb-1.5 block text-xs font-medium text-slate-700">
-                        Nomor Telepon <span className="text-rose-500">*</span>
-                      </label>
-                      <div className="relative">
-                        <Phone size={17} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                    {/* PHONE */}
+                    <Field
+                      label="Nomor Telepon"
+                      required
+                      icon={<Phone size={17} />}
+                      error={errors.noTelepon}
+                    >
+                      <input
+                        type="text"
+                        value={formData.noTelepon}
+                        onChange={(e) =>
+                          handleChange(
+                            "noTelepon",
+                            e.target.value
+                          )
+                        }
+                        placeholder="081234567890"
+                        className={inputClass(errors.noTelepon)}
+                      />
+                    </Field>
+
+                    {/* USERNAME */}
+                    <Field
+                      label="Username"
+                      required
+                      icon={<User size={17} />}
+                      error={errors.namaPengguna}
+                    >
+                      <div className="flex min-w-0 flex-col gap-2 sm:flex-row">
                         <input
                           type="text"
-                          value={formData.phone}
-                          onChange={(e) => handleChange("phone", e.target.value)}
-                          placeholder="0812-3456-7890"
-                          className={`w-full rounded-xl border bg-slate-50 py-2.5 pl-10 pr-4 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-500/10 ${
-                            errors.phone ? "border-rose-300" : "border-slate-200"
-                          }`}
+                          value={formData.namaPengguna}
+                          onChange={(e) =>
+                            handleChange(
+                              "namaPengguna",
+                              e.target.value
+                            )
+                          }
+                          placeholder="username"
+                          className={`${inputClass(
+                            errors.namaPengguna
+                          )} min-w-0 flex-1`}
                         />
+
+                        <button
+                          type="button"
+                          onClick={generateUsername}
+                          className="h-11 shrink-0 rounded-xl border border-blue-200 bg-blue-50 px-4 text-xs font-bold text-blue-600 transition hover:bg-blue-100"
+                        >
+                          Generate
+                        </button>
                       </div>
-                      {errors.phone && (
-                        <p className="mt-1.5 flex items-center gap-1 text-xs text-rose-600">
-                          <AlertCircle size={12} />
-                          {errors.phone}
-                        </p>
-                      )}
-                    </div>
+                    </Field>
+
+                    {/* PASSWORD */}
+                    <Field
+                      label="Password"
+                      required
+                      icon={<Shield size={17} />}
+                      error={errors.kataSandi}
+                    >
+                      <div className="flex min-w-0 flex-col gap-2 sm:flex-row">
+                        <input
+                          type="text"
+                          value={formData.kataSandi}
+                          onChange={(e) =>
+                            handleChange(
+                              "kataSandi",
+                              e.target.value
+                            )
+                          }
+                          placeholder="Password awal"
+                          className={`${inputClass(
+                            errors.kataSandi
+                          )} min-w-0 flex-1`}
+                        />
+
+                        <button
+                          type="button"
+                          onClick={generatePassword}
+                          className="h-11 shrink-0 rounded-xl border border-blue-200 bg-blue-50 px-4 text-xs font-bold text-blue-600 transition hover:bg-blue-100"
+                        >
+                          Generate
+                        </button>
+                      </div>
+                    </Field>
 
                     {/* NIP */}
-                    <div>
-                      <label className="mb-1.5 block text-xs font-medium text-slate-700">
-                        NIP <span className="text-rose-500">*</span>
-                      </label>
-                      <div className="relative">
-                        <Hash size={17} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                        <input
-                          type="text"
-                          value={formData.nip}
-                          onChange={(e) => handleChange("nip", e.target.value)}
-                          placeholder="198501012010011001"
-                          className={`w-full rounded-xl border bg-slate-50 py-2.5 pl-10 pr-4 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-500/10 ${
-                            errors.nip ? "border-rose-300" : "border-slate-200"
-                          }`}
-                        />
-                      </div>
-                      {errors.nip && (
-                        <p className="mt-1.5 flex items-center gap-1 text-xs text-rose-600">
-                          <AlertCircle size={12} />
-                          {errors.nip}
-                        </p>
-                      )}
-                    </div>
+                    <Field
+                      label="NIP"
+                      required
+                      icon={<Hash size={17} />}
+                      error={errors.nip}
+                    >
+                      <input
+                        type="text"
+                        value={formData.nip}
+                        onChange={(e) =>
+                          handleChange("nip", e.target.value)
+                        }
+                        placeholder="198501012010011001"
+                        className={inputClass(errors.nip)}
+                      />
+                    </Field>
 
-                    {/* Role */}
-                    <div>
-                      <label className="mb-1.5 block text-xs font-medium text-slate-700">
-                        Role <span className="text-rose-500">*</span>
+                    {/* ROLE */}
+                    <div className="min-w-0">
+                      <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                        Role{" "}
+                        <span className="text-rose-500">*</span>
                       </label>
+
                       <div className="relative">
-                        <Shield size={17} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <Shield
+                          size={17}
+                          className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
+                        />
+
                         <select
-                          value={formData.role}
-                          onChange={(e) => handleChange("role", e.target.value)}
-                          className={`w-full appearance-none rounded-xl border bg-slate-50 py-2.5 pl-10 pr-10 text-sm text-slate-900 outline-none transition-all focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-500/10 ${
-                            errors.role ? "border-rose-300" : "border-slate-200"
-                          }`}
+                          value={formData.peranId}
+                          onChange={(e) =>
+                            handleChange(
+                              "peranId",
+                              e.target.value
+                            )
+                          }
+                          disabled={isLoadingRoles}
+                          className={`${inputClass(
+                            errors.peranId
+                          )} appearance-none pr-10`}
                         >
-                          <option value="">Pilih Role</option>
-                          {roleLevels.map((r) => (
-                            <option key={r.level} value={r.name}>
-                              Level {r.level} - {r.name}
+                          <option value="">
+                            {isLoadingRoles
+                              ? "Memuat role..."
+                              : "Pilih Role"}
+                          </option>
+
+                          {roles.map((role) => (
+                            <option
+                              key={role.id}
+                              value={role.id}
+                            >
+                              {role.namaTampilan || role.nama}
                             </option>
                           ))}
                         </select>
-                        <ChevronDown size={17} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                       </div>
-                      {errors.role && (
-                        <p className="mt-1.5 flex items-center gap-1 text-xs text-rose-600">
-                          <AlertCircle size={12} />
-                          {errors.role}
-                        </p>
+
+                      {errors.peranId && (
+                        <ErrorText>
+                          {errors.peranId}
+                        </ErrorText>
                       )}
                     </div>
 
-                    {/* Jenis Kelamin */}
-                    <div>
-                      <label className="mb-1.5 block text-xs font-medium text-slate-700">
-                        Jenis Kelamin <span className="text-rose-500">*</span>
+                    {/* JENIS KELAMIN */}
+                    <div className="min-w-0">
+                      <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                        Jenis Kelamin{" "}
+                        <span className="text-rose-500">*</span>
                       </label>
-                      <div className="flex gap-3">
-                        {["Laki-laki", "Perempuan"].map((gender) => (
-                          <button
-                            key={gender}
-                            type="button"
-                            onClick={() => handleChange("jenis_kelamin", gender)}
-                            className={`flex-1 rounded-xl border px-4 py-2.5 text-sm font-medium transition-all ${
-                              formData.jenis_kelamin === gender
-                                ? "border-blue-400 bg-blue-50 text-blue-700 ring-2 ring-blue-500/20"
-                                : "border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300"
-                            }`}
-                          >
-                            {gender}
-                          </button>
-                        ))}
+
+                      <div className="grid grid-cols-2 gap-2">
+                        {["Laki-laki", "Perempuan"].map(
+                          (gender) => (
+                            <button
+                              key={gender}
+                              type="button"
+                              onClick={() =>
+                                handleChange(
+                                  "jenisKelamin",
+                                  gender
+                                )
+                              }
+                              className={`min-h-11 rounded-xl border px-3 py-2.5 text-sm font-semibold transition ${
+                                formData.jenisKelamin === gender
+                                  ? "border-blue-400 bg-blue-50 text-blue-700 ring-2 ring-blue-500/20"
+                                  : "border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100"
+                              }`}
+                            >
+                              {gender}
+                            </button>
+                          )
+                        )}
                       </div>
-                      {errors.jenis_kelamin && (
-                        <p className="mt-1.5 flex items-center gap-1 text-xs text-rose-600">
-                          <AlertCircle size={12} />
-                          {errors.jenis_kelamin}
-                        </p>
+
+                      {errors.jenisKelamin && (
+                        <ErrorText>
+                          {errors.jenisKelamin}
+                        </ErrorText>
                       )}
                     </div>
 
-                    {/* Tanggal Lahir */}
-                    <div>
-                      <label className="mb-1.5 block text-xs font-medium text-slate-700">
-                        Tanggal Lahir <span className="text-rose-500">*</span>
-                      </label>
-                      <div className="relative">
-                        <Calendar size={17} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                        <input
-                          type="date"
-                          value={formData.tgl_lahir}
-                          onChange={(e) => handleChange("tgl_lahir", e.target.value)}
-                          className={`w-full rounded-xl border bg-slate-50 py-2.5 pl-10 pr-4 text-sm text-slate-900 outline-none transition-all focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-500/10 ${
-                            errors.tgl_lahir ? "border-rose-300" : "border-slate-200"
-                          }`}
-                        />
-                      </div>
-                      {errors.tgl_lahir && (
-                        <p className="mt-1.5 flex items-center gap-1 text-xs text-rose-600">
-                          <AlertCircle size={12} />
-                          {errors.tgl_lahir}
-                        </p>
-                      )}
-                    </div>
+                    {/* TANGGAL LAHIR */}
+                    <Field
+                      label="Tanggal Lahir"
+                      required
+                      icon={<Calendar size={17} />}
+                      error={errors.tanggalLahir}
+                    >
+                      <input
+                        type="date"
+                        value={formData.tanggalLahir}
+                        onChange={(e) =>
+                          handleChange(
+                            "tanggalLahir",
+                            e.target.value
+                          )
+                        }
+                        className={inputClass(
+                          errors.tanggalLahir
+                        )}
+                      />
+                    </Field>
 
-                    {/* Status */}
-                    <div>
-                      <label className="mb-1.5 block text-xs font-medium text-slate-700">
+                    {/* STATUS */}
+                    <div className="min-w-0">
+                      <label className="mb-1.5 block text-sm font-semibold text-slate-700">
                         Status
                       </label>
-                      <div className="flex gap-3">
-                        {["aktif", "nonaktif"].map((status) => (
-                          <button
-                            key={status}
-                            type="button"
-                            onClick={() => handleChange("status", status)}
-                            className={`flex-1 rounded-xl border px-4 py-2.5 text-sm font-medium transition-all ${
-                              formData.status === status
-                                ? status === "aktif"
-                                  ? "border-emerald-300 bg-emerald-50 text-emerald-700 ring-2 ring-emerald-500/20"
-                                  : "border-rose-300 bg-rose-50 text-rose-700 ring-2 ring-rose-500/20"
-                                : "border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300"
-                            }`}
-                          >
-                            {status === "aktif" ? "Aktif" : "Nonaktif"}
-                          </button>
-                        ))}
+
+                      <div className="grid grid-cols-2 gap-2">
+                        {["aktif", "nonaktif"].map(
+                          (status) => (
+                            <button
+                              key={status}
+                              type="button"
+                              onClick={() =>
+                                handleChange(
+                                  "status",
+                                  status
+                                )
+                              }
+                              className={`min-h-11 rounded-xl border px-3 py-2.5 text-sm font-semibold transition ${
+                                formData.status === status
+                                  ? status === "aktif"
+                                    ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+                                    : "border-rose-300 bg-rose-50 text-rose-700"
+                                  : "border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100"
+                              }`}
+                            >
+                              {status === "aktif"
+                                ? "Aktif"
+                                : "Nonaktif"}
+                            </button>
+                          )
+                        )}
                       </div>
                     </div>
 
-                    {/* Alamat */}
-                    <div className="md:col-span-2">
-                      <label className="mb-1.5 block text-xs font-medium text-slate-700">
-                        Alamat <span className="text-rose-500">*</span>
+                    {/* ALAMAT */}
+                    <div className="min-w-0 md:col-span-2">
+                      <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                        Alamat{" "}
+                        <span className="text-rose-500">*</span>
                       </label>
+
                       <div className="relative">
-                        <MapPin size={17} className="absolute left-3.5 top-3.5 text-slate-400" />
+                        <MapPin
+                          size={17}
+                          className="pointer-events-none absolute left-3.5 top-3.5 text-slate-400"
+                        />
+
                         <textarea
+                          rows={4}
                           value={formData.alamat}
-                          onChange={(e) => handleChange("alamat", e.target.value)}
-                          rows={3}
-                          placeholder="Jl. Merdeka No. 45, Jakarta Pusat"
-                          className={`w-full resize-none rounded-xl border bg-slate-50 py-2.5 pl-10 pr-4 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-500/10 ${
-                            errors.alamat ? "border-rose-300" : "border-slate-200"
-                          }`}
+                          onChange={(e) =>
+                            handleChange(
+                              "alamat",
+                              e.target.value
+                            )
+                          }
+                          placeholder="Alamat lengkap user"
+                          className={`${inputClass(
+                            errors.alamat
+                          )} resize-none`}
                         />
                       </div>
+
                       {errors.alamat && (
-                        <p className="mt-1.5 flex items-center gap-1 text-xs text-rose-600">
-                          <AlertCircle size={12} />
+                        <ErrorText>
                           {errors.alamat}
-                        </p>
+                        </ErrorText>
                       )}
                     </div>
                   </div>
 
-                  {/* INFO BOX */}
-                  <div className="mt-4 flex items-start gap-3 rounded-xl border border-blue-100 bg-blue-50/70 p-4">
-                    <Info size={17} className="mt-0.5 flex-shrink-0 text-blue-600" />
-                    <div>
-                      <p className="text-xs font-semibold text-blue-800">Informasi Role Level</p>
-                      <p className="mt-1 text-xs leading-relaxed text-blue-700">
-                        Role level menentukan hak akses user di sistem. Pastikan memilih role yang sesuai dengan jabatan user.
+                  {/* SELECTED ROLE */}
+                  {selectedRole && (
+                    <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
+                      <div className="flex items-start gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-blue-600">
+                          <Shield size={18} />
+                        </div>
+
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold text-blue-800">
+                            Role Dipilih
+                          </p>
+
+                          <p className="mt-1 text-sm font-semibold text-blue-700">
+                            {selectedRole.namaTampilan ||
+                              selectedRole.nama}
+                          </p>
+
+                          {selectedRole.deskripsi && (
+                            <p className="mt-1 text-xs leading-relaxed text-blue-600">
+                              {selectedRole.deskripsi}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* INFO */}
+                  <div className="flex items-start gap-3 rounded-2xl border border-blue-100 bg-blue-50/70 p-4">
+                    <Info
+                      size={17}
+                      className="mt-0.5 shrink-0 text-blue-600"
+                    />
+
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-blue-800">
+                        Informasi
+                      </p>
+
+                      <p className="mt-1 text-xs leading-relaxed text-blue-700 sm:text-sm">
+                        Role yang tersedia diambil langsung
+                        dari database. Sistem akan menyimpan
+                        ID role pada field{" "}
+                        <b>peranId</b>.
                       </p>
                     </div>
                   </div>
 
-                  {/* ROLE LEVEL REFERENCE */}
-                  <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4">
-                    <p className="text-xs font-semibold text-slate-700 mb-3">Referensi Role Level</p>
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                      {roleLevels.map((role) => {
-                        const Icon = role.icon;
-                        return (
-                          <div
-                            key={role.level}
-                            className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 ${role.color} bg-opacity-20 border border-slate-200`}
-                          >
-                            <Icon size={14} />
-                            <span className="text-[10px] font-medium text-slate-700">
-                              {role.name}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* FORM ACTIONS */}
-                  <div className="flex flex-col-reverse gap-2.5 border-t border-slate-100 pt-5 sm:flex-row sm:items-center sm:justify-end">
+                  {/* ACTION */}
+                  <div className="flex flex-col-reverse gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:justify-end">
                     <button
                       type="button"
-                      onClick={() => router.push("/admin/kelola-user")}
-                      className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-6 text-sm font-medium text-slate-600 shadow-[0_2px_5px_rgba(15,23,42,0.05)] transition-all hover:border-slate-300 hover:bg-slate-50 hover:text-slate-800 active:scale-[0.98]"
+                      onClick={() =>
+                        router.push("/admin/kelola-user")
+                      }
+                      className="h-11 w-full rounded-xl border border-slate-200 bg-white px-6 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 sm:w-auto"
                     >
                       Batal
                     </button>
+
                     <button
                       type="submit"
-                      disabled={isSaving}
-                      className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-slate-900 px-6 text-sm font-semibold text-white shadow-[0_7px_18px_rgba(15,23,42,0.16)] transition-all hover:bg-slate-800 hover:shadow-[0_9px_22px_rgba(15,23,42,0.20)] active:scale-[0.98] disabled:opacity-60"
+                      disabled={
+                        isSaving || isLoadingRoles
+                      }
+                      className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-6 text-sm font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
                     >
-                      <Save size={17} strokeWidth={2.3} />
-                      {isSaving ? "Menyimpan..." : "Simpan User"}
+                      {isSaving ? (
+                        <>
+                          <Loader2
+                            size={17}
+                            className="animate-spin"
+                          />
+                          Menyimpan...
+                        </>
+                      ) : (
+                        <>
+                          <Save size={17} />
+                          Simpan User
+                        </>
+                      )}
                     </button>
                   </div>
                 </form>
               </section>
 
               {/* FOOTER */}
-              <footer className="border-t border-slate-200/70 pt-4 text-center sm:pt-5">
-                <p className="text-xs text-slate-400">© 2026 SmartSchool • Tambah User - Level Sekolah</p>
+              <footer className="border-t border-slate-200 py-5 text-center">
+                <p className="text-xs text-slate-400">
+                  © 2026 SmartSchool • Tambah User - Level Sekolah
+                </p>
               </footer>
             </div>
           </div>
@@ -502,23 +860,66 @@ export default function TambahUserPage() {
   );
 }
 
-// =========================================================
-// COMPONENT: ChevronDown untuk Select
-// =========================================================
-function ChevronDown({ size = 17, className = "" }) {
+/* =====================================================
+   FIELD
+===================================================== */
+
+function Field({
+  label,
+  required,
+  icon,
+  error,
+  children,
+}) {
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-    >
-      <polyline points="6 9 12 15 18 9" />
-    </svg>
+    <div className="min-w-0">
+      <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+        {label}{" "}
+        {required && (
+          <span className="text-rose-500">*</span>
+        )}
+      </label>
+
+      <div className="relative min-w-0">
+        <div className="pointer-events-none absolute left-3.5 top-1/2 z-10 -translate-y-1/2 text-slate-400">
+          {icon}
+        </div>
+
+        <div className="min-w-0">
+          {children}
+        </div>
+      </div>
+
+      {error && <ErrorText>{error}</ErrorText>}
+    </div>
   );
 }
+
+/* =====================================================
+   INPUT CLASS
+===================================================== */
+
+function inputClass(error) {
+  return `h-11 w-full min-w-0 rounded-xl border bg-slate-50 py-2.5 pl-10 pr-4 text-sm font-medium text-slate-900 placeholder:text-slate-400 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-500/10 ${
+    error
+      ? "border-rose-300"
+      : "border-slate-200"
+  }`;
+}
+
+/* =====================================================
+   ERROR
+===================================================== */
+
+function ErrorText({ children }) {
+  return (
+    <p className="mt-1.5 flex items-start gap-1 text-xs font-medium leading-relaxed text-rose-600">
+      <AlertCircle
+        size={12}
+        className="mt-0.5 shrink-0"
+      />
+      <span>{children}</span>
+    </p>
+  );
+}
+

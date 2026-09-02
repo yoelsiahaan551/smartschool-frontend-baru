@@ -2,17 +2,18 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 function getApiUrl() {
   if (!API_URL) {
-    throw new Error("NEXT_PUBLIC_API_URL belum dikonfigurasi.");
+    throw new Error(
+      "NEXT_PUBLIC_API_URL belum dikonfigurasi."
+    );
   }
 
   return API_URL;
 }
 
-/**
- * ==========================================
- * REGISTER TENANT / SEKOLAH
- * ==========================================
- */
+// =====================================================
+// REGISTER TENANT
+// =====================================================
+
 export async function registerTenant(data: {
   paketId: string;
   nama: string;
@@ -30,10 +31,12 @@ export async function registerTenant(data: {
     `${getApiUrl()}/api/v1/tenant/register`,
     {
       method: "POST",
+
       headers: {
         "Content-Type": "application/json",
         Accept: "application/json",
       },
+
       body: JSON.stringify(data),
     }
   );
@@ -48,11 +51,17 @@ export async function registerTenant(data: {
     );
   }
 
-  console.log("REGISTER TENANT RESPONSE:", {
-    status: response.status,
-    ok: response.ok,
-    result,
-  });
+  console.log(
+    "========== REGISTER TENANT =========="
+  );
+
+  console.log("STATUS:", response.status);
+  console.log("OK:", response.ok);
+  console.log("RESULT:", result);
+
+  console.log(
+    "======================================"
+  );
 
   if (!response.ok) {
     throw new Error(
@@ -65,11 +74,10 @@ export async function registerTenant(data: {
   return result;
 }
 
-/**
- * ==========================================
- * VERIFY TENANT
- * ==========================================
- */
+// =====================================================
+// VERIFY OTP + CREATE MIDTRANS PAYMENT
+// =====================================================
+
 export async function verifyTenant(
   email: string,
   kodeOtp: string
@@ -78,10 +86,12 @@ export async function verifyTenant(
     `${getApiUrl()}/api/v1/tenant/verify`,
     {
       method: "POST",
+
       headers: {
         "Content-Type": "application/json",
         Accept: "application/json",
       },
+
       body: JSON.stringify({
         email,
         kodeOtp,
@@ -99,11 +109,17 @@ export async function verifyTenant(
     );
   }
 
-  console.log("VERIFY TENANT RESPONSE:", {
-    status: response.status,
-    ok: response.ok,
-    result,
-  });
+  console.log(
+    "========== VERIFY TENANT =========="
+  );
+
+  console.log("STATUS:", response.status);
+  console.log("OK:", response.ok);
+  console.log("RESULT:", result);
+
+  console.log(
+    "===================================="
+  );
 
   if (!response.ok) {
     throw new Error(
@@ -116,11 +132,10 @@ export async function verifyTenant(
   return result;
 }
 
-/**
- * ==========================================
- * GET TENANT STATUS
- * ==========================================
- */
+// =====================================================
+// GET TENANT STATUS
+// =====================================================
+
 export async function getTenantStatus() {
   const token =
     typeof window !== "undefined"
@@ -128,13 +143,16 @@ export async function getTenantStatus() {
       : null;
 
   if (!token) {
-    throw new Error("Sesi login tidak ditemukan.");
+    throw new Error(
+      "Sesi login tidak ditemukan."
+    );
   }
 
   const response = await fetch(
     `${getApiUrl()}/api/v1/tenant/status`,
     {
       method: "GET",
+
       headers: {
         Accept: "application/json",
         Authorization: `Bearer ${token}`,
