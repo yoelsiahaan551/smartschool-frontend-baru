@@ -1,14 +1,7 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export async function apiFetch(endpoint, options = {}) {
-  if (!API_URL) {
-    throw new Error("NEXT_PUBLIC_API_URL belum dikonfigurasi");
-  }
-
-  const token =
-    typeof window !== "undefined"
-      ? localStorage.getItem("token")
-      : null;
+  const token = localStorage.getItem("token");
 
   const headers = {
     "Content-Type": "application/json",
@@ -24,31 +17,19 @@ export async function apiFetch(endpoint, options = {}) {
     headers,
   });
 
-  let data = null;
-
-  try {
-    data = await response.json();
-  } catch {
-    data = null;
-  }
+  const data = await response.json();
 
   if (response.status === 401) {
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
 
-      window.location.href = "/login";
-    }
+    window.location.href = "/login";
 
     return null;
   }
 
   if (!response.ok) {
-    throw new Error(
-      data?.message ||
-        data?.error ||
-        "Terjadi kesalahan pada server"
-    );
+    throw new Error(data.message || "Terjadi kesalahan");
   }
 
   return data;
