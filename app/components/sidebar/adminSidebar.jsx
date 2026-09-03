@@ -149,17 +149,7 @@ export const adminSidebarConfig = {
       label: "Tahun Ajaran",
       path: "/admin/tahun-ajaran",
     },
-
-    // ==========================================
-    // RUANG
-    // ==========================================
-    {
-      type: "item",
-      key: "ruang",
-      icon: DoorOpen,
-      label: "Ruangan",
-      path: "/admin/ruangan",
-    },
+    
 
     // ==========================================
     // AKADEMIK

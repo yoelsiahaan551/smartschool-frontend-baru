@@ -14,14 +14,12 @@ import {
   RefreshCw,
   CheckCircle,
   XCircle,
-  User,
-  Upload,
-  FileSpreadsheet,
-  ChevronRight,
-  UserPlus,
   Download,
   Printer,
+  FileSpreadsheet,
   ChevronDown,
+  X,
+  AlertTriangle,
 } from "lucide-react";
 
 // =========================================================
@@ -97,25 +95,41 @@ const getDefaultSiswa = () => {
       nis: String(2401001 + i),
       nisn: String(1234567890 + i),
       kelas: kelasList[kelasIdx],
-      email: `${names[nameIdx].split(" ")[0].toLowerCase()}@sekolah.com`,
+      email: `${names[nameIdx]
+        .split(" ")[0]
+        .toLowerCase()}@sekolah.com`,
       phone: `081234567${String(800 + i).padStart(3, "0")}`,
       status: statuses[statusIdx],
       alamat: `Jl. Contoh No. ${i + 1}, Jakarta`,
       tglLahir: `200${String(5 + (i % 4))}-${String(
         1 + (i % 12)
-      ).padStart(2, "0")}-${String(1 + (i % 28)).padStart(2, "0")}`,
+      ).padStart(2, "0")}-${String(
+        1 + (i % 28)
+      ).padStart(2, "0")}`,
       gender: genders[genderIdx],
-      joinDate: `${2020 + (i % 5)}-${String(1 + (i % 12)).padStart(
-        2,
-        "0"
-      )}-${String(1 + (i % 28)).padStart(2, "0")}`,
-      kecamatan: `Kec. ${String.fromCharCode(65 + (i % 26))}`,
-      kota: `Kota ${String.fromCharCode(65 + (i % 26))}`,
-      kelurahan: `Kel. ${String.fromCharCode(65 + (i % 26))}`,
+      joinDate: `${2020 + (i % 5)}-${String(
+        1 + (i % 12)
+      ).padStart(2, "0")}-${String(
+        1 + (i % 28)
+      ).padStart(2, "0")}`,
+      kecamatan: `Kec. ${String.fromCharCode(
+        65 + (i % 26)
+      )}`,
+      kota: `Kota ${String.fromCharCode(
+        65 + (i % 26)
+      )}`,
+      kelurahan: `Kel. ${String.fromCharCode(
+        65 + (i % 26)
+      )}`,
       provinsi: "DKI Jakarta",
       nikOrtu: String(1234567890 + i),
       namaOrtu: `Orang Tua ${i + 1}`,
-      pekerjaanOrtu: ["PNS", "Swasta", "Wirausaha", "Petani"][i % 4],
+      pekerjaanOrtu: [
+        "PNS",
+        "Swasta",
+        "Wirausaha",
+        "Petani",
+      ][i % 4],
       alamatKtpOrtu: `Jl. KTP ${i + 1}`,
       alamatDomisiliOrtu: `Jl. Domisili ${i + 1}`,
       domisiliSama: i % 2 === 0,
@@ -129,47 +143,73 @@ const getDefaultSiswa = () => {
 // LOAD DATA
 // =========================================================
 const loadSiswa = () => {
-  if (typeof window === "undefined") return getDefaultSiswa();
+  if (typeof window === "undefined") {
+    return getDefaultSiswa();
+  }
 
   try {
     const defaultData = getDefaultSiswa();
     const stored = localStorage.getItem(STORAGE_KEY);
 
     if (!stored) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultData));
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify(defaultData)
+      );
+
       return defaultData;
     }
 
     const oldData = JSON.parse(stored);
 
-    if (!Array.isArray(oldData)) return defaultData;
+    if (!Array.isArray(oldData)) {
+      return defaultData;
+    }
 
     const merged = [...oldData];
 
     defaultData.forEach((defaultItem) => {
       if (
         !merged.some(
-          (item) => Number(item.id) === Number(defaultItem.id)
+          (item) =>
+            Number(item.id) ===
+            Number(defaultItem.id)
         )
       ) {
         merged.push(defaultItem);
       }
     });
 
-    merged.sort((a, b) => Number(a.id) - Number(b.id));
+    merged.sort(
+      (a, b) =>
+        Number(a.id) - Number(b.id)
+    );
 
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify(merged)
+    );
 
     return merged;
   } catch (error) {
-    console.error("Gagal membaca data siswa:", error);
+    console.error(
+      "Gagal membaca data siswa:",
+      error
+    );
+
     return getDefaultSiswa();
   }
 };
 
+// =========================================================
+// SAVE DATA
+// =========================================================
 const saveSiswa = (data) => {
   if (typeof window !== "undefined") {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify(data)
+    );
   }
 };
 
@@ -179,32 +219,64 @@ const saveSiswa = (data) => {
 export default function AdminSiswaPage() {
   const router = useRouter();
 
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] =
+    useState(false);
+
   const [siswa, setSiswa] = useState([]);
+
   const [search, setSearch] = useState("");
-  const [showModal, setShowModal] = useState(false);
 
-  // Sort & Filter
-  const [sortBy, setSortBy] = useState("nama_asc");
-  const [filterStatus, setFilterStatus] = useState("semua");
-  const [filterKelas, setFilterKelas] = useState("semua");
+  // =======================================================
+  // DELETE MODAL
+  // =======================================================
+  const [deleteModal, setDeleteModal] = useState({
+    open: false,
+    id: null,
+    nama: "",
+  });
 
-  // Searchable select Kelas
-  const [kelasSearch, setKelasSearch] = useState("");
-  const [isKelasOpen, setIsKelasOpen] = useState(false);
+  // =======================================================
+  // SORT & FILTER
+  // =======================================================
+  const [sortBy, setSortBy] =
+    useState("nama_asc");
+
+  const [filterStatus, setFilterStatus] =
+    useState("semua");
+
+  const [filterKelas, setFilterKelas] =
+    useState("semua");
+
+  // =======================================================
+  // SEARCHABLE SELECT KELAS
+  // =======================================================
+  const [kelasSearch, setKelasSearch] =
+    useState("");
+
+  const [isKelasOpen, setIsKelasOpen] =
+    useState(false);
+
   const kelasRef = useRef(null);
 
-  // Pagination
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  // =======================================================
+  // PAGINATION
+  // =======================================================
+  const [currentPage, setCurrentPage] =
+    useState(1);
 
+  const [itemsPerPage, setItemsPerPage] =
+    useState(10);
+
+  // =======================================================
+  // LOAD
+  // =======================================================
   useEffect(() => {
     setSiswa(loadSiswa());
   }, []);
 
-  // =========================================================
+  // =======================================================
   // CLOSE DROPDOWN
-  // =========================================================
+  // =======================================================
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (
@@ -215,7 +287,10 @@ export default function AdminSiswaPage() {
       }
     };
 
-    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener(
+      "mousedown",
+      handleClickOutside
+    );
 
     return () =>
       document.removeEventListener(
@@ -224,104 +299,182 @@ export default function AdminSiswaPage() {
       );
   }, []);
 
-  // =========================================================
-  // DELETE
-  // =========================================================
+  // =======================================================
+  // OPEN DELETE MODAL
+  // =======================================================
   const handleDelete = (id, nama) => {
-    if (!confirm(`Yakin ingin menghapus siswa "${nama}"?`)) {
+    setDeleteModal({
+      open: true,
+      id,
+      nama,
+    });
+  };
+
+  // =======================================================
+  // CLOSE DELETE MODAL
+  // =======================================================
+  const closeDeleteModal = () => {
+    setDeleteModal({
+      open: false,
+      id: null,
+      nama: "",
+    });
+  };
+
+  // =======================================================
+  // CONFIRM DELETE
+  // =======================================================
+  const confirmDelete = () => {
+    const { id } = deleteModal;
+
+    if (id === null) {
       return;
     }
 
-    const updated = siswa.filter((item) => item.id !== id);
+    const updated = siswa.filter(
+      (item) => item.id !== id
+    );
 
     setSiswa(updated);
     saveSiswa(updated);
 
     const totalItems = updated.length;
-    const maxPage = Math.ceil(totalItems / itemsPerPage);
 
-    if (currentPage > maxPage && maxPage > 0) {
+    const maxPage = Math.ceil(
+      totalItems / itemsPerPage
+    );
+
+    if (
+      currentPage > maxPage &&
+      maxPage > 0
+    ) {
       setCurrentPage(maxPage);
     } else if (totalItems === 0) {
       setCurrentPage(1);
     }
 
-    alert(`Siswa "${nama}" berhasil dihapus!`);
+    closeDeleteModal();
   };
 
-  // =========================================================
+  // =======================================================
   // REFRESH
-  // =========================================================
+  // =======================================================
   const handleRefresh = () => {
     setSiswa(loadSiswa());
     setCurrentPage(1);
   };
 
-  // =========================================================
-  // SEARCH, FILTER, SORT
-  // =========================================================
-  const filteredBySearch = siswa.filter((s) => {
-    const keyword = search.toLowerCase();
+  // =======================================================
+  // SEARCH
+  // =======================================================
+  const filteredBySearch = siswa.filter(
+    (s) => {
+      const keyword =
+        search.toLowerCase();
 
-    return (
-      s.nama.toLowerCase().includes(keyword) ||
-      s.nis.includes(search) ||
-      s.kelas.toLowerCase().includes(keyword) ||
-      s.email.toLowerCase().includes(keyword)
-    );
-  });
+      return (
+        s.nama
+          .toLowerCase()
+          .includes(keyword) ||
+        s.nis.includes(search) ||
+        s.kelas
+          .toLowerCase()
+          .includes(keyword) ||
+        s.email
+          .toLowerCase()
+          .includes(keyword)
+      );
+    }
+  );
 
+  // =======================================================
+  // FILTER STATUS
+  // =======================================================
   const filteredByStatus =
     filterStatus === "semua"
       ? filteredBySearch
       : filteredBySearch.filter(
-          (s) => s.status === filterStatus
+          (s) =>
+            s.status ===
+            filterStatus
         );
 
+  // =======================================================
+  // FILTER KELAS
+  // =======================================================
   const filteredByKelas =
     filterKelas === "semua"
       ? filteredByStatus
       : filteredByStatus.filter(
-          (s) => s.kelas === filterKelas
+          (s) =>
+            s.kelas ===
+            filterKelas
         );
 
-  const sorted = [...filteredByKelas].sort((a, b) => {
+  // =======================================================
+  // SORT
+  // =======================================================
+  const sorted = [
+    ...filteredByKelas,
+  ].sort((a, b) => {
     switch (sortBy) {
       case "nama_asc":
-        return a.nama.localeCompare(b.nama);
+        return a.nama.localeCompare(
+          b.nama
+        );
 
       case "nama_desc":
-        return b.nama.localeCompare(a.nama);
+        return b.nama.localeCompare(
+          a.nama
+        );
 
       case "nis_asc":
-        return a.nis.localeCompare(b.nis);
+        return a.nis.localeCompare(
+          b.nis
+        );
 
       case "nis_desc":
-        return b.nis.localeCompare(a.nis);
+        return b.nis.localeCompare(
+          a.nis
+        );
 
       case "kelas":
-        return a.kelas.localeCompare(b.kelas);
+        return a.kelas.localeCompare(
+          b.kelas
+        );
 
       case "status":
-        return a.status.localeCompare(b.status);
+        return a.status.localeCompare(
+          b.status
+        );
 
       default:
         return 0;
     }
   });
 
-  // =========================================================
+  // =======================================================
   // PAGINATION
-  // =========================================================
+  // =======================================================
   const totalItems = sorted.length;
-  const totalPages = Math.ceil(totalItems / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
+
+  const totalPages = Math.ceil(
+    totalItems / itemsPerPage
+  );
+
+  const startIndex =
+    (currentPage - 1) *
+    itemsPerPage;
+
   const endIndex = Math.min(
     startIndex + itemsPerPage,
     totalItems
   );
 
-  const currentItems = sorted.slice(startIndex, endIndex);
+  const currentItems = sorted.slice(
+    startIndex,
+    endIndex
+  );
 
   useEffect(() => {
     setCurrentPage(1);
@@ -334,14 +487,17 @@ export default function AdminSiswaPage() {
   ]);
 
   const goToPage = (page) => {
-    if (page >= 1 && page <= totalPages) {
+    if (
+      page >= 1 &&
+      page <= totalPages
+    ) {
       setCurrentPage(page);
     }
   };
 
-  // =========================================================
+  // =======================================================
   // EXPORT CSV
-  // =========================================================
+  // =======================================================
   const exportCSV = () => {
     const headers = [
       "No",
@@ -358,49 +514,66 @@ export default function AdminSiswaPage() {
       "Bergabung",
     ];
 
-    const rows = sorted.map((s, idx) => [
-      idx + 1,
-      s.nama,
-      s.nis,
-      s.nisn || "-",
-      s.kelas,
-      s.email,
-      s.phone,
-      s.status,
-      s.alamat,
-      s.tglLahir,
-      s.gender === "L" ? "Laki-laki" : "Perempuan",
-      s.joinDate,
-    ]);
+    const rows = sorted.map(
+      (s, idx) => [
+        idx + 1,
+        s.nama,
+        s.nis,
+        s.nisn || "-",
+        s.kelas,
+        s.email,
+        s.phone,
+        s.status,
+        s.alamat,
+        s.tglLahir,
+        s.gender === "L"
+          ? "Laki-laki"
+          : "Perempuan",
+        s.joinDate,
+      ]
+    );
 
-    let csv = headers.join(",") + "\n";
+    let csv =
+      headers.join(",") +
+      "\n";
 
     rows.forEach((row) => {
-      csv += row.join(",") + "\n";
+      csv +=
+        row.join(",") +
+        "\n";
     });
 
-    const blob = new Blob([csv], {
-      type: "text/csv;charset=utf-8;",
-    });
+    const blob = new Blob(
+      [csv],
+      {
+        type: "text/csv;charset=utf-8;",
+      }
+    );
 
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
+    const url =
+      URL.createObjectURL(blob);
+
+    const link =
+      document.createElement("a");
 
     link.href = url;
+
     link.download = `data_siswa_${new Date()
       .toISOString()
       .slice(0, 10)}.csv`;
 
     document.body.appendChild(link);
+
     link.click();
+
     document.body.removeChild(link);
 
     URL.revokeObjectURL(url);
   };
 
-  // =========================================================
+  // =======================================================
   // EXPORT EXCEL
-  // =========================================================
+  // =======================================================
   const exportExcel = () => {
     const headers = [
       "No",
@@ -428,6 +601,7 @@ export default function AdminSiswaPage() {
               font-size:12px;
               font-family:Arial,sans-serif;
             }
+
             th{
               background:#2563eb;
               color:white;
@@ -435,11 +609,15 @@ export default function AdminSiswaPage() {
             }
           </style>
         </head>
+
         <body>
           <table>
             <tr>
               ${headers
-                .map((h) => `<th>${h}</th>`)
+                .map(
+                  (h) =>
+                    `<th>${h}</th>`
+                )
                 .join("")}
             </tr>
     `;
@@ -475,39 +653,50 @@ export default function AdminSiswaPage() {
       </html>
     `;
 
-    const blob = new Blob([tableHtml], {
-      type: "application/vnd.ms-excel",
-    });
+    const blob = new Blob(
+      [tableHtml],
+      {
+        type: "application/vnd.ms-excel",
+      }
+    );
 
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
+    const url =
+      URL.createObjectURL(blob);
+
+    const link =
+      document.createElement("a");
 
     link.href = url;
+
     link.download = `data_siswa_${new Date()
       .toISOString()
       .slice(0, 10)}.xls`;
 
     document.body.appendChild(link);
+
     link.click();
+
     document.body.removeChild(link);
 
     URL.revokeObjectURL(url);
   };
 
-  // =========================================================
+  // =======================================================
   // EXPORT PDF
-  // =========================================================
+  // =======================================================
   const exportPDF = () => {
-    const printWindow = window.open(
-      "",
-      "_blank",
-      "width=1024,height=768"
-    );
+    const printWindow =
+      window.open(
+        "",
+        "_blank",
+        "width=1024,height=768"
+      );
 
     if (!printWindow) {
       alert(
         "Mohon izinkan popup untuk mencetak PDF"
       );
+
       return;
     }
 
@@ -524,6 +713,7 @@ export default function AdminSiswaPage() {
       <html>
         <head>
           <title>Data Siswa</title>
+
           <style>
             body{
               font-family:Arial,sans-serif;
@@ -560,17 +750,24 @@ export default function AdminSiswaPage() {
         </head>
 
         <body>
+
           <h1>Data Siswa</h1>
 
           <p>
             Total: ${sorted.length} siswa |
-            ${new Date().toLocaleDateString("id-ID")}
+            ${new Date().toLocaleDateString(
+              "id-ID"
+            )}
           </p>
 
           <table>
+
             <tr>
               ${headers
-                .map((h) => `<th>${h}</th>`)
+                .map(
+                  (h) =>
+                    `<th>${h}</th>`
+                )
                 .join("")}
             </tr>
     `;
@@ -590,47 +787,66 @@ export default function AdminSiswaPage() {
 
     tableHtml += `
           </table>
+
         </body>
       </html>
     `;
 
-    printWindow.document.write(tableHtml);
+    printWindow.document.write(
+      tableHtml
+    );
+
     printWindow.document.close();
 
-    printWindow.onload = function () {
-      printWindow.focus();
-      printWindow.print();
-    };
+    printWindow.onload =
+      function () {
+        printWindow.focus();
+        printWindow.print();
+      };
   };
 
-  // =========================================================
+  // =======================================================
   // STATISTICS
-  // =========================================================
-  const totalSiswa = siswa.length;
+  // =======================================================
+  const totalSiswa =
+    siswa.length;
 
-  const totalAktif = siswa.filter(
-    (s) => s.status === "Aktif"
-  ).length;
+  const totalAktif =
+    siswa.filter(
+      (s) =>
+        s.status === "Aktif"
+    ).length;
 
-  const totalNonaktif = siswa.filter(
-    (s) => s.status !== "Aktif"
-  ).length;
+  const totalNonaktif =
+    siswa.filter(
+      (s) =>
+        s.status !== "Aktif"
+    ).length;
 
-  const totalKelas = new Set(
-    siswa.map((s) => s.kelas)
-  ).size;
+  const totalKelas =
+    new Set(
+      siswa.map(
+        (s) => s.kelas
+      )
+    ).size;
 
-  // =========================================================
+  // =======================================================
   // HELPERS
-  // =========================================================
-  const getInitials = (nama) => {
-    if (!nama) return "??";
+  // =======================================================
+  const getInitials = (
+    nama
+  ) => {
+    if (!nama) {
+      return "??";
+    }
 
-    const parts = nama.trim().split(" ");
+    const parts =
+      nama.trim().split(" ");
 
     if (parts.length >= 2) {
       return (
-        parts[0][0] + parts[1][0]
+        parts[0][0] +
+        parts[1][0]
       ).toUpperCase();
     }
 
@@ -639,7 +855,9 @@ export default function AdminSiswaPage() {
       .toUpperCase();
   };
 
-  const getAvatarColor = (nama) => {
+  const getAvatarColor = (
+    nama
+  ) => {
     const colors = [
       "bg-blue-500",
       "bg-emerald-500",
@@ -654,60 +872,88 @@ export default function AdminSiswaPage() {
     ];
 
     return colors[
-      nama.length % colors.length
+      nama.length %
+        colors.length
     ];
   };
 
-  // Kelas unik
+  // =======================================================
+  // UNIQUE KELAS
+  // =======================================================
   const uniqueKelas = [
-    ...new Set(siswa.map((s) => s.kelas)),
+    ...new Set(
+      siswa.map(
+        (s) => s.kelas
+      )
+    ),
   ].sort();
 
-  // Filter kelas
+  // =======================================================
+  // FILTER KELAS OPTIONS
+  // =======================================================
   const filteredKelasOptions =
-    uniqueKelas.filter((k) =>
-      k
-        .toLowerCase()
-        .includes(kelasSearch.toLowerCase())
+    uniqueKelas.filter(
+      (k) =>
+        k
+          .toLowerCase()
+          .includes(
+            kelasSearch.toLowerCase()
+          )
     );
 
-  // =========================================================
+  // =======================================================
   // RETURN
-  // =========================================================
+  // =======================================================
   return (
     <div className="flex h-screen w-full overflow-hidden bg-slate-100">
+
+      {/* SIDEBAR */}
       <Sidebar
         active="siswa"
         setActive={() => {}}
         collapsed={isCollapsed}
-        setCollapsed={setIsCollapsed}
+        setCollapsed={
+          setIsCollapsed
+        }
       />
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+
+        {/* HEADER */}
         <Header
           toggleSidebar={() =>
-            setIsCollapsed(!isCollapsed)
+            setIsCollapsed(
+              !isCollapsed
+            )
           }
           notifications={[]}
           user={{
             name: "Admin Sekolah",
-            email: "admin@smartschool.com",
+            email:
+              "admin@smartschool.com",
             avatar: "AD",
           }}
         />
 
         <main className="min-h-0 flex-1 overflow-y-auto">
+
           <div className="w-full px-3 py-4 sm:px-4 md:px-6 lg:px-8 xl:px-10">
+
             <div className="w-full space-y-5">
 
-              {/* HEADER */}
+              {/* =================================================
+                  HEADER
+              ================================================= */}
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+
                 <div className="flex min-w-0 items-center gap-3">
+
                   <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-cyan-600 text-white shadow-lg shadow-blue-200">
                     <Users size={21} />
                   </div>
 
                   <div className="min-w-0">
+
                     <h1 className="truncate text-xl font-semibold text-slate-800 sm:text-2xl">
                       Data Siswa
                     </h1>
@@ -715,71 +961,102 @@ export default function AdminSiswaPage() {
                     <p className="text-xs text-slate-600 sm:text-sm">
                       Data induk peserta didik
                     </p>
+
                   </div>
+
                 </div>
 
                 <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
 
                   {/* EXPORT */}
                   <div className="relative group">
-                    <button className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-300 bg-white text-slate-700 hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700 transition-all text-sm font-medium">
+
+                    <button className="flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition-all hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700">
+
                       <Download size={17} />
-                      <span>Export</span>
+
+                      <span>
+                        Export
+                      </span>
+
                     </button>
 
-                    <div className="absolute right-0 top-full mt-1 w-44 bg-white rounded-xl border border-slate-300 shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
+                    <div className="absolute right-0 top-full z-10 mt-1 w-44 rounded-xl border border-slate-300 bg-white shadow-lg opacity-0 invisible transition-all group-hover:visible group-hover:opacity-100">
 
                       <button
-                        onClick={exportPDF}
-                        className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 rounded-t-xl transition"
+                        onClick={
+                          exportPDF
+                        }
+                        className="flex w-full items-center gap-2 rounded-t-xl px-4 py-2.5 text-sm text-slate-700 transition hover:bg-blue-50 hover:text-blue-700"
                       >
                         <Printer size={16} />
                         PDF
                       </button>
 
                       <button
-                        onClick={exportExcel}
-                        className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition"
+                        onClick={
+                          exportExcel
+                        }
+                        className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-slate-700 transition hover:bg-blue-50 hover:text-blue-700"
                       >
                         <FileSpreadsheet size={16} />
                         Excel
                       </button>
 
                       <button
-                        onClick={exportCSV}
-                        className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 rounded-b-xl transition"
+                        onClick={
+                          exportCSV
+                        }
+                        className="flex w-full items-center gap-2 rounded-b-xl px-4 py-2.5 text-sm text-slate-700 transition hover:bg-blue-50 hover:text-blue-700"
                       >
                         <FileSpreadsheet size={16} />
                         CSV
                       </button>
+
                     </div>
                   </div>
 
                   {/* REFRESH */}
                   <button
-                    onClick={handleRefresh}
+                    onClick={
+                      handleRefresh
+                    }
                     className="flex h-10 items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:shadow-sm"
                     title="Refresh"
                   >
                     <RefreshCw size={16} />
                   </button>
 
-                  {/* TAMBAH */}
+                  {/* TAMBAH SISWA */}
                   <button
-  onClick={() => setShowModal(true)}
-  className="flex h-10 flex-1 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700 hover:shadow-lg sm:flex-none"
->
-  <Plus size={18} />
-  <span>Tambah Siswa</span>
-</button>
+                    onClick={() =>
+                      router.push(
+                        "/admin/siswa/tambah"
+                      )
+                    }
+                    className="flex h-10 flex-1 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700 hover:shadow-lg sm:flex-none"
+                  >
+                    <Plus size={18} />
+
+                    <span>
+                      Tambah Siswa
+                    </span>
+                  </button>
+
                 </div>
+
               </div>
 
-              {/* STATISTICS */}
+              {/* =================================================
+                  STATISTICS
+              ================================================= */}
               <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
 
+                {/* TOTAL */}
                 <div className="rounded-xl border border-slate-300 bg-white p-4 shadow-sm transition hover:shadow-md">
+
                   <div className="flex items-center gap-2">
+
                     <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 text-blue-700">
                       <Users size={16} />
                     </div>
@@ -787,15 +1064,20 @@ export default function AdminSiswaPage() {
                     <p className="text-[10px] font-medium uppercase tracking-wider text-slate-500">
                       Total Siswa
                     </p>
+
                   </div>
 
                   <p className="mt-1 text-2xl font-bold text-slate-800">
                     {totalSiswa}
                   </p>
+
                 </div>
 
+                {/* AKTIF */}
                 <div className="rounded-xl border border-slate-300 bg-white p-4 shadow-sm transition hover:shadow-md">
+
                   <div className="flex items-center gap-2">
+
                     <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
                       <CheckCircle size={16} />
                     </div>
@@ -803,15 +1085,20 @@ export default function AdminSiswaPage() {
                     <p className="text-[10px] font-medium uppercase tracking-wider text-slate-500">
                       Aktif
                     </p>
+
                   </div>
 
                   <p className="mt-1 text-2xl font-bold text-emerald-700">
                     {totalAktif}
                   </p>
+
                 </div>
 
+                {/* NONAKTIF */}
                 <div className="rounded-xl border border-slate-300 bg-white p-4 shadow-sm transition hover:shadow-md">
+
                   <div className="flex items-center gap-2">
+
                     <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-100 text-rose-700">
                       <XCircle size={16} />
                     </div>
@@ -819,15 +1106,20 @@ export default function AdminSiswaPage() {
                     <p className="text-[10px] font-medium uppercase tracking-wider text-slate-500">
                       Nonaktif
                     </p>
+
                   </div>
 
                   <p className="mt-1 text-2xl font-bold text-rose-700">
                     {totalNonaktif}
                   </p>
+
                 </div>
 
+                {/* KELAS */}
                 <div className="rounded-xl border border-slate-300 bg-white p-4 shadow-sm transition hover:shadow-md">
+
                   <div className="flex items-center gap-2">
+
                     <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-100 text-indigo-700">
                       <Users size={16} />
                     </div>
@@ -835,20 +1127,27 @@ export default function AdminSiswaPage() {
                     <p className="text-[10px] font-medium uppercase tracking-wider text-slate-500">
                       Kelas
                     </p>
+
                   </div>
 
                   <p className="mt-1 text-2xl font-bold text-indigo-700">
                     {totalKelas}
                   </p>
+
                 </div>
 
               </div>
 
-              {/* SEARCH + FILTER + SORT */}
+              {/* =================================================
+                  SEARCH + FILTER
+              ================================================= */}
               <div className="rounded-xl border border-slate-300 bg-white p-4 shadow-sm">
+
                 <div className="flex flex-col gap-3">
 
+                  {/* SEARCH */}
                   <div className="relative w-full">
+
                     <Search
                       size={17}
                       className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500"
@@ -859,28 +1158,37 @@ export default function AdminSiswaPage() {
                       placeholder="Cari nama, NIS, kelas, atau email..."
                       value={search}
                       onChange={(e) =>
-                        setSearch(e.target.value)
+                        setSearch(
+                          e.target.value
+                        )
                       }
                       className="w-full rounded-xl border border-slate-300 bg-slate-50 py-2.5 pl-10 pr-4 text-sm text-slate-800 outline-none transition placeholder:text-slate-500 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/30"
                     />
+
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
 
                     {/* FILTER STATUS */}
                     <select
-                      value={filterStatus}
-                      onChange={(e) =>
-                        setFilterStatus(e.target.value)
+                      value={
+                        filterStatus
                       }
-                      className="px-3 py-1.5 text-sm bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 text-slate-700 min-w-[120px] hover:border-slate-400"
+                      onChange={(e) =>
+                        setFilterStatus(
+                          e.target.value
+                        )
+                      }
+                      className="min-w-[120px] rounded-lg border border-slate-300 bg-slate-50 px-3 py-1.5 text-sm text-slate-700 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
                     >
                       <option value="semua">
                         Semua Status
                       </option>
+
                       <option value="Aktif">
                         Aktif
                       </option>
+
                       <option value="Nonaktif">
                         Nonaktif
                       </option>
@@ -891,33 +1199,43 @@ export default function AdminSiswaPage() {
                       ref={kelasRef}
                       className="relative min-w-[150px]"
                     >
+
                       <div
                         className="w-full cursor-pointer rounded-lg border border-slate-300 bg-slate-50 px-3 py-1.5 text-sm text-slate-700 outline-none transition hover:border-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30"
                         onClick={() =>
                           setIsKelasOpen(
-                            (prev) => !prev
+                            (prev) =>
+                              !prev
                           )
                         }
                       >
+
                         <div className="flex items-center gap-1">
 
                           <input
                             type="text"
                             placeholder={
-                              filterKelas === "semua"
+                              filterKelas ===
+                              "semua"
                                 ? "Semua Kelas"
                                 : filterKelas
                             }
-                            value={kelasSearch}
+                            value={
+                              kelasSearch
+                            }
                             onChange={(e) => {
                               setKelasSearch(
                                 e.target.value
                               );
 
-                              setIsKelasOpen(true);
+                              setIsKelasOpen(
+                                true
+                              );
 
                               if (
-                                e.target.value === ""
+                                e.target
+                                  .value ===
+                                ""
                               ) {
                                 setFilterKelas(
                                   "semua"
@@ -925,9 +1243,11 @@ export default function AdminSiswaPage() {
                               }
                             }}
                             onFocus={() =>
-                              setIsKelasOpen(true)
+                              setIsKelasOpen(
+                                true
+                              )
                             }
-                            className="flex-1 bg-transparent outline-none placeholder:text-slate-500 text-slate-800 min-w-[80px]"
+                            className="min-w-[80px] flex-1 bg-transparent text-slate-800 outline-none placeholder:text-slate-500"
                             autoComplete="off"
                           />
 
@@ -939,7 +1259,9 @@ export default function AdminSiswaPage() {
                                 : ""
                             }`}
                           />
+
                         </div>
+
                       </div>
 
                       {isKelasOpen && (
@@ -947,7 +1269,8 @@ export default function AdminSiswaPage() {
 
                           <li
                             className={`cursor-pointer px-3 py-2 text-sm transition hover:bg-blue-50 ${
-                              filterKelas === "semua"
+                              filterKelas ===
+                              "semua"
                                 ? "bg-blue-100 font-semibold text-blue-700"
                                 : "text-slate-700"
                             }`}
@@ -955,8 +1278,14 @@ export default function AdminSiswaPage() {
                               setFilterKelas(
                                 "semua"
                               );
-                              setKelasSearch("");
-                              setIsKelasOpen(false);
+
+                              setKelasSearch(
+                                ""
+                              );
+
+                              setIsKelasOpen(
+                                false
+                              );
                             }}
                           >
                             Semua Kelas
@@ -974,13 +1303,20 @@ export default function AdminSiswaPage() {
                                 <li
                                   key={k}
                                   className={`cursor-pointer px-3 py-2 text-sm transition hover:bg-blue-50 ${
-                                    filterKelas === k
+                                    filterKelas ===
+                                    k
                                       ? "bg-blue-100 font-semibold text-blue-700"
                                       : "text-slate-700"
                                   }`}
                                   onClick={() => {
-                                    setFilterKelas(k);
-                                    setKelasSearch("");
+                                    setFilterKelas(
+                                      k
+                                    );
+
+                                    setKelasSearch(
+                                      ""
+                                    );
+
                                     setIsKelasOpen(
                                       false
                                     );
@@ -991,18 +1327,25 @@ export default function AdminSiswaPage() {
                               )
                             )
                           )}
+
                         </ul>
                       )}
+
                     </div>
 
                     {/* SORT */}
                     <select
-                      value={sortBy}
-                      onChange={(e) =>
-                        setSortBy(e.target.value)
+                      value={
+                        sortBy
                       }
-                      className="px-3 py-1.5 text-sm bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 text-slate-700 min-w-[130px] hover:border-slate-400"
+                      onChange={(e) =>
+                        setSortBy(
+                          e.target.value
+                        )
+                      }
+                      className="min-w-[130px] rounded-lg border border-slate-300 bg-slate-50 px-3 py-1.5 text-sm text-slate-700 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
                     >
+
                       <option value="nama_asc">
                         Nama A-Z
                       </option>
@@ -1026,33 +1369,47 @@ export default function AdminSiswaPage() {
                       <option value="status">
                         Status
                       </option>
+
                     </select>
 
                     {/* RESET */}
                     <button
                       onClick={() => {
                         setSearch("");
-                        setFilterStatus("semua");
-                        setFilterKelas("semua");
-                        setKelasSearch("");
-                        setSortBy("nama_asc");
+                        setFilterStatus(
+                          "semua"
+                        );
+                        setFilterKelas(
+                          "semua"
+                        );
+                        setKelasSearch(
+                          ""
+                        );
+                        setSortBy(
+                          "nama_asc"
+                        );
                       }}
-                      className="px-3 py-1.5 text-sm text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
+                      className="rounded-lg px-3 py-1.5 text-sm text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-800"
                     >
                       Reset
                     </button>
 
-                    <span className="ml-auto text-sm text-slate-600 hidden sm:inline">
-                      {filteredByKelas.length} siswa
-                      ditemukan
+                    <span className="ml-auto hidden text-sm text-slate-600 sm:inline">
+                      {
+                        filteredByKelas.length
+                      }{" "}
+                      siswa ditemukan
                     </span>
+
                   </div>
+
                 </div>
+
               </div>
 
-              {/* =====================================================
+              {/* =================================================
                   TABLE
-              ===================================================== */}
+              ================================================= */}
               <div className="w-full overflow-hidden rounded-xl border border-slate-300 bg-white shadow-sm">
 
                 <div className="w-full overflow-x-auto">
@@ -1061,7 +1418,6 @@ export default function AdminSiswaPage() {
 
                     <thead>
 
-                      {/* HEADER TABEL BIRU */}
                       <tr className="border-b border-blue-700 bg-blue-600">
 
                         <th className="w-[6%] whitespace-nowrap px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-white">
@@ -1080,7 +1436,7 @@ export default function AdminSiswaPage() {
                           Kelas
                         </th>
 
-                        <th className="w-[17%] whitespace-nowrap px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white hidden md:table-cell">
+                        <th className="hidden w-[17%] whitespace-nowrap px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white md:table-cell">
                           Email
                         </th>
 
@@ -1101,21 +1457,28 @@ export default function AdminSiswaPage() {
                       {currentItems.map(
                         (item, index) => {
                           const rowNumber =
-                            startIndex + index + 1;
+                            startIndex +
+                            index +
+                            1;
 
                           return (
                             <tr
-                              key={item.id}
+                              key={
+                                item.id
+                              }
                               className="group transition-colors hover:bg-blue-50/50"
                             >
 
                               {/* NO */}
                               <td className="px-3 py-4 text-center text-sm font-medium text-slate-700">
-                                {rowNumber}
+                                {
+                                  rowNumber
+                                }
                               </td>
 
                               {/* PROFIL */}
                               <td className="px-3 py-4">
+
                                 <div className="flex min-w-0 items-center gap-3">
 
                                   <div
@@ -1131,43 +1494,64 @@ export default function AdminSiswaPage() {
                                   <div className="min-w-0">
 
                                     <p className="truncate text-sm font-semibold text-slate-800">
-                                      {item.nama}
+                                      {
+                                        item.nama
+                                      }
                                     </p>
 
                                     <p className="truncate text-xs text-slate-500">
-                                      {item.gender === "L"
+                                      {item.gender ===
+                                      "L"
                                         ? "Laki-laki"
                                         : "Perempuan"}{" "}
-                                      · {item.nis}
+                                      ·{" "}
+                                      {
+                                        item.nis
+                                      }
                                     </p>
 
                                   </div>
+
                                 </div>
+
                               </td>
 
                               {/* NIS */}
                               <td className="px-3 py-4">
+
                                 <span className="whitespace-nowrap text-sm text-slate-700">
-                                  {item.nis}
+                                  {
+                                    item.nis
+                                  }
                                 </span>
+
                               </td>
 
                               {/* KELAS */}
                               <td className="px-3 py-4">
+
                                 <span className="inline-flex whitespace-nowrap rounded-lg bg-indigo-100 px-2.5 py-1 text-xs font-medium text-indigo-700">
-                                  {item.kelas}
+                                  {
+                                    item.kelas
+                                  }
                                 </span>
+
                               </td>
 
                               {/* EMAIL */}
-                              <td className="px-3 py-4 hidden md:table-cell">
+                              <td className="hidden px-3 py-4 md:table-cell">
+
                                 <span className="block max-w-[200px] truncate text-sm text-slate-600">
-                                  {item.email}
+                                  {
+                                    item.email
+                                  }
                                 </span>
+
                               </td>
 
                               {/* STATUS */}
                               <td className="px-3 py-4">
+
                                 <span
                                   className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-medium ${
                                     item.status ===
@@ -1176,10 +1560,15 @@ export default function AdminSiswaPage() {
                                       : "border-rose-300 bg-rose-100 text-rose-700"
                                   }`}
                                 >
+
                                   <span className="h-1.5 w-1.5 rounded-full bg-current" />
 
-                                  {item.status}
+                                  {
+                                    item.status
+                                  }
+
                                 </span>
+
                               </td>
 
                               {/* AKSI */}
@@ -1187,6 +1576,7 @@ export default function AdminSiswaPage() {
 
                                 <div className="flex justify-end gap-1.5">
 
+                                  {/* DETAIL */}
                                   <button
                                     onClick={() =>
                                       router.push(
@@ -1196,9 +1586,14 @@ export default function AdminSiswaPage() {
                                     className="rounded-lg p-2 text-slate-500 transition-all hover:bg-blue-100 hover:text-blue-700 hover:shadow-sm"
                                     title="Lihat Profil"
                                   >
-                                    <Eye size={17} />
+                                    <Eye
+                                      size={
+                                        17
+                                      }
+                                    />
                                   </button>
 
+                                  {/* EDIT */}
                                   <button
                                     onClick={() =>
                                       router.push(
@@ -1208,9 +1603,14 @@ export default function AdminSiswaPage() {
                                     className="rounded-lg p-2 text-slate-500 transition-all hover:bg-amber-100 hover:text-amber-700 hover:shadow-sm"
                                     title="Edit"
                                   >
-                                    <Edit size={17} />
+                                    <Edit
+                                      size={
+                                        17
+                                      }
+                                    />
                                   </button>
 
+                                  {/* DELETE */}
                                   <button
                                     onClick={() =>
                                       handleDelete(
@@ -1221,7 +1621,11 @@ export default function AdminSiswaPage() {
                                     className="rounded-lg p-2 text-slate-500 transition-all hover:bg-rose-100 hover:text-rose-700 hover:shadow-sm"
                                     title="Hapus"
                                   >
-                                    <Trash2 size={17} />
+                                    <Trash2
+                                      size={
+                                        17
+                                      }
+                                    />
                                   </button>
 
                                 </div>
@@ -1234,11 +1638,14 @@ export default function AdminSiswaPage() {
                       )}
 
                     </tbody>
+
                   </table>
+
                 </div>
 
                 {/* EMPTY STATE */}
-                {currentItems.length === 0 && (
+                {currentItems.length ===
+                  0 && (
                   <div className="p-10 text-center">
 
                     <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-slate-100">
@@ -1263,32 +1670,51 @@ export default function AdminSiswaPage() {
 
                 {/* PAGINATION */}
                 {totalPages > 1 && (
-                  <div className="flex flex-col sm:flex-row items-center justify-between px-4 py-3 border-t border-slate-300 bg-slate-50 gap-3">
+                  <div className="flex flex-col items-center justify-between gap-3 border-t border-slate-300 bg-slate-50 px-4 py-3 sm:flex-row">
 
                     <div className="flex items-center gap-3 text-sm text-slate-600">
 
                       <span>
                         Menampilkan{" "}
-                        {startIndex + 1} -{" "}
-                        {endIndex} dari{" "}
-                        {totalItems} data
+                        {
+                          startIndex +
+                          1
+                        }{" "}
+                        -{" "}
+                        {endIndex}{" "}
+                        dari{" "}
+                        {
+                          totalItems
+                        }{" "}
+                        data
                       </span>
 
                       <div className="flex items-center gap-1">
 
-                        <span>Tampil</span>
+                        <span>
+                          Tampil
+                        </span>
 
                         <select
-                          value={itemsPerPage}
-                          onChange={(e) => {
+                          value={
+                            itemsPerPage
+                          }
+                          onChange={(
+                            e
+                          ) => {
                             setItemsPerPage(
                               Number(
-                                e.target.value
+                                e
+                                  .target
+                                  .value
                               )
                             );
-                            setCurrentPage(1);
+
+                            setCurrentPage(
+                              1
+                            );
                           }}
-                          className="py-1 px-2 text-sm border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/30 text-slate-700 cursor-pointer"
+                          className="cursor-pointer rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
                         >
                           <option value={10}>
                             10
@@ -1304,6 +1730,7 @@ export default function AdminSiswaPage() {
                         </select>
 
                       </div>
+
                     </div>
 
                     <div className="flex items-center gap-1">
@@ -1313,11 +1740,14 @@ export default function AdminSiswaPage() {
                         onClick={() =>
                           goToPage(1)
                         }
-                        disabled={currentPage === 1}
-                        className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-200 hover:text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent transition"
+                        disabled={
+                          currentPage ===
+                          1
+                        }
+                        className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-200 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"
                       >
                         <svg
-                          className="w-4 h-4"
+                          className="h-4 w-4"
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -1325,7 +1755,9 @@ export default function AdminSiswaPage() {
                           <path
                             strokeLinecap="round"
                             strokeLinejoin="round"
-                            strokeWidth={2}
+                            strokeWidth={
+                              2
+                            }
                             d="M11 19l-7-7 7-7m8 14l-7-7 7-7"
                           />
                         </svg>
@@ -1335,14 +1767,18 @@ export default function AdminSiswaPage() {
                       <button
                         onClick={() =>
                           goToPage(
-                            currentPage - 1
+                            currentPage -
+                              1
                           )
                         }
-                        disabled={currentPage === 1}
-                        className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-200 hover:text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent transition"
+                        disabled={
+                          currentPage ===
+                          1
+                        }
+                        className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-200 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"
                       >
                         <svg
-                          className="w-4 h-4"
+                          className="h-4 w-4"
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -1350,7 +1786,9 @@ export default function AdminSiswaPage() {
                           <path
                             strokeLinecap="round"
                             strokeLinejoin="round"
-                            strokeWidth={2}
+                            strokeWidth={
+                              2
+                            }
                             d="M15 19l-7-7 7-7"
                           />
                         </svg>
@@ -1359,25 +1797,36 @@ export default function AdminSiswaPage() {
                       {/* PAGE NUMBERS */}
                       {Array.from(
                         {
-                          length: Math.min(
-                            5,
-                            totalPages
-                          ),
+                          length:
+                            Math.min(
+                              5,
+                              totalPages
+                            ),
                         },
-                        (_, i) => {
+                        (
+                          _,
+                          i
+                        ) => {
                           let pageNumber;
 
                           if (
-                            totalPages <= 5
+                            totalPages <=
+                            5
                           ) {
-                            pageNumber = i + 1;
+                            pageNumber =
+                              i +
+                              1;
                           } else if (
-                            currentPage <= 3
+                            currentPage <=
+                            3
                           ) {
-                            pageNumber = i + 1;
+                            pageNumber =
+                              i +
+                              1;
                           } else if (
                             currentPage >=
-                            totalPages - 2
+                            totalPages -
+                              2
                           ) {
                             pageNumber =
                               totalPages -
@@ -1392,20 +1841,24 @@ export default function AdminSiswaPage() {
 
                           return (
                             <button
-                              key={pageNumber}
+                              key={
+                                pageNumber
+                              }
                               onClick={() =>
                                 goToPage(
                                   pageNumber
                                 )
                               }
-                              className={`w-8 h-8 rounded-lg text-sm font-medium transition ${
+                              className={`h-8 w-8 rounded-lg text-sm font-medium transition ${
                                 currentPage ===
                                 pageNumber
                                   ? "bg-blue-600 text-white"
                                   : "text-slate-700 hover:bg-slate-200"
                               }`}
                             >
-                              {pageNumber}
+                              {
+                                pageNumber
+                              }
                             </button>
                           );
                         }
@@ -1415,17 +1868,18 @@ export default function AdminSiswaPage() {
                       <button
                         onClick={() =>
                           goToPage(
-                            currentPage + 1
+                            currentPage +
+                              1
                           )
                         }
                         disabled={
                           currentPage ===
                           totalPages
                         }
-                        className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-200 hover:text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent transition"
+                        className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-200 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"
                       >
                         <svg
-                          className="w-4 h-4"
+                          className="h-4 w-4"
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -1433,7 +1887,9 @@ export default function AdminSiswaPage() {
                           <path
                             strokeLinecap="round"
                             strokeLinejoin="round"
-                            strokeWidth={2}
+                            strokeWidth={
+                              2
+                            }
                             d="M9 5l7 7-7 7"
                           />
                         </svg>
@@ -1442,16 +1898,18 @@ export default function AdminSiswaPage() {
                       {/* LAST */}
                       <button
                         onClick={() =>
-                          goToPage(totalPages)
+                          goToPage(
+                            totalPages
+                          )
                         }
                         disabled={
                           currentPage ===
                           totalPages
                         }
-                        className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-200 hover:text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent transition"
+                        className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-200 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"
                       >
                         <svg
-                          className="w-4 h-4"
+                          className="h-4 w-4"
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -1459,15 +1917,19 @@ export default function AdminSiswaPage() {
                           <path
                             strokeLinecap="round"
                             strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M13 5l7 7-7 7M5 5l7 7-7 7"
+                            strokeWidth={
+                              2
+                            }
+                            d="M13 5l7 7-7 7"
                           />
                         </svg>
                       </button>
 
                     </div>
+
                   </div>
                 )}
+
               </div>
 
               {/* FOOTER */}
@@ -1476,121 +1938,92 @@ export default function AdminSiswaPage() {
               </footer>
 
             </div>
+
           </div>
+
         </main>
+
       </div>
 
       {/* =====================================================
-          MODAL TAMBAH SISWA
+          POPUP HAPUS SISWA
       ===================================================== */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+      {deleteModal.open && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
+          onClick={closeDeleteModal}
+        >
 
-          <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
+          <div
+            className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl"
+            onClick={(e) =>
+              e.stopPropagation()
+            }
+          >
 
-            <div className="border-b border-slate-200 p-6">
+            {/* ICON + TEXT */}
+            <div className="p-6 text-center">
 
-              <div className="text-center">
-
-                <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-blue-100 text-blue-700">
-                  <UserPlus size={28} />
-                </div>
-
-                <h3 className="text-xl font-bold text-slate-800">
-                  Tambah Siswa
-                </h3>
-
-                <p className="mt-1 text-sm text-slate-500">
-                  Pilih metode penambahan siswa
-                </p>
-
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-rose-100">
+                <AlertTriangle
+                  size={30}
+                  className="text-rose-600"
+                />
               </div>
+
+              <h3 className="text-xl font-bold text-slate-800">
+                Hapus Data Siswa?
+              </h3>
+
+              <p className="mt-2 text-sm leading-relaxed text-slate-500">
+                Apakah kamu yakin ingin
+                menghapus data siswa
+                <br />
+
+                <span className="font-semibold text-slate-800">
+                  "{deleteModal.nama}"
+                </span>
+                ?
+              </p>
+
+              <p className="mt-3 text-xs text-rose-500">
+                Data yang sudah dihapus
+                tidak dapat dikembalikan.
+              </p>
+
             </div>
 
-            <div className="space-y-3 p-6">
+            {/* BUTTON */}
+            <div className="flex gap-3 border-t border-slate-200 bg-slate-50 p-4">
 
-              {/* FORM BIASA */}
               <button
-                onClick={() => {
-                  setShowModal(false);
-                  router.push(
-                    "/admin/siswa/tambah?mode=form"
-                  );
-                }}
-                className="group flex w-full items-center gap-4 rounded-xl border border-slate-300 p-4 text-left transition-all hover:border-blue-400 hover:bg-blue-50/50"
-              >
-
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-700 transition group-hover:bg-blue-200">
-                  <User size={20} />
-                </div>
-
-                <div className="min-w-0 flex-1">
-
-                  <p className="font-semibold text-slate-700">
-                    Form Biasa
-                  </p>
-
-                  <p className="mt-0.5 text-xs text-slate-500">
-                    Isi data siswa secara manual
-                  </p>
-
-                </div>
-
-                <ChevronRight
-                  size={18}
-                  className="shrink-0 text-slate-400 transition group-hover:text-blue-600"
-                />
-
-              </button>
-
-              {/* IMPORT */}
-              <button
-                onClick={() => {
-                  setShowModal(false);
-                  router.push(
-                    "/admin/siswa/tambah?mode=import"
-                  );
-                }}
-                className="group flex w-full items-center gap-4 rounded-xl border border-slate-300 p-4 text-left transition-all hover:border-indigo-400 hover:bg-indigo-50/50"
-              >
-
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-100 text-indigo-700 transition group-hover:bg-indigo-200">
-                  <Upload size={20} />
-                </div>
-
-                <div className="min-w-0 flex-1">
-
-                  <p className="font-semibold text-slate-700">
-                    Import Data
-                  </p>
-
-                  <p className="mt-0.5 text-xs text-slate-500">
-                    Upload file Excel atau CSV
-                  </p>
-
-                </div>
-
-                <ChevronRight
-                  size={18}
-                  className="shrink-0 text-slate-400 transition group-hover:text-indigo-600"
-                />
-
-              </button>
-
-              {/* BATAL */}
-              <button
-                onClick={() =>
-                  setShowModal(false)
+                onClick={
+                  closeDeleteModal
                 }
-                className="mt-1 w-full rounded-xl py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-800"
+                className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
               >
                 Batal
               </button>
 
+              <button
+                onClick={
+                  confirmDelete
+                }
+                className="flex-1 rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-rose-700"
+              >
+                <span className="flex items-center justify-center gap-2">
+                  <Trash2 size={16} />
+                  Hapus
+                </span>
+              </button>
+
             </div>
+
           </div>
+
         </div>
       )}
+
     </div>
   );
 }
