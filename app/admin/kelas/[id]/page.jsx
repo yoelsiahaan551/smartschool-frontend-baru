@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
+
 import Header from "../../../components/Header";
 import Sidebar from "../../../components/Sidebar";
 
@@ -20,11 +21,11 @@ import {
   Check,
   Clock3,
   School,
+  Loader2,
+  AlertCircle,
 } from "lucide-react";
 
-const STORAGE_KEY = "kelas_data";
-const GURU_STORAGE = "guru_data";
-const MAPEL_STORAGE = "mapel_data";
+import { getKelasById } from "../../../../services/kelas.service";
 
 const HARI_LIST = [
   "Senin",
@@ -35,70 +36,27 @@ const HARI_LIST = [
   "Sabtu",
 ];
 
-// =========================================================
-// LOAD DATA
-// =========================================================
-
-const loadKelas = () => {
-  if (typeof window === "undefined") return [];
-
-  const stored = localStorage.getItem(STORAGE_KEY);
-
-  try {
-    return stored ? JSON.parse(stored) : [];
-  } catch {
-    return [];
-  }
-};
-
-const loadGuru = () => {
-  if (typeof window === "undefined") return [];
-
-  const stored = localStorage.getItem(GURU_STORAGE);
-
-  try {
-    return stored ? JSON.parse(stored) : [];
-  } catch {
-    return [];
-  }
-};
-
-const loadMapel = () => {
-  if (typeof window === "undefined") return [];
-
-  const stored = localStorage.getItem(MAPEL_STORAGE);
-
-  try {
-    return stored ? JSON.parse(stored) : [];
-  } catch {
-    return [];
-  }
-};
-
-const saveKelas = (data) => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-};
-
-// =========================================================
-// MAIN COMPONENT
-// =========================================================
-
 export default function DetailKelasPage() {
   const router = useRouter();
   const params = useParams();
 
-  const id = Number(params.id);
+  // UUID jangan menggunakan Number()
+  const id = params?.id;
 
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [kelas, setKelas] = useState(null);
 
-  const [guruList, setGuruList] = useState([]);
-  const [mapelList, setMapelList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   const [activeTab, setActiveTab] = useState("kelas");
 
   const [jadwal, setJadwal] = useState([]);
+
   const [showAddJadwal, setShowAddJadwal] = useState(false);
+
+  const [guruList, setGuruList] = useState([]);
+  const [mapelList, setMapelList] = useState([]);
 
   const [newJadwal, setNewJadwal] = useState({
     hari: "Senin",
@@ -110,34 +68,122 @@ export default function DetailKelasPage() {
   });
 
   // =========================================================
-  // LOAD
+  // LOAD DETAIL KELAS
   // =========================================================
 
   useEffect(() => {
-    const dataKelas = loadKelas();
+    if (!id) return;
 
-    const found = dataKelas.find((k) => Number(k.id) === id);
+    async function loadDetail() {
+      try {
+        setLoading(true);
+        setError("");
 
-    if (found) {
-      setKelas(found);
-      setJadwal(found.jadwal || []);
-    } else {
-      alert("Kelas tidak ditemukan!");
-      router.push("/admin/kelas");
-      return;
+        const response = await getKelasById(id);
+
+        const data = response?.data || response;
+
+        if (!data) {
+          throw new Error("Data kelas tidak ditemukan.");
+        }
+
+        // =====================================================
+        // NORMALISASI DATA ANGGOTA
+        // =====================================================
+
+        const anggota = Array.isArray(data?.anggota)
+          ? data.anggota
+          : Array.isArray(data?.data?.anggota)
+          ? data.data.anggota
+          : Array.isArray(data?.siswa)
+          ? data.siswa
+          : Array.isArray(data?.data?.siswa)
+          ? data.data.siswa
+          : [];
+
+        console.log("=================================");
+        console.log("DETAIL KELAS:", data);
+        console.log("ANGGOTA SISWA:", anggota);
+        console.log(
+          "DETAIL KELAS FULL:",
+          JSON.stringify(data, null, 2)
+        );
+        console.log(
+          "ANGGOTA FULL:",
+          JSON.stringify(anggota, null, 2)
+        );
+        console.log("=================================");
+
+        // Simpan data kelas + anggota hasil normalisasi
+        setKelas({
+          ...data,
+          anggota,
+        });
+
+        setJadwal(
+          Array.isArray(data?.jadwal)
+            ? data.jadwal
+            : []
+        );
+      } catch (err) {
+        console.error(
+          "Gagal mengambil detail kelas:",
+          err
+        );
+
+        setError(
+          err?.message ||
+            "Gagal mengambil data kelas."
+        );
+      } finally {
+        setLoading(false);
+      }
     }
 
-    setGuruList(loadGuru());
-    setMapelList(loadMapel());
-  }, [id, router]);
+    loadDetail();
+  }, [id]);
 
   // =========================================================
-  // ADD JADWAL
+  // DATA GURU & MAPEL
+  // =========================================================
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    try {
+      const guru = localStorage.getItem("guru_data");
+      const mapel = localStorage.getItem("mapel_data");
+
+      setGuruList(
+        guru ? JSON.parse(guru) : []
+      );
+
+      setMapelList(
+        mapel ? JSON.parse(mapel) : []
+      );
+    } catch (err) {
+      console.error(
+        "Gagal membaca guru/mapel:",
+        err
+      );
+
+      setGuruList([]);
+      setMapelList([]);
+    }
+  }, []);
+
+  // =========================================================
+  // TAMBAH JADWAL
   // =========================================================
 
   const handleAddJadwal = () => {
-    if (!newJadwal.mapel || !newJadwal.guru) {
-      alert("Mata pelajaran dan guru wajib diisi!");
+    if (
+      !newJadwal.mapel ||
+      !newJadwal.guru
+    ) {
+      alert(
+        "Mata pelajaran dan guru wajib diisi!"
+      );
       return;
     }
 
@@ -146,20 +192,12 @@ export default function DetailKelasPage() {
       ...newJadwal,
     };
 
-    const updatedJadwal = [...jadwal, newEntry];
+    const updated = [
+      ...jadwal,
+      newEntry,
+    ];
 
-    setJadwal(updatedJadwal);
-
-    const dataKelas = loadKelas();
-
-    const index = dataKelas.findIndex(
-      (k) => Number(k.id) === id
-    );
-
-    if (index !== -1) {
-      dataKelas[index].jadwal = updatedJadwal;
-      saveKelas(dataKelas);
-    }
+    setJadwal(updated);
 
     setNewJadwal({
       hari: "Senin",
@@ -178,38 +216,32 @@ export default function DetailKelasPage() {
   // =========================================================
 
   const handleDeleteJadwal = (jadwalId) => {
-    if (!confirm("Hapus jadwal ini?")) return;
-
-    const updated = jadwal.filter(
-      (j) => j.id !== jadwalId
-    );
-
-    setJadwal(updated);
-
-    const dataKelas = loadKelas();
-
-    const index = dataKelas.findIndex(
-      (k) => Number(k.id) === id
-    );
-
-    if (index !== -1) {
-      dataKelas[index].jadwal = updated;
-      saveKelas(dataKelas);
+    if (
+      !confirm("Hapus jadwal ini?")
+    ) {
+      return;
     }
+
+    setJadwal((prev) =>
+      prev.filter(
+        (item) =>
+          item.id !== jadwalId
+      )
+    );
   };
 
   // =========================================================
-  // COUNT JAM GURU
+  // HITUNG JAM GURU
   // =========================================================
 
   const countJamPerGuru = () => {
     const counts = {};
 
-    jadwal.forEach((j) => {
-      if (j.guru) {
-        counts[j.guru] =
-          (counts[j.guru] || 0) + 1;
-      }
+    jadwal.forEach((item) => {
+      if (!item.guru) return;
+
+      counts[item.guru] =
+        (counts[item.guru] || 0) + 1;
     });
 
     return counts;
@@ -218,31 +250,217 @@ export default function DetailKelasPage() {
   const jamPerGuru = countJamPerGuru();
 
   // =========================================================
-  // GURU LABEL
+  // LABEL GURU
   // =========================================================
 
-  const getGuruLabel = (nama) => {
+  const getGuruLabel = (value) => {
     const found = guruList.find(
-      (g) =>
-        g.nama === nama ||
-        g.id === Number(nama)
+      (guru) =>
+        guru.nama === value ||
+        String(guru.id) === String(value)
     );
 
-    return found ? found.nama : nama;
+    return found
+      ? found.nama
+      : value || "-";
+  };
+
+  // =========================================================
+  // JUMLAH SISWA
+  // =========================================================
+
+  const jumlahSiswa = Array.isArray(
+    kelas?.anggota
+  )
+    ? kelas.anggota.length
+    : Number(
+        kelas?._count?.anggota ??
+          kelas?.jumlahSiswa ??
+          kelas?.jumlah_siswa ??
+          0
+      );
+
+  // =========================================================
+  // DATA ANGGOTA SISWA
+  // =========================================================
+
+  const daftarSiswa = Array.isArray(
+    kelas?.anggota
+  )
+    ? kelas.anggota
+    : [];
+
+  // =========================================================
+  // AMBIL DATA SISWA
+  // =========================================================
+
+  const getSiswaData = (anggota) => {
+    return (
+      anggota?.siswa ||
+      anggota?.murid ||
+      anggota?.pengguna ||
+      anggota?.data?.siswa ||
+      anggota?.data?.murid ||
+      anggota?.data?.pengguna ||
+      anggota ||
+      {}
+    );
+  };
+
+  // =========================================================
+  // NAMA SISWA
+  // =========================================================
+
+  const getNamaSiswa = (anggota) => {
+    const siswa = getSiswaData(anggota);
+
+    return (
+      siswa?.namaLengkap ||
+      siswa?.nama_lengkap ||
+      siswa?.nama ||
+      siswa?.name ||
+      anggota?.namaLengkap ||
+      anggota?.nama_lengkap ||
+      anggota?.nama ||
+      "-"
+    );
+  };
+
+  // =========================================================
+  // NIS
+  // =========================================================
+
+  const getNisSiswa = (anggota) => {
+    const siswa = getSiswaData(anggota);
+
+    return (
+      siswa?.nis ||
+      siswa?.NIS ||
+      siswa?.nomorInduk ||
+      siswa?.nomor_induk ||
+      anggota?.nis ||
+      anggota?.NIS ||
+      "-"
+    );
+  };
+
+  // =========================================================
+  // NISN
+  // =========================================================
+
+  const getNisnSiswa = (anggota) => {
+    const siswa = getSiswaData(anggota);
+
+    return (
+      siswa?.nisn ||
+      siswa?.NISN ||
+      anggota?.nisn ||
+      anggota?.NISN ||
+      "-"
+    );
   };
 
   // =========================================================
   // LOADING
   // =========================================================
 
-  if (!kelas) {
+  if (loading) {
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-[#F4F7FB]">
-        <div className="text-center">
-          <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-[#2563EB]" />
-          <p className="text-sm font-medium text-slate-500">
-            Memuat data kelas...
-          </p>
+      <div className="flex h-screen w-full overflow-hidden bg-[#F4F7FB]">
+        <Sidebar
+          active="kelas"
+          setActive={() => {}}
+          collapsed={isCollapsed}
+          setCollapsed={setIsCollapsed}
+        />
+
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          <Header
+            toggleSidebar={() =>
+              setIsCollapsed((prev) => !prev)
+            }
+            notifications={[]}
+            user={{
+              name: "Admin Sekolah",
+              email: "admin@smartschool.com",
+              avatar: "AD",
+            }}
+          />
+
+          <main className="flex min-h-0 flex-1 items-center justify-center">
+            <div className="flex flex-col items-center gap-3">
+              <Loader2
+                size={28}
+                className="animate-spin text-[#2563EB]"
+              />
+
+              <p className="text-sm font-medium text-slate-500">
+                Memuat data kelas...
+              </p>
+            </div>
+          </main>
+        </div>
+      </div>
+    );
+  }
+
+  // =========================================================
+  // ERROR
+  // =========================================================
+
+  if (error || !kelas) {
+    return (
+      <div className="flex h-screen w-full overflow-hidden bg-[#F4F7FB]">
+        <Sidebar
+          active="kelas"
+          setActive={() => {}}
+          collapsed={isCollapsed}
+          setCollapsed={setIsCollapsed}
+        />
+
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          <Header
+            toggleSidebar={() =>
+              setIsCollapsed((prev) => !prev)
+            }
+            notifications={[]}
+            user={{
+              name: "Admin Sekolah",
+              email: "admin@smartschool.com",
+              avatar: "AD",
+            }}
+          />
+
+          <main className="flex min-h-0 flex-1 items-center justify-center overflow-y-auto p-5">
+            <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-7 text-center shadow-sm">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-50">
+                <AlertCircle
+                  size={28}
+                  className="text-rose-500"
+                />
+              </div>
+
+              <h2 className="mt-4 text-lg font-bold text-slate-800">
+                Gagal Memuat Kelas
+              </h2>
+
+              <p className="mt-2 text-sm leading-6 text-slate-500">
+                {error ||
+                  "Data kelas tidak ditemukan."}
+              </p>
+
+              <button
+                type="button"
+                onClick={() =>
+                  router.push("/admin/kelas")
+                }
+                className="mt-6 inline-flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+              >
+                <ArrowLeft size={16} />
+                Kembali
+              </button>
+            </div>
+          </main>
         </div>
       </div>
     );
@@ -255,9 +473,7 @@ export default function DetailKelasPage() {
   return (
     <div className="flex h-screen w-full overflow-hidden bg-[#F4F7FB]">
 
-      {/* =====================================================
-          SIDEBAR
-      ===================================================== */}
+      {/* SIDEBAR */}
 
       <Sidebar
         active="kelas"
@@ -266,9 +482,7 @@ export default function DetailKelasPage() {
         setCollapsed={setIsCollapsed}
       />
 
-      {/* =====================================================
-          MAIN WRAPPER
-      ===================================================== */}
+      {/* MAIN */}
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
 
@@ -276,7 +490,7 @@ export default function DetailKelasPage() {
 
         <Header
           toggleSidebar={() =>
-            setIsCollapsed(!isCollapsed)
+            setIsCollapsed((prev) => !prev)
           }
           notifications={[]}
           user={{
@@ -286,29 +500,27 @@ export default function DetailKelasPage() {
           }}
         />
 
-        {/* ===================================================
-            MAIN CONTENT
-        =================================================== */}
+        {/* CONTENT */}
 
         <main className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden">
-
           <div className="w-full px-4 py-5 sm:px-5 md:px-7 lg:px-8 xl:px-10">
-
             <div className="mx-auto w-full max-w-[1600px] space-y-6">
 
-              {/* =================================================
-                  PAGE HEADER
-              ================================================= */}
+              {/* HEADER */}
 
               <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
 
                 <div className="min-w-0">
 
                   <button
-                    onClick={() => router.back()}
+                    type="button"
+                    onClick={() =>
+                      router.push("/admin/kelas")
+                    }
                     className="mb-3 inline-flex items-center gap-2 text-sm font-medium text-slate-500 transition hover:text-[#1E3A8A]"
                   >
                     <ArrowLeft size={17} />
+
                     <span>
                       Kembali ke Daftar Kelas
                     </span>
@@ -320,12 +532,20 @@ export default function DetailKelasPage() {
                       {kelas.nama}
                     </h1>
 
-                    <span className="inline-flex items-center border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-[#1E3A8A]">
-                      {kelas.jenjang}
+                    <span className="inline-flex items-center rounded-lg border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-[#1E3A8A]">
+                      {kelas.tingkat
+                        ? kelas.tingkat === 10
+                          ? "X"
+                          : kelas.tingkat === 11
+                          ? "XI"
+                          : kelas.tingkat === 12
+                          ? "XII"
+                          : kelas.tingkat
+                        : "-"}
                     </span>
 
                     <span
-                      className={`inline-flex items-center gap-1.5 border px-3 py-1 text-xs font-semibold ${
+                      className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1 text-xs font-semibold ${
                         kelas.status === "aktif"
                           ? "border-emerald-200 bg-emerald-50 text-emerald-700"
                           : "border-rose-200 bg-rose-50 text-rose-700"
@@ -343,22 +563,23 @@ export default function DetailKelasPage() {
                         ? "Aktif"
                         : "Nonaktif"}
                     </span>
-
                   </div>
 
                   <p className="mt-1 text-sm text-slate-500">
                     Informasi detail dan pengelolaan kelas
                   </p>
-
                 </div>
 
+                {/* EDIT */}
+
                 <button
+                  type="button"
                   onClick={() =>
                     router.push(
                       `/admin/kelas/edit/${kelas.id}`
                     )
                   }
-                  className="inline-flex shrink-0 items-center justify-center gap-2 border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-[#2563EB] hover:bg-blue-50 hover:text-[#1E3A8A]"
+                  className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-[#2563EB] hover:bg-blue-50 hover:text-[#1E3A8A]"
                 >
                   <Edit size={16} />
                   Edit Kelas
@@ -366,19 +587,16 @@ export default function DetailKelasPage() {
 
               </div>
 
-              {/* =================================================
-                  OVERVIEW CARD
-              ================================================= */}
+              {/* OVERVIEW */}
 
-              <section className="overflow-hidden border border-slate-200 bg-white shadow-sm">
+              <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
 
                 <div className="grid grid-cols-1 divide-y divide-slate-100 sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-4">
 
-                  {/* WALI KELAS */}
+                  {/* WALI */}
 
                   <div className="flex min-w-0 items-center gap-4 p-5">
-
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center bg-blue-50 text-[#2563EB]">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#2563EB]">
                       <GraduationCap size={20} />
                     </div>
 
@@ -388,17 +606,17 @@ export default function DetailKelasPage() {
                       </p>
 
                       <p className="truncate text-sm font-semibold text-[#0F172A]">
-                        {kelas.wali_kelas || "-"}
+                        {kelas.waliKelas?.namaLengkap ||
+                          kelas.waliKelas?.nama ||
+                          "-"}
                       </p>
                     </div>
-
                   </div>
 
-                  {/* TAHUN AJARAN */}
+                  {/* TAHUN */}
 
                   <div className="flex min-w-0 items-center gap-4 p-5">
-
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center bg-blue-50 text-[#2563EB]">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#2563EB]">
                       <Calendar size={19} />
                     </div>
 
@@ -408,17 +626,23 @@ export default function DetailKelasPage() {
                       </p>
 
                       <p className="truncate text-sm font-semibold text-[#0F172A]">
-                        {kelas.tahun_ajaran || "-"}
+                        {kelas.tahunAjaran?.nama ||
+                          "-"}
                       </p>
-                    </div>
 
+                      {kelas.tahunAjaran?.semester && (
+                        <p className="mt-0.5 text-xs text-slate-400">
+                          Semester{" "}
+                          {kelas.tahunAjaran.semester}
+                        </p>
+                      )}
+                    </div>
                   </div>
 
                   {/* JUMLAH SISWA */}
 
                   <div className="flex min-w-0 items-center gap-4 p-5">
-
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center bg-blue-50 text-[#2563EB]">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#2563EB]">
                       <Users size={19} />
                     </div>
 
@@ -428,47 +652,42 @@ export default function DetailKelasPage() {
                       </p>
 
                       <p className="truncate text-sm font-semibold text-[#0F172A]">
-                        {kelas.jumlah_siswa || 0} siswa
+                        {jumlahSiswa} siswa
                       </p>
                     </div>
-
                   </div>
 
-                  {/* RUANGAN */}
+                  {/* KAPASITAS */}
 
                   <div className="flex min-w-0 items-center gap-4 p-5">
-
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center bg-blue-50 text-[#2563EB]">
-                      <MapPin size={19} />
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#2563EB]">
+                      <Users size={19} />
                     </div>
 
                     <div className="min-w-0">
                       <p className="mb-1 text-xs font-medium text-slate-400">
-                        Ruangan
+                        Kapasitas
                       </p>
 
                       <p className="truncate text-sm font-semibold text-[#0F172A]">
-                        {kelas.ruangan || "-"}
+                        {kelas.kapasitas ?? 0} siswa
                       </p>
                     </div>
-
                   </div>
 
                 </div>
-
               </section>
 
-              {/* =================================================
-                  TABS
-              ================================================= */}
+              {/* TABS */}
 
               <div className="border-b border-slate-200">
-
                 <div className="overflow-x-auto">
-
                   <nav className="flex min-w-max gap-1">
 
+                    {/* INFORMASI */}
+
                     <button
+                      type="button"
                       onClick={() =>
                         setActiveTab("kelas")
                       }
@@ -482,7 +701,27 @@ export default function DetailKelasPage() {
                       Informasi Kelas
                     </button>
 
+                    {/* SISWA */}
+
                     <button
+                      type="button"
+                      onClick={() =>
+                        setActiveTab("siswa")
+                      }
+                      className={`inline-flex items-center gap-2 border-b-2 px-5 py-3 text-sm font-semibold transition ${
+                        activeTab === "siswa"
+                          ? "border-[#2563EB] text-[#1E3A8A]"
+                          : "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700"
+                      }`}
+                    >
+                      <Users size={16} />
+                      Siswa
+                    </button>
+
+                    {/* GURU */}
+
+                    <button
+                      type="button"
                       onClick={() =>
                         setActiveTab("guru")
                       }
@@ -496,7 +735,10 @@ export default function DetailKelasPage() {
                       Guru / Wali Kelas
                     </button>
 
+                    {/* JADWAL */}
+
                     <button
+                      type="button"
                       onClick={() =>
                         setActiveTab("jadwal")
                       }
@@ -511,16 +753,12 @@ export default function DetailKelasPage() {
                     </button>
 
                   </nav>
-
                 </div>
-
               </div>
 
-              {/* =================================================
-                  TAB CONTENT
-              ================================================= */}
+              {/* CONTENT CARD */}
 
-              <section className="min-w-0 overflow-hidden border border-slate-200 bg-white shadow-sm">
+              <section className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
 
                 {/* =================================================
                     TAB KELAS
@@ -530,7 +768,6 @@ export default function DetailKelasPage() {
                   <div>
 
                     <div className="border-b border-slate-100 px-5 py-5 sm:px-6">
-
                       <h2 className="text-base font-bold text-[#0F172A]">
                         Informasi Kelas
                       </h2>
@@ -538,53 +775,121 @@ export default function DetailKelasPage() {
                       <p className="mt-1 text-sm text-slate-500">
                         Detail informasi kelas yang sedang dipilih.
                       </p>
-
                     </div>
 
-                    <div className="grid grid-cols-1 gap-x-8 gap-y-0 md:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-x-8 md:grid-cols-2">
 
-                      {[
-                        ["Nama Kelas", kelas.nama],
-                        ["Jenjang", kelas.jenjang],
-                        [
-                          "Tahun Ajaran",
-                          kelas.tahun_ajaran || "-",
-                        ],
-                        [
-                          "Wali Kelas",
-                          kelas.wali_kelas || "-",
-                        ],
-                        [
-                          "Jumlah Siswa",
-                          kelas.jumlah_siswa || 0,
-                        ],
-                        [
-                          "Ruangan",
-                          kelas.ruangan || "-",
-                        ],
-                      ].map(([label, value]) => (
-                        <div
-                          key={label}
-                          className="border-b border-slate-100 px-5 py-5 sm:px-6"
-                        >
-                          <p className="mb-1.5 text-xs font-medium text-slate-400">
-                            {label}
+                      {/* NAMA */}
+
+                      <div className="border-b border-slate-100 px-5 py-5 sm:px-6">
+                        <p className="mb-1.5 text-xs font-medium text-slate-400">
+                          Nama Kelas
+                        </p>
+
+                        <p className="text-sm font-semibold text-[#0F172A]">
+                          {kelas.nama || "-"}
+                        </p>
+                      </div>
+
+                      {/* TINGKAT */}
+
+                      <div className="border-b border-slate-100 px-5 py-5 sm:px-6">
+                        <p className="mb-1.5 text-xs font-medium text-slate-400">
+                          Tingkat
+                        </p>
+
+                        <p className="text-sm font-semibold text-[#0F172A]">
+                          {kelas.tingkat === 10
+                            ? "X (Sepuluh)"
+                            : kelas.tingkat === 11
+                            ? "XI (Sebelas)"
+                            : kelas.tingkat === 12
+                            ? "XII (Dua Belas)"
+                            : kelas.tingkat ?? "-"}
+                        </p>
+                      </div>
+
+                      {/* TAHUN */}
+
+                      <div className="border-b border-slate-100 px-5 py-5 sm:px-6">
+                        <p className="mb-1.5 text-xs font-medium text-slate-400">
+                          Tahun Ajaran
+                        </p>
+
+                        <p className="text-sm font-semibold text-[#0F172A]">
+                          {kelas.tahunAjaran?.nama ||
+                            "-"}
+                        </p>
+
+                        {kelas.tahunAjaran?.semester && (
+                          <p className="mt-1 text-xs text-slate-400">
+                            Semester{" "}
+                            {kelas.tahunAjaran.semester}
                           </p>
+                        )}
+                      </div>
 
-                          <p className="text-sm font-semibold text-[#0F172A]">
-                            {value}
-                          </p>
-                        </div>
-                      ))}
+                      {/* WALI */}
 
-                      <div className="border-b border-slate-100 px-5 py-5 sm:px-6 md:col-span-2">
+                      <div className="border-b border-slate-100 px-5 py-5 sm:px-6">
+                        <p className="mb-1.5 text-xs font-medium text-slate-400">
+                          Wali Kelas
+                        </p>
 
+                        <p className="text-sm font-semibold text-[#0F172A]">
+                          {kelas.waliKelas?.namaLengkap ||
+                            kelas.waliKelas?.nama ||
+                            "-"}
+                        </p>
+                      </div>
+
+                      {/* JUMLAH SISWA */}
+
+                      <div className="border-b border-slate-100 px-5 py-5 sm:px-6">
+                        <p className="mb-1.5 text-xs font-medium text-slate-400">
+                          Jumlah Siswa
+                        </p>
+
+                        <p className="text-sm font-semibold text-[#0F172A]">
+                          {jumlahSiswa} siswa
+                        </p>
+                      </div>
+
+                      {/* KAPASITAS */}
+
+                      <div className="border-b border-slate-100 px-5 py-5 sm:px-6">
+                        <p className="mb-1.5 text-xs font-medium text-slate-400">
+                          Kapasitas Kelas
+                        </p>
+
+                        <p className="text-sm font-semibold text-[#0F172A]">
+                          {kelas.kapasitas ?? 0} siswa
+                        </p>
+                      </div>
+
+                      {/* GEDUNG / RUANGAN */}
+
+                      <div className="border-b border-slate-100 px-5 py-5 sm:px-6">
+                        <p className="mb-1.5 text-xs font-medium text-slate-400">
+                          Ruangan
+                        </p>
+
+                        <p className="text-sm font-semibold text-[#0F172A]">
+                          {kelas.lantai?.gedung?.nama ||
+                            kelas.lantai?.nama ||
+                            "-"}
+                        </p>
+                      </div>
+
+                      {/* STATUS */}
+
+                      <div className="border-b border-slate-100 px-5 py-5 sm:px-6">
                         <p className="mb-2 text-xs font-medium text-slate-400">
                           Status Kelas
                         </p>
 
                         <span
-                          className={`inline-flex items-center gap-2 border px-3 py-1.5 text-xs font-semibold ${
+                          className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold ${
                             kelas.status === "aktif"
                               ? "border-emerald-200 bg-emerald-50 text-emerald-700"
                               : "border-rose-200 bg-rose-50 text-rose-700"
@@ -602,10 +907,228 @@ export default function DetailKelasPage() {
                             ? "Kelas Aktif"
                             : "Kelas Nonaktif"}
                         </span>
-
                       </div>
 
                     </div>
+                  </div>
+                )}
+
+                {/* =================================================
+                    TAB SISWA
+                ================================================= */}
+
+                {activeTab === "siswa" && (
+                  <div>
+
+                    {/* HEADER */}
+
+                    <div className="flex flex-col gap-3 border-b border-slate-100 px-5 py-5 sm:px-6 sm:flex-row sm:items-center sm:justify-between">
+
+                      <div>
+                        <h2 className="text-base font-bold text-[#0F172A]">
+                          Daftar Siswa
+                        </h2>
+
+                        <p className="mt-1 text-sm text-slate-500">
+                          Daftar siswa yang terdaftar di kelas{" "}
+                          <span className="font-medium text-slate-700">
+                            {kelas.nama}
+                          </span>
+                          .
+                        </p>
+                      </div>
+
+                      <div className="inline-flex w-fit shrink-0 items-center gap-2 rounded-lg bg-blue-50 px-3 py-2 text-sm font-semibold text-[#1E3A8A]">
+                        <Users size={16} />
+                        {jumlahSiswa} Siswa
+                      </div>
+
+                    </div>
+
+                    {/* TABLE */}
+
+                    <div className="w-full overflow-x-auto">
+
+                      <table className="w-full min-w-[700px] text-sm">
+
+                        <thead>
+                          <tr className="border-b border-slate-200 bg-slate-50/80">
+
+                            <th className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                              No
+                            </th>
+
+                            <th className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                              Nama Siswa
+                            </th>
+
+                            <th className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                              NIS
+                            </th>
+
+                            <th className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                              NISN
+                            </th>
+
+                            <th className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                              Status
+                            </th>
+
+                          </tr>
+                        </thead>
+
+                        <tbody>
+
+                          {daftarSiswa.length > 0 ? (
+                            daftarSiswa.map(
+                              (anggota, index) => {
+                                const siswa =
+                                  getSiswaData(
+                                    anggota
+                                  );
+
+                                const nama =
+                                  getNamaSiswa(
+                                    anggota
+                                  );
+
+                                const initial =
+                                  nama !== "-"
+                                    ? nama
+                                        .charAt(0)
+                                        .toUpperCase()
+                                    : "?";
+
+                                return (
+                                  <tr
+                                    key={
+                                      anggota?.id ||
+                                      siswa?.id ||
+                                      anggota?.siswaId ||
+                                      index
+                                    }
+                                    className="border-b border-slate-100 transition hover:bg-blue-50/30"
+                                  >
+
+                                    {/* NO */}
+
+                                    <td className="px-5 py-4 text-slate-500">
+                                      {index + 1}
+                                    </td>
+
+                                    {/* NAMA */}
+
+                                    <td className="px-5 py-4">
+
+                                      <div className="flex items-center gap-3">
+
+                                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-xs font-bold text-[#1E3A8A]">
+                                          {initial}
+                                        </div>
+
+                                        <div className="min-w-0">
+                                          <p className="truncate font-semibold text-[#0F172A]">
+                                            {nama}
+                                          </p>
+                                        </div>
+
+                                      </div>
+
+                                    </td>
+
+                                    {/* NIS */}
+
+                                    <td className="px-5 py-4 text-slate-600">
+                                      {getNisSiswa(
+                                        anggota
+                                      )}
+                                    </td>
+
+                                    {/* NISN */}
+
+                                    <td className="px-5 py-4 text-slate-600">
+                                      {getNisnSiswa(
+                                        anggota
+                                      )}
+                                    </td>
+
+                                    {/* STATUS */}
+
+                                    <td className="px-5 py-4">
+
+                                      <span className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+
+                                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+
+                                        Aktif
+
+                                      </span>
+
+                                    </td>
+
+                                  </tr>
+                                );
+                              }
+                            )
+                          ) : (
+
+                            <tr>
+
+                              <td
+                                colSpan={5}
+                                className="px-5 py-14 text-center"
+                              >
+
+                                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-slate-400">
+                                  <Users size={23} />
+                                </div>
+
+                                <p className="mt-4 text-sm font-semibold text-slate-600">
+                                  Belum ada siswa
+                                </p>
+
+                                <p className="mt-1 text-xs text-slate-400">
+                                  Belum ada siswa yang terdaftar di kelas ini.
+                                </p>
+
+                              </td>
+
+                            </tr>
+
+                          )}
+
+                        </tbody>
+
+                      </table>
+
+                    </div>
+
+                    {/* FOOTER */}
+
+                    {daftarSiswa.length > 0 && (
+                      <div className="border-t border-slate-100 bg-slate-50/50 px-5 py-3.5 sm:px-6">
+
+                        <div className="flex flex-col gap-1 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+
+                          <span>
+                            Total{" "}
+                            <strong className="font-semibold text-slate-700">
+                              {daftarSiswa.length}
+                            </strong>{" "}
+                            siswa terdaftar
+                          </span>
+
+                          <span>
+                            Kelas{" "}
+                            <strong className="font-semibold text-[#1E3A8A]">
+                              {kelas.nama}
+                            </strong>
+                          </span>
+
+                        </div>
+
+                      </div>
+                    )}
 
                   </div>
                 )}
@@ -617,13 +1140,13 @@ export default function DetailKelasPage() {
                 {activeTab === "guru" && (
                   <div>
 
-                    <div className="flex flex-col gap-1 border-b border-slate-100 px-5 py-5 sm:px-6">
+                    <div className="border-b border-slate-100 px-5 py-5 sm:px-6">
 
                       <h2 className="text-base font-bold text-[#0F172A]">
                         Guru dan Wali Kelas
                       </h2>
 
-                      <p className="text-sm text-slate-500">
+                      <p className="mt-1 text-sm text-slate-500">
                         Daftar guru yang terkait dengan kegiatan pembelajaran kelas.
                       </p>
 
@@ -634,112 +1157,125 @@ export default function DetailKelasPage() {
                       <table className="w-full min-w-[760px] text-sm">
 
                         <thead>
-
                           <tr className="border-b border-slate-200 bg-slate-50/80">
 
-                            <th className="whitespace-nowrap px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                            <th className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">
                               No
                             </th>
 
-                            <th className="whitespace-nowrap px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                            <th className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">
                               Nama Guru
                             </th>
 
-                            <th className="whitespace-nowrap px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                            <th className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">
                               Mata Pelajaran
                             </th>
 
-                            <th className="whitespace-nowrap px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                            <th className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">
                               Peran
                             </th>
 
-                            <th className="whitespace-nowrap px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                            <th className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">
                               Jam Mengajar
                             </th>
 
                           </tr>
-
                         </thead>
 
                         <tbody>
 
                           {guruList
-                            .filter((g) => g.mapel)
-                            .map((g, index) => {
+                            .filter(
+                              (guru) =>
+                                guru.mapel
+                            )
+                            .map(
+                              (guru, index) => {
+                                const jam =
+                                  jamPerGuru[
+                                    guru.nama
+                                  ] || 0;
 
-                              const jam =
-                                jamPerGuru[g.nama] || 0;
+                                const isWali =
+                                  guru.nama ===
+                                  kelas.waliKelas
+                                    ?.namaLengkap;
 
-                              const isWali =
-                                g.nama === kelas.wali_kelas;
+                                return (
+                                  <tr
+                                    key={
+                                      guru.id ??
+                                      index
+                                    }
+                                    className="border-b border-slate-100 transition hover:bg-blue-50/30"
+                                  >
 
-                              return (
-                                <tr
-                                  key={g.id}
-                                  className="border-b border-slate-100 transition hover:bg-blue-50/30"
-                                >
+                                    <td className="px-5 py-4 text-slate-500">
+                                      {index + 1}
+                                    </td>
 
-                                  <td className="px-5 py-4 text-slate-500">
-                                    {index + 1}
-                                  </td>
+                                    <td className="px-5 py-4">
 
-                                  <td className="px-5 py-4">
+                                      <div className="flex items-center gap-3">
 
-                                    <div className="flex items-center gap-3">
+                                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-xs font-bold text-[#1E3A8A]">
+                                          {guru.nama
+                                            ?.charAt(
+                                              0
+                                            )
+                                            ?.toUpperCase()}
+                                        </div>
 
-                                      <div className="flex h-8 w-8 shrink-0 items-center justify-center bg-blue-50 text-xs font-bold text-[#1E3A8A]">
-                                        {g.nama
-                                          ?.charAt(0)
-                                          ?.toUpperCase()}
+                                        <span className="font-semibold text-[#0F172A]">
+                                          {guru.nama}
+                                        </span>
+
                                       </div>
 
-                                      <span className="font-semibold text-[#0F172A]">
-                                        {g.nama}
+                                    </td>
+
+                                    <td className="px-5 py-4 text-slate-600">
+                                      {guru.mapel}
+                                    </td>
+
+                                    <td className="px-5 py-4">
+
+                                      {isWali ? (
+                                        <span className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-[#1E3A8A]">
+                                          <UserCheck size={13} />
+                                          Wali Kelas
+                                        </span>
+                                      ) : (
+                                        <span className="text-slate-500">
+                                          Guru
+                                        </span>
+                                      )}
+
+                                    </td>
+
+                                    <td className="px-5 py-4">
+
+                                      <span className="font-semibold text-[#1E3A8A]">
+                                        {jam} jam
                                       </span>
 
-                                    </div>
+                                    </td>
 
-                                  </td>
-
-                                  <td className="px-5 py-4 text-slate-600">
-                                    {g.mapel}
-                                  </td>
-
-                                  <td className="px-5 py-4">
-
-                                    {isWali ? (
-                                      <span className="inline-flex items-center gap-1.5 border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-[#1E3A8A]">
-                                        <UserCheck size={13} />
-                                        Wali Kelas
-                                      </span>
-                                    ) : (
-                                      <span className="text-slate-500">
-                                        Guru
-                                      </span>
-                                    )}
-
-                                  </td>
-
-                                  <td className="px-5 py-4">
-
-                                    <span className="font-semibold text-[#1E3A8A]">
-                                      {jam} jam
-                                    </span>
-
-                                  </td>
-
-                                </tr>
-                              );
-                            })}
+                                  </tr>
+                                );
+                              }
+                            )}
 
                           {guruList.filter(
-                            (g) => g.mapel
+                            (guru) =>
+                              guru.mapel
                           ).length === 0 && (
                             <tr>
                               <td
                                 colSpan={5}
                                 className="px-5 py-12 text-center"
                               >
+
                                 <UserCheck
                                   size={30}
                                   className="mx-auto mb-3 text-slate-300"
@@ -762,7 +1298,6 @@ export default function DetailKelasPage() {
                       </table>
 
                     </div>
-
                   </div>
                 )}
 
@@ -773,12 +1308,11 @@ export default function DetailKelasPage() {
                 {activeTab === "jadwal" && (
                   <div>
 
-                    {/* HEADER JADWAL */}
+                    {/* HEADER */}
 
                     <div className="flex flex-col gap-4 border-b border-slate-100 px-5 py-5 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
 
                       <div>
-
                         <h2 className="text-base font-bold text-[#0F172A]">
                           Jadwal Pelajaran
                         </h2>
@@ -786,16 +1320,16 @@ export default function DetailKelasPage() {
                         <p className="mt-1 text-sm text-slate-500">
                           Atur jadwal mata pelajaran dan guru pengajar.
                         </p>
-
                       </div>
 
                       <button
+                        type="button"
                         onClick={() =>
                           setShowAddJadwal(
-                            !showAddJadwal
+                            (prev) => !prev
                           )
                         }
-                        className="inline-flex items-center justify-center gap-2 bg-[#2563EB] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#1E3A8A]"
+                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#1E3A8A]"
                       >
                         {showAddJadwal ? (
                           <X size={16} />
@@ -810,44 +1344,33 @@ export default function DetailKelasPage() {
 
                     </div>
 
-                    {/* =================================================
-                        FORM TAMBAH JADWAL
-                    ================================================= */}
+                    {/* FORM TAMBAH */}
 
                     {showAddJadwal && (
                       <div className="border-b border-slate-200 bg-slate-50/80 p-5 sm:p-6">
-
-                        <div className="mb-5">
-
-                          <h3 className="text-sm font-bold text-[#0F172A]">
-                            Tambah Jadwal Baru
-                          </h3>
-
-                          <p className="mt-1 text-xs text-slate-500">
-                            Lengkapi informasi jadwal pembelajaran.
-                          </p>
-
-                        </div>
 
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
 
                           {/* HARI */}
 
-                          <div className="min-w-0">
-
+                          <div>
                             <label className="mb-1.5 block text-xs font-semibold text-slate-600">
                               Hari
                             </label>
 
                             <select
-                              value={newJadwal.hari}
-                              onChange={(e) =>
-                                setNewJadwal({
-                                  ...newJadwal,
-                                  hari: e.target.value,
-                                })
+                              value={
+                                newJadwal.hari
                               }
-                              className="h-10 w-full min-w-0 border border-slate-300 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100"
+                              onChange={(e) =>
+                                setNewJadwal(
+                                  (prev) => ({
+                                    ...prev,
+                                    hari: e.target.value,
+                                  })
+                                )
+                              }
+                              className="h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-700 outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100"
                             >
                               {HARI_LIST.map(
                                 (hari) => (
@@ -860,13 +1383,11 @@ export default function DetailKelasPage() {
                                 )
                               )}
                             </select>
-
                           </div>
 
                           {/* JAM MULAI */}
 
-                          <div className="min-w-0">
-
+                          <div>
                             <label className="mb-1.5 block text-xs font-semibold text-slate-600">
                               Jam Mulai
                             </label>
@@ -877,21 +1398,21 @@ export default function DetailKelasPage() {
                                 newJadwal.jamMulai
                               }
                               onChange={(e) =>
-                                setNewJadwal({
-                                  ...newJadwal,
-                                  jamMulai:
-                                    e.target.value,
-                                })
+                                setNewJadwal(
+                                  (prev) => ({
+                                    ...prev,
+                                    jamMulai:
+                                      e.target.value,
+                                  })
+                                )
                               }
-                              className="h-10 w-full min-w-0 border border-slate-300 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100"
+                              className="h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-700 outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100"
                             />
-
                           </div>
 
                           {/* JAM SELESAI */}
 
-                          <div className="min-w-0">
-
+                          <div>
                             <label className="mb-1.5 block text-xs font-semibold text-slate-600">
                               Jam Selesai
                             </label>
@@ -902,21 +1423,21 @@ export default function DetailKelasPage() {
                                 newJadwal.jamSelesai
                               }
                               onChange={(e) =>
-                                setNewJadwal({
-                                  ...newJadwal,
-                                  jamSelesai:
-                                    e.target.value,
-                                })
+                                setNewJadwal(
+                                  (prev) => ({
+                                    ...prev,
+                                    jamSelesai:
+                                      e.target.value,
+                                  })
+                                )
                               }
-                              className="h-10 w-full min-w-0 border border-slate-300 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100"
+                              className="h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-700 outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100"
                             />
-
                           </div>
 
                           {/* MAPEL */}
 
-                          <div className="min-w-0">
-
+                          <div>
                             <label className="mb-1.5 block text-xs font-semibold text-slate-600">
                               Mata Pelajaran
                             </label>
@@ -926,36 +1447,42 @@ export default function DetailKelasPage() {
                                 newJadwal.mapel
                               }
                               onChange={(e) =>
-                                setNewJadwal({
-                                  ...newJadwal,
-                                  mapel:
-                                    e.target.value,
-                                })
+                                setNewJadwal(
+                                  (prev) => ({
+                                    ...prev,
+                                    mapel:
+                                      e.target.value,
+                                  })
+                                )
                               }
-                              className="h-10 w-full min-w-0 border border-slate-300 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100"
+                              className="h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-700 outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100"
                             >
                               <option value="">
                                 Pilih Mapel
                               </option>
 
                               {mapelList.map(
-                                (m) => (
+                                (mapel) => (
                                   <option
-                                    key={m.id}
-                                    value={m.nama}
+                                    key={
+                                      mapel.id
+                                    }
+                                    value={
+                                      mapel.nama
+                                    }
                                   >
-                                    {m.nama}
+                                    {
+                                      mapel.nama
+                                    }
                                   </option>
                                 )
                               )}
                             </select>
-
                           </div>
 
                           {/* GURU */}
 
-                          <div className="min-w-0">
-
+                          <div>
                             <label className="mb-1.5 block text-xs font-semibold text-slate-600">
                               Guru
                             </label>
@@ -965,97 +1492,100 @@ export default function DetailKelasPage() {
                                 newJadwal.guru
                               }
                               onChange={(e) =>
-                                setNewJadwal({
-                                  ...newJadwal,
-                                  guru:
-                                    e.target.value,
-                                })
+                                setNewJadwal(
+                                  (prev) => ({
+                                    ...prev,
+                                    guru:
+                                      e.target.value,
+                                  })
+                                )
                               }
-                              className="h-10 w-full min-w-0 border border-slate-300 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100"
+                              className="h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-700 outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100"
                             >
                               <option value="">
                                 Pilih Guru
                               </option>
 
                               {guruList.map(
-                                (g) => (
+                                (guru) => (
                                   <option
-                                    key={g.id}
-                                    value={g.nama}
+                                    key={
+                                      guru.id
+                                    }
+                                    value={
+                                      guru.nama
+                                    }
                                   >
-                                    {g.nama}
+                                    {guru.nama}
                                   </option>
                                 )
                               )}
                             </select>
-
                           </div>
 
                           {/* RUANGAN */}
 
-                          <div className="min-w-0">
-
+                          <div>
                             <label className="mb-1.5 block text-xs font-semibold text-slate-600">
                               Ruangan
                             </label>
 
                             <input
                               type="text"
-                              placeholder="A-01"
                               value={
                                 newJadwal.ruangan
                               }
                               onChange={(e) =>
-                                setNewJadwal({
-                                  ...newJadwal,
-                                  ruangan:
-                                    e.target.value,
-                                })
+                                setNewJadwal(
+                                  (prev) => ({
+                                    ...prev,
+                                    ruangan:
+                                      e.target.value,
+                                  })
+                                )
                               }
-                              className="h-10 w-full min-w-0 border border-slate-300 bg-white px-3 text-sm text-slate-700 outline-none placeholder:text-slate-400 transition focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100"
+                              placeholder="A-01"
+                              className="h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-700 outline-none placeholder:text-slate-400 focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100"
                             />
-
                           </div>
 
                         </div>
 
-                        {/* BUTTON FORM */}
-
                         <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row">
 
                           <button
+                            type="button"
                             onClick={() =>
                               setShowAddJadwal(false)
                             }
-                            className="inline-flex h-10 items-center justify-center gap-2 border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-600 transition hover:bg-slate-100"
+                            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-600 transition hover:bg-slate-100"
                           >
                             <X size={15} />
                             Batal
                           </button>
 
                           <button
-                            onClick={handleAddJadwal}
-                            className="inline-flex h-10 items-center justify-center gap-2 bg-[#2563EB] px-5 text-sm font-semibold text-white transition hover:bg-[#1E3A8A]"
+                            type="button"
+                            onClick={
+                              handleAddJadwal
+                            }
+                            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-5 text-sm font-semibold text-white transition hover:bg-[#1E3A8A]"
                           >
                             <Check size={16} />
                             Simpan Jadwal
                           </button>
 
                         </div>
-
                       </div>
                     )}
 
-                    {/* =================================================
-                        TABLE JADWAL
-                    ================================================= */}
+                    {/* TABLE */}
 
                     <div className="w-full overflow-x-auto">
 
-                      <table className="w-full min-w-[1050px] text-sm">
+                      <table className="w-full min-w-[1000px] text-sm">
 
                         <thead>
-
                           <tr className="border-b border-slate-200 bg-slate-50/80">
 
                             <th className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">
@@ -1087,20 +1617,18 @@ export default function DetailKelasPage() {
                             </th>
 
                           </tr>
-
                         </thead>
 
                         <tbody>
 
                           {jadwal.length === 0 ? (
                             <tr>
-
                               <td
                                 colSpan={7}
                                 className="px-5 py-14 text-center"
                               >
 
-                                <div className="mx-auto flex h-12 w-12 items-center justify-center bg-slate-100 text-slate-400">
+                                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-slate-400">
                                   <Calendar size={23} />
                                 </div>
 
@@ -1113,13 +1641,15 @@ export default function DetailKelasPage() {
                                 </p>
 
                               </td>
-
                             </tr>
                           ) : (
                             jadwal.map(
-                              (j, index) => (
+                              (item, index) => (
                                 <tr
-                                  key={j.id}
+                                  key={
+                                    item.id ??
+                                    index
+                                  }
                                   className="border-b border-slate-100 transition hover:bg-blue-50/30"
                                 >
 
@@ -1128,11 +1658,10 @@ export default function DetailKelasPage() {
                                   </td>
 
                                   <td className="px-5 py-4">
-
                                     <span className="font-semibold text-[#0F172A]">
-                                      {j.hari}
+                                      {item.hari ||
+                                        "-"}
                                     </span>
-
                                   </td>
 
                                   <td className="px-5 py-4">
@@ -1145,8 +1674,11 @@ export default function DetailKelasPage() {
                                       />
 
                                       <span className="whitespace-nowrap">
-                                        {j.jamMulai} –{" "}
-                                        {j.jamSelesai}
+                                        {item.jamMulai ||
+                                          "-"}{" "}
+                                        –{" "}
+                                        {item.jamSelesai ||
+                                          "-"}
                                       </span>
 
                                     </div>
@@ -1156,14 +1688,15 @@ export default function DetailKelasPage() {
                                   <td className="px-5 py-4">
 
                                     <span className="font-semibold text-[#0F172A]">
-                                      {j.mapel}
+                                      {item.mapel ||
+                                        "-"}
                                     </span>
 
                                   </td>
 
                                   <td className="px-5 py-4 text-slate-600">
                                     {getGuruLabel(
-                                      j.guru
+                                      item.guru
                                     )}
                                   </td>
 
@@ -1177,7 +1710,7 @@ export default function DetailKelasPage() {
                                       />
 
                                       <span>
-                                        {j.ruangan ||
+                                        {item.ruangan ||
                                           "-"}
                                       </span>
 
@@ -1188,13 +1721,14 @@ export default function DetailKelasPage() {
                                   <td className="px-5 py-4 text-right">
 
                                     <button
+                                      type="button"
                                       onClick={() =>
                                         handleDeleteJadwal(
-                                          j.id
+                                          item.id
                                         )
                                       }
                                       title="Hapus jadwal"
-                                      className="inline-flex h-8 w-8 items-center justify-center border border-transparent text-slate-400 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600"
+                                      className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
                                     >
                                       <Trash2
                                         size={16}
@@ -1209,7 +1743,6 @@ export default function DetailKelasPage() {
                           )}
 
                         </tbody>
-
                       </table>
 
                     </div>
@@ -1245,15 +1778,10 @@ export default function DetailKelasPage() {
                 )}
 
               </section>
-
             </div>
-
           </div>
-
         </main>
-
       </div>
-
     </div>
   );
 }

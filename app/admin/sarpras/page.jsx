@@ -3,8 +3,8 @@
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 
-import Header from "../../../../../components/Header";
-import Sidebar from "../../../../../components/Sidebar";
+import Header from "../../components/Header";
+import Sidebar from "../../components/Sidebar";
 
 import {
   Building,
@@ -31,7 +31,7 @@ import {
   createLantai,
   updateLantai,
   deleteLantai,
-} from "../../../../../services/infrastruktur.service";
+} from "../../../services/infrastruktur.service";
 
 export default function DetailGedungPage() {
   const router = useRouter();

@@ -23,24 +23,47 @@ import {
   X,
   ChevronDown,
   ChevronUp,
+  Calendar,
+  User,
+  FileText,
 } from "lucide-react";
 
+// ============================================================
+// DATA DUMMY (pisahkan ke file terpisah jika perlu)
+// ============================================================
 const mataPelajaranList = [
-  { id: "matematika", nama: "Matematika", guru: "Bu Sari", icon: Calculator, color: "blue" },
-  { id: "bindo", nama: "Bahasa Indonesia", guru: "Pak Budi", icon: Languages, color: "rose" },
-  { id: "ipa", nama: "IPA", guru: "Bu Dewi", icon: FlaskConical, color: "emerald" },
-  { id: "ips", nama: "IPS", guru: "Pak Anwar", icon: Globe2, color: "amber" },
-  { id: "binggris", nama: "Bahasa Inggris", guru: "Bu Rina", icon: BookOpen, color: "indigo" },
-  { id: "seni", nama: "Seni Budaya", guru: "Bu Wulan", icon: Palette, color: "fuchsia" },
-  { id: "musik", nama: "Seni Musik", guru: "Pak Doni", icon: Music, color: "cyan" },
-  { id: "penjas", nama: "Penjaskes", guru: "Pak Rudi", icon: Dumbbell, color: "orange" },
+  { id: "matematika", nama: "Matematika", guru: "Bu Sari", icon: Calculator },
+  { id: "bindo", nama: "Bahasa Indonesia", guru: "Pak Budi", icon: Languages },
+  { id: "ipa", nama: "IPA", guru: "Bu Dewi", icon: FlaskConical },
+  { id: "ips", nama: "IPS", guru: "Pak Anwar", icon: Globe2 },
+  { id: "binggris", nama: "Bahasa Inggris", guru: "Bu Rina", icon: BookOpen },
+  { id: "seni", nama: "Seni Budaya", guru: "Bu Wulan", icon: Palette },
+  { id: "musik", nama: "Seni Musik", guru: "Pak Doni", icon: Music },
+  { id: "penjas", nama: "Penjaskes", guru: "Pak Rudi", icon: Dumbbell },
 ];
 
-// status: "belum" | "dikumpulkan" | "terlambat"
 const STATUS_STYLE = {
-  belum: { label: "Belum Dikerjakan", bg: "bg-amber-50", text: "text-amber-600", icon: Clock },
-  dikumpulkan: { label: "Sudah Dikumpulkan", bg: "bg-emerald-50", text: "text-emerald-600", icon: CheckCircle2 },
-  terlambat: { label: "Terlambat", bg: "bg-red-50", text: "text-red-600", icon: AlertCircle },
+  belum: {
+    label: "Belum Dikerjakan",
+    bg: "bg-amber-50",
+    text: "text-amber-700",
+    icon: Clock,
+    border: "border-amber-200",
+  },
+  dikumpulkan: {
+    label: "Sudah Dikumpulkan",
+    bg: "bg-emerald-50",
+    text: "text-emerald-700",
+    icon: CheckCircle2,
+    border: "border-emerald-200",
+  },
+  terlambat: {
+    label: "Terlambat",
+    bg: "bg-rose-50",
+    text: "text-rose-700",
+    icon: AlertCircle,
+    border: "border-rose-200",
+  },
 };
 
 const tugasList = [
@@ -48,7 +71,8 @@ const tugasList = [
     id: 1,
     mapelId: "matematika",
     judul: "Latihan Bab 4 - Operasi Pecahan",
-    deskripsi: "Kerjakan soal nomor 1-10 di buku paket halaman 88. Tulis tangan lalu foto, atau ketik di dokumen.",
+    deskripsi:
+      "Kerjakan soal nomor 1-10 di buku paket halaman 88. Tulis tangan lalu foto, atau ketik di dokumen.",
     guru: "Bu Sari",
     deadline: "21 Agu 2026, 23:59",
     status: "belum",
@@ -58,7 +82,8 @@ const tugasList = [
     id: 2,
     mapelId: "ipa",
     judul: "Laporan Praktikum Fotosintesis",
-    deskripsi: "Susun laporan hasil praktikum minggu lalu dalam format PDF, maksimal 3 halaman.",
+    deskripsi:
+      "Susun laporan hasil praktikum minggu lalu dalam format PDF, maksimal 3 halaman.",
     guru: "Bu Dewi",
     deadline: "23 Agu 2026, 23:59",
     status: "belum",
@@ -68,7 +93,8 @@ const tugasList = [
     id: 3,
     mapelId: "binggris",
     judul: "Reading Comprehension Ch.5",
-    deskripsi: "Jawab 8 pertanyaan pemahaman bacaan berdasarkan teks di modul unit 5.",
+    deskripsi:
+      "Jawab 8 pertanyaan pemahaman bacaan berdasarkan teks di modul unit 5.",
     guru: "Bu Rina",
     deadline: "18 Agu 2026, 23:59",
     status: "dikumpulkan",
@@ -78,7 +104,8 @@ const tugasList = [
     id: 4,
     mapelId: "binggris",
     judul: "Vocabulary Quiz Worksheet",
-    deskripsi: "Isi worksheet kosakata unit 5, kumpulkan dalam bentuk foto atau scan.",
+    deskripsi:
+      "Isi worksheet kosakata unit 5, kumpulkan dalam bentuk foto atau scan.",
     guru: "Bu Rina",
     deadline: "10 Agu 2026, 23:59",
     status: "terlambat",
@@ -88,7 +115,8 @@ const tugasList = [
     id: 5,
     mapelId: "ips",
     judul: "Peta Persebaran SDA Indonesia",
-    deskripsi: "Gambar atau print peta Indonesia, tandai 5 sumber daya alam utama tiap pulau.",
+    deskripsi:
+      "Gambar atau print peta Indonesia, tandai 5 sumber daya alam utama tiap pulau.",
     guru: "Pak Anwar",
     deadline: "22 Agu 2026, 23:59",
     status: "belum",
@@ -96,9 +124,12 @@ const tugasList = [
   },
 ];
 
+// ============================================================
+// MAIN PAGE
+// ============================================================
 export default function TugasPage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<div className="p-8 text-center">Memuat...</div>}>
       <TugasPageInner />
     </Suspense>
   );
@@ -118,11 +149,17 @@ function TugasPageInner() {
 
   const filteredTugas = useMemo(() => {
     return tugasList
-      .filter((t) => (activeMapel === "semua" ? true : t.mapelId === activeMapel))
-      .filter((t) => (activeFilter === "semua" ? true : t.status === activeFilter));
+      .filter((t) =>
+        activeMapel === "semua" ? true : t.mapelId === activeMapel
+      )
+      .filter((t) =>
+        activeFilter === "semua" ? true : t.status === activeFilter
+      );
   }, [activeMapel, activeFilter]);
 
-  const jumlahBelum = tugasList.filter((t) => t.status === "belum" || t.status === "terlambat").length;
+  const jumlahBelum = tugasList.filter(
+    (t) => t.status === "belum" || t.status === "terlambat"
+  ).length;
 
   const notifications = [
     { id: 1, title: "Tugas Matematika deadline besok", desc: "Dikirim 1 jam lalu", read: false },
@@ -143,33 +180,42 @@ function TugasPageInner() {
           notifications={notifications}
           user={{ name: "Andi Saputra", email: "siswa@smartschool.com", avatar: "AS" }}
         />
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-          <div className="w-full max-w-5xl mx-auto space-y-6">
 
-            <div className="flex items-center gap-3">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+          <div className="w-full max-w-7xl mx-auto space-y-8">
+            {/* ===== HEADER ===== */}
+            <div className="flex items-center gap-4">
               <button
                 onClick={() => router.push("/siswa/mataPelajaran")}
                 className="p-2 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-100 transition-colors flex-shrink-0"
               >
-                <ArrowLeft size={16} />
+                <ArrowLeft size={18} />
               </button>
               <div className="min-w-0">
-                <p className="text-xs font-medium text-blue-600 uppercase tracking-wide">
+                <p className="text-xs font-semibold text-blue-600 uppercase tracking-wider">
                   {selectedMapel ? selectedMapel.nama : "Semua Mata Pelajaran"}
                 </p>
-                <h1 className="text-2xl sm:text-[28px] font-bold text-slate-900 mt-1 tracking-tight">
+                <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 mt-0.5 tracking-tight">
                   Tugas
                 </h1>
-                <p className="text-sm text-slate-500 mt-1">
-                  {jumlahBelum > 0 ? jumlahBelum + " tugas menunggu untuk dikerjakan." : "Semua tugas sudah dikumpulkan."}
+                <p className="text-sm text-slate-500 mt-1 flex items-center gap-2">
+                  <span className="inline-block w-2 h-2 rounded-full bg-blue-500" />
+                  {jumlahBelum > 0
+                    ? `${jumlahBelum} tugas menunggu untuk dikerjakan`
+                    : "Semua tugas sudah dikumpulkan"}
                 </p>
               </div>
             </div>
 
-            <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+            {/* ===== FILTER MAPEL ===== */}
+            <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
               <button
                 onClick={() => setActiveMapel("semua")}
-                className={activeMapel === "semua" ? "flex-shrink-0 text-xs font-medium px-3.5 py-1.5 rounded-full border bg-slate-800 border-slate-800 text-white" : "flex-shrink-0 text-xs font-medium px-3.5 py-1.5 rounded-full border bg-white border-slate-200 text-slate-500 hover:border-slate-300"}
+                className={`flex-shrink-0 text-xs font-medium px-4 py-2 rounded-full border transition-all ${
+                  activeMapel === "semua"
+                    ? "bg-blue-600 border-blue-600 text-white shadow-sm"
+                    : "bg-white border-slate-200 text-slate-600 hover:border-blue-300 hover:text-blue-600"
+                }`}
               >
                 Semua Mapel
               </button>
@@ -177,81 +223,123 @@ function TugasPageInner() {
                 <button
                   key={m.id}
                   onClick={() => setActiveMapel(m.id)}
-                  className={activeMapel === m.id ? "flex-shrink-0 text-xs font-medium px-3.5 py-1.5 rounded-full border bg-slate-800 border-slate-800 text-white" : "flex-shrink-0 text-xs font-medium px-3.5 py-1.5 rounded-full border bg-white border-slate-200 text-slate-500 hover:border-slate-300"}
+                  className={`flex-shrink-0 text-xs font-medium px-4 py-2 rounded-full border transition-all ${
+                    activeMapel === m.id
+                      ? "bg-blue-600 border-blue-600 text-white shadow-sm"
+                      : "bg-white border-slate-200 text-slate-600 hover:border-blue-300 hover:text-blue-600"
+                  }`}
                 >
                   {m.nama}
                 </button>
               ))}
             </div>
 
-            <div className="flex gap-2">
+            {/* ===== FILTER STATUS ===== */}
+            <div className="flex flex-wrap gap-2">
               {["semua", "belum", "dikumpulkan", "terlambat"].map((f) => (
                 <button
                   key={f}
                   onClick={() => setActiveFilter(f)}
-                  className={activeFilter === f ? "text-xs font-medium px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600" : "text-xs font-medium px-3 py-1.5 rounded-lg text-slate-500 hover:bg-slate-100"}
+                  className={`text-xs font-medium px-4 py-1.5 rounded-lg transition-all ${
+                    activeFilter === f
+                      ? "bg-blue-50 text-blue-700 ring-1 ring-blue-200"
+                      : "text-slate-500 hover:bg-slate-100"
+                  }`}
                 >
                   {f === "semua" ? "Semua Status" : STATUS_STYLE[f].label}
                 </button>
               ))}
             </div>
 
-            <div className="space-y-3">
+            {/* ===== LIST TUGAS ===== */}
+            <div className="space-y-4">
               {filteredTugas.length > 0 ? (
                 filteredTugas.map((tugas) => {
-                  const mapel = mataPelajaranList.find((m) => m.id === tugas.mapelId);
+                  const mapel = mataPelajaranList.find(
+                    (m) => m.id === tugas.mapelId
+                  );
                   const s = STATUS_STYLE[tugas.status];
                   const StatusIcon = s.icon;
                   const isOpen = expandedId === tugas.id;
+
                   return (
-                    <div key={tugas.id} className="bg-white rounded-2xl border border-slate-200/70 shadow-sm overflow-hidden">
+                    <div
+                      key={tugas.id}
+                      className="bg-white rounded-2xl border border-slate-200/70 shadow-sm hover:shadow-md transition-shadow overflow-hidden"
+                    >
+                      {/* Baris utama (selalu terlihat) */}
                       <button
                         onClick={() => setExpandedId(isOpen ? null : tugas.id)}
-                        className="w-full flex items-start gap-3.5 px-5 py-4 text-left hover:bg-slate-50/60 transition-colors"
+                        className="w-full flex items-start gap-4 px-5 py-4 text-left hover:bg-slate-50/60 transition-colors"
                       >
-                        <div className={"w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 " + s.bg + " " + s.text}>
+                        <div
+                          className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 ${s.bg} ${s.text}`}
+                        >
                           <ClipboardList size={19} />
                         </div>
+
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className={"text-[10px] font-semibold px-1.5 py-0.5 rounded inline-flex items-center gap-1 " + s.bg + " " + s.text}>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span
+                              className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${s.bg} ${s.text} ${s.border} inline-flex items-center gap-1`}
+                            >
                               <StatusIcon size={10} />
                               {s.label}
                             </span>
-                            {activeMapel === "semua" && mapel ? (
-                              <span className="text-[11px] font-medium text-slate-400">{mapel.nama}</span>
-                            ) : null}
+                            {activeMapel === "semua" && mapel && (
+                              <span className="text-[11px] font-medium text-slate-400">
+                                {mapel.nama}
+                              </span>
+                            )}
                           </div>
-                          <p className="text-sm font-medium text-slate-800 mt-1.5">{tugas.judul}</p>
-                          <p className="text-xs text-slate-400 mt-0.5">
-                            {tugas.guru} - Deadline {tugas.deadline}
+                          <p className="text-sm font-semibold text-slate-800 mt-1.5">
+                            {tugas.judul}
                           </p>
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400 mt-0.5">
+                            <span className="flex items-center gap-1">
+                              <User size={12} /> {tugas.guru}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Calendar size={12} /> Deadline {tugas.deadline}
+                            </span>
+                          </div>
                         </div>
+
                         <div className="flex-shrink-0 mt-1 text-slate-400">
-                          {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                          {isOpen ? (
+                            <ChevronUp size={18} />
+                          ) : (
+                            <ChevronDown size={18} />
+                          )}
                         </div>
                       </button>
 
-                      {isOpen ? (
-                        <div className="px-5 pb-5 pt-1 border-t border-slate-100">
-                          <p className="text-sm text-slate-600 leading-relaxed mt-3">{tugas.deskripsi}</p>
+                      {/* Ekspansi (detail + upload) */}
+                      {isOpen && (
+                        <div className="px-5 pb-5 pt-2 border-t border-slate-100">
+                          <p className="text-sm text-slate-600 leading-relaxed mt-2">
+                            {tugas.deskripsi}
+                          </p>
                           <TugasSubmitArea tugas={tugas} />
                         </div>
-                      ) : null}
+                      )}
                     </div>
                   );
                 })
               ) : (
-                <div className="bg-white rounded-2xl border border-slate-200/70 shadow-sm text-center py-14 px-5">
-                  <div className="w-12 h-12 rounded-xl bg-slate-50 text-slate-300 flex items-center justify-center mx-auto mb-3">
-                    <ClipboardList size={22} />
+                <div className="bg-white rounded-2xl border border-slate-200/70 shadow-sm text-center py-16 px-5">
+                  <div className="w-14 h-14 rounded-full bg-slate-50 text-slate-300 flex items-center justify-center mx-auto mb-4">
+                    <ClipboardList size={24} />
                   </div>
-                  <p className="text-sm font-medium text-slate-600">Tidak ada tugas</p>
-                  <p className="text-xs text-slate-400 mt-1">Tidak ada tugas yang cocok dengan filter ini.</p>
+                  <p className="text-sm font-medium text-slate-600">
+                    Tidak ada tugas
+                  </p>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Tidak ada tugas yang cocok dengan filter ini.
+                  </p>
                 </div>
               )}
             </div>
-
           </div>
         </main>
       </div>
@@ -259,6 +347,9 @@ function TugasPageInner() {
   );
 }
 
+// ============================================================
+// KOMPONEN SUBMIT TUGAS (di dalam ekspansi)
+// ============================================================
 function TugasSubmitArea({ tugas }) {
   const [file, setFile] = useState(null);
   const [catatan, setCatatan] = useState("");
@@ -281,22 +372,26 @@ function TugasSubmitArea({ tugas }) {
   };
 
   const handleSubmit = () => {
-    // TODO: upload `file` + `catatan` ke server (endpoint pengumpulan tugas).
+    // TODO: upload `file` + `catatan` ke server
     setSubmitted(true);
   };
 
   if (submitted) {
     return (
-      <div className="mt-4 bg-emerald-50 rounded-xl p-4 flex items-start gap-3">
+      <div className="mt-4 bg-emerald-50 rounded-xl p-4 flex items-start gap-3 border border-emerald-200">
         <CheckCircle2 size={18} className="text-emerald-600 flex-shrink-0 mt-0.5" />
         <div className="min-w-0">
-          <p className="text-sm font-medium text-emerald-700">Tugas sudah dikumpulkan</p>
-          {fileName ? (
-            <p className="text-xs text-emerald-600 mt-0.5 truncate">File: {fileName}</p>
-          ) : null}
+          <p className="text-sm font-medium text-emerald-700">
+            Tugas sudah dikumpulkan
+          </p>
+          {fileName && (
+            <p className="text-xs text-emerald-600 mt-0.5 truncate">
+              File: {fileName}
+            </p>
+          )}
           <button
             onClick={() => setSubmitted(false)}
-            className="text-xs font-medium text-emerald-700 underline mt-2"
+            className="text-xs font-medium text-emerald-700 underline mt-2 hover:no-underline"
           >
             Ganti jawaban
           </button>
@@ -307,25 +402,30 @@ function TugasSubmitArea({ tugas }) {
 
   return (
     <div className="mt-4 space-y-3">
-      <div className="border border-dashed border-slate-300 rounded-xl p-4">
+      <div className="border-2 border-dashed border-blue-200 rounded-xl p-4 bg-blue-50/30 hover:bg-blue-50/50 transition-colors">
         {fileName ? (
-          <div className="flex items-center justify-between gap-2 bg-slate-50 rounded-lg px-3 py-2.5">
+          <div className="flex items-center justify-between gap-2 bg-white rounded-lg px-3 py-2.5 shadow-sm">
             <div className="flex items-center gap-2 min-w-0">
-              <Paperclip size={15} className="text-slate-400 flex-shrink-0" />
+              <Paperclip size={15} className="text-blue-500 flex-shrink-0" />
               <span className="text-sm text-slate-700 truncate">{fileName}</span>
             </div>
-            <button onClick={handleRemoveFile} className="text-slate-400 hover:text-slate-600 flex-shrink-0">
+            <button
+              onClick={handleRemoveFile}
+              className="text-slate-400 hover:text-slate-600 flex-shrink-0"
+            >
               <X size={15} />
             </button>
           </div>
         ) : (
           <button
             onClick={() => inputRef.current && inputRef.current.click()}
-            className="w-full flex flex-col items-center gap-2 py-4 text-slate-400 hover:text-slate-600 transition-colors"
+            className="w-full flex flex-col items-center gap-2 py-4 text-slate-400 hover:text-blue-600 transition-colors"
           >
-            <UploadCloud size={22} />
-            <span className="text-xs">Klik untuk unggah file jawaban</span>
-            <span className="text-[11px] text-slate-300">PDF, gambar, atau dokumen, maks 10MB</span>
+            <UploadCloud size={24} />
+            <span className="text-sm font-medium">Klik untuk unggah file jawaban</span>
+            <span className="text-[11px] text-slate-300">
+              PDF, gambar, atau dokumen, maks 10MB
+            </span>
           </button>
         )}
         <input ref={inputRef} type="file" onChange={handleFileChange} className="hidden" />
@@ -342,7 +442,7 @@ function TugasSubmitArea({ tugas }) {
       <button
         onClick={handleSubmit}
         disabled={!fileName}
-        className="w-full text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl py-2.5 transition-colors"
+        className="w-full text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl py-2.5 transition-colors shadow-sm"
       >
         Kumpulkan Tugas
       </button>

@@ -23,6 +23,7 @@ export default function SchoolOnboardingPage() {
   const [paket, setPaket] = useState(null);
   const [loadingPaket, setLoadingPaket] = useState(true);
   const [loading, setLoading] = useState(false);
+
   const [error, setError] = useState("");
 
   const [form, setForm] = useState({
@@ -38,9 +39,10 @@ export default function SchoolOnboardingPage() {
     logo: "",
   });
 
-  // ================================
+  // =====================================================
   // LOAD PAKET
-  // ================================
+  // =====================================================
+
   useEffect(() => {
     const loadPaket = async () => {
       try {
@@ -50,14 +52,12 @@ export default function SchoolOnboardingPage() {
 
         let paketId = params.get("paketId");
 
-        // Prioritas:
-        // 1. Paket dari sessionStorage
-        // 2. Paket dari URL
-        // 3. Paket dari selected_paket_id
-
         const storedPaket =
-          sessionStorage.getItem("selected_paket");
+          sessionStorage.getItem(
+            "selected_paket"
+          );
 
+        // PRIORITAS 1: selected_paket
         if (storedPaket) {
           try {
             const parsedPaket =
@@ -68,7 +68,7 @@ export default function SchoolOnboardingPage() {
 
               sessionStorage.setItem(
                 "selected_paket_id",
-                parsedPaket.id
+                String(parsedPaket.id)
               );
 
               setLoadingPaket(false);
@@ -86,16 +86,20 @@ export default function SchoolOnboardingPage() {
           }
         }
 
+        // PRIORITAS 2: URL
         if (!paketId) {
-          paketId = sessionStorage.getItem(
-            "selected_paket_id"
-          );
+          paketId =
+            sessionStorage.getItem(
+              "selected_paket_id"
+            );
         }
 
+        // TIDAK ADA PAKET
         if (!paketId) {
           setError(
             "Belum ada paket yang dipilih."
           );
+
           setLoadingPaket(false);
           return;
         }
@@ -139,19 +143,16 @@ export default function SchoolOnboardingPage() {
     loadPaket();
   }, []);
 
-  // ================================
-  // HANDLE INPUT
-  // ================================
+  // =====================================================
+  // HANDLE CHANGE
+  // =====================================================
+
   const handleChange = (e) => {
     const { name, value } = e.target;
 
     let newValue = value;
 
-    // KHUSUS SUBDOMAIN
-    // Otomatis:
-    // SMK Taruna Bhakti
-    // menjadi:
-    // smk-taruna-bhakti
+    // SUBDOMAIN
     if (name === "subdomain") {
       newValue = value
         .toLowerCase()
@@ -168,208 +169,354 @@ export default function SchoolOnboardingPage() {
     setError("");
   };
 
-  // ================================
-  // SUBMIT
-  // ================================
+  // =====================================================
+  // HANDLE SUBMIT
+  // =====================================================
+
   const handleSubmit = async (e) => {
-  e.preventDefault();
+    e.preventDefault();
 
-  setError("");
+    if (loading) return;
 
-  if (!paket?.id) {
-    setError("Paket belum dipilih.");
-    return;
-  }
+    setError("");
 
-  // ================================
-  // VALIDASI DATA WAJIB
-  // ================================
+    // ===================================================
+    // CEK PAKET
+    // ===================================================
 
-  if (
-    !form.nama.trim() ||
-    !form.email.trim() ||
-    !form.namaSekolah.trim() ||
-    !form.jenjang ||
-    !form.subdomain.trim() ||
-    !form.alamatSekolah.trim() ||
-    !form.teleponSekolah.trim() ||
-    !form.kataSandi
-  ) {
-    setError(
-      "Mohon lengkapi seluruh data yang wajib diisi."
-    );
-    return;
-  }
-
-  // ================================
-  // VALIDASI SUBDOMAIN
-  // ================================
-
-  const subdomain = form.subdomain
-    .trim()
-    .toLowerCase();
-
-  if (
-    !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(
-      subdomain
-    )
-  ) {
-    setError(
-      "Subdomain hanya boleh menggunakan huruf kecil, angka, dan tanda strip (-)."
-    );
-    return;
-  }
-
-  // ================================
-  // VALIDASI PASSWORD
-  // ================================
-
-  if (
-    form.kataSandi !==
-    form.konfirmasiKataSandi
-  ) {
-    setError(
-      "Konfirmasi kata sandi tidak sama."
-    );
-    return;
-  }
-
-  if (form.kataSandi.length < 8) {
-    setError(
-      "Kata sandi minimal 8 karakter."
-    );
-    return;
-  }
-
-  if (!/[A-Z]/.test(form.kataSandi)) {
-    setError(
-      "Kata sandi harus memiliki minimal 1 huruf kapital."
-    );
-    return;
-  }
-
-  if (!/[0-9]/.test(form.kataSandi)) {
-    setError(
-      "Kata sandi harus memiliki minimal 1 angka."
-    );
-    return;
-  }
-
-  // ================================
-  // VALIDASI PAKET ID
-  // ================================
-
-  const paketId = String(paket.id);
-
-  if (!paketId) {
-    setError("ID paket tidak ditemukan.");
-    return;
-  }
-
-  setLoading(true);
-
-  try {
-    // ================================
-    // PAYLOAD SESUAI BE
-    // ================================
-
-    const payload = {
-      nama: form.nama.trim(),
-
-      email: form.email
-        .trim()
-        .toLowerCase(),
-
-      namaSekolah:
-        form.namaSekolah.trim(),
-
-      jenjang: form.jenjang,
-
-      subdomain,
-
-      alamatSekolah:
-        form.alamatSekolah.trim(),
-
-      teleponSekolah:
-        form.teleponSekolah.trim(),
-
-      kataSandi: form.kataSandi,
-
-      paketId,
-
-      ...(form.logo.trim()
-        ? {
-            logo: form.logo.trim(),
-          }
-        : {}),
-    };
-
-    console.log(
-      "Payload register tenant:",
-      payload
-    );
-
-    const response =
-      await registerTenant(payload);
-
-    console.log(
-      "Response register tenant:",
-      response
-    );
-
-    if (!response?.success) {
-      throw new Error(
-        response?.message ||
-          "Pendaftaran sekolah gagal."
+    if (!paket?.id) {
+      setError(
+        "Paket belum dipilih."
       );
+      return;
     }
 
-    // ================================
-    // SIMPAN DATA ONBOARDING
-    // ================================
+    // ===================================================
+    // NORMALISASI
+    // ===================================================
 
-    sessionStorage.setItem(
-      "onboarding_email",
-      form.email.trim().toLowerCase()
-    );
+    const nama =
+      form.nama.trim();
 
-    sessionStorage.setItem(
-      "onboarding_paket_id",
-      paketId
-    );
+    const email =
+      form.email.trim().toLowerCase();
 
-    // ================================
-    // KE HALAMAN VERIFIKASI
-    // ================================
+    const namaSekolah =
+      form.namaSekolah.trim();
 
-    window.location.href =
-      "/onboarding/verify";
-  } catch (error) {
-    console.error(
-      "Register tenant error:",
-      error
-    );
+    const jenjang =
+      form.jenjang.trim();
 
-    setError(
-      error instanceof Error
-        ? error.message
-        : "Gagal melakukan pendaftaran sekolah."
-    );
-  } finally {
-    setLoading(false);
-  }
-};
+    const subdomain =
+      form.subdomain.trim().toLowerCase();
 
-  // ================================
+    const alamatSekolah =
+      form.alamatSekolah.trim();
+
+    const teleponSekolah =
+      form.teleponSekolah.trim();
+
+    const kataSandi =
+      form.kataSandi;
+
+    const konfirmasiKataSandi =
+      form.konfirmasiKataSandi;
+
+    // ===================================================
+    // VALIDASI WAJIB
+    // ===================================================
+
+    if (
+      !nama ||
+      !email ||
+      !namaSekolah ||
+      !jenjang ||
+      !subdomain ||
+      !alamatSekolah ||
+      !teleponSekolah ||
+      !kataSandi ||
+      !konfirmasiKataSandi
+    ) {
+      setError(
+        "Mohon lengkapi seluruh data yang wajib diisi."
+      );
+      return;
+    }
+
+    // ===================================================
+    // VALIDASI NAMA
+    // ===================================================
+
+    if (nama.length < 3) {
+      setError(
+        "Nama lengkap minimal 3 karakter."
+      );
+      return;
+    }
+
+    // ===================================================
+    // VALIDASI EMAIL
+    // ===================================================
+
+    if (
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+        email
+      )
+    ) {
+      setError(
+        "Format email tidak valid."
+      );
+      return;
+    }
+
+    // ===================================================
+    // VALIDASI NAMA SEKOLAH
+    // ===================================================
+
+    if (namaSekolah.length < 3) {
+      setError(
+        "Nama sekolah minimal 3 karakter."
+      );
+      return;
+    }
+
+    // ===================================================
+    // VALIDASI ALAMAT
+    // ===================================================
+
+    if (alamatSekolah.length < 5) {
+      setError(
+        "Alamat sekolah minimal 5 karakter."
+      );
+      return;
+    }
+
+    // ===================================================
+    // VALIDASI TELEPON
+    // ===================================================
+
+    const cleanPhone =
+      teleponSekolah.replace(
+        /[\s-]/g,
+        ""
+      );
+
+    if (
+      !/^[0-9+()]+$/.test(
+        cleanPhone
+      )
+    ) {
+      setError(
+        "Nomor telepon hanya boleh berisi angka dan simbol telepon yang valid."
+      );
+      return;
+    }
+
+    if (cleanPhone.length < 8) {
+      setError(
+        "Nomor telepon sekolah minimal 8 karakter."
+      );
+      return;
+    }
+
+    // ===================================================
+    // VALIDASI SUBDOMAIN
+    // ===================================================
+
+    if (
+      !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(
+        subdomain
+      )
+    ) {
+      setError(
+        "Subdomain hanya boleh menggunakan huruf kecil, angka, dan tanda strip (-)."
+      );
+      return;
+    }
+
+    if (
+      subdomain.length < 3
+    ) {
+      setError(
+        "Subdomain minimal 3 karakter."
+      );
+      return;
+    }
+
+    // ===================================================
+    // VALIDASI PASSWORD
+    // ===================================================
+
+    if (kataSandi.length < 8) {
+      setError(
+        "Kata sandi minimal 8 karakter."
+      );
+      return;
+    }
+
+    if (!/[A-Z]/.test(kataSandi)) {
+      setError(
+        "Kata sandi harus memiliki minimal 1 huruf kapital."
+      );
+      return;
+    }
+
+    if (!/[0-9]/.test(kataSandi)) {
+      setError(
+        "Kata sandi harus memiliki minimal 1 angka."
+      );
+      return;
+    }
+
+    if (
+      kataSandi !==
+      konfirmasiKataSandi
+    ) {
+      setError(
+        "Konfirmasi kata sandi tidak sama."
+      );
+      return;
+    }
+
+    // ===================================================
+    // PAKET ID
+    // ===================================================
+
+    const paketId =
+      String(paket.id);
+
+    if (!paketId) {
+      setError(
+        "ID paket tidak ditemukan."
+      );
+      return;
+    }
+
+    // ===================================================
+    // CEK HARGA
+    // SEMUA PAKET HARUS BERBAYAR
+    // ===================================================
+
+    const hargaPaket =
+      Number(paket.harga);
+
+    if (
+      !Number.isFinite(hargaPaket) ||
+      hargaPaket <= 0
+    ) {
+      setError(
+        "Paket yang dipilih tidak dapat digunakan karena harga paket tidak valid."
+      );
+      return;
+    }
+
+    // ===================================================
+    // LOADING
+    // ===================================================
+
+    setLoading(true);
+
+    try {
+      // =================================================
+      // PAYLOAD
+      // =================================================
+
+      const payload = {
+        nama,
+        email,
+        namaSekolah,
+        jenjang,
+        subdomain,
+        alamatSekolah,
+        teleponSekolah: cleanPhone,
+        kataSandi,
+        paketId,
+
+        ...(form.logo.trim()
+          ? {
+              logo: form.logo.trim(),
+            }
+          : {}),
+      };
+
+      console.log(
+        "========== REGISTER TENANT =========="
+      );
+
+      console.log(
+        "PAYLOAD:",
+        payload
+      );
+
+      // =================================================
+      // REGISTER
+      // =================================================
+
+      const response =
+        await registerTenant(
+          payload
+        );
+
+      console.log(
+        "REGISTER RESPONSE:",
+        response
+      );
+
+      if (!response?.success) {
+        throw new Error(
+          response?.message ||
+            "Pendaftaran sekolah gagal."
+        );
+      }
+
+      // =================================================
+      // SIMPAN SESSION
+      // =================================================
+
+      sessionStorage.setItem(
+        "onboarding_email",
+        email
+      );
+
+      sessionStorage.setItem(
+        "onboarding_paket_id",
+        paketId
+      );
+
+      // =================================================
+      // KE VERIFY
+      // =================================================
+
+      window.location.replace(
+        "/onboarding/verify"
+      );
+    } catch (error) {
+      console.error(
+        "Register tenant error:",
+        error
+      );
+
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Gagal melakukan pendaftaran sekolah."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // =====================================================
   // LOADING PAKET
-  // ================================
+  // =====================================================
+
   if (loadingPaket) {
     return (
-      <main className="min-h-screen flex items-center justify-center bg-slate-50">
+      <main className="min-h-screen flex items-center justify-center bg-slate-50 px-5">
         <div className="text-center">
           <Loader2
-            className="animate-spin text-blue-600 mx-auto mb-3"
             size={30}
+            className="animate-spin text-blue-600 mx-auto mb-3"
           />
 
           <p className="text-sm text-slate-500">
@@ -380,9 +527,10 @@ export default function SchoolOnboardingPage() {
     );
   }
 
-  // ================================
-  // PAKET TIDAK DITEMUKAN
-  // ================================
+  // =====================================================
+  // PAKET TIDAK ADA
+  // =====================================================
+
   if (!paket) {
     return (
       <main className="min-h-screen bg-slate-50 flex items-center justify-center px-5">
@@ -417,7 +565,7 @@ export default function SchoolOnboardingPage() {
               window.location.href =
                 "/#pricing";
             }}
-            className="mt-6 px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold"
+            className="mt-6 px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition"
           >
             Kembali ke Paket
           </button>
@@ -426,25 +574,28 @@ export default function SchoolOnboardingPage() {
     );
   }
 
-  // ================================
-  // HALAMAN UTAMA
-  // ================================
+  // =====================================================
+  // PAGE
+  // =====================================================
+
   return (
     <main className="min-h-screen bg-slate-50">
       {/* HEADER */}
+
       <header className="bg-white border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="relative w-9 h-9">
+        <div className="max-w-7xl mx-auto px-5 sm:px-6 py-4 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="relative w-9 h-9 shrink-0">
               <Image
                 src="/logo/logoSS.png"
                 alt="SmartSchool"
                 fill
+                priority
                 className="object-contain"
               />
             </div>
 
-            <span className="font-bold text-lg text-slate-900">
+            <span className="font-bold text-lg text-slate-900 whitespace-nowrap">
               SMART{" "}
               <span className="text-blue-600">
                 SCHOOL
@@ -452,59 +603,48 @@ export default function SchoolOnboardingPage() {
             </span>
           </div>
 
-          <div className="text-xs text-slate-500">
+          <div className="text-xs sm:text-sm text-slate-500 whitespace-nowrap">
             Pendaftaran Sekolah
           </div>
         </div>
       </header>
 
       {/* CONTENT */}
-      <div className="max-w-7xl mx-auto px-5 py-10">
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-5 py-8 sm:py-10">
         {/* PROGRESS */}
-        <div className="max-w-3xl mx-auto mb-10">
-          <div className="flex items-center justify-center">
-            <div className="flex items-center">
-              <div className="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-bold">
-                1
-              </div>
 
-              <span className="ml-2 text-sm font-semibold text-blue-600">
-                Data Sekolah
-              </span>
-            </div>
+        <div className="max-w-3xl mx-auto mb-8 sm:mb-10 overflow-x-auto">
+          <div className="flex items-center justify-center min-w-[560px]">
+            <ProgressStep
+              number="1"
+              label="Data Sekolah"
+              active
+            />
 
-            <div className="w-16 h-px bg-slate-300 mx-4" />
+            <div className="w-12 sm:w-16 h-px bg-slate-300 mx-2 sm:mx-4" />
 
-            <div className="flex items-center">
-              <div className="w-9 h-9 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center text-sm font-bold">
-                2
-              </div>
+            <ProgressStep
+              number="2"
+              label="Verifikasi"
+            />
 
-              <span className="ml-2 text-sm text-slate-400">
-                Verifikasi
-              </span>
-            </div>
+            <div className="w-12 sm:w-16 h-px bg-slate-300 mx-2 sm:mx-4" />
 
-            <div className="w-16 h-px bg-slate-300 mx-4" />
-
-            <div className="flex items-center">
-              <div className="w-9 h-9 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center text-sm font-bold">
-                3
-              </div>
-
-              <span className="ml-2 text-sm text-slate-400">
-                Pembayaran
-              </span>
-            </div>
+            <ProgressStep
+              number="3"
+              label="Pembayaran"
+            />
           </div>
         </div>
 
-        <div className="grid lg:grid-cols-[1fr_360px] gap-8 items-start">
+        <div className="grid lg:grid-cols-[minmax(0,1fr)_360px] gap-6 lg:gap-8 items-start">
           {/* FORM */}
-          <div className="bg-white border border-slate-200 shadow-sm rounded-2xl p-7">
+
+          <div className="bg-white border border-slate-200 shadow-sm rounded-2xl p-5 sm:p-7">
             <div className="mb-7">
               <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
+                <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center shrink-0">
                   <Building2
                     size={20}
                     className="text-blue-600"
@@ -517,16 +657,16 @@ export default function SchoolOnboardingPage() {
                   </h1>
 
                   <p className="text-sm text-slate-500">
-                    Lengkapi data sekolah dan akun
-                    admin.
+                    Lengkapi data sekolah dan akun admin.
                   </p>
                 </div>
               </div>
             </div>
 
             {/* ERROR */}
+
             {error && (
-              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600 leading-6">
                 {error}
               </div>
             )}
@@ -535,7 +675,8 @@ export default function SchoolOnboardingPage() {
               onSubmit={handleSubmit}
               className="space-y-7"
             >
-              {/* ================= ADMIN ================= */}
+              {/* ADMIN */}
+
               <section>
                 <h2 className="text-sm font-bold text-slate-900 mb-4">
                   Data Admin Sekolah
@@ -548,9 +689,7 @@ export default function SchoolOnboardingPage() {
                     value={form.nama}
                     onChange={handleChange}
                     placeholder="Nama admin"
-                    icon={
-                      <User size={16} />
-                    }
+                    icon={<User size={16} />}
                     required
                   />
 
@@ -561,15 +700,14 @@ export default function SchoolOnboardingPage() {
                     value={form.email}
                     onChange={handleChange}
                     placeholder="admin@sekolah.sch.id"
-                    icon={
-                      <Mail size={16} />
-                    }
+                    icon={<Mail size={16} />}
                     required
                   />
                 </div>
               </section>
 
-              {/* ================= SEKOLAH ================= */}
+              {/* SEKOLAH */}
+
               <section>
                 <h2 className="text-sm font-bold text-slate-900 mb-4">
                   Informasi Sekolah
@@ -590,6 +728,7 @@ export default function SchoolOnboardingPage() {
 
                   <div className="grid md:grid-cols-2 gap-5">
                     {/* JENJANG */}
+
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-2">
                         Jenjang
@@ -600,7 +739,7 @@ export default function SchoolOnboardingPage() {
                         value={form.jenjang}
                         onChange={handleChange}
                         required
-                        className="w-full h-11 px-3 border border-slate-200 rounded-lg bg-white text-sm text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full h-11 px-3 border border-slate-200 rounded-xl bg-white text-sm text-slate-800 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
                       >
                         <option value="">
                           Pilih jenjang
@@ -633,6 +772,7 @@ export default function SchoolOnboardingPage() {
                     </div>
 
                     {/* SUBDOMAIN */}
+
                     <Input
                       label="Subdomain"
                       name="subdomain"
@@ -647,14 +787,15 @@ export default function SchoolOnboardingPage() {
                   </div>
 
                   <p className="text-xs text-slate-400 -mt-3">
-                    Gunakan huruf kecil, angka,
-                    dan tanda strip (-).
+                    Gunakan huruf kecil, angka, dan tanda
+                    strip (-).
                     <br />
                     Contoh:
                     smk-taruna-bhakti.smartschool.id
                   </p>
 
                   {/* ALAMAT */}
+
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">
                       Alamat Sekolah
@@ -672,15 +813,21 @@ export default function SchoolOnboardingPage() {
                           form.alamatSekolah
                         }
                         onChange={handleChange}
-                        placeholder="Alamat lengkap sekolah"
+                        placeholder="Contoh: Jl. Raya Pendidikan No. 10"
                         required
+                        minLength={5}
                         rows={3}
-                        className="w-full pl-10 pr-3 py-3 border border-slate-200 rounded-lg text-sm outline-none resize-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full pl-10 pr-3 py-3 border border-slate-200 rounded-xl text-sm text-slate-800 outline-none resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
                       />
                     </div>
+
+                    <p className="text-xs text-slate-400 mt-1.5">
+                      Alamat minimal 5 karakter.
+                    </p>
                   </div>
 
                   {/* TELEPON */}
+
                   <Input
                     label="Nomor Telepon Sekolah"
                     name="teleponSekolah"
@@ -696,6 +843,7 @@ export default function SchoolOnboardingPage() {
                   />
 
                   {/* LOGO */}
+
                   <Input
                     label="URL Logo Sekolah"
                     name="logo"
@@ -709,7 +857,8 @@ export default function SchoolOnboardingPage() {
                 </div>
               </section>
 
-              {/* ================= PASSWORD ================= */}
+              {/* PASSWORD */}
+
               <section>
                 <h2 className="text-sm font-bold text-slate-900 mb-4">
                   Keamanan Akun
@@ -723,9 +872,7 @@ export default function SchoolOnboardingPage() {
                     value={form.kataSandi}
                     onChange={handleChange}
                     placeholder="Minimal 8 karakter"
-                    icon={
-                      <Lock size={16} />
-                    }
+                    icon={<Lock size={16} />}
                     required
                   />
 
@@ -738,27 +885,27 @@ export default function SchoolOnboardingPage() {
                     }
                     onChange={handleChange}
                     placeholder="Ulangi kata sandi"
-                    icon={
-                      <Lock size={16} />
-                    }
+                    icon={<Lock size={16} />}
                     required
                   />
                 </div>
 
                 <p className="text-xs text-slate-400 mt-2">
-                  Minimal 8 karakter, memiliki 1
-                  huruf kapital dan 1 angka.
+                  Minimal 8 karakter, memiliki 1 huruf
+                  kapital dan 1 angka.
                 </p>
               </section>
 
-              {/* ================= BUTTON ================= */}
-              <div className="pt-2 flex items-center justify-between gap-4">
+              {/* BUTTON */}
+
+              <div className="pt-2 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-4">
                 <button
                   type="button"
+                  disabled={loading}
                   onClick={() =>
                     window.history.back()
                   }
-                  className="px-5 py-3 text-sm font-medium text-slate-600 hover:text-slate-900 flex items-center gap-2"
+                  className="px-5 py-3 text-sm font-medium text-slate-600 hover:text-slate-900 flex items-center justify-center gap-2 transition"
                 >
                   <ArrowLeft size={16} />
                   Kembali
@@ -767,7 +914,7 @@ export default function SchoolOnboardingPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white rounded-lg text-sm font-semibold flex items-center gap-2 transition"
+                  className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed text-white rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition"
                 >
                   {loading ? (
                     <>
@@ -788,7 +935,8 @@ export default function SchoolOnboardingPage() {
             </form>
           </div>
 
-          {/* ================= PACKAGE SUMMARY ================= */}
+          {/* PACKAGE */}
+
           <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 lg:sticky lg:top-6">
             <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide mb-2">
               Paket yang dipilih
@@ -798,7 +946,7 @@ export default function SchoolOnboardingPage() {
               {paket.nama}
             </h2>
 
-            <p className="text-sm text-slate-500 mt-2">
+            <p className="text-sm text-slate-500 mt-2 leading-6">
               {paket.deskripsi}
             </p>
 
@@ -826,7 +974,7 @@ export default function SchoolOnboardingPage() {
                 >
                   <CheckCircle2
                     size={17}
-                    className="text-blue-600 shrink-0"
+                    className="text-blue-600 shrink-0 mt-0.5"
                   />
 
                   <span className="text-sm text-slate-600">
@@ -842,9 +990,44 @@ export default function SchoolOnboardingPage() {
   );
 }
 
-// ================================
-// INPUT COMPONENT
-// ================================
+// =====================================================
+// PROGRESS STEP
+// =====================================================
+
+function ProgressStep({
+  number,
+  label,
+  active = false,
+}) {
+  return (
+    <div className="flex items-center shrink-0">
+      <div
+        className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold ${
+          active
+            ? "bg-blue-600 text-white"
+            : "bg-slate-200 text-slate-500"
+        }`}
+      >
+        {number}
+      </div>
+
+      <span
+        className={`ml-2 text-sm ${
+          active
+            ? "font-semibold text-blue-600"
+            : "text-slate-400"
+        }`}
+      >
+        {label}
+      </span>
+    </div>
+  );
+}
+
+// =====================================================
+// INPUT
+// =====================================================
+
 function Input({
   label,
   icon,
@@ -863,16 +1046,17 @@ function Input({
 
         <input
           {...props}
-          className="w-full h-11 pl-10 pr-3 border border-slate-200 rounded-lg text-sm text-slate-800 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+          className="w-full h-11 pl-10 pr-3 border border-slate-200 rounded-xl text-sm text-slate-800 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
         />
       </div>
     </div>
   );
 }
 
-// ================================
+// =====================================================
 // FORMAT RUPIAH
-// ================================
+// =====================================================
+
 function formatRupiah(value) {
   if (
     value === undefined ||
@@ -883,13 +1067,16 @@ function formatRupiah(value) {
 
   const number = Number(value);
 
-  if (number === 0) {
-    return "Gratis";
+  if (!Number.isFinite(number)) {
+    return "Rp0";
   }
 
-  return new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
-    maximumFractionDigits: 0,
-  }).format(number);
+  return new Intl.NumberFormat(
+    "id-ID",
+    {
+      style: "currency",
+      currency: "IDR",
+      maximumFractionDigits: 0,
+    }
+  ).format(number);
 }

@@ -1,41 +1,30 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+
 import Header from "../../components/Header";
 import Sidebar from "../../components/Sidebar";
 
 import {
-  Building2,
   CreditCard,
   CalendarDays,
   CheckCircle2,
   XCircle,
   Clock3,
-  Search,
-  SlidersHorizontal,
-  ArrowUpDown,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
-  Eye,
-  Pencil,
-  Trash2,
-  Plus,
   RefreshCw,
-  Download,
-  FileText,
-  WalletCards,
   AlertCircle,
-  TrendingUp,
-  MoreHorizontal,
+  WalletCards,
+  FileText,
+  ShieldCheck,
 } from "lucide-react";
 
-/* =========================================================
-   HELPER
-========================================================= */
+import {
+  getAllLangganan,
+} from "../../../services/langganan.service";
+
+// =========================================================
+// FORMAT RUPIAH
+// =========================================================
 
 function formatRupiah(value) {
   return new Intl.NumberFormat("id-ID", {
@@ -45,8 +34,14 @@ function formatRupiah(value) {
   }).format(Number(value) || 0);
 }
 
+// =========================================================
+// FORMAT DATE
+// =========================================================
+
 function formatDate(date) {
-  if (!date) return "-";
+  if (!date) {
+    return "-";
+  }
 
   const parsedDate = new Date(date);
 
@@ -61,66 +56,113 @@ function formatDate(date) {
   });
 }
 
-/* =========================================================
-   STATUS BADGE
-========================================================= */
+// =========================================================
+// STATUS LANGGANAN
+// =========================================================
+
+function getSubscriptionStatus(item) {
+  const status = String(
+    item?.statusLangganan || ""
+  ).toLowerCase();
+
+  if (status === "active") {
+    return "Aktif";
+  }
+
+  if (status === "trialing") {
+    return "Aktif";
+  }
+
+  if (status === "expired") {
+    return "Expired";
+  }
+
+  if (item?.tanggalBerakhir) {
+    const endDate = new Date(
+      item.tanggalBerakhir
+    );
+
+    if (
+      !Number.isNaN(endDate.getTime()) &&
+      endDate < new Date()
+    ) {
+      return "Expired";
+    }
+  }
+
+  return "Akan Berakhir";
+}
+
+// =========================================================
+// STATUS PEMBAYARAN
+// =========================================================
+
+function getPaymentStatus(status) {
+  const normalized = String(
+    status || ""
+  ).toLowerCase();
+
+  if (
+    normalized === "paid" ||
+    normalized === "berhasil" ||
+    normalized === "success"
+  ) {
+    return "Lunas";
+  }
+
+  if (normalized === "pending") {
+    return "Pending";
+  }
+
+  if (
+    normalized === "failed" ||
+    normalized === "gagal"
+  ) {
+    return "Gagal";
+  }
+
+  return status || "-";
+}
+
+// =========================================================
+// STATUS BADGE
+// =========================================================
 
 function StatusBadge({ status }) {
-  const styles = {
-    Aktif: {
-      icon: CheckCircle2,
-      className:
-        "border-emerald-200 bg-emerald-50 text-emerald-700",
-      dot: "bg-emerald-500",
-    },
+  if (status === "Aktif") {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">
+        <CheckCircle2 size={13} />
+        Aktif
+      </span>
+    );
+  }
 
-    "Akan Berakhir": {
-      icon: Clock3,
-      className:
-        "border-amber-200 bg-amber-50 text-amber-700",
-      dot: "bg-amber-500",
-    },
-
-    Expired: {
-      icon: XCircle,
-      className:
-        "border-red-200 bg-red-50 text-red-700",
-      dot: "bg-red-500",
-    },
-  };
-
-  const current = styles[status] || {
-    icon: Clock3,
-    className:
-      "border-slate-200 bg-slate-50 text-slate-600",
-    dot: "bg-slate-400",
-  };
-
-  const Icon = current.icon;
+  if (status === "Expired") {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700">
+        <XCircle size={13} />
+        Expired
+      </span>
+    );
+  }
 
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold ${current.className}`}
-    >
-      <span
-        className={`h-1.5 w-1.5 rounded-full ${current.dot}`}
-      />
-
-      <Icon size={13} />
-
-      {status || "-"}
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700">
+      <Clock3 size={13} />
+      Akan Berakhir
     </span>
   );
 }
 
-/* =========================================================
-   PAYMENT BADGE
-========================================================= */
+// =========================================================
+// PAYMENT BADGE
+// =========================================================
 
 function PaymentBadge({ status }) {
   if (status === "Lunas") {
     return (
-      <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">
         <CheckCircle2 size={13} />
         Lunas
       </span>
@@ -129,23 +171,32 @@ function PaymentBadge({ status }) {
 
   if (status === "Pending") {
     return (
-      <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700">
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700">
         <Clock3 size={13} />
         Pending
       </span>
     );
   }
 
+  if (status === "Gagal") {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700">
+        <XCircle size={13} />
+        Gagal
+      </span>
+    );
+  }
+
   return (
-    <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-600">
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-600">
       {status || "-"}
     </span>
   );
 }
 
-/* =========================================================
-   STAT CARD
-========================================================= */
+// =========================================================
+// STAT CARD
+// =========================================================
 
 function StatCard({
   icon: Icon,
@@ -153,10 +204,10 @@ function StatCard({
   value,
   description,
   iconClass,
-  valueClass = "text-slate-900",
+  valueClass,
 }) {
   return (
-    <div className="min-w-[230px] flex-1 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+    <div className="min-w-[210px] flex-1 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
@@ -164,16 +215,16 @@ function StatCard({
           </p>
 
           <p
-            className={`mt-2 text-2xl font-bold tracking-tight ${valueClass}`}
+            className={`mt-2 text-2xl font-bold ${
+              valueClass || "text-slate-900"
+            }`}
           >
             {value}
           </p>
 
-          {description && (
-            <p className="mt-1 text-xs text-slate-400">
-              {description}
-            </p>
-          )}
+          <p className="mt-1 text-xs text-slate-400">
+            {description}
+          </p>
         </div>
 
         <div
@@ -186,1646 +237,756 @@ function StatCard({
   );
 }
 
-/* =========================================================
-   MAIN PAGE
-========================================================= */
+// =========================================================
+// MAIN PAGE
+// =========================================================
 
 export default function LanggananSekolahPage() {
-  const router = useRouter();
-
-  /* =======================================================
-     SIDEBAR
-  ======================================================= */
-
   const [collapsed, setCollapsed] = useState(false);
 
-  /* =======================================================
-     DATA
-  ======================================================= */
+  const [subscriptions, setSubscriptions] =
+    useState([]);
 
-  const [subscriptions, setSubscriptions] = useState([]);
+  const [loading, setLoading] =
+    useState(true);
 
-  const [loading, setLoading] = useState(true);
+  const [error, setError] =
+    useState("");
 
-  const [error, setError] = useState("");
-
-  /* =======================================================
-     FILTER
-  ======================================================= */
-
-  const [search, setSearch] = useState("");
-
-  const [statusFilter, setStatusFilter] =
-    useState("Semua Status");
-
-  const [packageFilter, setPackageFilter] =
-    useState("Semua Paket");
-
-  /* =======================================================
-     SORT
-  ======================================================= */
-
-  const [sortBy, setSortBy] = useState("sekolah");
-
-  const [sortDirection, setSortDirection] =
-    useState("asc");
-
-  /* =======================================================
-     PAGINATION
-  ======================================================= */
-
-  const [currentPage, setCurrentPage] = useState(1);
-
-  const [itemsPerPage, setItemsPerPage] = useState(8);
-
-  /* =======================================================
-     UI
-  ======================================================= */
-
-  const [showFilter, setShowFilter] = useState(false);
-
-  const [openAction, setOpenAction] = useState(null);
-
-  /* =======================================================
-     FETCH SUBSCRIPTIONS
-  ======================================================= */
+  // =======================================================
+  // FETCH DATA SUPER ADMIN
+  // =======================================================
 
   const fetchSubscriptions = async () => {
     try {
       setLoading(true);
       setError("");
 
-      const API_URL = (
-        process.env.NEXT_PUBLIC_API_URL ||
-        "http://localhost:5000/api"
-      ).replace(/\/$/, "");
+      console.log(
+        "===================================="
+      );
 
-      const url = API_URL.endsWith("/api")
-        ? `${API_URL}/v1/langganan/sekolah`
-        : `${API_URL}/api/v1/langganan/sekolah`;
+      console.log(
+        "LOAD DATA LANGGANAN SUPER ADMIN"
+      );
 
-      const token = localStorage.getItem("token");
+      console.log(
+        "Endpoint:",
+        "/api/v1/langganan/sekolah"
+      );
 
-      if (!token) {
-        throw new Error(
-          "Token autentikasi tidak ditemukan. Silakan login kembali."
-        );
-      }
+      console.log(
+        "===================================="
+      );
 
-      const response = await fetch(url, {
-        method: "GET",
+      /*
+       * KHUSUS SUPER ADMIN
+       *
+       * Jangan gunakan:
+       * getPendingPayments()
+       *
+       * karena endpoint pending adalah untuk
+       * admin sekolah.
+       */
 
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+      const data =
+        await getAllLangganan();
 
-        cache: "no-store",
-      });
+      console.log(
+        "HASIL LANGGANAN:",
+        data
+      );
 
-      const result = await response.json();
+      const formattedData =
+        Array.isArray(data)
+          ? data.map((item) => {
+              return {
+                id:
+                  item?.id || "",
 
-      if (!response.ok) {
-        throw new Error(
-          result?.message ||
-            "Gagal mengambil data langganan sekolah."
-        );
-      }
+                sekolah:
+                  item?.sekolah?.nama ||
+                  item?.namaSekolah ||
+                  "-",
 
-      const rawData = Array.isArray(result?.data)
-        ? result.data
-        : [];
+                kodeSekolah:
+                  item?.sekolah?.kode ||
+                  "-",
 
-      /* ===================================================
-         MAPPING DATABASE -> FORMAT FRONTEND
-      =================================================== */
+                paket:
+                  item?.paket?.nama ||
+                  item?.namaPaket ||
+                  "-",
 
-      const formattedData = rawData.map((item) => {
-        let status = "Akan Berakhir";
+                harga: Number(
+                  item?.hargaSaatBerlangganan ??
+                    item?.harga ??
+                    item?.paket?.harga ??
+                    0
+                ),
 
-        if (
-          item.statusLangganan === "active" ||
-          item.statusLangganan === "trialing"
-        ) {
-          status = "Aktif";
-        }
+                mulai:
+                  formatDate(
+                    item?.tanggalMulai
+                  ),
 
-        if (item.statusLangganan === "expired") {
-          status = "Expired";
-        }
+                berakhir:
+                  formatDate(
+                    item?.tanggalBerakhir
+                  ),
 
-        /* -----------------------------------------------
-           Jika tanggal berakhir sudah lewat,
-           otomatis tampil Expired.
-        ------------------------------------------------ */
+                status:
+                  getSubscriptionStatus(
+                    item
+                  ),
 
-        if (item.tanggalBerakhir) {
-          const endDate = new Date(
-            item.tanggalBerakhir
-          );
+                pembayaran:
+                  getPaymentStatus(
+                    item?.statusPembayaran
+                  ),
 
-          if (
-            !Number.isNaN(endDate.getTime()) &&
-            endDate < new Date()
-          ) {
-            status = "Expired";
-          }
-        }
+                raw: item,
+              };
+            })
+          : [];
 
-        return {
-          id: item.id,
-
-          sekolah:
-            item.sekolah?.nama ||
-            "Sekolah Tidak Diketahui",
-
-          kode: item.sekolah?.kode || "-",
-
-          paket: item.paket?.nama || "-",
-
-          harga: Number(
-            item.hargaSaatBerlangganan ??
-              item.paket?.harga ??
-              0
-          ),
-
-          mulai: formatDate(
-            item.tanggalMulai
-          ),
-
-          berakhir: formatDate(
-            item.tanggalBerakhir
-          ),
-
-          status,
-
-          pembayaran:
-            item.statusPembayaran === "paid"
-              ? "Lunas"
-              : item.statusPembayaran === "pending"
-                ? "Pending"
-                : item.statusPembayaran || "-",
-
-          admin:
-            item.dibuatOlehNama ||
-            item.dibuatOleh?.namaLengkap ||
-            "-",
-
-          /* Data asli tetap disimpan
-             kalau nanti diperlukan */
-          raw: item,
-        };
-      });
-
-      setSubscriptions(formattedData);
+      setSubscriptions(
+        formattedData
+      );
     } catch (err) {
       console.error(
         "FETCH LANGGANAN ERROR:",
         err
       );
 
+      setSubscriptions([]);
+
       setError(
         err?.message ||
-          "Terjadi kesalahan saat mengambil data langganan."
+          "Gagal mengambil data langganan sekolah."
       );
-
-      setSubscriptions([]);
     } finally {
       setLoading(false);
     }
   };
 
-  /* =======================================================
-     INITIAL FETCH
-  ======================================================= */
+  // =======================================================
+  // INITIAL LOAD
+  // =======================================================
 
   useEffect(() => {
     fetchSubscriptions();
   }, []);
 
-  /* =======================================================
-     RESET PAGE SAAT FILTER BERUBAH
-  ======================================================= */
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [
-    search,
-    statusFilter,
-    packageFilter,
-    itemsPerPage,
-  ]);
-
-  /* =======================================================
-     STATISTICS
-  ======================================================= */
+  // =======================================================
+  // STATISTICS
+  // =======================================================
 
   const statistics = useMemo(() => {
-    const total = subscriptions.length;
+    const total =
+      subscriptions.length;
 
-    const active = subscriptions.filter(
-      (item) => item.status === "Aktif"
-    ).length;
+    const active =
+      subscriptions.filter(
+        (item) =>
+          item.status === "Aktif"
+      ).length;
 
-    const expiring = subscriptions.filter(
-      (item) => item.status === "Akan Berakhir"
-    ).length;
+    const pending =
+      subscriptions.filter(
+        (item) =>
+          item.pembayaran ===
+          "Pending"
+      ).length;
 
-    const expired = subscriptions.filter(
-      (item) => item.status === "Expired"
-    ).length;
+    const expired =
+      subscriptions.filter(
+        (item) =>
+          item.status ===
+          "Expired"
+      ).length;
 
-    const revenue = subscriptions
-      .filter(
-        (item) => item.pembayaran === "Lunas"
-      )
-      .reduce(
-        (sum, item) =>
-          sum + Number(item.harga || 0),
-        0
-      );
+    const totalValue =
+      subscriptions
+        .filter(
+          (item) =>
+            item.pembayaran ===
+            "Lunas"
+        )
+        .reduce(
+          (sum, item) =>
+            sum +
+            Number(
+              item.harga || 0
+            ),
+          0
+        );
 
     return {
       total,
       active,
-      expiring,
+      pending,
       expired,
-      revenue,
+      totalValue,
     };
   }, [subscriptions]);
 
-  /* =======================================================
-     FILTER + SORT
-  ======================================================= */
-
-  const filteredSubscriptions = useMemo(() => {
-    let result = [...subscriptions];
-
-    const keyword = search
-      .trim()
-      .toLowerCase();
-
-    /* SEARCH */
-
-    if (keyword) {
-      result = result.filter((item) => {
-        return (
-          item.sekolah
-            .toLowerCase()
-            .includes(keyword) ||
-          item.kode
-            .toLowerCase()
-            .includes(keyword) ||
-          item.paket
-            .toLowerCase()
-            .includes(keyword) ||
-          item.admin
-            .toLowerCase()
-            .includes(keyword)
-        );
-      });
-    }
-
-    /* STATUS */
-
-    if (
-      statusFilter !== "Semua Status"
-    ) {
-      result = result.filter(
-        (item) =>
-          item.status === statusFilter
-      );
-    }
-
-    /* PACKAGE */
-
-    if (
-      packageFilter !== "Semua Paket"
-    ) {
-      result = result.filter(
-        (item) =>
-          item.paket === packageFilter
-      );
-    }
-
-    /* SORT */
-
-    result.sort((a, b) => {
-      if (sortBy === "harga") {
-        const first =
-          Number(a.harga) || 0;
-
-        const second =
-          Number(b.harga) || 0;
-
-        return sortDirection === "asc"
-          ? first - second
-          : second - first;
-      }
-
-      let first = "";
-      let second = "";
-
-      if (sortBy === "sekolah") {
-        first = a.sekolah || "";
-        second = b.sekolah || "";
-      }
-
-      if (sortBy === "paket") {
-        first = a.paket || "";
-        second = b.paket || "";
-      }
-
-      if (sortBy === "status") {
-        first = a.status || "";
-        second = b.status || "";
-      }
-
-      return sortDirection === "asc"
-        ? first.localeCompare(
-            second,
-            "id"
-          )
-        : second.localeCompare(
-            first,
-            "id"
-          );
-    });
-
-    return result;
-  }, [
-    subscriptions,
-    search,
-    statusFilter,
-    packageFilter,
-    sortBy,
-    sortDirection,
-  ]);
-
-  /* =======================================================
-     PAGINATION
-  ======================================================= */
-
-  const totalPages = Math.max(
-    1,
-    Math.ceil(
-      filteredSubscriptions.length /
-        itemsPerPage
-    )
-  );
-
-  const safeCurrentPage = Math.min(
-    currentPage,
-    totalPages
-  );
-
-  const paginatedSubscriptions =
-    useMemo(() => {
-      const start =
-        (safeCurrentPage - 1) *
-        itemsPerPage;
-
-      return filteredSubscriptions.slice(
-        start,
-        start + itemsPerPage
-      );
-    }, [
-      filteredSubscriptions,
-      safeCurrentPage,
-      itemsPerPage,
-    ]);
-
-  const startNumber =
-    filteredSubscriptions.length === 0
-      ? 0
-      : (safeCurrentPage - 1) *
-          itemsPerPage +
-        1;
-
-  const endNumber = Math.min(
-    safeCurrentPage * itemsPerPage,
-    filteredSubscriptions.length
-  );
-
-  /* =======================================================
-     SORT HANDLER
-  ======================================================= */
-
-  const changeSort = (field) => {
-    if (sortBy === field) {
-      setSortDirection((prev) =>
-        prev === "asc"
-          ? "desc"
-          : "asc"
-      );
-    } else {
-      setSortBy(field);
-      setSortDirection("asc");
-    }
-  };
-
-  /* =======================================================
-     RESET FILTER
-  ======================================================= */
-
-  const resetFilter = () => {
-    setSearch("");
-
-    setStatusFilter(
-      "Semua Status"
-    );
-
-    setPackageFilter(
-      "Semua Paket"
-    );
-
-    setSortBy("sekolah");
-
-    setSortDirection("asc");
-
-    setCurrentPage(1);
-  };
-
-  /* =======================================================
-     DELETE
-     
-     Catatan:
-     Saat ini hanya menghapus dari tampilan.
-     Belum menghapus database.
-  ======================================================= */
-
-  const handleDelete = (id) => {
-    const target =
-      subscriptions.find(
-        (item) => item.id === id
-      );
-
-    if (!target) return;
-
-    const confirmed =
-      window.confirm(
-        `Hapus langganan "${target.sekolah}"?`
-      );
-
-    if (!confirmed) return;
-
-    setSubscriptions((prev) =>
-      prev.filter(
-        (item) => item.id !== id
-      )
-    );
-
-    setOpenAction(null);
-  };
-
-  /* =======================================================
-     RENDER
-  ======================================================= */
+  // =======================================================
+  // RENDER
+  // =======================================================
 
   return (
-    <div className="min-h-screen bg-[#f4f7fb] text-slate-900">
-      <div className="flex min-h-screen">
-        {/* =================================================
-            SIDEBAR
-        ================================================= */}
+    <div className="flex min-h-screen bg-[#f4f7fb] text-slate-900">
 
-        <Sidebar
-          collapsed={collapsed}
-          setCollapsed={setCollapsed}
-          role="super-admin"
-        />
+      {/* ===================================================
+          SIDEBAR
+      =================================================== */}
 
-        {/* =================================================
-            MAIN
-        ================================================= */}
+      <Sidebar
+        collapsed={collapsed}
+        setCollapsed={setCollapsed}
+        role="super-admin"
+      />
 
-        <div className="min-w-0 flex-1">
-          <Header />
+      {/* ===================================================
+          MAIN
+      =================================================== */}
 
-          <main className="w-full min-w-0 px-4 py-6 sm:px-6 lg:px-8 xl:px-10">
-            <div className="mx-auto w-full max-w-[1800px]">
-              {/* =================================================
-                  PAGE HEADER
-              ================================================= */}
+      <div className="flex min-w-0 flex-1 flex-col">
+        <Header />
 
-              <section className="mb-6">
-                <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
-                  <div className="flex min-w-0 items-center gap-4">
-                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-200">
-                      <CreditCard
-                        size={27}
-                      />
-                    </div>
+        <main className="min-h-screen w-full overflow-x-hidden px-4 py-5 sm:px-6 lg:px-8 xl:px-10">
+          <div className="mx-auto w-full max-w-[1600px]">
 
-                    <div className="min-w-0">
-                      <h1 className="truncate text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-                        Langganan Sekolah
-                      </h1>
+            {/* =================================================
+                HEADER
+            ================================================= */}
 
-                      <p className="mt-1 text-sm text-slate-500 sm:text-base">
-                        Kelola data paket dan
-                        langganan sekolah secara
-                        terpusat
-                      </p>
-                    </div>
-                  </div>
+            <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 
-                  {/* ACTION BUTTONS */}
+              <div className="flex min-w-0 items-center gap-4">
 
-                  <div className="flex flex-wrap items-center gap-2.5">
-                    {/* EXPORT */}
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-md shadow-blue-200">
+                  <CreditCard size={23} />
+                </div>
 
-                    <button
-                      type="button"
-                      className="inline-flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
-                    >
-                      <Download
-                        size={17}
-                      />
+                <div className="min-w-0">
 
-                      <span>
-                        Export
-                      </span>
-                    </button>
+                  <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+                    Data Langganan Sekolah
+                  </h1>
 
-                    {/* REFRESH */}
+                  <p className="mt-1 text-sm text-slate-500">
+                    Kelola dan pantau seluruh langganan sekolah
+                  </p>
 
-                    <button
-                      type="button"
-                      onClick={
-                        fetchSubscriptions
-                      }
-                      disabled={loading}
-                      className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
-                      title="Refresh"
-                    >
-                      <RefreshCw
-                        size={18}
-                        className={
-                          loading
-                            ? "animate-spin"
-                            : ""
-                        }
-                      />
-                    </button>
+                </div>
+              </div>
 
-                    {/* TAMBAH */}
+              <button
+                type="button"
+                onClick={fetchSubscriptions}
+                disabled={loading}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <RefreshCw
+                  size={17}
+                  className={
+                    loading
+                      ? "animate-spin"
+                      : ""
+                  }
+                />
 
-                    <button
-                      type="button"
-                      onClick={() =>
-                        router.push(
-                          "/super-admin/langgananSekolah/tambah"
+                Refresh
+              </button>
+            </div>
+
+            {/* =================================================
+                INFO
+            ================================================= */}
+
+            <div className="mb-6 flex items-start gap-3 rounded-2xl border border-blue-200 bg-blue-50 p-4">
+
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-100">
+                <ShieldCheck
+                  size={18}
+                  className="text-blue-700"
+                />
+              </div>
+
+              <div className="min-w-0">
+
+                <p className="text-sm font-semibold text-blue-900">
+                  Data Langganan Sekolah
+                </p>
+
+                <p className="mt-1 text-sm leading-relaxed text-blue-700">
+                  Data pada halaman ini diambil langsung dari
+                  backend SmartSchool menggunakan endpoint
+                  khusus Super Admin.
+                </p>
+
+              </div>
+            </div>
+
+            {/* =================================================
+                ERROR
+            ================================================= */}
+
+            {error && (
+              <div className="mb-6 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4">
+
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-red-100">
+                  <AlertCircle
+                    size={18}
+                    className="text-red-600"
+                  />
+                </div>
+
+                <div className="min-w-0">
+
+                  <p className="text-sm font-semibold text-red-800">
+                    Gagal mengambil data
+                  </p>
+
+                  <p className="mt-1 text-sm text-red-700">
+                    {error}
+                  </p>
+
+                </div>
+              </div>
+            )}
+
+            {/* =================================================
+                STATISTICS
+            ================================================= */}
+
+            <section className="mb-6">
+              <div className="flex flex-wrap gap-4">
+
+                <StatCard
+                  icon={CreditCard}
+                  label="Total Data"
+                  value={
+                    loading
+                      ? "..."
+                      : statistics.total
+                  }
+                  description="Total langganan sekolah"
+                  iconClass="bg-blue-50 text-blue-600"
+                />
+
+                <StatCard
+                  icon={CheckCircle2}
+                  label="Aktif"
+                  value={
+                    loading
+                      ? "..."
+                      : statistics.active
+                  }
+                  description="Langganan aktif"
+                  iconClass="bg-emerald-50 text-emerald-600"
+                  valueClass="text-emerald-600"
+                />
+
+                <StatCard
+                  icon={Clock3}
+                  label="Pending"
+                  value={
+                    loading
+                      ? "..."
+                      : statistics.pending
+                  }
+                  description="Pembayaran pending"
+                  iconClass="bg-amber-50 text-amber-600"
+                  valueClass="text-amber-600"
+                />
+
+                <StatCard
+                  icon={XCircle}
+                  label="Expired"
+                  value={
+                    loading
+                      ? "..."
+                      : statistics.expired
+                  }
+                  description="Langganan berakhir"
+                  iconClass="bg-red-50 text-red-600"
+                  valueClass="text-red-600"
+                />
+
+                <StatCard
+                  icon={WalletCards}
+                  label="Nilai Pembayaran"
+                  value={
+                    loading
+                      ? "..."
+                      : formatRupiah(
+                          statistics.totalValue
                         )
-                      }
-                      className="inline-flex h-11 items-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-semibold text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700 active:scale-[0.98]"
-                    >
-                      <Plus
-                        size={18}
-                      />
+                  }
+                  description="Total pembayaran lunas"
+                  iconClass="bg-indigo-50 text-indigo-600"
+                  valueClass="text-xl text-indigo-600"
+                />
 
-                      Tambah Langganan
-                    </button>
-                  </div>
-                </div>
-              </section>
+              </div>
+            </section>
 
-              {/* =================================================
-                  STATISTICS
-              ================================================= */}
+            {/* =================================================
+                TABLE CARD
+            ================================================= */}
 
-              <section className="mb-6">
-                <div className="flex min-w-0 flex-wrap gap-4">
-                  <StatCard
-                    icon={Building2}
-                    label="Total Langganan"
-                    value={
-                      loading
-                        ? "..."
-                        : statistics.total
-                    }
-                    description="Seluruh sekolah"
-                    iconClass="bg-blue-50 text-blue-600"
-                  />
+            <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
 
-                  <StatCard
-                    icon={CheckCircle2}
-                    label="Langganan Aktif"
-                    value={
-                      loading
-                        ? "..."
-                        : statistics.active
-                    }
-                    description="Sedang berjalan"
-                    iconClass="bg-emerald-50 text-emerald-600"
-                    valueClass="text-emerald-600"
-                  />
+              <div className="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
 
-                  <StatCard
-                    icon={Clock3}
-                    label="Akan Berakhir"
-                    value={
-                      loading
-                        ? "..."
-                        : statistics.expiring
-                    }
-                    description="Perlu diperpanjang"
-                    iconClass="bg-amber-50 text-amber-600"
-                    valueClass="text-amber-600"
-                  />
+                <div>
 
-                  <StatCard
-                    icon={XCircle}
-                    label="Expired"
-                    value={
-                      loading
-                        ? "..."
-                        : statistics.expired
-                    }
-                    description="Langganan berakhir"
-                    iconClass="bg-red-50 text-red-600"
-                    valueClass="text-red-600"
-                  />
+                  <h2 className="text-base font-bold text-slate-900">
+                    Seluruh Data Langganan
+                  </h2>
 
-                  <StatCard
-                    icon={TrendingUp}
-                    label="Nilai Langganan"
-                    value={
-                      loading
-                        ? "..."
-                        : formatRupiah(
-                            statistics.revenue
-                          )
-                    }
-                    description="Total pembayaran lunas"
-                    iconClass="bg-indigo-50 text-indigo-600"
-                    valueClass="text-indigo-600 text-xl"
-                  />
-                </div>
-              </section>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Data seluruh sekolah yang terdaftar
+                  </p>
 
-              {/* =================================================
-                  FILTER CARD
-              ================================================= */}
-
-              <section className="mb-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-                <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
-                  {/* SEARCH */}
-
-                  <div className="relative min-w-0 flex-1">
-                    <Search
-                      size={19}
-                      className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-                    />
-
-                    <input
-                      type="text"
-                      value={search}
-                      onChange={(e) =>
-                        setSearch(
-                          e.target.value
-                        )
-                      }
-                      placeholder="Cari sekolah, kode, paket, atau admin..."
-                      className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50 pl-11 pr-4 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100"
-                    />
-                  </div>
-
-                  {/* FILTER BUTTON */}
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setShowFilter(
-                        !showFilter
-                      )
-                    }
-                    className={`inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-semibold transition ${
-                      showFilter
-                        ? "border-blue-200 bg-blue-50 text-blue-700"
-                        : "border-slate-200 bg-white text-slate-600 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
-                    }`}
-                  >
-                    <SlidersHorizontal
-                      size={17}
-                    />
-
-                    Filter
-
-                    <ChevronDown
-                      size={15}
-                      className={`transition-transform ${
-                        showFilter
-                          ? "rotate-180"
-                          : ""
-                      }`}
-                    />
-                  </button>
-
-                  {/* SORT */}
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      changeSort(
-                        "sekolah"
-                      )
-                    }
-                    className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
-                  >
-                    <ArrowUpDown
-                      size={17}
-                    />
-
-                    <span>
-                      {sortDirection ===
-                      "asc"
-                        ? "Nama A-Z"
-                        : "Nama Z-A"}
-                    </span>
-                  </button>
                 </div>
 
-                {/* =================================================
-                    ADVANCED FILTER
-                ================================================= */}
+                <div className="flex items-center gap-2 text-xs text-slate-400">
+                  <FileText size={15} />
 
-                {showFilter && (
-                  <div className="mt-4 grid grid-cols-1 gap-3 border-t border-slate-100 pt-4 sm:grid-cols-2 lg:grid-cols-4">
-                    {/* STATUS */}
+                  GET /api/v1/langganan/sekolah
+                </div>
 
-                    <div>
-                      <label className="mb-1.5 block text-xs font-semibold text-slate-500">
-                        Status
-                      </label>
-
-                      <select
-                        value={
-                          statusFilter
-                        }
-                        onChange={(e) =>
-                          setStatusFilter(
-                            e.target.value
-                          )
-                        }
-                        className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
-                      >
-                        <option>
-                          Semua Status
-                        </option>
-
-                        <option>
-                          Aktif
-                        </option>
-
-                        <option>
-                          Akan Berakhir
-                        </option>
-
-                        <option>
-                          Expired
-                        </option>
-                      </select>
-                    </div>
-
-                    {/* PAKET */}
-
-                    <div>
-                      <label className="mb-1.5 block text-xs font-semibold text-slate-500">
-                        Paket
-                      </label>
-
-                      <select
-                        value={
-                          packageFilter
-                        }
-                        onChange={(e) =>
-                          setPackageFilter(
-                            e.target.value
-                          )
-                        }
-                        className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
-                      >
-                        <option>
-                          Semua Paket
-                        </option>
-
-                        <option>
-                          Basic
-                        </option>
-
-                        <option>
-                          Professional
-                        </option>
-
-                        <option>
-                          Premium
-                        </option>
-                      </select>
-                    </div>
-
-                    {/* SORT */}
-
-                    <div>
-                      <label className="mb-1.5 block text-xs font-semibold text-slate-500">
-                        Urutkan Berdasarkan
-                      </label>
-
-                      <select
-                        value={
-                          sortBy
-                        }
-                        onChange={(e) =>
-                          setSortBy(
-                            e.target.value
-                          )
-                        }
-                        className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
-                      >
-                        <option value="sekolah">
-                          Nama Sekolah
-                        </option>
-
-                        <option value="paket">
-                          Paket
-                        </option>
-
-                        <option value="status">
-                          Status
-                        </option>
-
-                        <option value="harga">
-                          Harga
-                        </option>
-                      </select>
-                    </div>
-
-                    {/* RESET */}
-
-                    <div className="flex items-end">
-                      <button
-                        type="button"
-                        onClick={
-                          resetFilter
-                        }
-                        className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm font-semibold text-slate-600 transition hover:bg-slate-100"
-                      >
-                        Reset Filter
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </section>
+              </div>
 
               {/* =================================================
                   TABLE
               ================================================= */}
 
-              <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                {/* TABLE HEADER */}
+              <div className="w-full overflow-x-auto">
 
-                <div className="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <h2 className="text-base font-bold text-slate-900">
-                      Daftar Langganan
-                    </h2>
+                <table className="w-full min-w-[1100px] border-collapse">
 
-                    <p className="mt-0.5 text-xs text-slate-500">
-                      Menampilkan{" "}
-                      {startNumber}–
-                      {endNumber} dari{" "}
-                      {
-                        filteredSubscriptions.length
-                      }{" "}
-                      data
-                    </p>
-                  </div>
+                  <thead>
+                    <tr className="bg-blue-600 text-left text-xs font-bold uppercase tracking-wider text-white">
 
-                  <div className="flex items-center gap-2 text-xs text-slate-400">
-                    <FileText
-                      size={15}
-                    />
+                      <th className="w-[70px] px-5 py-4 text-center">
+                        No.
+                      </th>
 
-                    Data langganan sekolah
-                  </div>
-                </div>
+                      <th className="min-w-[260px] px-5 py-4">
+                        Sekolah
+                      </th>
 
-                {/* HORIZONTAL SCROLL */}
+                      <th className="min-w-[180px] px-5 py-4">
+                        Paket
+                      </th>
 
-                <div className="w-full overflow-x-auto">
-                  <table className="w-full min-w-[1250px] border-collapse">
-                    <thead>
-                      <tr className="bg-blue-600 text-left text-xs font-bold uppercase tracking-wider text-white">
-                        <th className="w-[70px] px-5 py-4 text-center">
-                          No.
-                        </th>
+                      <th className="min-w-[170px] px-5 py-4">
+                        Harga
+                      </th>
 
-                        <th className="min-w-[280px] px-5 py-4">
-                          Sekolah
-                        </th>
+                      <th className="min-w-[200px] px-5 py-4">
+                        Periode
+                      </th>
 
-                        <th className="min-w-[170px] px-5 py-4">
-                          Paket
-                        </th>
+                      <th className="min-w-[150px] px-5 py-4">
+                        Pembayaran
+                      </th>
 
-                        <th className="min-w-[180px] px-5 py-4">
-                          Harga
-                        </th>
+                      <th className="min-w-[150px] px-5 py-4">
+                        Status
+                      </th>
 
-                        <th className="min-w-[190px] px-5 py-4">
-                          Periode
-                        </th>
+                    </tr>
+                  </thead>
 
-                        <th className="min-w-[150px] px-5 py-4">
-                          Pembayaran
-                        </th>
+                  <tbody>
 
-                        <th className="min-w-[150px] px-5 py-4">
-                          Status
-                        </th>
+                    {/* =================================================
+                        LOADING
+                    ================================================= */}
 
-                        <th className="min-w-[170px] px-5 py-4">
-                          Admin
-                        </th>
+                    {loading ? (
+                      <tr>
+                        <td
+                          colSpan={7}
+                          className="px-5 py-16 text-center"
+                        >
+                          <div className="flex flex-col items-center">
 
-                        <th className="w-[130px] px-5 py-4 text-center">
-                          Aksi
-                        </th>
+                            <RefreshCw
+                              size={28}
+                              className="animate-spin text-blue-600"
+                            />
+
+                            <p className="mt-3 text-sm font-semibold text-slate-600">
+                              Memuat data langganan...
+                            </p>
+
+                          </div>
+                        </td>
                       </tr>
-                    </thead>
+                    ) : error ? (
 
-                    <tbody>
-                      {/* =================================================
-                          LOADING
-                      ================================================= */}
+                      /* =================================================
+                          ERROR
+                      ================================================= */
 
-                      {loading ? (
-                        <tr>
-                          <td
-                            colSpan={9}
-                            className="px-5 py-16 text-center"
-                          >
-                            <div className="flex flex-col items-center">
-                              <RefreshCw
-                                size={28}
-                                className="animate-spin text-blue-600"
-                              />
+                      <tr>
+                        <td
+                          colSpan={7}
+                          className="px-5 py-16 text-center"
+                        >
 
-                              <p className="mt-3 text-sm font-semibold text-slate-600">
-                                Memuat data
-                                langganan...
-                              </p>
+                          <div className="mx-auto flex max-w-sm flex-col items-center">
 
-                              <p className="mt-1 text-xs text-slate-400">
-                                Mengambil data
-                                dari database
-                              </p>
+                            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-red-50 text-red-500">
+                              <AlertCircle size={25} />
                             </div>
-                          </td>
-                        </tr>
-                      ) : error ? (
-                        /* =================================================
-                            ERROR
-                        ================================================= */
 
-                        <tr>
-                          <td
-                            colSpan={9}
-                            className="px-5 py-16 text-center"
+                            <h3 className="mt-4 text-sm font-bold text-slate-700">
+                              Gagal mengambil data
+                            </h3>
+
+                            <p className="mt-1 text-xs leading-5 text-slate-400">
+                              {error}
+                            </p>
+
+                            <button
+                              type="button"
+                              onClick={fetchSubscriptions}
+                              className="mt-4 rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-blue-700"
+                            >
+                              Coba Lagi
+                            </button>
+
+                          </div>
+
+                        </td>
+                      </tr>
+
+                    ) : subscriptions.length > 0 ? (
+
+                      /* =================================================
+                          DATA
+                      ================================================= */
+
+                      subscriptions.map(
+                        (item, index) => (
+                          <tr
+                            key={
+                              item.id ||
+                              index
+                            }
+                            className="border-b border-slate-100 transition hover:bg-blue-50/40"
                           >
-                            <div className="mx-auto flex max-w-sm flex-col items-center">
-                              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-red-50 text-red-500">
-                                <AlertCircle
-                                  size={25}
-                                />
+
+                            {/* NO */}
+
+                            <td className="px-5 py-4 text-center">
+                              <span className="text-sm font-semibold text-slate-500">
+                                {index + 1}
+                              </span>
+                            </td>
+
+                            {/* SEKOLAH */}
+
+                            <td className="px-5 py-4">
+
+                              <div className="flex items-center gap-3">
+
+                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                                  <ShieldCheck size={18} />
+                                </div>
+
+                                <div className="min-w-0">
+
+                                  <p className="truncate text-sm font-bold text-slate-800">
+                                    {item.sekolah}
+                                  </p>
+
+                                  <p className="mt-1 text-xs text-slate-400">
+                                    {item.kodeSekolah}
+                                  </p>
+
+                                </div>
+
                               </div>
 
-                              <h3 className="mt-4 text-sm font-bold text-slate-700">
-                                Gagal mengambil
-                                data
-                              </h3>
+                            </td>
 
-                              <p className="mt-1 text-xs leading-5 text-slate-400">
-                                {error}
-                              </p>
+                            {/* PAKET */}
 
-                              <button
-                                type="button"
-                                onClick={
-                                  fetchSubscriptions
-                                }
-                                className="mt-4 rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-blue-700"
-                              >
-                                Coba Lagi
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ) : paginatedSubscriptions.length >
-                        0 ? (
-                        /* =================================================
-                            DATA
-                        ================================================= */
+                            <td className="px-5 py-4">
 
-                        paginatedSubscriptions.map(
-                          (
-                            item,
-                            index
-                          ) => (
-                            <tr
-                              key={
-                                item.id
-                              }
-                              className={`group border-b border-slate-100 transition-colors hover:bg-blue-50/50 ${
-                                index %
-                                  2 ===
-                                0
-                                  ? "bg-white"
-                                  : "bg-slate-50/40"
-                              }`}
-                            >
-                              {/* NO */}
+                              <div className="flex items-center gap-3">
 
-                              <td className="px-5 py-4 text-center">
-                                <span className="text-sm font-semibold text-slate-500">
-                                  {(safeCurrentPage -
-                                    1) *
-                                    itemsPerPage +
-                                    index +
-                                    1}
+                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                                  <CreditCard size={17} />
+                                </div>
+
+                                <span className="text-sm font-semibold text-slate-700">
+                                  {item.paket}
                                 </span>
-                              </td>
 
-                              {/* SEKOLAH */}
+                              </div>
 
-                              <td className="px-5 py-4">
-                                <div className="flex items-center gap-3">
-                                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-                                    <Building2
-                                      size={
-                                        19
-                                      }
-                                    />
-                                  </div>
+                            </td>
 
-                                  <div className="min-w-0">
-                                    <p className="truncate text-sm font-bold text-slate-800">
-                                      {
-                                        item.sekolah
-                                      }
-                                    </p>
+                            {/* HARGA */}
 
-                                    <p className="mt-0.5 text-xs font-medium text-slate-400">
-                                      Kode:{" "}
-                                      {
-                                        item.kode
-                                      }
-                                    </p>
-                                  </div>
-                                </div>
-                              </td>
+                            <td className="px-5 py-4">
 
-                              {/* PAKET */}
+                              <div className="flex items-center gap-2">
 
-                              <td className="px-5 py-4">
-                                <span
-                                  className={`inline-flex items-center rounded-lg border px-3 py-1.5 text-xs font-bold ${
-                                    item.paket ===
-                                    "Premium"
-                                      ? "border-indigo-200 bg-indigo-50 text-indigo-700"
-                                      : item.paket ===
-                                        "Professional"
-                                        ? "border-blue-200 bg-blue-50 text-blue-700"
-                                        : "border-slate-200 bg-slate-100 text-slate-600"
-                                  }`}
-                                >
-                                  {
-                                    item.paket
-                                  }
-                                </span>
-                              </td>
-
-                              {/* HARGA */}
-
-                              <td className="px-5 py-4">
-                                <div className="flex items-center gap-2">
-                                  <WalletCards
-                                    size={
-                                      16
-                                    }
-                                    className="shrink-0 text-blue-500"
-                                  />
-
-                                  <span className="whitespace-nowrap text-sm font-bold text-slate-700">
-                                    {formatRupiah(
-                                      item.harga
-                                    )}
-                                  </span>
-                                </div>
-                              </td>
-
-                              {/* PERIODE */}
-
-                              <td className="px-5 py-4">
-                                <div className="flex items-start gap-2">
-                                  <CalendarDays
-                                    size={
-                                      16
-                                    }
-                                    className="mt-0.5 shrink-0 text-slate-400"
-                                  />
-
-                                  <div className="text-xs">
-                                    <p className="font-semibold text-slate-700">
-                                      {
-                                        item.mulai
-                                      }
-                                    </p>
-
-                                    <p className="mt-1 text-slate-400">
-                                      s/d{" "}
-                                      {
-                                        item.berakhir
-                                      }
-                                    </p>
-                                  </div>
-                                </div>
-                              </td>
-
-                              {/* PEMBAYARAN */}
-
-                              <td className="px-5 py-4">
-                                <PaymentBadge
-                                  status={
-                                    item.pembayaran
-                                  }
+                                <WalletCards
+                                  size={16}
+                                  className="text-blue-500"
                                 />
-                              </td>
 
-                              {/* STATUS */}
-
-                              <td className="px-5 py-4">
-                                <StatusBadge
-                                  status={
-                                    item.status
-                                  }
-                                />
-                              </td>
-
-                              {/* ADMIN */}
-
-                              <td className="px-5 py-4">
-                                <span className="text-sm font-medium text-slate-600">
-                                  {
-                                    item.admin
-                                  }
-                                </span>
-                              </td>
-
-                              {/* AKSI */}
-
-                              <td className="px-5 py-4">
-                                <div className="relative flex items-center justify-center gap-1.5">
-                                  {/* DETAIL */}
-
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      router.push(
-                                        `/super-admin/langganan/${item.id}`
-                                      )
-                                    }
-                                    title="Lihat detail"
-                                    className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-blue-50 hover:text-blue-600"
-                                  >
-                                    <Eye
-                                      size={
-                                        17
-                                      }
-                                    />
-                                  </button>
-
-                                  {/* EDIT */}
-
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      router.push(
-                                        `/super-admin/langganan/${item.id}/edit`
-                                      )
-                                    }
-                                    title="Edit"
-                                    className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-blue-50 hover:text-blue-600"
-                                  >
-                                    <Pencil
-                                      size={
-                                        17
-                                      }
-                                    />
-                                  </button>
-
-                                  {/* DELETE */}
-
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      handleDelete(
-                                        item.id
-                                      )
-                                    }
-                                    title="Hapus"
-                                    className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-red-50 hover:text-red-600"
-                                  >
-                                    <Trash2
-                                      size={
-                                        17
-                                      }
-                                    />
-                                  </button>
-
-                                  {/* MORE */}
-
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      setOpenAction(
-                                        openAction ===
-                                          item.id
-                                          ? null
-                                          : item.id
-                                      )
-                                    }
-                                    className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
-                                  >
-                                    <MoreHorizontal
-                                      size={
-                                        17
-                                      }
-                                    />
-                                  </button>
-
-                                  {/* ACTION MENU */}
-
-                                  {openAction ===
-                                    item.id && (
-                                    <div className="absolute right-0 top-11 z-30 w-40 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          setOpenAction(
-                                            null
-                                          );
-
-                                          router.push(
-                                            `/super-admin/langganan/${item.id}`
-                                          );
-                                        }}
-                                        className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-medium text-slate-600 hover:bg-blue-50 hover:text-blue-700"
-                                      >
-                                        <Eye
-                                          size={
-                                            14
-                                          }
-                                        />
-
-                                        Detail
-                                      </button>
-
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          setOpenAction(
-                                            null
-                                          );
-
-                                          router.push(
-                                            `/super-admin/langganan/${item.id}/edit`
-                                          );
-                                        }}
-                                        className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-medium text-slate-600 hover:bg-blue-50 hover:text-blue-700"
-                                      >
-                                        <Pencil
-                                          size={
-                                            14
-                                          }
-                                        />
-
-                                        Edit
-                                      </button>
-
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          setOpenAction(
-                                            null
-                                          );
-
-                                          handleDelete(
-                                            item.id
-                                          );
-                                        }}
-                                        className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-medium text-red-600 hover:bg-red-50"
-                                      >
-                                        <Trash2
-                                          size={
-                                            14
-                                          }
-                                        />
-
-                                        Hapus
-                                      </button>
-                                    </div>
+                                <span className="text-sm font-bold text-slate-700">
+                                  {formatRupiah(
+                                    item.harga
                                   )}
-                                </div>
-                              </td>
-                            </tr>
-                          )
-                        )
-                      ) : (
-                        /* =================================================
-                            EMPTY
-                        ================================================= */
+                                </span>
 
-                        <tr>
-                          <td
-                            colSpan={9}
-                            className="px-5 py-16 text-center"
-                          >
-                            <div className="mx-auto flex max-w-sm flex-col items-center">
-                              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
-                                <AlertCircle
-                                  size={
-                                    25
-                                  }
-                                />
                               </div>
 
-                              <h3 className="mt-4 text-sm font-bold text-slate-700">
-                                Data tidak
-                                ditemukan
-                              </h3>
+                            </td>
 
-                              <p className="mt-1 text-xs leading-5 text-slate-400">
-                                Tidak ada data
-                                langganan yang
-                                sesuai dengan
-                                pencarian atau
-                                filter.
-                              </p>
+                            {/* PERIODE */}
 
-                              <button
-                                type="button"
-                                onClick={
-                                  resetFilter
+                            <td className="px-5 py-4">
+
+                              <div className="flex items-start gap-2">
+
+                                <CalendarDays
+                                  size={16}
+                                  className="mt-0.5 shrink-0 text-slate-400"
+                                />
+
+                                <div className="text-xs">
+
+                                  <p className="font-semibold text-slate-700">
+                                    {item.mulai}
+                                  </p>
+
+                                  <p className="mt-1 text-slate-400">
+                                    s/d{" "}
+                                    {item.berakhir}
+                                  </p>
+
+                                </div>
+
+                              </div>
+
+                            </td>
+
+                            {/* PEMBAYARAN */}
+
+                            <td className="px-5 py-4">
+                              <PaymentBadge
+                                status={
+                                  item.pembayaran
                                 }
-                                className="mt-4 rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-blue-700"
-                              >
-                                Reset Filter
-                              </button>
+                              />
+                            </td>
+
+                            {/* STATUS */}
+
+                            <td className="px-5 py-4">
+                              <StatusBadge
+                                status={
+                                  item.status
+                                }
+                              />
+                            </td>
+
+                          </tr>
+                        )
+                      )
+
+                    ) : (
+
+                      /* =================================================
+                          EMPTY
+                      ================================================= */
+
+                      <tr>
+                        <td
+                          colSpan={7}
+                          className="px-5 py-16 text-center"
+                        >
+
+                          <div className="mx-auto flex max-w-sm flex-col items-center">
+
+                            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
+                              <CreditCard size={25} />
                             </div>
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
 
-                {/* =================================================
-                    PAGINATION
-                ================================================= */}
+                            <h3 className="mt-4 text-sm font-bold text-slate-700">
+                              Belum ada data langganan
+                            </h3>
 
-                <div className="flex flex-col gap-4 border-t border-slate-100 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
-                  {/* ITEMS PER PAGE */}
+                            <p className="mt-1 text-xs leading-5 text-slate-400">
+                              Belum terdapat data langganan
+                              sekolah dari backend.
+                            </p>
 
-                  <div className="flex items-center gap-2 text-xs text-slate-500">
-                    <span>
-                      Tampilkan
-                    </span>
-
-                    <select
-                      value={
-                        itemsPerPage
-                      }
-                      onChange={(e) =>
-                        setItemsPerPage(
-                          Number(
-                            e.target.value
-                          )
-                        )
-                      }
-                      className="h-9 rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-600 outline-none focus:border-blue-400"
-                    >
-                      <option value={5}>
-                        5
-                      </option>
-
-                      <option value={8}>
-                        8
-                      </option>
-
-                      <option value={10}>
-                        10
-                      </option>
-
-                      <option value={20}>
-                        20
-                      </option>
-                    </select>
-
-                    <span>
-                      data per halaman
-                    </span>
-                  </div>
-
-                  {/* PAGINATION BUTTONS */}
-
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {/* FIRST */}
-
-                    <button
-                      type="button"
-                      disabled={
-                        safeCurrentPage ===
-                        1
-                      }
-                      onClick={() =>
-                        setCurrentPage(1)
-                      }
-                      className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      <ChevronsLeft
-                        size={15}
-                      />
-                    </button>
-
-                    {/* PREVIOUS */}
-
-                    <button
-                      type="button"
-                      disabled={
-                        safeCurrentPage ===
-                        1
-                      }
-                      onClick={() =>
-                        setCurrentPage(
-                          (prev) =>
-                            Math.max(
-                              1,
-                              prev - 1
-                            )
-                        )
-                      }
-                      className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      <ChevronLeft
-                        size={15}
-                      />
-                    </button>
-
-                    {/* PAGE NUMBERS */}
-
-                    {Array.from(
-                      {
-                        length:
-                          totalPages,
-                      },
-                      (_, index) =>
-                        index + 1
-                    )
-                      .filter((page) => {
-                        if (
-                          totalPages <= 5
-                        ) {
-                          return true;
-                        }
-
-                        return (
-                          page === 1 ||
-                          page ===
-                            totalPages ||
-                          Math.abs(
-                            page -
-                              safeCurrentPage
-                          ) <= 1
-                        );
-                      })
-                      .map(
-                        (
-                          page,
-                          index,
-                          pages
-                        ) => {
-                          const previous =
-                            pages[
-                              index - 1
-                            ];
-
-                          const showDots =
-                            previous &&
-                            page -
-                              previous >
-                              1;
-
-                          return (
-                            <div
-                              key={page}
-                              className="flex items-center gap-1.5"
+                            <button
+                              type="button"
+                              onClick={
+                                fetchSubscriptions
+                              }
+                              className="mt-4 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-blue-700"
                             >
-                              {showDots && (
-                                <span className="px-1 text-slate-400">
-                                  ...
-                                </span>
-                              )}
+                              <RefreshCw size={14} />
 
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setCurrentPage(
-                                    page
-                                  )
-                                }
-                                className={`flex h-9 min-w-9 items-center justify-center rounded-lg px-2 text-xs font-semibold transition ${
-                                  safeCurrentPage ===
-                                  page
-                                    ? "bg-blue-600 text-white shadow-md shadow-blue-200"
-                                    : "border border-slate-200 bg-white text-slate-600 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600"
-                                }`}
-                              >
-                                {
-                                  page
-                                }
-                              </button>
-                            </div>
-                          );
-                        }
-                      )}
+                              Refresh
+                            </button>
 
-                    {/* NEXT */}
+                          </div>
 
-                    <button
-                      type="button"
-                      disabled={
-                        safeCurrentPage ===
-                        totalPages
-                      }
-                      onClick={() =>
-                        setCurrentPage(
-                          (prev) =>
-                            Math.min(
-                              totalPages,
-                              prev + 1
-                            )
-                        )
-                      }
-                      className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      <ChevronRight
-                        size={15}
-                      />
-                    </button>
+                        </td>
+                      </tr>
 
-                    {/* LAST */}
+                    )}
 
-                    <button
-                      type="button"
-                      disabled={
-                        safeCurrentPage ===
-                        totalPages
-                      }
-                      onClick={() =>
-                        setCurrentPage(
-                          totalPages
-                        )
-                      }
-                      className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      <ChevronsRight
-                        size={15}
-                      />
-                    </button>
-                  </div>
-                </div>
-              </section>
+                  </tbody>
+                </table>
+              </div>
 
               {/* =================================================
-                  FOOTER INFO
+                  FOOTER
               ================================================= */}
 
-              <div className="mt-4 flex items-center gap-2 px-1 text-xs text-slate-400">
-                <AlertCircle
-                  size={14}
-                />
+              <div className="border-t border-slate-100 px-5 py-4 sm:px-6">
 
-                <span>
-                  Data pada halaman ini
-                  diambil langsung dari
-                  database melalui API
-                  langganan sekolah.
-                </span>
+                <div className="flex items-start gap-2 text-xs text-slate-400">
+
+                  <ShieldCheck
+                    size={14}
+                    className="mt-0.5 shrink-0"
+                  />
+
+                  <p>
+                    Halaman ini menggunakan endpoint
+                    khusus Super Admin:
+                    <span className="ml-1 font-semibold text-slate-500">
+                      GET /api/v1/langganan/sekolah
+                    </span>
+                  </p>
+
+                </div>
+
               </div>
-            </div>
-          </main>
-        </div>
+            </section>
+          </div>
+        </main>
       </div>
     </div>
   );

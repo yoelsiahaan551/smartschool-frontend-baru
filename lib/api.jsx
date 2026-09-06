@@ -1,23 +1,44 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-export async function apiFetch(endpoint, options = {}) {
-  const token = localStorage.getItem("token");
-
-  const headers = {
-    "Content-Type": "application/json",
-    ...(options.headers || {}),
-  };
-
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
+function getApiUrl() {
+  if (!API_URL) {
+    throw new Error("NEXT_PUBLIC_API_URL belum dikonfigurasi.");
   }
 
-  const response = await fetch(`${API_URL}${endpoint}`, {
+  return API_URL;
+}
+
+export async function apiFetch(endpoint, options = {}) {
+  const token =
+    typeof window !== "undefined"
+      ? localStorage.getItem("token")
+      : null;
+
+  const headers = new Headers(options.headers || {});
+
+  headers.set("Content-Type", "application/json");
+  headers.set("Accept", "application/json");
+
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  const response = await fetch(`${getApiUrl()}${endpoint}`, {
     ...options,
     headers,
   });
 
-  const data = await response.json();
+  let data = null;
+
+  const contentType = response.headers.get("content-type");
+
+  if (contentType && contentType.includes("application/json")) {
+    try {
+      data = await response.json();
+    } catch {
+      data = null;
+    }
+  }
 
   if (response.status === 401) {
     localStorage.removeItem("token");
@@ -25,11 +46,17 @@ export async function apiFetch(endpoint, options = {}) {
 
     window.location.href = "/login";
 
-    return null;
+    throw new Error(
+      data?.message || "Sesi login telah berakhir."
+    );
   }
 
   if (!response.ok) {
-    throw new Error(data.message || "Terjadi kesalahan");
+    throw new Error(
+      data?.message ||
+        data?.error ||
+        `Request gagal. Status: ${response.status}`
+    );
   }
 
   return data;
