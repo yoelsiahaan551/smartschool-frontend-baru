@@ -1,85 +1,220 @@
+"use client";
+
 import {
   LayoutDashboard,
-  Calendar,
-  CheckSquare,
-  FileText,
+  Users,
   BookOpen,
   ClipboardList,
-  HelpCircle,
-  ClipboardCheck,
-  NotebookPen,
   FileCheck2,
-  Package,
-  User,
+  ClipboardCheck,
   History,
-  Settings,
+  Award,
   CalendarDays,
+  CalendarCheck,
+  UserCheck,
+  Package,
+  HandCoins,
+  Clock3,
+  Settings,
+  User,
 } from "lucide-react";
 
-/**
- * Konfigurasi menu untuk role "guru".
- * Tinggal edit array `menuSections` di sini kalau mau nambah/kurang menu guru,
- * tanpa nyentuh SidebarView.jsx atau Sidebar.jsx sama sekali.
- */
 export const guruSidebarConfig = {
-  basePath: "/guru",
-  brandName: "Portal Guru",
-  initials: "AS",
-  email: "guru@smartschool.com",
-  menuSections: [
-    { type: "item", key: "dashboard", icon: LayoutDashboard, label: "Dashboard", path: "/guru" },
+  role: "guru",
 
-    { type: "header", label: "MENGAJAR" },
+  brandName: "Guru",
+
+  menuSections: [
+    // =====================================================
+    // DASHBOARD
+    // =====================================================
     {
       type: "item",
-      key: "jadwal",
-      icon: Calendar,
-      label: "Jadwal",
-      path: "/guru/jadwal",
+      key: "dashboard",
+      label: "Dashboard",
+      icon: LayoutDashboard,
+      path: "/guru",
+    },
+
+    // =====================================================
+    // PROSES BELAJAR
+    // =====================================================
+    {
+      type: "header",
+      key: "proses-belajar-header",
+      label: "Proses Belajar",
+    },
+
+    {
+      type: "dropdown",
+      key: "materi",
+      label: "Materi",
+      icon: BookOpen,
+      path: "/guru/materi",
       children: [
-        { key: "kalender", icon: CalendarDays, label: "kalender", path: "/guru/jadwal/kalender" },
-        { key: "presensi", icon: CheckSquare, label: "Presensi", path: "/guru/jadwal/presensi" },
-        { key: "izin", icon: FileText, label: "Izin", path: "/guru/jadwal/izin" },
+        {
+          key: "tugas",
+          label: "Tugas",
+          icon: ClipboardList,
+          path: "/guru/tugas",
+        },
+        {
+          key: "ujian",
+          label: "Ujian",
+          icon: FileCheck2,
+          path: "/guru/ujian",
+        },
       ],
     },
 
-    { type: "header", label: "PROSES BELAJAR" },
-    { type: "item", key: "materi", icon: BookOpen, label: "Materi", path: "/guru/materi" },
-    { type: "item", key: "tugas", icon: ClipboardList, label: "Tugas", path: "/guru/tugas" },
-    { type: "item", key: "quiz", icon: HelpCircle, label: "Quiz", path: "/guru/quiz" },
+    // =====================================================
+    // AKADEMIK
+    // =====================================================
+    {
+      type: "header",
+      key: "akademik-header",
+      label: "Akademik",
+    },
 
-    { type: "header", label: "AKADEMIK" },
-    { type: "item", key: "absensi", icon: ClipboardCheck, label: "Absensi", path: "/guru/absensi" },
-    { type: "item", key: "histori-absensi", icon: History, label: "Histori Absensi", path: "/guru/histori-absensi" },
     {
       type: "item",
+      key: "absensi",
+      label: "Absensi",
+      icon: ClipboardCheck,
+      path: "/guru/absensi",
+    },
+
+    {
+      type: "item",
+      key: "histori-absensi",
+      label: "Histori Absensi",
+      icon: History,
+      path: "/guru/histori-absensi",
+    },
+
+    {
+      type: "dropdown",
       key: "nilai",
-      icon: NotebookPen,
       label: "Nilai",
+      icon: Award,
       path: "/guru/nilai",
       children: [
-        { key: "nilaiTugas", icon: ClipboardList, label: "Nilai Tugas", path: "/guru/nilai/nilaiTugas" },
-        { key: "nilaiQuiz", icon: HelpCircle, label: "Nilai Quiz", path: "/guru/nilai/nilaiQuiz" },
-        { key: "rapor", icon: FileCheck2, label: "Rapor", path: "/guru/nilai/rapor" },
+        {
+          key: "nilai-tugas",
+          label: "Nilai Tugas",
+          icon: ClipboardList,
+          path: "/guru/nilai/nilaiTugas",
+        },
+        {
+          key: "nilai-ujian",
+          label: "Nilai Ujian",
+          icon: FileCheck2,
+          path: "/guru/nilaiUjian",
+        },
+        {
+          key: "rapor",
+          label: "Rapor",
+          icon: Award,
+          path: "/guru/nilai/rapor",
+        },
       ],
     },
 
-    { type: "header", label: "SARANA PRASARANA" },
+    // =====================================================
+    // JADWAL
+    // =====================================================
+    {
+      type: "header",
+      key: "jadwal-header",
+      label: "Jadwal",
+    },
+
+    {
+      type: "dropdown",
+      key: "jadwal",
+      label: "Jadwal",
+      icon: CalendarDays,
+      children: [
+        {
+          key: "kalender",
+          label: "Kalender",
+          icon: CalendarDays,
+          path: "/guru/jadwal",
+        },
+        {
+          key: "presensi-jadwal",
+          label: "Presensi",
+          icon: CalendarCheck,
+          path: "/guru/jadwal/presensi",
+        },
+        {
+          key: "izin",
+          label: "Izin",
+          icon: UserCheck,
+          path: "/guru/jadwal/izin",
+        },
+      ],
+    },
+
+    // =====================================================
+    // SARANA PRASARANA
+    // =====================================================
+    {
+      type: "header",
+      key: "sarpras-header",
+      label: "Sarana Prasarana",
+    },
+
+    {
+      type: "dropdown",
+      key: "sarpras",
+      label: "Sarpras",
+      icon: Package,
+      children: [
+        {
+          key: "pinjam",
+          label: "Pinjam",
+          icon: HandCoins,
+          path: "/guru/sarpras/pinjam",
+        },
+        {
+          key: "peminjaman",
+          label: "Peminjaman",
+          icon: Package,
+          path: "/guru/sarpras/peminjaman",
+        },
+        {
+          key: "riwayat-peminjaman",
+          label: "Riwayat",
+          icon: Clock3,
+          path: "/guru/sarpras/riwayat",
+        },
+      ],
+    },
+
+    // =====================================================
+    // AKUN
+    // =====================================================
+    {
+      type: "header",
+      key: "akun-header",
+      label: "Akun",
+    },
+
     {
       type: "item",
-      key: "sarpras",
-      icon: Package,
-      label: "Sarpras",
-      path: "/guru/sarpras",
-      children: [
-        { key: "pinjam", icon: Package, label: "Pinjam", path: "/guru/sarpras/pinjam" },
-        { key: "peminjaman", icon: ClipboardList, label: "Peminjaman", path: "/guru/sarpras/peminjaman" },
-        { key: "riwayat", icon: FileText, label: "Riwayat", path: "/guru/sarpras/riwayat" },
-      ],
+      key: "pengaturan",
+      label: "Pengaturan",
+      icon: Settings,
+      path: "/guru/pengaturan",
     },
 
-    { type: "header", label: "AKUN" },
-    { type: "item", key: "pengaturan", icon: Settings, label: "Pengaturan", path: "/guru/pengaturan" },
-    { type: "item", key: "profile", icon: User, label: "Profile", path: "/guru/profile" },
+    {
+      type: "item",
+      key: "profile",
+      label: "Profile",
+      icon: User,
+      path: "/guru/profile",
+    },
   ],
 };

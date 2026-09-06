@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "../../components/Sidebar";
 import Header from "../../components/Header";
@@ -15,103 +15,8 @@ import {
   FileText,
 } from "lucide-react";
 
-// =========================================================
-// DATA UJIAN
-// =========================================================
-
-const daftarUjian = [
-  {
-    id: "ujian-1",
-    judul: "UTS Matematika Semester 1",
-    mapel: "Matematika",
-    guru: "Bu Sari",
-    kelas: "X IPA 1",
-    tanggal: "2026-08-30",
-    durasi: "90 menit",
-    soal: 30,
-    status: "belum",
-    warna: "blue",
-    icon: "📐",
-  },
-  {
-    id: "ujian-2",
-    judul: "UAS Matematika Semester 1",
-    mapel: "Matematika",
-    guru: "Bu Sari",
-    kelas: "X IPA 1",
-    tanggal: "2026-09-15",
-    durasi: "120 menit",
-    soal: 40,
-    status: "belum",
-    warna: "blue",
-    icon: "📐",
-  },
-  {
-    id: "ujian-3",
-    judul: "UTS Bahasa Indonesia",
-    mapel: "Bahasa Indonesia",
-    guru: "Pak Budi",
-    kelas: "X IPA 1",
-    tanggal: "2026-08-28",
-    durasi: "90 menit",
-    soal: 25,
-    status: "belum",
-    warna: "rose",
-    icon: "📝",
-  },
-  {
-    id: "ujian-4",
-    judul: "UTS IPA Semester 1",
-    mapel: "IPA",
-    guru: "Bu Dewi",
-    kelas: "X IPA 1",
-    tanggal: "2026-08-25",
-    durasi: "90 menit",
-    soal: 30,
-    status: "sedang",
-    warna: "emerald",
-    icon: "🔬",
-  },
-  {
-    id: "ujian-5",
-    judul: "UTS IPS Semester 1",
-    mapel: "IPS",
-    guru: "Pak Anwar",
-    kelas: "X IPA 1",
-    tanggal: "2026-08-27",
-    durasi: "90 menit",
-    soal: 25,
-    status: "belum",
-    warna: "amber",
-    icon: "🌍",
-  },
-  {
-    id: "ujian-6",
-    judul: "UTS Bahasa Inggris",
-    mapel: "Bahasa Inggris",
-    guru: "Bu Rina",
-    kelas: "X IPA 1",
-    tanggal: "2026-08-29",
-    durasi: "90 menit",
-    soal: 30,
-    status: "belum",
-    warna: "indigo",
-    icon: "📖",
-  },
-  {
-    id: "ujian-7",
-    judul: "UTS Penjaskes",
-    mapel: "Penjaskes",
-    guru: "Pak Rudi",
-    kelas: "X IPA 1",
-    tanggal: "2026-08-31",
-    durasi: "60 menit",
-    soal: 20,
-    status: "selesai",
-    warna: "orange",
-    icon: "🏃",
-  },
-];
+import { getKelasMapel } from "../../../services/kelasMapel.service";
+import { getUjianByKelasMapel } from "../../../services/ujian.service";
 
 // =========================================================
 // COLOR MAP
@@ -168,28 +73,345 @@ const colorMap = {
 };
 
 // =========================================================
+// HELPER
+// =========================================================
+
+function getColorByJenis(jenis) {
+  const map = {
+    UTS: "blue",
+    UAS: "rose",
+    Kuis: "amber",
+    Harian: "emerald",
+    Lainnya: "indigo",
+  };
+
+  return map[jenis] || "indigo";
+}
+
+function getIconByJenis(jenis) {
+  const map = {
+    UTS: "📐",
+    UAS: "📝",
+    Kuis: "📚",
+    Harian: "✏️",
+    Lainnya: "📖",
+  };
+
+  return map[jenis] || "📖";
+}
+
+function getStatusUjian(ujian) {
+  const now = new Date();
+
+  const waktuMulai = ujian?.waktuMulai
+    ? new Date(ujian.waktuMulai)
+    : null;
+
+  const waktuSelesai = ujian?.waktuSelesai
+    ? new Date(ujian.waktuSelesai)
+    : null;
+
+  // Belum dimulai
+  if (
+    waktuMulai &&
+    !Number.isNaN(waktuMulai.getTime()) &&
+    now < waktuMulai
+  ) {
+    return "belum";
+  }
+
+  // Sudah selesai berdasarkan waktu
+  if (
+    waktuSelesai &&
+    !Number.isNaN(waktuSelesai.getTime()) &&
+    now > waktuSelesai
+  ) {
+    return "selesai";
+  }
+
+  // Tidak ada waktu / sedang berlangsung
+  return "sedang";
+}
+
+// =========================================================
+// NORMALIZER
+// =========================================================
+
+function normalizeArrayResponse(response) {
+  if (Array.isArray(response)) {
+    return response;
+  }
+
+  if (Array.isArray(response?.data)) {
+    return response.data;
+  }
+
+  if (Array.isArray(response?.data?.data)) {
+    return response.data.data;
+  }
+
+  return [];
+}
+
+// =========================================================
 // PAGE
 // =========================================================
 
 export default function DaftarUjianPage() {
   const router = useRouter();
 
+  const [daftarUjian, setDaftarUjian] = useState([]);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("semua");
+
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  // =========================================================
+  // LOAD UJIAN DARI BE
+  // =========================================================
+
+  const loadUjian = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError("");
+
+      // -----------------------------------------------------
+      // 1. Ambil semua kelas-mapel
+      // -----------------------------------------------------
+
+      const kelasMapelResponse = await getKelasMapel();
+
+      /*
+       * getKelasMapel() dari service sudah mengembalikan:
+       *
+       * [
+       *   {
+       *     id: "...",
+       *     kelas: {...},
+       *     mataPelajaran: {...},
+       *     guruPengajar: {...}
+       *   }
+       * ]
+       *
+       * Jadi jangan lagi memakai response.data sebagai sumber utama.
+       */
+
+      const kelasMapelData = normalizeArrayResponse(
+        kelasMapelResponse
+      );
+
+      if (kelasMapelData.length === 0) {
+        setDaftarUjian([]);
+        return;
+      }
+
+      // -----------------------------------------------------
+      // 2. Ambil ujian dari setiap kelas-mapel
+      // -----------------------------------------------------
+
+      const hasilUjian = [];
+
+      /*
+       * Promise.allSettled digunakan supaya kalau salah satu
+       * kelas-mapel gagal, kelas-mapel lainnya tetap diproses.
+       */
+
+      const hasilRequest = await Promise.allSettled(
+        kelasMapelData.map(async (km) => {
+          if (!km?.id) {
+            return [];
+          }
+
+          const response =
+            await getUjianByKelasMapel(km.id);
+
+          const data = normalizeArrayResponse(response);
+
+          return data.map((ujian) => ({
+            ...ujian,
+
+            // -------------------------------------------------
+            // Fallback relasi dari kelas-mapel
+            // -------------------------------------------------
+
+            kelasMapel: {
+              ...(km || {}),
+              ...(ujian?.kelasMapel || {}),
+
+              kelas:
+                ujian?.kelasMapel?.kelas ||
+                km?.kelas ||
+                null,
+
+              mataPelajaran:
+                ujian?.kelasMapel?.mataPelajaran ||
+                km?.mataPelajaran ||
+                null,
+
+              guruPengajar:
+                ujian?.kelasMapel?.guruPengajar ||
+                km?.guruPengajar ||
+                null,
+            },
+          }));
+        })
+      );
+
+      // -----------------------------------------------------
+      // 3. Gabungkan hasil request
+      // -----------------------------------------------------
+
+      hasilRequest.forEach((result) => {
+        if (result.status === "fulfilled") {
+          if (Array.isArray(result.value)) {
+            hasilUjian.push(...result.value);
+          }
+        }
+      });
+
+      // -----------------------------------------------------
+      // 4. Hilangkan duplikat berdasarkan ID
+      // -----------------------------------------------------
+
+      const uniqueUjian = Array.from(
+        new Map(
+          hasilUjian
+            .filter((item) => item?.id)
+            .map((item) => [item.id, item])
+        ).values()
+      );
+
+      // -----------------------------------------------------
+      // 5. Mapping BE → FE
+      // -----------------------------------------------------
+
+      const mapped = uniqueUjian.map((ujian) => {
+        const kelas =
+          ujian?.kelasMapel?.kelas || null;
+
+        const mapel =
+          ujian?.kelasMapel?.mataPelajaran || null;
+
+        const guru =
+          ujian?.kelasMapel?.guruPengajar || null;
+
+        const status =
+          getStatusUjian(ujian);
+
+        return {
+          id: ujian.id,
+
+          judul:
+            ujian?.judul ||
+            "Ujian Tanpa Judul",
+
+          mapel:
+            mapel?.nama ||
+            "-",
+
+          guru:
+            guru?.namaLengkap ||
+            "-",
+
+          kelas:
+            kelas?.nama ||
+            "-",
+
+          tanggal:
+            ujian?.waktuMulai ||
+            ujian?.dibuatPada ||
+            null,
+
+          durasi:
+            ujian?.durasi
+              ? `${ujian.durasi} menit`
+              : "0 menit",
+
+          soal:
+            ujian?._count?.soalUjian ||
+            ujian?._count?.soal ||
+            0,
+
+          status,
+
+          warna:
+            getColorByJenis(ujian?.jenis),
+
+          icon:
+            getIconByJenis(ujian?.jenis),
+
+          waktuMulai:
+            ujian?.waktuMulai ||
+            null,
+
+          waktuSelesai:
+            ujian?.waktuSelesai ||
+            null,
+
+          dipublikasikan:
+            Boolean(ujian?.dipublikasikan),
+
+          jenis:
+            ujian?.jenis ||
+            "Lainnya",
+        };
+      });
+
+      setDaftarUjian(mapped);
+    } catch (err) {
+      /*
+       * Error dari apiFetch ditangkap di sini.
+       *
+       * Tidak menggunakan console.error agar error 500
+       * yang sudah ditangani tidak muncul sebagai Console Error.
+       */
+
+      setDaftarUjian([]);
+
+      setError(
+        err?.message ||
+          "Gagal mengambil data ujian. Silakan coba lagi."
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // =========================================================
+  // EFFECT
+  // =========================================================
+
+  useEffect(() => {
+    loadUjian();
+  }, [loadUjian]);
 
   // =========================================================
   // FILTER
   // =========================================================
 
   const filtered = daftarUjian.filter((ujian) => {
-    const keyword = search.toLowerCase().trim();
+    const keyword = search
+      .toLowerCase()
+      .trim();
+
+    const judul =
+      String(ujian?.judul || "").toLowerCase();
+
+    const mapel =
+      String(ujian?.mapel || "").toLowerCase();
+
+    const guru =
+      String(ujian?.guru || "").toLowerCase();
 
     const matchSearch =
-      ujian.judul.toLowerCase().includes(keyword) ||
-      ujian.mapel.toLowerCase().includes(keyword) ||
-      ujian.guru.toLowerCase().includes(keyword);
+      judul.includes(keyword) ||
+      mapel.includes(keyword) ||
+      guru.includes(keyword);
 
-    if (!matchSearch) return false;
+    if (!matchSearch) {
+      return false;
+    }
 
     if (
       filterStatus !== "semua" &&
@@ -226,7 +448,15 @@ export default function DaftarUjianPage() {
   // =========================================================
 
   const formatDate = (dateStr) => {
+    if (!dateStr) {
+      return "-";
+    }
+
     const d = new Date(dateStr);
+
+    if (Number.isNaN(d.getTime())) {
+      return "-";
+    }
 
     return d.toLocaleDateString("id-ID", {
       weekday: "short",
@@ -241,6 +471,10 @@ export default function DaftarUjianPage() {
   // =========================================================
 
   const handleCardClick = (ujianId) => {
+    if (!ujianId) {
+      return;
+    }
+
     router.push(`/siswa/ujian/${ujianId}`);
   };
 
@@ -295,12 +529,14 @@ export default function DaftarUjianPage() {
       />
 
       {/* =====================================================
-          AREA KONTEN
+          CONTENT
       ===================================================== */}
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
 
-        {/* HEADER */}
+        {/* ===================================================
+            HEADER
+        =================================================== */}
 
         <div className="flex-shrink-0">
           <Header
@@ -352,11 +588,9 @@ export default function DaftarUjianPage() {
 
                 </div>
 
-                {/* FILTER STATUS */}
+                {/* FILTER */}
 
                 <div className="flex w-full flex-wrap gap-2 xl:w-auto xl:justify-end">
-
-                  {/* SEMUA */}
 
                   <button
                     onClick={() =>
@@ -371,8 +605,6 @@ export default function DaftarUjianPage() {
                     Semua ({stats.total})
                   </button>
 
-                  {/* BELUM */}
-
                   <button
                     onClick={() =>
                       setFilterStatus("belum")
@@ -386,8 +618,6 @@ export default function DaftarUjianPage() {
                     Belum ({stats.belum})
                   </button>
 
-                  {/* SEDANG */}
-
                   <button
                     onClick={() =>
                       setFilterStatus("sedang")
@@ -400,8 +630,6 @@ export default function DaftarUjianPage() {
                   >
                     Sedang ({stats.sedang})
                   </button>
-
-                  {/* SELESAI */}
 
                   <button
                     onClick={() =>
@@ -448,10 +676,56 @@ export default function DaftarUjianPage() {
               </div>
 
               {/* =================================================
-                  CARD UJIAN
+                  LOADING
               ================================================= */}
 
-              {filtered.length === 0 ? (
+              {loading ? (
+
+                <div className="rounded-2xl border border-slate-200 bg-white py-16 text-center shadow-sm">
+
+                  <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-indigo-500" />
+
+                  <p className="text-sm font-medium text-slate-600">
+                    Memuat data ujian...
+                  </p>
+
+                </div>
+
+              ) : error ? (
+
+                /* =================================================
+                   ERROR
+                ================================================= */
+
+                <div className="rounded-2xl border border-red-200 bg-red-50 py-16 text-center">
+
+                  <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100 text-red-500">
+                    <AlertCircle size={28} />
+                  </div>
+
+                  <p className="text-sm font-medium text-red-600">
+                    {error}
+                  </p>
+
+                  <p className="mx-auto mt-2 max-w-md px-4 text-xs text-red-500">
+                    Data ujian belum dapat dimuat dari server.
+                    Silakan coba kembali beberapa saat lagi.
+                  </p>
+
+                  <button
+                    onClick={loadUjian}
+                    className="mt-4 rounded-xl bg-red-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-600"
+                  >
+                    Coba Lagi
+                  </button>
+
+                </div>
+
+              ) : filtered.length === 0 ? (
+
+                /* =================================================
+                   EMPTY
+                ================================================= */
 
                 <div className="rounded-2xl border border-slate-200 bg-white py-16 text-center shadow-sm">
 
@@ -471,6 +745,10 @@ export default function DaftarUjianPage() {
 
               ) : (
 
+                /* =================================================
+                   CARD UJIAN
+                ================================================= */
+
                 <div
                   className="
                     grid
@@ -488,7 +766,8 @@ export default function DaftarUjianPage() {
                   {filtered.map((ujian) => {
 
                     const c =
-                      colorMap[ujian.warna];
+                      colorMap[ujian.warna] ||
+                      colorMap.indigo;
 
                     const statusBadge =
                       getStatusBadge(
@@ -526,9 +805,7 @@ export default function DaftarUjianPage() {
                         `}
                       >
 
-                        {/* ===================================
-                            CARD HEADER
-                        =================================== */}
+                        {/* CARD HEADER */}
 
                         <div
                           className={`
@@ -576,9 +853,7 @@ export default function DaftarUjianPage() {
 
                         </div>
 
-                        {/* ===================================
-                            CARD BODY
-                        =================================== */}
+                        {/* CARD BODY */}
 
                         <div className="min-w-0 p-4">
 
@@ -679,8 +954,8 @@ export default function DaftarUjianPage() {
                               ? "Lihat Hasil"
                               : ujian.status ===
                                 "sedang"
-                              ? "Lanjutkan Ujian"
-                              : "Mulai Ujian"}
+                              ? "Mulai Ujian"
+                              : "Lihat Detail"}
 
                             <ChevronRight
                               size={15}

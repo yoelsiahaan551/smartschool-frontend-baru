@@ -1,7 +1,5 @@
 import { apiFetch } from "../lib/api";
 
-
-
 export interface KelasMapel {
   id: string;
 
@@ -50,31 +48,10 @@ export interface UpdateKelasMapelPayload {
   guruPengajarId?: string;
 }
 
-
-
 export async function getKelasMapel(): Promise<KelasMapel[]> {
-  const response = await apiFetch("/api/kelas-mapel", {
+  const result = await apiFetch("/api/kelas-mapel", {
     method: "GET",
   });
-
-  if (!response.ok) {
-    let message = "Gagal mengambil data kelas mapel";
-
-    try {
-      const errorData = await response.json();
-
-      message =
-        errorData?.message ||
-        errorData?.error ||
-        message;
-    } catch {
-      // gunakan message default
-    }
-
-    throw new Error(message);
-  }
-
-  const result = await response.json();
 
   /*
     BE mengembalikan:
@@ -91,8 +68,6 @@ export async function getKelasMapel(): Promise<KelasMapel[]> {
     : [];
 }
 
-
-
 export async function getKelasMapelById(
   id: string
 ): Promise<KelasMapel | null> {
@@ -103,12 +78,10 @@ export async function getKelasMapelById(
   );
 }
 
-
-
 export async function createKelasMapel(
   payload: CreateKelasMapelPayload
 ): Promise<KelasMapel> {
-  const response = await apiFetch("/api/kelas-mapel", {
+  const result = await apiFetch("/api/kelas-mapel", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -116,26 +89,14 @@ export async function createKelasMapel(
     body: JSON.stringify(payload),
   });
 
-  const result = await response.json().catch(() => null);
-
-  if (!response.ok) {
-    throw new Error(
-      result?.message ||
-        result?.error ||
-        "Gagal menambahkan mata pelajaran ke kelas"
-    );
-  }
-
   return result?.data;
 }
-
-
 
 export async function updateKelasMapel(
   id: string,
   payload: UpdateKelasMapelPayload
 ): Promise<KelasMapel> {
-  const response = await apiFetch(
+  const result = await apiFetch(
     `/api/kelas-mapel/${id}`,
     {
       method: "PUT",
@@ -146,38 +107,16 @@ export async function updateKelasMapel(
     }
   );
 
-  const result = await response.json().catch(() => null);
-
-  if (!response.ok) {
-    throw new Error(
-      result?.message ||
-        result?.error ||
-        "Gagal memperbarui data kelas mapel"
-    );
-  }
-
   return result?.data;
 }
-
-
 
 export async function deleteKelasMapel(
   id: string
 ): Promise<void> {
-  const response = await apiFetch(
+  await apiFetch(
     `/api/kelas-mapel/${id}`,
     {
       method: "DELETE",
     }
   );
-
-  const result = await response.json().catch(() => null);
-
-  if (!response.ok) {
-    throw new Error(
-      result?.message ||
-        result?.error ||
-        "Gagal menghapus mata pelajaran dari kelas"
-    );
-  }
 }

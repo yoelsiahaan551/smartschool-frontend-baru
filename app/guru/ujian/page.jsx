@@ -27,22 +27,51 @@ import {
   deleteUjian,
 } from "../../../services/ujian.service";
 
-function getCurrentUserId() {
-  if (typeof window === "undefined") return null;
+/* =====================================================
+   GET USER LOGIN
+   ===================================================== */
+
+function getCurrentUser() {
+  if (typeof window === "undefined") {
+    return null;
+  }
 
   try {
-    const user = JSON.parse(
-      localStorage.getItem("user") || "null"
-    );
+    const rawUser = localStorage.getItem("user");
 
-    return user?.id || user?.userId || null;
+    if (!rawUser) {
+      return null;
+    }
+
+    return JSON.parse(rawUser);
   } catch {
     return null;
   }
 }
 
+/* =====================================================
+   GET USER ID
+   ===================================================== */
+
+function getCurrentUserId() {
+  const user = getCurrentUser();
+
+  return (
+    user?.id ||
+    user?.userId ||
+    user?.penggunaId ||
+    null
+  );
+}
+
+/* =====================================================
+   NORMALIZE RESPONSE
+   ===================================================== */
+
 function parseData(response) {
-  if (Array.isArray(response)) return response;
+  if (Array.isArray(response)) {
+    return response;
+  }
 
   if (Array.isArray(response?.data)) {
     return response.data;
@@ -54,6 +83,10 @@ function parseData(response) {
 
   return [];
 }
+
+/* =====================================================
+   FORMAT TANGGAL
+   ===================================================== */
 
 function formatTanggal(value) {
   if (!value) return "-";
@@ -73,6 +106,10 @@ function formatTanggal(value) {
   });
 }
 
+/* =====================================================
+   LABEL JENIS UJIAN
+   ===================================================== */
+
 function getJenisLabel(jenis) {
   const map = {
     pilihan_ganda: "Pilihan Ganda",
@@ -80,10 +117,19 @@ function getJenisLabel(jenis) {
     esai: "Esai",
     benar_salah: "Benar / Salah",
     campuran: "Campuran",
+    UTS: "UTS",
+    UAS: "UAS",
+    Kuis: "Kuis",
+    Harian: "Harian",
+    Lainnya: "Lainnya",
   };
 
   return map[jenis] || jenis || "-";
 }
+
+/* =====================================================
+   PAGE
+   ===================================================== */
 
 export default function UjianGuruPage() {
   const router = useRouter();
@@ -112,9 +158,9 @@ export default function UjianGuruPage() {
   const [deleteLoading, setDeleteLoading] =
     useState(null);
 
-  // =====================================================
-  // LOAD KELAS MAPEL
-  // =====================================================
+  /* =====================================================
+     LOAD KELAS MAPEL
+     ===================================================== */
 
   useEffect(() => {
     loadKelasMapel();
@@ -125,32 +171,55 @@ export default function UjianGuruPage() {
       setLoadingKelasMapel(true);
       setError("");
 
-      const response =
-        await getKelasMapel();
+      /*
+       * Reset pilihan dan ujian terlebih dahulu
+       * supaya tidak memakai data lama ketika request gagal.
+       */
+      setSelectedKelasMapel("");
+      setUjian([]);
+
+      const response = await getKelasMapel();
 
       const data = parseData(response);
 
+      /*
+       * Ambil ID guru yang sedang login.
+       */
       const userId = getCurrentUserId();
 
-      // Karena BE sekarang mengembalikan seluruh kelas-mapel
-      // sekolah, FE menyaring berdasarkan guru login.
+      /*
+       * Jika ID guru tersedia, filter kelas-mapel
+       * berdasarkan guru pengajar.
+       *
+       * Jika ID belum tersedia, gunakan data yang
+       * dikembalikan API agar halaman tetap bisa tampil.
+       */
       const filtered = userId
         ? data.filter(
             (item) =>
-              item.guruPengajarId === userId ||
-              item.guruPengajar?.id === userId
+              item?.guruPengajarId === userId ||
+              item?.guruPengajar?.id === userId
           )
         : data;
 
       setKelasMapel(filtered);
 
+      /*
+       * Pilih kelas-mapel pertama secara otomatis.
+       */
       if (filtered.length > 0) {
-        setSelectedKelasMapel(
-          filtered[0].id
-        );
+        setSelectedKelasMapel(filtered[0].id);
       }
     } catch (err) {
-      console.error(err);
+      /*
+       * Error ditampilkan ke UI.
+       *
+       * Jangan console.error supaya console tidak penuh
+       * ketika backend sedang mengembalikan 500.
+       */
+      setKelasMapel([]);
+      setSelectedKelasMapel("");
+      setUjian([]);
 
       setError(
         err?.message ||
@@ -161,9 +230,9 @@ export default function UjianGuruPage() {
     }
   }
 
-  // =====================================================
-  // LOAD UJIAN
-  // =====================================================
+  /* =====================================================
+     LOAD UJIAN
+     ===================================================== */
 
   useEffect(() => {
     if (!selectedKelasMapel) {
@@ -175,6 +244,11 @@ export default function UjianGuruPage() {
   }, [selectedKelasMapel]);
 
   async function loadUjian(kelasMapelId) {
+    if (!kelasMapelId) {
+      setUjian([]);
+      return;
+    }
+
     try {
       setLoadingUjian(true);
       setError("");
@@ -184,35 +258,36 @@ export default function UjianGuruPage() {
           kelasMapelId
         );
 
-      setUjian(
-        parseData(response)
-      );
+      setUjian(parseData(response));
     } catch (err) {
-      console.error(err);
+      setUjian([]);
 
       setError(
         err?.message ||
           "Gagal mengambil data ujian."
       );
-
-      setUjian([]);
     } finally {
       setLoadingUjian(false);
     }
   }
 
-  const selectedData = useMemo(
-    () =>
-      kelasMapel.find(
-        (item) =>
-          item.id ===
-          selectedKelasMapel
-      ),
-    [
-      kelasMapel,
-      selectedKelasMapel,
-    ]
-  );
+  /* =====================================================
+     SELECTED DATA
+     ===================================================== */
+
+  const selectedData = useMemo(() => {
+    return kelasMapel.find(
+      (item) =>
+        item.id === selectedKelasMapel
+    );
+  }, [
+    kelasMapel,
+    selectedKelasMapel,
+  ]);
+
+  /* =====================================================
+     FILTER UJIAN
+     ===================================================== */
 
   const filteredUjian = useMemo(() => {
     const keyword =
@@ -224,23 +299,28 @@ export default function UjianGuruPage() {
 
     return ujian.filter((item) =>
       [
-        item.judul,
-        item.jenis,
+        item?.judul,
+        item?.jenis,
       ]
         .filter(Boolean)
         .some((value) =>
-          value
+          String(value)
             .toLowerCase()
             .includes(keyword)
         )
     );
   }, [ujian, search]);
 
+  /* =====================================================
+     STATISTICS
+     ===================================================== */
+
   const stats = useMemo(() => {
     const total = ujian.length;
 
     const published = ujian.filter(
-      (item) => item.dipublikasikan
+      (item) =>
+        item?.dipublikasikan === true
     ).length;
 
     const unpublished =
@@ -251,8 +331,7 @@ export default function UjianGuruPage() {
         (sum, item) =>
           sum +
           Number(
-            item?._count
-              ?.percobaanUjian || 0
+            item?._count?.percobaanUjian || 0
           ),
         0
       );
@@ -265,9 +344,9 @@ export default function UjianGuruPage() {
     };
   }, [ujian]);
 
-  // =====================================================
-  // DELETE
-  // =====================================================
+  /* =====================================================
+     DELETE
+     ===================================================== */
 
   async function handleDelete(item) {
     const confirmed =
@@ -275,18 +354,23 @@ export default function UjianGuruPage() {
         `Hapus ujian "${item.judul}"?`
       );
 
-    if (!confirmed) return;
+    if (!confirmed) {
+      return;
+    }
 
     try {
       setDeleteLoading(item.id);
+      setError("");
 
       await deleteUjian(item.id);
 
-      await loadUjian(
-        selectedKelasMapel
-      );
+      if (selectedKelasMapel) {
+        await loadUjian(
+          selectedKelasMapel
+        );
+      }
     } catch (err) {
-      alert(
+      setError(
         err?.message ||
           "Gagal menghapus ujian."
       );
@@ -294,6 +378,20 @@ export default function UjianGuruPage() {
       setDeleteLoading(null);
     }
   }
+
+  /* =====================================================
+     RETRY
+     ===================================================== */
+
+  async function handleRetry() {
+    setError("");
+
+    await loadKelasMapel();
+  }
+
+  /* =====================================================
+     RENDER
+     ===================================================== */
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-slate-50">
@@ -372,17 +470,18 @@ export default function UjianGuruPage() {
                 </div>
 
                 <button
-                  onClick={() => {
-                    loadKelasMapel();
-                    if (selectedKelasMapel) {
-                      loadUjian(
-                        selectedKelasMapel
-                      );
-                    }
-                  }}
-                  className="inline-flex items-center gap-1 rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-rose-700 ring-1 ring-rose-200 hover:bg-rose-100"
+                  onClick={handleRetry}
+                  disabled={loadingKelasMapel}
+                  className="inline-flex items-center gap-1 rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-rose-700 ring-1 ring-rose-200 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  <RefreshCw size={13} />
+                  <RefreshCw
+                    size={13}
+                    className={
+                      loadingKelasMapel
+                        ? "animate-spin"
+                        : ""
+                    }
+                  />
                   Coba lagi
                 </button>
               </div>
@@ -410,8 +509,8 @@ export default function UjianGuruPage() {
                   </p>
 
                   <p className="mt-1 text-xs text-slate-500">
-                    Kamu belum memiliki kelas-mata
-                    pelajaran yang diampu.
+                    Data kelas mata pelajaran belum
+                    tersedia.
                   </p>
                 </div>
               ) : (
@@ -429,7 +528,8 @@ export default function UjianGuruPage() {
                       key={item.id}
                       value={item.id}
                     >
-                      {item.kelas?.nama || "Kelas"}{" "}
+                      {item.kelas?.nama ||
+                        "Kelas"}{" "}
                       —{" "}
                       {item.mataPelajaran?.nama ||
                         "Mata Pelajaran"}
@@ -445,7 +545,10 @@ export default function UjianGuruPage() {
                   </span>
 
                   <span className="rounded-full bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700">
-                    {selectedData.mataPelajaran?.nama}
+                    {
+                      selectedData
+                        .mataPelajaran?.nama
+                    }
                   </span>
                 </div>
               )}
@@ -613,6 +716,7 @@ export default function UjianGuruPage() {
                                   size={14}
                                   className="text-slate-400"
                                 />
+
                                 {item.durasi} menit
                               </span>
                             </td>
@@ -644,12 +748,16 @@ export default function UjianGuruPage() {
                             <td className="px-4 py-3 text-center">
                               {item.dipublikasikan ? (
                                 <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-                                  <CheckCircle2 size={13} />
+                                  <CheckCircle2
+                                    size={13}
+                                  />
                                   Dipublikasi
                                 </span>
                               ) : (
                                 <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
-                                  <XCircle size={13} />
+                                  <XCircle
+                                    size={13}
+                                  />
                                   Draft
                                 </span>
                               )}
@@ -657,8 +765,7 @@ export default function UjianGuruPage() {
 
                             <td className="px-4 py-3 text-center font-semibold text-slate-700">
                               {item?._count
-                                ?.soalUjian ??
-                                0}
+                                ?.soalUjian ?? 0}
                             </td>
 
                             <td className="px-4 py-3">
@@ -712,7 +819,8 @@ export default function UjianGuruPage() {
                       )}
 
                       {!loadingUjian &&
-                        filteredUjian.length === 0 && (
+                        filteredUjian.length ===
+                          0 && (
                           <tr>
                             <td
                               colSpan={8}
@@ -729,8 +837,8 @@ export default function UjianGuruPage() {
 
                               <p className="mt-1 text-xs text-slate-500">
                                 Belum ada ujian untuk
-                                kelas dan mata pelajaran
-                                ini.
+                                kelas dan mata
+                                pelajaran ini.
                               </p>
                             </td>
                           </tr>
