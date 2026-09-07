@@ -1,289 +1,387 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+
 import Sidebar from "../../components/Sidebar";
 import Header from "../../components/Header";
+
 import {
   ClipboardCheck,
-  ChevronDown,
-  Sparkles,
   Users,
   CheckCircle2,
   Stethoscope,
   FileText,
   XCircle,
-  ChevronLeft,
-  ChevronRight,
-  Save,
-  History,
-  Pencil,
   CalendarDays,
-  TrendingUp,
-  AlertTriangle,
+  History,
+  RefreshCw,
+  AlertCircle,
+  MapPin,
+  ScanLine,
+  Camera,
+  UserCheck,
+  Plus,
 } from "lucide-react";
 
-// ===== DUMMY DATA =====
-// Catatan: ganti dengan data asli dari API/DB begitu tersedia.
-// Guru ini mengampu 1 mata pelajaran (mis. Matematika) di beberapa kelas.
-const MATA_PELAJARAN = "Matematika";
-const KELAS_OPTIONS = ["9A", "9B", "8A", "8B"];
+import { getAbsensiKelas } from "../../../services/absensi.service";
 
-const siswaPerKelas = {
-  "9A": [
-    { id: "9a-01", nis: "2409001", nama: "Ahmad Fauzi" },
-    { id: "9a-02", nis: "2409002", nama: "Bunga Citra Lestari" },
-    { id: "9a-03", nis: "2409003", nama: "Dewi Anggraini" },
-    { id: "9a-04", nis: "2409004", nama: "Farhan Maulana" },
-    { id: "9a-05", nis: "2409005", nama: "Gita Permatasari" },
-    { id: "9a-06", nis: "2409006", nama: "Hendra Saputra" },
-    { id: "9a-07", nis: "2409007", nama: "Indah Wulandari" },
-    { id: "9a-08", nis: "2409008", nama: "Joko Prasetyo" },
-    { id: "9a-09", nis: "2409009", nama: "Kirana Salsabila" },
-    { id: "9a-10", nis: "2409010", nama: "Lukman Hakim" },
-  ],
-  "9B": [
-    { id: "9b-01", nis: "2409011", nama: "Muhammad Rizki" },
-    { id: "9b-02", nis: "2409012", nama: "Nadia Ramadhani" },
-    { id: "9b-03", nis: "2409013", nama: "Oscar Pratama" },
-    { id: "9b-04", nis: "2409014", nama: "Putri Ayu Ningsih" },
-    { id: "9b-05", nis: "2409015", nama: "Qori Ramadhan" },
-    { id: "9b-06", nis: "2409016", nama: "Rina Amelia" },
-    { id: "9b-07", nis: "2409017", nama: "Satria Nugraha" },
-    { id: "9b-08", nis: "2409018", nama: "Tania Putri" },
-  ],
-  "8A": [
-    { id: "8a-01", nis: "2408001", nama: "Umar Abdullah" },
-    { id: "8a-02", nis: "2408002", nama: "Vina Anggreini" },
-    { id: "8a-03", nis: "2408003", nama: "Wahyu Setiawan" },
-    { id: "8a-04", nis: "2408004", nama: "Xena Meilani" },
-    { id: "8a-05", nis: "2408005", nama: "Yusuf Ibrahim" },
-    { id: "8a-06", nis: "2408006", nama: "Zahra Amalia" },
-    { id: "8a-07", nis: "2408007", nama: "Agus Setiadi" },
-    { id: "8a-08", nis: "2408008", nama: "Bella Safitri" },
-  ],
-  "8B": [
-    { id: "8b-01", nis: "2408011", nama: "Chandra Wijaya" },
-    { id: "8b-02", nis: "2408012", nama: "Dinda Puspita" },
-    { id: "8b-03", nis: "2408013", nama: "Eko Firmansyah" },
-    { id: "8b-04", nis: "2408014", nama: "Fitri Handayani" },
-    { id: "8b-05", nis: "2408015", nama: "Galih Pratama" },
-    { id: "8b-06", nis: "2408016", nama: "Hana Nuraini" },
-  ],
-};
+const STATUS_CONFIG = {
+  hadir: {
+    label: "Hadir",
+    icon: CheckCircle2,
+    active:
+      "bg-emerald-500 text-white border-emerald-500",
+    badge:
+      "bg-emerald-50 text-emerald-600 border-emerald-200",
+  },
 
-// Riwayat absensi yang sudah pernah diisi guru sebelumnya (dummy)
-const initialRiwayat = [
-  {
-    id: "r1",
-    kelas: "9A",
-    tanggal: "15 Agustus 2026",
-    detail: {
-      "9a-01": "Hadir", "9a-02": "Hadir", "9a-03": "Sakit", "9a-04": "Hadir",
-      "9a-05": "Hadir", "9a-06": "Hadir", "9a-07": "Izin", "9a-08": "Hadir",
-      "9a-09": "Hadir", "9a-10": "Hadir",
-    },
-    catatan: { "9a-03": "Demam, ada surat dokter", "9a-07": "Acara keluarga" },
+  sakit: {
+    label: "Sakit",
+    icon: Stethoscope,
+    active:
+      "bg-amber-500 text-white border-amber-500",
+    badge:
+      "bg-amber-50 text-amber-600 border-amber-200",
   },
-  {
-    id: "r2",
-    kelas: "9A",
-    tanggal: "13 Agustus 2026",
-    detail: {
-      "9a-01": "Hadir", "9a-02": "Hadir", "9a-03": "Hadir", "9a-04": "Hadir",
-      "9a-05": "Alpa", "9a-06": "Hadir", "9a-07": "Hadir", "9a-08": "Hadir",
-      "9a-09": "Sakit", "9a-10": "Hadir",
-    },
-    catatan: { "9a-09": "Flu" },
-  },
-  {
-    id: "r3",
-    kelas: "9B",
-    tanggal: "14 Agustus 2026",
-    detail: {
-      "9b-01": "Hadir", "9b-02": "Hadir", "9b-03": "Hadir", "9b-04": "Izin",
-      "9b-05": "Hadir", "9b-06": "Hadir", "9b-07": "Hadir", "9b-08": "Hadir",
-    },
-    catatan: { "9b-04": "Ada keperluan keluarga" },
-  },
-];
 
-const STATUS_LIST = [
-  { key: "Hadir", label: "Hadir", icon: CheckCircle2, color: "emerald" },
-  { key: "Sakit", label: "Sakit", icon: Stethoscope, color: "amber" },
-  { key: "Izin", label: "Izin", icon: FileText, color: "blue" },
-  { key: "Alpa", label: "Alpa", icon: XCircle, color: "rose" },
-];
+  izin: {
+    label: "Izin",
+    icon: FileText,
+    active:
+      "bg-blue-500 text-white border-blue-500",
+    badge:
+      "bg-blue-50 text-blue-600 border-blue-200",
+  },
 
-const colorClasses = {
-  emerald: {
-    active: "bg-emerald-500 text-white border-emerald-500",
-    idle: "bg-white text-slate-500 border-slate-200 hover:border-emerald-300 hover:text-emerald-600",
-    badge: "bg-emerald-50 text-emerald-600 border-emerald-200",
-    bar: "bg-emerald-500",
-  },
-  amber: {
-    active: "bg-amber-500 text-white border-amber-500",
-    idle: "bg-white text-slate-500 border-slate-200 hover:border-amber-300 hover:text-amber-600",
-    badge: "bg-amber-50 text-amber-600 border-amber-200",
-    bar: "bg-amber-500",
-  },
-  blue: {
-    active: "bg-blue-500 text-white border-blue-500",
-    idle: "bg-white text-slate-500 border-slate-200 hover:border-blue-300 hover:text-blue-600",
-    badge: "bg-blue-50 text-blue-600 border-blue-200",
-    bar: "bg-blue-500",
-  },
-  rose: {
-    active: "bg-rose-500 text-white border-rose-500",
-    idle: "bg-white text-slate-500 border-slate-200 hover:border-rose-300 hover:text-rose-600",
-    badge: "bg-rose-50 text-rose-600 border-rose-200",
-    bar: "bg-rose-500",
+  alpha: {
+    label: "Alpha",
+    icon: XCircle,
+    active:
+      "bg-rose-500 text-white border-rose-500",
+    badge:
+      "bg-rose-50 text-rose-600 border-rose-200",
   },
 };
 
-const TANGGAL_HARI_INI = "17 Agustus 2026";
+const METODE_CONFIG = {
+  lokasi: {
+    label: "Lokasi",
+    icon: MapPin,
+  },
+
+  barcode: {
+    label: "Barcode",
+    icon: ScanLine,
+  },
+
+  face: {
+    label: "Face",
+    icon: Camera,
+  },
+
+  manual: {
+    label: "Manual",
+    icon: UserCheck,
+  },
+};
+
+function formatTanggal(tanggal) {
+  if (!tanggal) return "-";
+
+  const date = new Date(tanggal);
+
+  if (Number.isNaN(date.getTime())) {
+    return tanggal;
+  }
+
+  return date.toLocaleDateString("id-ID", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+function formatJam(tanggal) {
+  if (!tanggal) return "-";
+
+  const date = new Date(tanggal);
+
+  if (Number.isNaN(date.getTime())) {
+    return "-";
+  }
+
+  return date.toLocaleTimeString("id-ID", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function normalizeAbsensi(data) {
+  if (!Array.isArray(data)) {
+    return [];
+  }
+
+  return data;
+}
 
 export default function GuruAbsensiPage() {
+  const router = useRouter();
+
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [kelas, setKelas] = useState(KELAS_OPTIONS[0]);
-  const [tanggal, setTanggal] = useState(TANGGAL_HARI_INI);
-  const [riwayat, setRiwayat] = useState(initialRiwayat);
-  const [form, setForm] = useState({});
-  const [catatanForm, setCatatanForm] = useState({});
-  const [savedFlash, setSavedFlash] = useState(false);
+
+  const [kelasId, setKelasId] = useState("");
+
+  const [tanggal, setTanggal] = useState("");
+
+  const [absensi, setAbsensi] = useState([]);
+
+  const [loading, setLoading] = useState(false);
+
+  const [error, setError] = useState("");
+
+  const [lastUpdated, setLastUpdated] = useState(null);
 
   const notifications = [
-    { id: 1, title: "Rapat Wali Kelas", desc: "Dikirim 2 jam lalu", read: false },
-    { id: 2, title: "Batas Input Nilai Rapor", desc: "Dikirim 5 jam lalu", read: false },
+    {
+      id: 1,
+      title: "Rapat Wali Kelas",
+      desc: "Dikirim 2 jam lalu",
+      read: false,
+    },
+    {
+      id: 2,
+      title: "Batas Input Nilai Rapor",
+      desc: "Dikirim 5 jam lalu",
+      read: false,
+    },
   ];
 
-  const daftarSiswa = siswaPerKelas[kelas] || [];
-
-  // Setiap kali kelas atau tanggal berganti, muat data yang sudah ada (kalau ada)
-  // atau siapkan form baru dengan semua siswa berstatus "Hadir" sebagai default.
+  /**
+   * Ambil kelasId dari query URL.
+   *
+   * Contoh:
+   * /guru/absensi?kelasId=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+   */
   useEffect(() => {
-    const existing = riwayat.find((r) => r.kelas === kelas && r.tanggal === tanggal);
-    if (existing) {
-      setForm(existing.detail);
-      setCatatanForm(existing.catatan || {});
-    } else {
-      const defaultForm = {};
-      daftarSiswa.forEach((s) => {
-        defaultForm[s.id] = "Hadir";
-      });
-      setForm(defaultForm);
-      setCatatanForm({});
+    if (typeof window === "undefined") return;
+
+    const params = new URLSearchParams(
+      window.location.search,
+    );
+
+    const id = params.get("kelasId");
+
+    if (id) {
+      setKelasId(id);
     }
-    setSavedFlash(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kelas, tanggal]);
+  }, []);
 
-  const sudahTersimpan = riwayat.some((r) => r.kelas === kelas && r.tanggal === tanggal);
+  /**
+   * FETCH ABSENSI KELAS
+   *
+   * GET /api/v1/absensi/kelas/:kelasId
+   */
+  const fetchAbsensi = useCallback(async () => {
+    if (!kelasId) {
+      setAbsensi([]);
+      return;
+    }
 
+    try {
+      setLoading(true);
+      setError("");
+
+      const data = await getAbsensiKelas(
+        kelasId,
+        tanggal || null,
+      );
+
+      setAbsensi(normalizeAbsensi(data));
+
+      setLastUpdated(new Date());
+    } catch (err) {
+      console.error(
+        "Error fetch absensi kelas:",
+        err,
+      );
+
+      setAbsensi([]);
+
+      setError(
+        err?.message ||
+          "Gagal mengambil data absensi kelas.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [kelasId, tanggal]);
+
+  useEffect(() => {
+    fetchAbsensi();
+  }, [fetchAbsensi]);
+
+  /**
+   * REKAP DATA DARI RESPONSE BE
+   */
   const rekap = useMemo(() => {
-    const counts = { Hadir: 0, Sakit: 0, Izin: 0, Alpa: 0 };
-    Object.values(form).forEach((status) => {
-      if (counts[status] !== undefined) counts[status] += 1;
-    });
-    return counts;
-  }, [form]);
+    const result = {
+      total: absensi.length,
+      hadir: 0,
+      sakit: 0,
+      izin: 0,
+      alpha: 0,
+    };
 
-  const riwayatKelasIni = useMemo(() => {
-    return riwayat
-      .filter((r) => r.kelas === kelas)
-      .sort((a, b) => (a.tanggal < b.tanggal ? 1 : -1));
-  }, [riwayat, kelas]);
+    absensi.forEach((item) => {
+      const status = String(
+        item?.status || "",
+      ).toLowerCase();
 
-  // Statistik ringkas kelas ini, dihitung dari seluruh riwayat yang ada.
-  const statistikKelas = useMemo(() => {
-    if (riwayatKelasIni.length === 0) return { rataRata: null, perluPerhatian: [] };
-    let totalPersen = 0;
-    const absenCount = {};
-    riwayatKelasIni.forEach((r) => {
-      const totalHariItu = Object.keys(r.detail).length || daftarSiswa.length;
-      const hadir = Object.values(r.detail).filter((s) => s === "Hadir").length;
-      totalPersen += totalHariItu ? (hadir / totalHariItu) * 100 : 0;
-      Object.entries(r.detail).forEach(([sid, st]) => {
-        if (st !== "Hadir") absenCount[sid] = (absenCount[sid] || 0) + 1;
-      });
-    });
-    const rataRata = Math.round(totalPersen / riwayatKelasIni.length);
-    const perluPerhatian = Object.entries(absenCount)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 3)
-      .map(([sid, count]) => {
-        const siswa = daftarSiswa.find((s) => s.id === sid);
-        return { nama: siswa ? siswa.nama : sid, count };
-      });
-    return { rataRata, perluPerhatian };
-  }, [riwayatKelasIni, daftarSiswa]);
-
-  const setStatusSiswa = (siswaId, status) => {
-    setForm((prev) => ({ ...prev, [siswaId]: status }));
-    if (status === "Hadir") {
-      setCatatanForm((prev) => {
-        const next = { ...prev };
-        delete next[siswaId];
-        return next;
-      });
-    }
-  };
-
-  const setCatatanSiswa = (siswaId, value) => {
-    setCatatanForm((prev) => ({ ...prev, [siswaId]: value }));
-  };
-
-  const tandaiSemua = (status) => {
-    const next = {};
-    daftarSiswa.forEach((s) => {
-      next[s.id] = status;
-    });
-    setForm(next);
-    if (status === "Hadir") setCatatanForm({});
-  };
-
-  const simpanAbsensi = () => {
-    setRiwayat((prev) => {
-      const idx = prev.findIndex((r) => r.kelas === kelas && r.tanggal === tanggal);
-      const entry = {
-        id: idx >= 0 ? prev[idx].id : `r-${Date.now()}`,
-        kelas,
-        tanggal,
-        detail: form,
-        catatan: catatanForm,
-      };
-      if (idx >= 0) {
-        const copy = [...prev];
-        copy[idx] = entry;
-        return copy;
+      if (status === "hadir") {
+        result.hadir += 1;
       }
-      return [entry, ...prev];
+
+      if (status === "sakit") {
+        result.sakit += 1;
+      }
+
+      if (status === "izin") {
+        result.izin += 1;
+      }
+
+      if (status === "alpha") {
+        result.alpha += 1;
+      }
     });
-    setSavedFlash(true);
-    setTimeout(() => setSavedFlash(false), 2500);
+
+    return result;
+  }, [absensi]);
+
+  /**
+   * Tanggal yang tersedia dari BE
+   */
+  const riwayatTanggal = useMemo(() => {
+    const map = new Map();
+
+    absensi.forEach((item) => {
+      if (!item?.tanggal) return;
+
+      const key = String(item.tanggal);
+
+      if (!map.has(key)) {
+        map.set(key, {
+          tanggal: item.tanggal,
+          jumlah: 0,
+        });
+      }
+
+      map.get(key).jumlah += 1;
+    });
+
+    return Array.from(map.values()).sort(
+      (a, b) =>
+        new Date(b.tanggal) -
+        new Date(a.tanggal),
+    );
+  }, [absensi]);
+
+  /**
+   * Data ditampilkan sesuai response BE
+   */
+  const daftarAbsensi = useMemo(() => {
+    return [...absensi].sort(
+      (a, b) =>
+        new Date(
+          b?.dibuatPada ||
+            b?.tanggal ||
+            0,
+        ) -
+        new Date(
+          a?.dibuatPada ||
+            a?.tanggal ||
+            0,
+        ),
+    );
+  }, [absensi]);
+
+  /**
+   * Pilih tanggal dari riwayat
+   */
+  const pilihTanggal = (value) => {
+    if (!value) return;
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+      return;
+    }
+
+    const yyyy = date.getFullYear();
+
+    const mm = String(
+      date.getMonth() + 1,
+    ).padStart(2, "0");
+
+    const dd = String(
+      date.getDate(),
+    ).padStart(2, "0");
+
+    setTanggal(
+      `${yyyy}-${mm}-${dd}`,
+    );
   };
 
-  const bukaRiwayat = (r) => {
-    setTanggal(r.tanggal);
-  };
+  /**
+   * BUTTON TAMBAH
+   *
+   * Membuka:
+   * /guru/absensi/tambah?kelasId=UUID
+   *
+   * kelasId diteruskan supaya halaman tambah
+   * bisa langsung menggunakan kelas yang sedang dipilih.
+   */
+  const handleTambahAbsensi = () => {
+    if (!kelasId) {
+      setError(
+        "Pilih atau masukkan Kelas ID terlebih dahulu.",
+      );
+      return;
+    }
 
-  const totalSiswa = daftarSiswa.length;
-  const persenHadir = totalSiswa ? Math.round((rekap.Hadir / totalSiswa) * 100) : 0;
+    router.push(
+      `/guru/absensi/tambah?kelasId=${encodeURIComponent(
+        kelasId,
+      )}`,
+    );
+  };
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
+      {/* SIDEBAR */}
       <Sidebar
         active="absensi"
         setActive={() => {}}
         collapsed={!sidebarOpen}
-        setCollapsed={() => setSidebarOpen(!sidebarOpen)}
+        setCollapsed={() =>
+          setSidebarOpen((prev) => !prev)
+        }
       />
+
       <div className="flex-1 flex flex-col min-w-0">
+        {/* HEADER */}
         <Header
-          toggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+          toggleSidebar={() =>
+            setSidebarOpen((prev) => !prev)
+          }
           notifications={notifications}
-          user={{ name: "Bu Sari", email: "guru@smartschool.com", avatar: "AS" }}
+          user={{
+            name: "Guru",
+            email: "guru@smartschool.com",
+            avatar: "G",
+          }}
         />
+
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
           <div className="w-full space-y-6">
 
@@ -294,286 +392,558 @@ export default function GuruAbsensiPage() {
                   <div className="p-2 rounded-lg bg-blue-600 text-white shadow-sm flex-shrink-0">
                     <ClipboardCheck size={18} />
                   </div>
-                  <h1 className="text-xl sm:text-2xl font-semibold text-slate-800 truncate">
+
+                  <h1 className="text-xl sm:text-2xl font-semibold text-slate-800">
                     Absensi
                   </h1>
                 </div>
-                <p className="text-sm text-slate-500 mt-1 ml-[42px] flex items-center gap-1.5">
-                  <Sparkles size={14} className="text-slate-400 flex-shrink-0" />
-                  <span className="truncate">Rekap kehadiran siswa mata pelajaran {MATA_PELAJARAN} per pertemuan.</span>
+
+                <p className="text-sm text-slate-500 mt-1 ml-[42px]">
+                  Data absensi siswa berdasarkan kelas
+                  dari sistem.
                 </p>
               </div>
+
+              {/* ACTIONS */}
+              <div className="flex items-center gap-2">
+
+                {/* TAMBAH */}
+                <button
+                  type="button"
+                  onClick={handleTambahAbsensi}
+                  disabled={!kelasId}
+                  className="flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-blue-600 border border-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+                >
+                  <Plus size={16} />
+
+                  Tambah Absensi
+                </button>
+
+                {/* REFRESH */}
+                <button
+                  type="button"
+                  onClick={fetchAbsensi}
+                  disabled={
+                    loading || !kelasId
+                  }
+                  className="flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <RefreshCw
+                    size={15}
+                    className={
+                      loading
+                        ? "animate-spin"
+                        : ""
+                    }
+                  />
+
+                  Refresh
+                </button>
+              </div>
             </div>
 
-            {/* KELAS & TANGGAL SELECTOR */}
+            {/* FILTER */}
             <div className="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm">
-              <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3">
-                <div className="relative w-full sm:w-44">
-                  <select
-                    value={kelas}
-                    onChange={(e) => setKelas(e.target.value)}
-                    className="w-full appearance-none pl-3 pr-9 py-2.5 text-sm font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-lg hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-colors cursor-pointer"
-                  >
-                    {KELAS_OPTIONS.map((k) => (
-                      <option key={k} value={k}>Kelas {k}</option>
-                    ))}
-                  </select>
-                  <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <div className="flex flex-col lg:flex-row gap-3">
+
+                {/* KELAS ID */}
+                <div className="flex-1">
+                  <label className="block text-xs font-medium text-slate-500 mb-1.5">
+                    Kelas ID
+                  </label>
+
+                  <input
+                    type="text"
+                    value={kelasId}
+                    onChange={(e) =>
+                      setKelasId(
+                        e.target.value,
+                      )
+                    }
+                    placeholder="Masukkan UUID kelas"
+                    className="w-full px-3 py-2.5 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+                  />
                 </div>
 
-                <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-lg px-1 py-1">
-                  <button
-                    onClick={() => {
-                      const idx = riwayatKelasIni.findIndex((r) => r.tanggal === tanggal);
-                      if (idx >= 0 && idx < riwayatKelasIni.length - 1) setTanggal(riwayatKelasIni[idx + 1].tanggal);
-                    }}
-                    className="p-1.5 rounded-md text-slate-400 hover:bg-white hover:text-slate-600 transition-colors"
-                    aria-label="Tanggal sebelumnya"
-                  >
-                    <ChevronLeft size={16} />
-                  </button>
-                  <span className="flex items-center gap-1.5 px-2 text-sm font-medium text-slate-700 whitespace-nowrap">
-                    <CalendarDays size={14} className="text-slate-400" />
-                    {tanggal}
-                    {tanggal === TANGGAL_HARI_INI && (
-                      <span className="text-[10px] font-semibold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full">Hari ini</span>
-                    )}
-                  </span>
-                  <button
-                    onClick={() => setTanggal(TANGGAL_HARI_INI)}
-                    className="p-1.5 rounded-md text-slate-400 hover:bg-white hover:text-slate-600 transition-colors"
-                    aria-label="Kembali ke hari ini"
-                  >
-                    <ChevronRight size={16} />
-                  </button>
+                {/* TANGGAL */}
+                <div className="w-full lg:w-56">
+                  <label className="block text-xs font-medium text-slate-500 mb-1.5">
+                    Tanggal
+                  </label>
+
+                  <div className="relative">
+                    <CalendarDays
+                      size={15}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+                    />
+
+                    <input
+                      type="date"
+                      value={tanggal}
+                      onChange={(e) =>
+                        setTanggal(
+                          e.target.value,
+                        )
+                      }
+                      className="w-full pl-9 pr-3 py-2.5 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+                    />
+                  </div>
                 </div>
 
-                <span className={`text-[11px] font-medium px-2.5 py-1.5 rounded-full border flex-shrink-0 ${
-                  sudahTersimpan ? "bg-emerald-50 text-emerald-600 border-emerald-200" : "bg-slate-100 text-slate-500 border-slate-200"
-                }`}>
-                  {sudahTersimpan ? "Sudah diabsen · bisa diedit" : "Belum diabsen"}
-                </span>
+                {/* RESET */}
+                <div className="flex items-end">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setTanggal("")
+                    }
+                    className="w-full lg:w-auto px-4 py-2.5 text-sm font-medium text-slate-600 bg-slate-100 border border-slate-200 rounded-lg hover:bg-slate-200 transition-colors"
+                  >
+                    Semua Tanggal
+                  </button>
+                </div>
               </div>
             </div>
 
-            {/* SUMMARY CARDS - live sesuai yang ditandai guru */}
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-              <div className="bg-white rounded-xl border border-slate-200/80 p-3.5 shadow-sm flex items-center gap-3 min-w-0">
-                <div className="p-2 rounded-lg border bg-slate-100 text-slate-500 border-slate-200 flex-shrink-0">
-                  <Users size={16} />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider truncate">Total Siswa</p>
-                  <p className="text-lg font-bold text-slate-800">{totalSiswa}</p>
+            {/* ERROR */}
+            {error && (
+              <div className="flex items-start gap-3 p-4 bg-rose-50 border border-rose-200 rounded-xl">
+                <AlertCircle
+                  size={18}
+                  className="text-rose-500 mt-0.5 flex-shrink-0"
+                />
+
+                <div>
+                  <p className="text-sm font-medium text-rose-700">
+                    Gagal mengambil data absensi
+                  </p>
+
+                  <p className="text-xs text-rose-600 mt-1">
+                    {error}
+                  </p>
                 </div>
               </div>
-              {STATUS_LIST.map((s) => (
-                <div key={s.key} className="bg-white rounded-xl border border-slate-200/80 p-3.5 shadow-sm flex items-center gap-3 min-w-0">
-                  <div className={`p-2 rounded-lg border flex-shrink-0 ${colorClasses[s.color].badge}`}>
-                    <s.icon size={16} />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider truncate">{s.label}</p>
-                    <p className="text-lg font-bold text-slate-800">{rekap[s.key]}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+            )}
 
-            {/* KONTEN UTAMA: form absensi (kiri, lebih lebar) + panel statistik & riwayat (kanan) */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-
-              {/* FORM ABSENSI */}
-              <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-hidden">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 sm:p-5 border-b border-slate-100">
-                  <div>
-                    <h2 className="text-sm font-semibold text-slate-800">Daftar Hadir · Kelas {kelas}</h2>
-                    <p className="text-xs text-slate-400 mt-0.5">
-                      {rekap.Hadir} dari {totalSiswa} siswa hadir ({persenHadir}%)
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => tandaiSemua("Hadir")}
-                    className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors whitespace-nowrap"
-                  >
-                    <CheckCircle2 size={13} />
-                    Tandai Semua Hadir
-                  </button>
+            {/* BELUM ADA KELAS ID */}
+            {!kelasId && !error && (
+              <div className="bg-white border border-slate-200 rounded-xl p-8 text-center">
+                <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-blue-50 flex items-center justify-center">
+                  <Users
+                    size={20}
+                    className="text-blue-500"
+                  />
                 </div>
 
-                <div className="divide-y divide-slate-100">
-                  {daftarSiswa.map((siswa, idx) => {
-                    const statusAktif = form[siswa.id] || "Hadir";
-                    const perluCatatan = statusAktif !== "Hadir";
-                    return (
-                      <div
-                        key={siswa.id}
-                        className="flex flex-col gap-3 p-4 sm:px-5 sm:py-3.5 hover:bg-slate-50/60 transition-colors"
-                      >
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                          <div className="flex items-center gap-3 min-w-0 sm:w-56 flex-shrink-0">
-                            <span className="w-6 text-xs font-medium text-slate-400 flex-shrink-0">{idx + 1}.</span>
-                            <div className="min-w-0">
-                              <p className="text-sm font-medium text-slate-800 truncate">{siswa.nama}</p>
-                              <p className="text-[11px] text-slate-400">NIS {siswa.nis}</p>
-                            </div>
-                          </div>
+                <h2 className="text-sm font-semibold text-slate-700">
+                  Kelas belum dipilih
+                </h2>
 
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            {STATUS_LIST.map((s) => {
-                              const isActive = statusAktif === s.key;
-                              return (
-                                <button
-                                  key={s.key}
-                                  onClick={() => setStatusSiswa(siswa.id, s.key)}
-                                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
-                                    isActive ? colorClasses[s.color].active : colorClasses[s.color].idle
-                                  }`}
-                                >
-                                  <s.icon size={13} />
-                                  {s.label}
-                                </button>
-                              );
-                            })}
-                          </div>
+                <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
+                  Masukkan UUID kelas pada kolom
+                  Kelas ID untuk mengambil data
+                  absensi dari backend.
+                </p>
+              </div>
+            )}
 
-                          {perluCatatan && (
-                            <input
-                              type="text"
-                              value={catatanForm[siswa.id] || ""}
-                              onChange={(e) => setCatatanSiswa(siswa.id, e.target.value)}
-                              placeholder="Catatan (opsional) — mis. ada surat dokter"
-                              className="flex-1 min-w-[160px] px-3 py-1.5 text-xs text-slate-700 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-colors"
-                            />
-                          )}
-                        </div>
+            {/* LOADING */}
+            {loading && (
+              <div className="bg-white rounded-xl border border-slate-200 p-8 text-center">
+                <RefreshCw
+                  size={24}
+                  className="mx-auto text-blue-500 animate-spin"
+                />
+
+                <p className="text-sm text-slate-500 mt-3">
+                  Mengambil data absensi...
+                </p>
+              </div>
+            )}
+
+            {/* CONTENT */}
+            {!loading &&
+              kelasId &&
+              !error && (
+                <>
+                  {/* SUMMARY */}
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+
+                    {/* TOTAL */}
+                    <div className="bg-white rounded-xl border border-slate-200/80 p-3.5 shadow-sm flex items-center gap-3">
+                      <div className="p-2 rounded-lg border bg-slate-100 text-slate-500 border-slate-200">
+                        <Users size={16} />
                       </div>
-                    );
-                  })}
-                </div>
 
-                <div className="flex flex-col sm:flex-row items-center justify-end gap-3 p-4 sm:p-5 border-t border-slate-100 bg-slate-50/60">
-                  {savedFlash && (
-                    <span className="text-xs font-medium text-emerald-600">Absensi tersimpan.</span>
-                  )}
-                  <button
-                    onClick={simpanAbsensi}
-                    className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-blue-500 rounded-lg hover:bg-blue-600 transition-colors shadow-sm"
-                  >
-                    <Save size={15} />
-                    {sudahTersimpan ? "Simpan Perubahan" : "Simpan Absensi"}
-                  </button>
-                </div>
-              </div>
+                      <div>
+                        <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">
+                          Total
+                        </p>
 
-              {/* PANEL KANAN: statistik + riwayat ringkas */}
-              <div className="lg:col-span-1 space-y-6">
-
-                {/* STATISTIK KELAS */}
-                <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm p-4 sm:p-5">
-                  <div className="flex items-center gap-2 mb-4">
-                    <TrendingUp size={16} className="text-slate-400" />
-                    <h2 className="text-sm font-semibold text-slate-800">Statistik Kelas {kelas}</h2>
-                  </div>
-
-                  {statistikKelas.rataRata === null ? (
-                    <p className="text-xs text-slate-400">Belum ada data cukup untuk statistik.</p>
-                  ) : (
-                    <>
-                      <div className="mb-4">
-                        <div className="flex items-baseline justify-between mb-1.5">
-                          <span className="text-xs text-slate-400">Rata-rata kehadiran</span>
-                          <span className="text-lg font-bold text-slate-800">{statistikKelas.rataRata}%</span>
-                        </div>
-                        <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
-                          <div
-                            className="h-full rounded-full bg-emerald-500"
-                            style={{ width: `${statistikKelas.rataRata}%` }}
-                          />
-                        </div>
-                        <p className="text-[11px] text-slate-400 mt-1.5">
-                          dari {riwayatKelasIni.length} pertemuan tercatat
+                        <p className="text-lg font-bold text-slate-800">
+                          {rekap.total}
                         </p>
                       </div>
-
-                      {statistikKelas.perluPerhatian.length > 0 && (
-                        <div>
-                          <div className="flex items-center gap-1.5 mb-2">
-                            <AlertTriangle size={13} className="text-amber-500" />
-                            <span className="text-xs font-medium text-slate-600">Perlu perhatian</span>
-                          </div>
-                          <div className="space-y-1.5">
-                            {statistikKelas.perluPerhatian.map((p) => (
-                              <div key={p.nama} className="flex items-center justify-between text-xs">
-                                <span className="text-slate-600 truncate pr-2">{p.nama}</span>
-                                <span className="text-amber-600 font-medium flex-shrink-0">{p.count}x tidak hadir</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-
-                {/* RIWAYAT ABSENSI KELAS INI */}
-                <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-hidden">
-                  <div className="flex items-center gap-2 p-4 sm:p-5 border-b border-slate-100">
-                    <History size={16} className="text-slate-400" />
-                    <h2 className="text-sm font-semibold text-slate-800">Riwayat Absensi</h2>
-                  </div>
-
-                  {riwayatKelasIni.length === 0 ? (
-                    <div className="p-6 text-center">
-                      <p className="text-xs text-slate-400">Belum ada riwayat absensi untuk kelas ini.</p>
                     </div>
-                  ) : (
-                    <div className="divide-y divide-slate-100">
-                      {riwayatKelasIni.map((r) => {
-                        const counts = { Hadir: 0, Sakit: 0, Izin: 0, Alpa: 0 };
-                        Object.values(r.detail).forEach((st) => {
-                          if (counts[st] !== undefined) counts[st] += 1;
-                        });
+
+                    {/* STATUS */}
+                    {Object.entries(
+                      STATUS_CONFIG,
+                    ).map(
+                      ([
+                        key,
+                        config,
+                      ]) => {
+                        const Icon =
+                          config.icon;
+
                         return (
-                          <div key={r.id} className="p-4 sm:p-5">
-                            <div className="flex items-center justify-between gap-2 mb-2">
-                              <span className="flex items-center gap-1.5 text-xs font-medium text-slate-700 truncate">
-                                <CalendarDays size={13} className="text-slate-400 flex-shrink-0" />
-                                {r.tanggal}
-                              </span>
-                              {r.tanggal === tanggal && (
-                                <span className="text-[10px] font-semibold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full flex-shrink-0">
-                                  Dibuka
-                                </span>
-                              )}
+                          <div
+                            key={key}
+                            className="bg-white rounded-xl border border-slate-200/80 p-3.5 shadow-sm flex items-center gap-3"
+                          >
+                            <div
+                              className={`p-2 rounded-lg border ${config.badge}`}
+                            >
+                              <Icon size={16} />
                             </div>
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              {STATUS_LIST.map((s) => (
-                                <span
-                                  key={s.key}
-                                  className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full border ${colorClasses[s.color].badge}`}
-                                >
-                                  {s.label} {counts[s.key]}
-                                </span>
-                              ))}
-                              <button
-                                onClick={() => bukaRiwayat(r)}
-                                className="ml-auto flex items-center justify-center gap-1 px-2.5 py-1 text-[11px] font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
-                              >
-                                <Pencil size={11} />
-                                Edit
-                              </button>
+
+                            <div>
+                              <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">
+                                {config.label}
+                              </p>
+
+                              <p className="text-lg font-bold text-slate-800">
+                                {
+                                  rekap[
+                                    key
+                                  ]
+                                }
+                              </p>
                             </div>
                           </div>
                         );
-                      })}
+                      },
+                    )}
+                  </div>
+
+                  {/* DATA ABSENSI */}
+                  <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-hidden">
+
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 sm:p-5 border-b border-slate-100">
+                      <div>
+                        <h2 className="text-sm font-semibold text-slate-800">
+                          Data Absensi Kelas
+                        </h2>
+
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          {tanggal
+                            ? `Tanggal ${formatTanggal(
+                                tanggal,
+                              )}`
+                            : "Seluruh data absensi kelas"}
+                        </p>
+                      </div>
+
+                      {lastUpdated && (
+                        <span className="text-[11px] text-slate-400">
+                          Diperbarui{" "}
+                          {formatJam(
+                            lastUpdated,
+                          )}
+                        </span>
+                      )}
                     </div>
-                  )}
-                </div>
 
-              </div>
-            </div>
+                    {daftarAbsensi.length ===
+                    0 ? (
+                      <div className="p-10 text-center">
+                        <div className="w-12 h-12 mx-auto rounded-full bg-slate-100 flex items-center justify-center">
+                          <ClipboardCheck
+                            size={20}
+                            className="text-slate-400"
+                          />
+                        </div>
 
+                        <p className="text-sm font-medium text-slate-600 mt-3">
+                          Belum ada data absensi
+                        </p>
+
+                        <p className="text-xs text-slate-400 mt-1">
+                          Tidak ada record absensi
+                          yang dikembalikan backend
+                          untuk filter ini.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full min-w-[850px]">
+                          <thead>
+                            <tr className="border-b border-slate-100 bg-slate-50/70">
+                              <th className="text-left px-5 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                                Siswa
+                              </th>
+
+                              <th className="text-left px-5 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                                Tanggal
+                              </th>
+
+                              <th className="text-left px-5 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                                Status
+                              </th>
+
+                              <th className="text-left px-5 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                                Metode
+                              </th>
+
+                              <th className="text-left px-5 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                                Keterangan
+                              </th>
+                            </tr>
+                          </thead>
+
+                          <tbody className="divide-y divide-slate-100">
+                            {daftarAbsensi.map(
+                              (
+                                item,
+                                index,
+                              ) => {
+                                const status =
+                                  String(
+                                    item?.status ||
+                                      "",
+                                  ).toLowerCase();
+
+                                const config =
+                                  STATUS_CONFIG[
+                                    status
+                                  ];
+
+                                const StatusIcon =
+                                  config?.icon ||
+                                  AlertCircle;
+
+                                const metode =
+                                  String(
+                                    item?.metode ||
+                                      "",
+                                  ).toLowerCase();
+
+                                const metodeConfig =
+                                  METODE_CONFIG[
+                                    metode
+                                  ];
+
+                                const MetodeIcon =
+                                  metodeConfig?.icon ||
+                                  ClipboardCheck;
+
+                                const siswa =
+                                  item?.pengguna;
+
+                                return (
+                                  <tr
+                                    key={
+                                      item?.id ||
+                                      index
+                                    }
+                                    className="hover:bg-slate-50/60 transition-colors"
+                                  >
+                                    {/* SISWA */}
+                                    <td className="px-5 py-4">
+                                      <div className="flex items-center gap-3">
+                                        <div className="w-9 h-9 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
+                                          <UserCheck
+                                            size={
+                                              16
+                                            }
+                                          />
+                                        </div>
+
+                                        <div className="min-w-0">
+                                          <p className="text-sm font-medium text-slate-800 truncate">
+                                            {siswa?.namaLengkap ||
+                                              "-"}
+                                          </p>
+
+                                          <p className="text-[11px] text-slate-400">
+                                            NISN:{" "}
+                                            {siswa?.nisn ||
+                                              "-"}
+                                          </p>
+                                        </div>
+                                      </div>
+                                    </td>
+
+                                    {/* TANGGAL */}
+                                    <td className="px-5 py-4">
+                                      <div>
+                                        <p className="text-xs font-medium text-slate-700">
+                                          {formatTanggal(
+                                            item?.tanggal,
+                                          )}
+                                        </p>
+
+                                        {item?.dibuatPada && (
+                                          <p className="text-[11px] text-slate-400 mt-0.5">
+                                            {formatJam(
+                                              item.dibuatPada,
+                                            )}
+                                          </p>
+                                        )}
+                                      </div>
+                                    </td>
+
+                                    {/* STATUS */}
+                                    <td className="px-5 py-4">
+                                      <span
+                                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium rounded-full border ${
+                                          config?.badge ||
+                                          "bg-slate-50 text-slate-500 border-slate-200"
+                                        }`}
+                                      >
+                                        <StatusIcon
+                                          size={
+                                            12
+                                          }
+                                        />
+
+                                        {config?.label ||
+                                          item?.status ||
+                                          "-"}
+                                      </span>
+                                    </td>
+
+                                    {/* METODE */}
+                                    <td className="px-5 py-4">
+                                      <span className="inline-flex items-center gap-1.5 text-xs text-slate-600">
+                                        <MetodeIcon
+                                          size={
+                                            13
+                                          }
+                                          className="text-slate-400"
+                                        />
+
+                                        {metodeConfig?.label ||
+                                          item?.metode ||
+                                          "-"}
+                                      </span>
+                                    </td>
+
+                                    {/* KETERANGAN */}
+                                    <td className="px-5 py-4">
+                                      <span className="text-xs text-slate-500">
+                                        {item?.keterangan ||
+                                          "-"}
+                                      </span>
+                                    </td>
+                                  </tr>
+                                );
+                              },
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* RIWAYAT */}
+                  <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-hidden">
+
+                    <div className="flex items-center gap-2 p-4 sm:p-5 border-b border-slate-100">
+                      <History
+                        size={16}
+                        className="text-slate-400"
+                      />
+
+                      <div>
+                        <h2 className="text-sm font-semibold text-slate-800">
+                          Riwayat Data
+                        </h2>
+
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          Tanggal yang tersedia dari
+                          backend
+                        </p>
+                      </div>
+                    </div>
+
+                    {riwayatTanggal.length ===
+                    0 ? (
+                      <div className="p-6 text-center">
+                        <p className="text-xs text-slate-400">
+                          Belum ada riwayat.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="divide-y divide-slate-100">
+                        {riwayatTanggal.map(
+                          (item) => {
+                            const isActive =
+                              tanggal &&
+                              formatTanggal(
+                                item.tanggal,
+                              ) ===
+                                formatTanggal(
+                                  tanggal,
+                                );
+
+                            return (
+                              <button
+                                type="button"
+                                key={String(
+                                  item.tanggal,
+                                )}
+                                onClick={() =>
+                                  pilihTanggal(
+                                    item.tanggal,
+                                  )
+                                }
+                                className={`w-full flex items-center justify-between gap-3 px-5 py-4 text-left hover:bg-slate-50 transition-colors ${
+                                  isActive
+                                    ? "bg-blue-50/60"
+                                    : ""
+                                }`}
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div className="p-2 rounded-lg bg-slate-100 text-slate-500">
+                                    <CalendarDays
+                                      size={
+                                        15
+                                      }
+                                    />
+                                  </div>
+
+                                  <div>
+                                    <p className="text-xs font-medium text-slate-700">
+                                      {formatTanggal(
+                                        item.tanggal,
+                                      )}
+                                    </p>
+
+                                    <p className="text-[11px] text-slate-400 mt-0.5">
+                                      {
+                                        item.jumlah
+                                      }{" "}
+                                      data absensi
+                                    </p>
+                                  </div>
+                                </div>
+
+                                {isActive && (
+                                  <span className="text-[10px] font-semibold text-blue-600 bg-blue-50 border border-blue-200 px-2 py-1 rounded-full">
+                                    Dipilih
+                                  </span>
+                                )}
+                              </button>
+                            );
+                          },
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
           </div>
         </main>
       </div>
