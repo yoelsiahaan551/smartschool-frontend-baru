@@ -1,8 +1,9 @@
 const API_URL = "http://localhost:5000/api/v1";
 
-// =========================
+// ============================================================
 // PARSE RESPONSE
-// =========================
+// ============================================================
+
 async function parseResponse(response: Response) {
   const text = await response.text();
 
@@ -16,6 +17,7 @@ async function parseResponse(response: Response) {
 
   console.log("========== PAKET API ==========");
   console.log("STATUS:", response.status);
+  console.log("URL:", response.url);
   console.log("RAW RESPONSE:", text);
   console.log("PARSED RESPONSE:", result);
   console.log("===============================");
@@ -32,9 +34,10 @@ async function parseResponse(response: Response) {
   return result;
 }
 
-// =========================
+// ============================================================
 // GET SEMUA PAKET
-// =========================
+// ============================================================
+
 export const getPaket = async () => {
   const url = `${API_URL}/paket`;
 
@@ -50,33 +53,42 @@ export const getPaket = async () => {
 
   const result = await parseResponse(response);
 
-  // Jika backend mengembalikan array langsung
+  let data = [];
+
   if (Array.isArray(result)) {
-    return {
-      success: true,
-      data: result,
-    };
+    data = result;
+  } else if (Array.isArray(result?.data)) {
+    data = result.data;
   }
 
-  // Jika backend mengembalikan:
-  // { success: true, data: [...] }
-  if (Array.isArray(result?.data)) {
-    return {
-      success: result?.success !== false,
-      data: result.data,
-    };
-  }
+  console.log("========== DATA PAKET ==========");
+  console.log("JUMLAH PAKET:", data.length);
+
+  data.forEach((item: any) => {
+    console.log("PAKET:", item.nama);
+    console.log("ID:", item.id);
+    console.log("FITUR:", item.fitur);
+    console.log(
+      "JUMLAH FITUR:",
+      Array.isArray(item.fitur)
+        ? item.fitur.length
+        : 0
+    );
+  });
+
+  console.log("================================");
 
   return {
     success: result?.success !== false,
-    data: [],
-    message: result?.message || "Data paket tidak ditemukan",
+    data,
+    message: result?.message || "",
   };
 };
 
-// =========================
+// ============================================================
 // GET PAKET BERDASARKAN ID
-// =========================
+// ============================================================
+
 export const getPaketById = async (id: string) => {
   if (!id) {
     throw new Error("ID paket tidak ditemukan");
@@ -97,9 +109,10 @@ export const getPaketById = async (id: string) => {
   return await parseResponse(response);
 };
 
-// =========================
+// ============================================================
 // GET FITUR
-// =========================
+// ============================================================
+
 export const getFitur = async () => {
   const url = `${API_URL}/paket/fitur/list`;
 
@@ -115,38 +128,30 @@ export const getFitur = async () => {
 
   const result = await parseResponse(response);
 
-  // Jika array langsung
-  if (Array.isArray(result)) {
-    return {
-      success: true,
-      data: result,
-    };
-  }
+  let data = [];
 
-  // Jika { success, data }
-  if (Array.isArray(result?.data)) {
-    return {
-      success: result?.success !== false,
-      data: result.data,
-    };
+  if (Array.isArray(result)) {
+    data = result;
+  } else if (Array.isArray(result?.data)) {
+    data = result.data;
   }
 
   return {
     success: result?.success !== false,
-    data: [],
+    data,
+    message: result?.message || "",
   };
 };
 
-// =========================
+// ============================================================
 // CREATE PAKET
-// =========================
+// ============================================================
+
 export const createPaket = async (
   data: any,
   token?: string
 ) => {
   const url = `${API_URL}/paket`;
-
-  console.log("CREATE PAKET URL:", url);
 
   const response = await fetch(url, {
     method: "POST",
@@ -166,9 +171,10 @@ export const createPaket = async (
   return await parseResponse(response);
 };
 
-// =========================
+// ============================================================
 // UPDATE PAKET
-// =========================
+// ============================================================
+
 export const updatePaket = async (
   id: string,
   data: any,
@@ -179,8 +185,6 @@ export const updatePaket = async (
   }
 
   const url = `${API_URL}/paket/${id}`;
-
-  console.log("UPDATE PAKET URL:", url);
 
   const response = await fetch(url, {
     method: "PUT",
@@ -200,9 +204,10 @@ export const updatePaket = async (
   return await parseResponse(response);
 };
 
-// =========================
+// ============================================================
 // DELETE PAKET
-// =========================
+// ============================================================
+
 export const deletePaket = async (
   id: string,
   token?: string
@@ -212,8 +217,6 @@ export const deletePaket = async (
   }
 
   const url = `${API_URL}/paket/${id}`;
-
-  console.log("DELETE PAKET URL:", url);
 
   const response = await fetch(url, {
     method: "DELETE",

@@ -2,7 +2,6 @@ import {
   LayoutDashboard,
   Users,
   UserCheck,
-  UserRoundCog,
   UserPlus,
   ScanFace,
   GraduationCap,
@@ -12,16 +11,18 @@ import {
   CalendarCheck,
   BookOpen,
   BookMarked,
+  BookOpenCheck,
   BookUp,
   BookDown,
+  BookText,
   Library,
   UserCog,
   Boxes,
-  School,
-  Layers,
   Settings,
   Settings2,
   NotebookPen,
+  School,
+  Layers,
   PenLine,
   Printer,
   Award,
@@ -38,11 +39,14 @@ import {
   Server,
   HeartHandshake,
   AlertTriangle,
+  AlertCircle,
   Tags,
   Brain,
   FileInput,
-  Wallet,
   PiggyBank,
+  Globe2,
+  Newspaper,
+  DollarSign,
 } from "lucide-react";
 
 export const adminSidebarConfig = {
@@ -71,7 +75,7 @@ export const adminSidebarConfig = {
       label: "DATA MASTER",
     },
 
-    // Pengguna
+    // ---------------- Pengguna ----------------
     {
       type: "item",
       key: "pengguna",
@@ -87,7 +91,7 @@ export const adminSidebarConfig = {
           path: "/admin/pengguna",
         },
         {
-          key: "dataGuru",
+          key: "dataGuruPegawai",
           icon: UserCheck,
           label: "Data Guru & Pegawai",
           path: "/admin/guru",
@@ -107,7 +111,7 @@ export const adminSidebarConfig = {
       ],
     },
 
-    // Kelas
+    // ---------------- Kelas ----------------
     {
       type: "item",
       key: "kelas",
@@ -125,7 +129,7 @@ export const adminSidebarConfig = {
       ],
     },
 
-    // Jurusan
+    // ---------------- Jurusan ----------------
     {
       type: "item",
       key: "jurusan",
@@ -143,7 +147,7 @@ export const adminSidebarConfig = {
       ],
     },
 
-    // Tahun Ajaran
+    // ---------------- Tahun Ajaran ----------------
     {
       type: "item",
       key: "tahunAjaran",
@@ -179,20 +183,20 @@ export const adminSidebarConfig = {
       ],
     },
 
-    // Jadwal Pelajaran
+    // ---------------- Jadwal Pelajaran ----------------
     {
       type: "item",
       key: "jadwalPelajaran",
       icon: CalendarClock,
       label: "Jadwal Pelajaran",
-      path: "/admin/akademik/jadwal",
+      path: "/admin/guru/jadwal-mengajar",
 
       children: [
         {
           key: "listJadwalPelajaran",
           icon: CalendarDays,
           label: "List Jadwal Pelajaran",
-          path: "/admin/akademik/jadwal",
+          path: "/admin/siswa/jadwal-mapel",
         },
         {
           key: "assignJadwalMengajar",
@@ -203,7 +207,7 @@ export const adminSidebarConfig = {
       ],
     },
 
-    // Mata Pelajaran
+    // ---------------- Mata Pelajaran ----------------
     {
       type: "item",
       key: "mataPelajaran",
@@ -216,13 +220,13 @@ export const adminSidebarConfig = {
           key: "listMataPelajaran",
           icon: BookMarked,
           label: "List Mata Pelajaran",
-          path: "/admin/mata-pelajaran",
+          path: "/admin/siswa/jadwal-mapel",
         },
         {
           key: "tambahMataPelajaran",
           icon: UserPlus,
           label: "Tambah Mata Pelajaran",
-          path: "/admin/mata-pelajaran/tambah",
+          path: "/admin/m/tambah",
         },
         {
           key: "editMataPelajaran",
@@ -233,7 +237,7 @@ export const adminSidebarConfig = {
       ],
     },
 
-    // Perpustakaan Digital
+    // ---------------- Perpustakaan Digital ----------------
     {
       type: "item",
       key: "perpustakaan",
@@ -276,6 +280,7 @@ export const adminSidebarConfig = {
       type: "header",
       label: "LMS & CBT",
     },
+
     {
       type: "item",
       key: "modulLmsClass",
@@ -283,13 +288,15 @@ export const adminSidebarConfig = {
       label: "Modul LMS & Class",
       path: "/admin/lms/modul-class",
     },
+
     {
       type: "item",
       key: "materiModulAjar",
-      icon: FileText,
+      icon: BookOpenCheck,
       label: "Materi dan Modul Ajar",
       path: "/admin/lms/materi-modul-ajar",
     },
+
     {
       type: "item",
       key: "tugasSiswa",
@@ -297,6 +304,7 @@ export const adminSidebarConfig = {
       label: "Tugas Siswa",
       path: "/admin/lms/tugas-siswa",
     },
+
     {
       type: "item",
       key: "ujianCbtOnline",
@@ -304,6 +312,7 @@ export const adminSidebarConfig = {
       label: "Ujian CBT Online",
       path: "/admin/cbt/ujian",
     },
+
     {
       type: "item",
       key: "kapasitasServerCbt",
@@ -319,6 +328,7 @@ export const adminSidebarConfig = {
       type: "header",
       label: "E-RAPORT DIGITAL",
     },
+
     {
       type: "item",
       key: "entryNilaiSiswa",
@@ -326,6 +336,7 @@ export const adminSidebarConfig = {
       label: "Entry Nilai Siswa",
       path: "/admin/eraport/entry-nilai",
     },
+
     {
       type: "item",
       key: "cetakRaportSiswa",
@@ -333,6 +344,7 @@ export const adminSidebarConfig = {
       label: "Cetak Raport Siswa",
       path: "/admin/eraport/cetak-raport",
     },
+
     {
       type: "item",
       key: "pengaturanAgregatNilai",
@@ -348,6 +360,7 @@ export const adminSidebarConfig = {
       type: "header",
       label: "PRESENSI & KEHADIRAN",
     },
+
     {
       type: "item",
       key: "rekapPresensiSiswa",
@@ -355,6 +368,7 @@ export const adminSidebarConfig = {
       label: "Rekap Presensi Siswa",
       path: "/admin/siswa/absen",
     },
+
     {
       type: "item",
       key: "permohonanIzinSiswa",
@@ -362,6 +376,7 @@ export const adminSidebarConfig = {
       label: "Permohonan Izin Siswa",
       path: "/admin/presensi/izin-siswa",
     },
+
     {
       type: "item",
       key: "rekapPresensiGuru",
@@ -369,6 +384,7 @@ export const adminSidebarConfig = {
       label: "Rekap Presensi Guru",
       path: "/admin/presensi/rekap-guru",
     },
+
     {
       type: "item",
       key: "permohonanIzinGuru",
@@ -376,6 +392,7 @@ export const adminSidebarConfig = {
       label: "Permohonan Izin Guru",
       path: "/admin/presensi/izin-guru",
     },
+
     {
       type: "item",
       key: "pengaturanPresensi",
@@ -391,6 +408,7 @@ export const adminSidebarConfig = {
       type: "header",
       label: "AKADEMIK",
     },
+
     {
       type: "item",
       key: "akademik",
@@ -398,6 +416,7 @@ export const adminSidebarConfig = {
       label: "Dashboard Akademik",
       path: "/admin/akademik",
     },
+
     {
       type: "item",
       key: "prestasi",
@@ -405,6 +424,7 @@ export const adminSidebarConfig = {
       label: "Prestasi",
       path: "/admin/akademik/prestasi",
     },
+
     {
       type: "item",
       key: "raport",
@@ -412,6 +432,7 @@ export const adminSidebarConfig = {
       label: "Raport",
       path: "/admin/akademik/rapor",
     },
+
     {
       type: "item",
       key: "nilai",
@@ -427,6 +448,7 @@ export const adminSidebarConfig = {
       type: "header",
       label: "SARANA & PRASARANA",
     },
+
     {
       type: "item",
       key: "sarpras",
@@ -434,6 +456,7 @@ export const adminSidebarConfig = {
       label: "Sarpras",
       path: "/admin/sarpras",
     },
+
     {
       type: "item",
       key: "gedung",
@@ -452,12 +475,101 @@ export const adminSidebarConfig = {
     },
 
     // ==========================================================
+    // CONTENT MANAGEMENT SYSTEM
+    // ==========================================================
+    {
+      type: "header",
+      label: "CONTENT MANAGEMENT",
+    },
+
+    {
+      type: "item",
+      key: "cms",
+      icon: Globe2,
+      label: "CMS Website",
+      path: "/cmsAdmin",
+
+      children: [
+        {
+          key: "cmsDashboard",
+          icon: LayoutDashboard,
+          label: "Dashboard CMS",
+          path: "/cmsAdmin",
+        },
+
+        {
+          key: "cmsArticles",
+          icon: Newspaper,
+          label: "Artikel",
+          path: "/cmsAdmin/articles",
+        },
+
+        {
+          key: "cmsCategories",
+          icon: Tags,
+          label: "Kategori Artikel",
+          path: "/cmsAdmin/categories",
+        },
+
+        {
+          key: "cmsPages",
+          icon: FileText,
+          label: "Halaman Website",
+          path: "/cmsAdmin/pages",
+        },
+
+        {
+          key: "cmsMedia",
+          icon: FileInput,
+          label: "Media & File",
+          path: "/cmsAdmin/media",
+        },
+
+        {
+          key: "cmsBanner",
+          icon: MonitorPlay,
+          label: "Banner & Slider",
+          path: "/cmsAdmin/banner",
+        },
+
+        {
+          key: "cmsMenu",
+          icon: Layers,
+          label: "Menu Website",
+          path: "/cmsAdmin/menu",
+        },
+
+        {
+          key: "cmsPengumuman",
+          icon: AlertCircle,
+          label: "Pengumuman",
+          path: "/cmsAdmin/pengumuman",
+        },
+
+        {
+          key: "cmsGaleri",
+          icon: BookOpen,
+          label: "Galeri",
+          path: "/cmsAdmin/galeri",
+        },
+
+        {
+          key: "cmsSettings",
+          icon: Settings2,
+          label: "Pengaturan Website",
+          path: "/cmsAdmin/settings",
+        },
+      ],
+    },
+
+    // ==========================================================
     // SISTEM
     // ==========================================================
     {
       type: "header",
       label: "SISTEM",
     },
+
     {
       type: "item",
       key: "kelolaUser",
@@ -473,6 +585,7 @@ export const adminSidebarConfig = {
       type: "header",
       label: "LANGGANAN",
     },
+
     {
       type: "item",
       key: "paketLangganan",
@@ -480,6 +593,7 @@ export const adminSidebarConfig = {
       label: "Paket Langganan",
       path: "/admin/langganan/paket",
     },
+
     {
       type: "item",
       key: "riwayatPembayaran",
@@ -487,6 +601,7 @@ export const adminSidebarConfig = {
       label: "Riwayat Pembayaran",
       path: "/admin/langganan/riwayat-pembayaran",
     },
+
     {
       type: "item",
       key: "invoice",
@@ -496,12 +611,13 @@ export const adminSidebarConfig = {
     },
 
     // ==========================================================
-    // BIMBINGAN & KONSELING (BK)
+    // BIMBINGAN & KONSELING
     // ==========================================================
     {
       type: "header",
       label: "BIMBINGAN & KONSELING",
     },
+
     {
       type: "item",
       key: "sesiKonselingSiswa",
@@ -509,6 +625,7 @@ export const adminSidebarConfig = {
       label: "Sesi Konseling Siswa",
       path: "/admin/bk/sesi-konseling",
     },
+
     {
       type: "item",
       key: "pelanggaranSiswa",
@@ -516,13 +633,15 @@ export const adminSidebarConfig = {
       label: "Pelanggaran Siswa",
       path: "/admin/bk/pelanggaran",
     },
+
     {
       type: "item",
       key: "kategoriPointPelanggaran",
       icon: Tags,
-      label: "Kategori dan Point Pelanggaran",
+      label: "Kategori & Point Pelanggaran",
       path: "/admin/bk/kategori-point",
     },
+
     {
       type: "item",
       key: "asesmentMinatBakat",
@@ -538,6 +657,7 @@ export const adminSidebarConfig = {
       type: "header",
       label: "PENERIMAAN (SPMB)",
     },
+
     {
       type: "item",
       key: "dataPendaftaran",
@@ -545,6 +665,7 @@ export const adminSidebarConfig = {
       label: "Data Pendaftaran",
       path: "/admin/spmb/data-pendaftaran",
     },
+
     {
       type: "item",
       key: "gelombang",
@@ -552,6 +673,7 @@ export const adminSidebarConfig = {
       label: "Gelombang",
       path: "/admin/spmb/gelombang",
     },
+
     {
       type: "item",
       key: "pengaturanSpmb",
@@ -567,19 +689,53 @@ export const adminSidebarConfig = {
       type: "header",
       label: "KEUANGAN & KAS",
     },
+
     {
       type: "item",
-      key: "spp",
-      icon: Wallet,
-      label: "SPP",
-      path: "/admin/keuangan/spp",
+      key: "laporanKeuangan",
+      icon: FileSpreadsheet,
+      label: "Laporan Keuangan",
+      path: "/admin/keuangan/laporan",
     },
+
     {
       type: "item",
       key: "tabunganSiswa",
       icon: PiggyBank,
       label: "Tabungan Siswa",
-      path: "/admin/keuangan/tabungan-siswa",
+      path: "/admin/keuangan/tabunganSiswa",
+    },
+
+    {
+      type: "item",
+      key: "spp",
+      icon: DollarSign,
+      label: "SPP",
+      path: "/admin/keuangan/SPP",
+    },
+
+    {
+      type: "item",
+      key: "jurnalKasSekolah",
+      icon: BookText,
+      label: "Jurnal & Kas Sekolah",
+      path: "/admin/keuangan/jurnalKas",
+    },
+
+    {
+      type: "item",
+      key: "settingTarifTagihan",
+      icon: Settings2,
+      label: "Setting Tarif Tagihan",
+      path: "/admin/keuangan/setting-tarif",
+    },
+
+    {
+      type: "item",
+      key: "trackingTunggakan",
+      icon: AlertCircle,
+      label: "Tracking Tunggakan",
+      path: "/admin/keuangan/tunggakan",
     },
   ],
 };

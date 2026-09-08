@@ -1,15 +1,25 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
+/**
+ * ============================================================
+ * GET API URL
+ * ============================================================
+ */
 function getApiUrl() {
   if (!API_URL) {
-    throw new Error("NEXT_PUBLIC_API_URL belum dikonfigurasi.");
+    throw new Error(
+      "NEXT_PUBLIC_API_URL belum dikonfigurasi."
+    );
   }
 
   return API_URL.replace(/\/$/, "");
 }
 
-
-
+/**
+ * ============================================================
+ * PARSE API RESPONSE
+ * ============================================================
+ */
 async function parseResponse(response: Response) {
   const text = await response.text();
 
@@ -23,16 +33,37 @@ async function parseResponse(response: Response) {
     );
   }
 
-  console.log("========== API RESPONSE ==========");
-  console.log("STATUS:", response.status);
-  console.log("OK:", response.ok);
-  console.log("RESULT:", result);
-  console.log("=================================");
+  console.log(
+    "========== API RESPONSE =========="
+  );
 
+  console.log(
+    "STATUS:",
+    response.status
+  );
+
+  console.log(
+    "OK:",
+    response.ok
+  );
+
+  console.log(
+    "RESULT:",
+    result
+  );
+
+  console.log(
+    "================================="
+  );
+
+  /**
+   * Jika HTTP status bukan 2xx
+   */
   if (!response.ok) {
     throw new Error(
       result?.message ||
         result?.error ||
+        result?.errors?.[0]?.message ||
         `Request gagal. Status: ${response.status}`
     );
   }
@@ -40,8 +71,11 @@ async function parseResponse(response: Response) {
   return result;
 }
 
-
-
+/**
+ * ============================================================
+ * REGISTER TENANT
+ * ============================================================
+ */
 export interface RegisterTenantData {
   paketId: string;
   nama: string;
@@ -56,83 +90,215 @@ export interface RegisterTenantData {
   yayasanId?: string;
 }
 
+export interface RegisterTenantResponse {
+  success: boolean;
+  message: string;
+  data?: any;
+}
+
+/**
+ * POST /api/v1/tenant/register
+ */
 export async function registerTenant(
   data: RegisterTenantData
-) {
+): Promise<RegisterTenantResponse> {
   const response = await fetch(
     `${getApiUrl()}/api/v1/tenant/register`,
     {
       method: "POST",
+
       headers: {
         "Content-Type": "application/json",
         Accept: "application/json",
       },
+
       body: JSON.stringify({
         paketId: data.paketId,
-        nama: data.nama.trim(),
-        namaSekolah: data.namaSekolah.trim(),
-        jenjang: data.jenjang,
-        subdomain: data.subdomain
-          .trim()
-          .toLowerCase(),
-        email: data.email
-          .trim()
-          .toLowerCase(),
+
+        nama: data.nama
+          .trim(),
+
+        namaSekolah:
+          data.namaSekolah.trim(),
+
+        jenjang:
+          data.jenjang,
+
+        subdomain:
+          data.subdomain
+            .trim()
+            .toLowerCase(),
+
+        email:
+          data.email
+            .trim()
+            .toLowerCase(),
+
         teleponSekolah:
           data.teleponSekolah.trim(),
+
         alamatSekolah:
           data.alamatSekolah.trim(),
-        kataSandi: data.kataSandi,
+
+        kataSandi:
+          data.kataSandi,
 
         ...(data.logo?.trim()
           ? {
-              logo: data.logo.trim(),
+              logo:
+                data.logo.trim(),
             }
           : {}),
 
         ...(data.yayasanId
           ? {
-              yayasanId: data.yayasanId,
+              yayasanId:
+                data.yayasanId,
             }
           : {}),
       }),
     }
   );
 
-  return parseResponse(response);
+  return parseResponse(
+    response
+  );
 }
 
-
-
+/**
+ * ============================================================
+ * VERIFY TENANT RESPONSE
+ * ============================================================
+ */
 export interface VerifyTenantResponse {
   success: boolean;
+
   message: string;
+
   data?: {
     payment_url?: string;
+
     is_trial?: boolean;
+
+    order_id?: string;
   };
 }
 
+/**
+ * ============================================================
+ * VERIFY TENANT
+ * ============================================================
+ *
+ * POST /api/v1/tenant/verify
+ *
+ * Paket berbayar:
+ * {
+ *   success: true,
+ *   message: "...",
+ *   data: {
+ *     payment_url: "...",
+ *     is_trial: false,
+ *     order_id: "..."
+ *   }
+ * }
+ *
+ * Paket trial:
+ * {
+ *   success: true,
+ *   message: "...",
+ *   data: {
+ *     is_trial: true
+ *   }
+ * }
+ */
 export async function verifyTenant(
   email: string,
   kodeOtp: string
 ): Promise<VerifyTenantResponse> {
+  const normalizedEmail =
+    email.trim().toLowerCase();
+
+  const normalizedOtp =
+    kodeOtp.trim();
+
+  console.log(
+    "========== VERIFY REQUEST =========="
+  );
+
+  console.log(
+    "EMAIL:",
+    normalizedEmail
+  );
+
+  console.log(
+    "OTP LENGTH:",
+    normalizedOtp.length
+  );
+
+  console.log(
+    "===================================="
+  );
+
   const response = await fetch(
     `${getApiUrl()}/api/v1/tenant/verify`,
     {
       method: "POST",
+
       headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
+        "Content-Type":
+          "application/json",
+
+        Accept:
+          "application/json",
       },
+
       body: JSON.stringify({
-        email: email
-          .trim()
-          .toLowerCase(),
-        kodeOtp: kodeOtp.trim(),
+        email:
+          normalizedEmail,
+
+        kodeOtp:
+          normalizedOtp,
       }),
     }
   );
 
-  return parseResponse(response);
+  const result =
+    await parseResponse(
+      response
+    );
+
+  console.log(
+    "========== VERIFY RESPONSE =========="
+  );
+
+  console.log(
+    "SUCCESS:",
+    result?.success
+  );
+
+  console.log(
+    "MESSAGE:",
+    result?.message
+  );
+
+  console.log(
+    "IS TRIAL:",
+    result?.data?.is_trial
+  );
+
+  console.log(
+    "PAYMENT URL:",
+    result?.data?.payment_url
+  );
+
+  console.log(
+    "ORDER ID:",
+    result?.data?.order_id
+  );
+
+  console.log(
+    "====================================="
+  );
+
+  return result;
 }

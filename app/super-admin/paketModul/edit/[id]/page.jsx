@@ -57,17 +57,12 @@ const ICON_MAP = {
 function extractData(response) {
   if (!response) return null;
 
-  // response.data
   if (response.data !== undefined) {
     return response.data;
   }
 
   return response;
 }
-
-/* ============================================================
-   ARRAY HELPER
-============================================================ */
 
 function extractArray(response) {
   const data = extractData(response);
@@ -84,7 +79,7 @@ function extractArray(response) {
 }
 
 /* ============================================================
-   FEATURE ID
+   FEATURE HELPERS
 ============================================================ */
 
 function getFeatureId(item) {
@@ -108,10 +103,6 @@ function getFeatureId(item) {
   );
 }
 
-/* ============================================================
-   FEATURE CODE
-============================================================ */
-
 function getFeatureCode(item) {
   if (!item || typeof item !== "object") {
     return "";
@@ -127,10 +118,6 @@ function getFeatureCode(item) {
     .trim()
     .toLowerCase();
 }
-
-/* ============================================================
-   FEATURE NAME
-============================================================ */
 
 function getFeatureName(item) {
   if (!item) return "Fitur";
@@ -151,10 +138,6 @@ function getFeatureName(item) {
   );
 }
 
-/* ============================================================
-   FEATURE DESCRIPTION
-============================================================ */
-
 function getFeatureDescription(item) {
   if (!item || typeof item !== "object") {
     return "";
@@ -168,27 +151,20 @@ function getFeatureDescription(item) {
   );
 }
 
-/* ============================================================
-   NORMALIZE FEATURE
-============================================================ */
-
 function normalizeFeature(item, index) {
   const id = getFeatureId(item);
-
   const kode = getFeatureCode(item);
-
   const nama = getFeatureName(item);
-
   const deskripsi = getFeatureDescription(item);
 
-  const key = kode || String(nama)
-    .toLowerCase()
-    .trim()
-    .replace(/\s+/g, "_");
+  const key =
+    kode ||
+    String(nama)
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, "_");
 
-  const Icon =
-    ICON_MAP[key] ||
-    Layers;
+  const Icon = ICON_MAP[key] || Layers;
 
   return {
     ...item,
@@ -203,7 +179,7 @@ function normalizeFeature(item, index) {
 }
 
 /* ============================================================
-   PACKAGE FEATURES
+   GET PACKAGE FEATURES
 ============================================================ */
 
 function getPaketFeatures(paket) {
@@ -211,28 +187,37 @@ function getPaketFeatures(paket) {
     return [];
   }
 
-  // Format:
-  // fitur: [...]
+  /*
+    Backend GET /paket/:id mengembalikan:
+
+    {
+      id,
+      nama,
+      deskripsi,
+      harga,
+      durasi,
+      fitur: [...]
+    }
+  */
+
   if (Array.isArray(paket.fitur)) {
     return paket.fitur;
   }
 
-  // Format:
-  // modul: [...]
+  /*
+    Fallback jika suatu saat response berbeda.
+  */
+
   if (Array.isArray(paket.modul)) {
     return paket.modul;
   }
 
-  // Format:
-  // paketModul: [{ modul: {...} }]
   if (Array.isArray(paket.paketModul)) {
     return paket.paketModul
       .map((item) => item?.modul ?? item)
       .filter(Boolean);
   }
 
-  // Format:
-  // modulIds: [...]
   if (Array.isArray(paket.modulIds)) {
     return paket.modulIds;
   }
@@ -245,9 +230,7 @@ function getPaketFeatures(paket) {
 ============================================================ */
 
 function getPaketFeatureIds(paket) {
-  const features = getPaketFeatures(paket);
-
-  return features
+  return getPaketFeatures(paket)
     .map((item) => getFeatureId(item))
     .filter(Boolean);
 }
@@ -257,9 +240,7 @@ function getPaketFeatureIds(paket) {
 ============================================================ */
 
 function getPaketFeatureCodes(paket) {
-  const features = getPaketFeatures(paket);
-
-  return features
+  return getPaketFeatures(paket)
     .map((item) => getFeatureCode(item))
     .filter(Boolean);
 }
@@ -272,7 +253,9 @@ export default function EditPaketPage() {
   const router = useRouter();
   const params = useParams();
 
-  const id = params?.id;
+  const id = Array.isArray(params?.id)
+    ? params.id[0]
+    : params?.id;
 
   /* ==========================================================
      STATE
@@ -305,6 +288,13 @@ export default function EditPaketPage() {
   const [harga, setHarga] =
     useState("");
 
+  /*
+    Backend Paket.durasi = Int.
+
+    Jadi state ini selalu menyimpan
+    jumlah hari dalam bentuk string
+    agar nyaman digunakan input number.
+  */
   const [durasi, setDurasi] =
     useState("");
 
@@ -314,6 +304,16 @@ export default function EditPaketPage() {
   const [fiturList, setFiturList] =
     useState([]);
 
+  /*
+    Berisi ID modul.
+
+    Contoh:
+
+    [
+      "uuid-modul-1",
+      "uuid-modul-2"
+    ]
+  */
   const [fiturTerpilih, setFiturTerpilih] =
     useState([]);
 
@@ -356,14 +356,13 @@ export default function EditPaketPage() {
         setLoadingFitur(true);
         setError("");
 
-        /*
-         * Ambil paket dan semua fitur bersamaan.
-         */
-        const [paketResponse, fiturResponse] =
-          await Promise.all([
-            getPaketById(id),
-            getFitur(),
-          ]);
+        const [
+          paketResponse,
+          fiturResponse,
+        ] = await Promise.all([
+          getPaketById(id),
+          getFitur(),
+        ]);
 
         console.log(
           "===================================="
@@ -386,7 +385,7 @@ export default function EditPaketPage() {
         if (!mounted) return;
 
         /* ======================================================
-           PAKET
+           PACKAGE
         ====================================================== */
 
         const paket =
@@ -399,7 +398,7 @@ export default function EditPaketPage() {
         }
 
         console.log(
-          "PAKET:",
+          "DATA PAKET:",
           paket
         );
 
@@ -426,7 +425,7 @@ export default function EditPaketPage() {
         );
 
         /* ======================================================
-           FITUR YANG SUDAH DIMILIKI PAKET
+           EXISTING PACKAGE FEATURES
         ====================================================== */
 
         const paketFeatures =
@@ -454,20 +453,12 @@ export default function EditPaketPage() {
         );
 
         /* ======================================================
-           SEMUA FITUR DARI ENDPOINT
+           ALL ACTIVE MODULES
         ====================================================== */
 
-        let semuaFitur =
+        const semuaFitur =
           extractArray(fiturResponse);
 
-        console.log(
-          "SEMUA FITUR DARI API:",
-          semuaFitur
-        );
-
-        /*
-         * Normalize data dari API.
-         */
         let normalized =
           semuaFitur.map(
             (item, index) =>
@@ -478,17 +469,10 @@ export default function EditPaketPage() {
           );
 
         /*
-         * ======================================================
-         * FALLBACK
-         * ======================================================
-         *
-         * Kalau endpoint /fitur/list masih mengembalikan []
-         * tetapi paket mempunyai fitur, kita tetap masukkan
-         * fitur yang terdapat pada paket.
-         *
-         * Ini membuat halaman edit tetap bisa menampilkan
-         * fitur yang sudah tersimpan di PaketModul.
-         */
+          Jika endpoint fitur kosong,
+          gunakan fitur yang memang sudah
+          tersimpan di paket.
+        */
 
         if (
           normalized.length === 0 &&
@@ -505,9 +489,10 @@ export default function EditPaketPage() {
         }
 
         /*
-         * Jika API fitur ada, tetapi beberapa fitur paket
-         * belum ada di daftar API, tambahkan juga.
-         */
+          Jika ada fitur paket yang belum
+          ada di endpoint fitur, tambahkan.
+        */
+
         if (
           normalized.length > 0 &&
           paketFeatures.length > 0
@@ -532,14 +517,14 @@ export default function EditPaketPage() {
             );
 
           paketFeatures.forEach(
-            (item, index) => {
+            (item) => {
               const itemId =
                 getFeatureId(item);
 
               const itemCode =
                 getFeatureCode(item);
 
-              const alreadyExists =
+              const exists =
                 (itemId &&
                   existingIds.has(
                     String(itemId)
@@ -549,12 +534,11 @@ export default function EditPaketPage() {
                     itemCode
                   ));
 
-              if (!alreadyExists) {
+              if (!exists) {
                 normalized.push(
                   normalizeFeature(
                     item,
-                    normalized.length +
-                      index
+                    normalized.length
                   )
                 );
               }
@@ -562,25 +546,31 @@ export default function EditPaketPage() {
           );
         }
 
-        /*
-         * Hilangkan duplikat berdasarkan ID / kode.
-         */
+        /* ======================================================
+           REMOVE DUPLICATE
+        ====================================================== */
+
         const uniqueMap =
           new Map();
 
         normalized.forEach(
           (item) => {
-            const key =
-              getFeatureId(item)
-                ? `id:${String(
-                    getFeatureId(item)
-                  )}`
-                : `kode:${getFeatureCode(
-                    item
-                  )}`;
+            const itemId =
+              getFeatureId(item);
+
+            const itemCode =
+              getFeatureCode(item);
+
+            const key = itemId
+              ? `id:${String(
+                  itemId
+                )}`
+              : itemCode
+              ? `kode:${itemCode}`
+              : null;
 
             if (
-              key !== "kode:" &&
+              key &&
               !uniqueMap.has(key)
             ) {
               uniqueMap.set(
@@ -597,7 +587,7 @@ export default function EditPaketPage() {
           );
 
         console.log(
-          "FINAL FITUR YANG DITAMPILKAN:",
+          "FINAL FEATURE LIST:",
           finalFeatures
         );
 
@@ -606,7 +596,7 @@ export default function EditPaketPage() {
         );
 
         /* ======================================================
-           TENTUKAN FITUR TERPILIH
+           DETERMINE SELECTED MODULES
         ====================================================== */
 
         const selectedIds =
@@ -652,7 +642,7 @@ export default function EditPaketPage() {
             .filter(Boolean);
 
         console.log(
-          "FITUR TERPILIH FINAL:",
+          "SELECTED MODULE IDS:",
           selectedIds
         );
 
@@ -687,7 +677,7 @@ export default function EditPaketPage() {
   }, [id]);
 
   /* ==========================================================
-     FILTER FITUR
+     FILTER FEATURE
   ========================================================== */
 
   const filteredFitur =
@@ -721,9 +711,7 @@ export default function EditPaketPage() {
           return (
             nama.includes(keyword) ||
             kode.includes(keyword) ||
-            deskripsi.includes(
-              keyword
-            )
+            deskripsi.includes(keyword)
           );
         }
       );
@@ -762,9 +750,7 @@ export default function EditPaketPage() {
   function toggleFitur(
     fiturId
   ) {
-    if (!fiturId) {
-      return;
-    }
+    if (!fiturId) return;
 
     setFiturTerpilih(
       (current) => {
@@ -822,19 +808,26 @@ export default function EditPaketPage() {
   ========================================================== */
 
   function goBack() {
+    if (saving) return;
+
     router.push(
       "/super-admin/paketModul"
     );
   }
 
   /* ==========================================================
-     SUBMIT
+     SUBMIT UPDATE
   ========================================================== */
 
-  async function handleSubmit(
-    e
-  ) {
+  async function handleSubmit(e) {
     e.preventDefault();
+
+    if (!id) {
+      setError(
+        "ID paket tidak ditemukan."
+      );
+      return;
+    }
 
     if (!nama.trim()) {
       setError(
@@ -843,8 +836,29 @@ export default function EditPaketPage() {
       return;
     }
 
+    const numericHarga =
+      Number(harga);
+
+    const numericDurasi =
+      Number(durasi);
+
     if (
-      Number(durasi) <= 0
+      Number.isNaN(
+        numericHarga
+      ) ||
+      numericHarga < 0
+    ) {
+      setError(
+        "Harga paket tidak valid."
+      );
+      return;
+    }
+
+    if (
+      Number.isNaN(
+        numericDurasi
+      ) ||
+      numericDurasi <= 0
     ) {
       setError(
         "Durasi paket harus lebih dari 0 hari."
@@ -857,8 +871,22 @@ export default function EditPaketPage() {
       setError("");
 
       /*
-       * Pastikan modulIds hanya berisi ID.
-       */
+        PENTING:
+
+        Backend updatePaket menerima:
+
+        nama
+        deskripsi
+        harga
+        durasi
+        status
+        modulIds
+
+        BUKAN:
+        fiturIds
+        siklus
+      */
+
       const modulIds =
         fiturTerpilih
           .map((item) =>
@@ -873,12 +901,13 @@ export default function EditPaketPage() {
           deskripsi.trim(),
 
         harga:
-          Number(harga) || 0,
+          numericHarga,
 
         durasi:
-          Number(durasi),
+          numericDurasi,
 
-        status,
+        status:
+          status || "aktif",
 
         modulIds,
       };
@@ -888,13 +917,22 @@ export default function EditPaketPage() {
       );
 
       console.log(
-        "UPDATE PAKET ID:",
+        "UPDATE PAKET"
+      );
+
+      console.log(
+        "ID:",
         id
       );
 
       console.log(
-        "UPDATE PAKET PAYLOAD:",
+        "PAYLOAD:",
         payload
+      );
+
+      console.log(
+        "MODUL IDS:",
+        modulIds
       );
 
       console.log(
@@ -908,7 +946,7 @@ export default function EditPaketPage() {
         );
 
       console.log(
-        "UPDATE PAKET RESULT:",
+        "UPDATE RESULT:",
         result
       );
 
@@ -931,20 +969,17 @@ export default function EditPaketPage() {
   }
 
   /* ==========================================================
-     LOADING
+     LOADING PAGE
   ========================================================== */
 
   if (loading) {
     return (
       <div className="flex min-h-screen w-full bg-[#f8fafc]">
+
         <Sidebar
           active={activeMenu}
-          setActive={
-            setActiveMenu
-          }
-          collapsed={
-            !sidebarOpen
-          }
+          setActive={setActiveMenu}
+          collapsed={!sidebarOpen}
           setCollapsed={() =>
             setSidebarOpen(
               !sidebarOpen
@@ -953,6 +988,7 @@ export default function EditPaketPage() {
         />
 
         <div className="flex min-w-0 flex-1 flex-col">
+
           <Header
             toggleSidebar={() =>
               setSidebarOpen(
@@ -971,7 +1007,9 @@ export default function EditPaketPage() {
           />
 
           <main className="flex flex-1 items-center justify-center p-6">
+
             <div className="flex flex-col items-center gap-3">
+
               <Loader2
                 size={32}
                 className="animate-spin text-blue-600"
@@ -980,7 +1018,9 @@ export default function EditPaketPage() {
               <p className="text-sm text-slate-500">
                 Memuat data paket...
               </p>
+
             </div>
+
           </main>
         </div>
       </div>
@@ -993,18 +1033,15 @@ export default function EditPaketPage() {
 
   return (
     <div className="flex min-h-screen w-full bg-[#f8fafc]">
+
       {/* ======================================================
           SIDEBAR
       ====================================================== */}
 
       <Sidebar
         active={activeMenu}
-        setActive={
-          setActiveMenu
-        }
-        collapsed={
-          !sidebarOpen
-        }
+        setActive={setActiveMenu}
+        collapsed={!sidebarOpen}
         setCollapsed={() =>
           setSidebarOpen(
             !sidebarOpen
@@ -1017,7 +1054,6 @@ export default function EditPaketPage() {
       ====================================================== */}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        {/* HEADER */}
 
         <Header
           toggleSidebar={() =>
@@ -1036,22 +1072,23 @@ export default function EditPaketPage() {
           }}
         />
 
-        {/* MAIN */}
-
         <main className="min-w-0 flex-1">
+
           <div className="w-full px-3 py-5 sm:px-5 sm:py-6 md:px-6 lg:px-8 xl:px-10 2xl:px-12">
+
             {/* ==================================================
-                HEADER
+                PAGE HEADER
             ================================================== */}
 
             <div className="mb-6">
+
               <div className="flex min-w-0 items-start gap-3">
+
                 <button
                   type="button"
-                  onClick={
-                    goBack
-                  }
-                  className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600"
+                  onClick={goBack}
+                  disabled={saving}
+                  className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <ArrowLeft
                     size={18}
@@ -1059,7 +1096,9 @@ export default function EditPaketPage() {
                 </button>
 
                 <div className="min-w-0 flex-1">
+
                   <div className="flex flex-wrap items-center gap-2">
+
                     <h1 className="text-2xl font-bold tracking-tight text-slate-800 sm:text-3xl">
                       Edit Paket
                     </h1>
@@ -1067,13 +1106,15 @@ export default function EditPaketPage() {
                     <span className="rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-600">
                       Paket Langganan
                     </span>
+
                   </div>
 
                   <p className="mt-1.5 text-sm leading-6 text-slate-500">
-                    Ubah informasi paket
-                    dan tentukan modul
-                    yang tersedia.
+                    Ubah informasi paket,
+                    harga, durasi, status,
+                    dan modul yang tersedia.
                   </p>
+
                 </div>
               </div>
             </div>
@@ -1084,6 +1125,7 @@ export default function EditPaketPage() {
 
             {error && (
               <div className="mb-6 flex min-w-0 items-start gap-3 rounded-xl border border-rose-200 bg-rose-50 p-4">
+
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-rose-500">
                   <AlertCircle
                     size={17}
@@ -1091,6 +1133,7 @@ export default function EditPaketPage() {
                 </div>
 
                 <div className="min-w-0 flex-1">
+
                   <p className="text-sm font-semibold text-rose-700">
                     Terjadi kesalahan
                   </p>
@@ -1098,6 +1141,7 @@ export default function EditPaketPage() {
                   <p className="mt-1 break-words text-sm text-rose-600">
                     {error}
                   </p>
+
                 </div>
 
                 <button
@@ -1111,6 +1155,7 @@ export default function EditPaketPage() {
                     size={16}
                   />
                 </button>
+
               </div>
             )}
 
@@ -1119,6 +1164,7 @@ export default function EditPaketPage() {
             ================================================== */}
 
             <div className="grid w-full min-w-0 grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_350px] 2xl:grid-cols-[minmax(0,1fr)_390px]">
+
               {/* ==================================================
                   FORM
               ================================================== */}
@@ -1129,11 +1175,15 @@ export default function EditPaketPage() {
                 }
                 className="w-full min-w-0"
               >
+
                 <div className="w-full min-w-0 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_4px_20px_rgba(15,23,42,0.04)]">
+
                   {/* FORM HEADER */}
 
                   <div className="border-b border-slate-100 px-4 py-5 sm:px-6 lg:px-7">
+
                     <div className="flex items-center gap-3">
+
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
                         <Package
                           size={19}
@@ -1141,15 +1191,16 @@ export default function EditPaketPage() {
                       </div>
 
                       <div className="min-w-0">
+
                         <h2 className="text-base font-bold text-slate-800 sm:text-lg">
                           Informasi Paket
                         </h2>
 
                         <p className="mt-0.5 text-xs text-slate-400 sm:text-sm">
-                          Perbarui detail
-                          paket dan modul
-                          yang tersedia.
+                          Perbarui detail paket
+                          dan modul yang tersedia.
                         </p>
+
                       </div>
                     </div>
                   </div>
@@ -1157,9 +1208,13 @@ export default function EditPaketPage() {
                   {/* FORM BODY */}
 
                   <div className="space-y-6 p-4 sm:p-6 lg:p-7">
-                    {/* NAMA */}
+
+                    {/* ==================================================
+                        NAMA
+                    ================================================== */}
 
                     <div>
+
                       <label className="block text-sm font-semibold text-slate-700">
                         Nama Paket
                         <span className="ml-1 text-rose-500">
@@ -1178,11 +1233,15 @@ export default function EditPaketPage() {
                         placeholder="Contoh: Professional"
                         className="mt-3 block w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-500/10"
                       />
+
                     </div>
 
-                    {/* DESKRIPSI */}
+                    {/* ==================================================
+                        DESKRIPSI
+                    ================================================== */}
 
                     <div>
+
                       <label className="block text-sm font-semibold text-slate-700">
                         Deskripsi
                       </label>
@@ -1200,17 +1259,25 @@ export default function EditPaketPage() {
                         placeholder="Deskripsi singkat paket"
                         className="mt-3 block w-full resize-none rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-medium leading-6 text-slate-700 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-500/10"
                       />
+
                     </div>
 
-                    {/* HARGA + DURASI */}
+                    {/* ==================================================
+                        HARGA + DURASI
+                    ================================================== */}
 
                     <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+
+                      {/* HARGA */}
+
                       <div>
+
                         <label className="block text-sm font-semibold text-slate-700">
                           Harga
                         </label>
 
                         <div className="relative mt-3">
+
                           <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm font-semibold text-slate-400">
                             Rp
                           </span>
@@ -1226,15 +1293,20 @@ export default function EditPaketPage() {
                             }
                             className="block w-full rounded-xl border border-slate-200 bg-slate-50/50 py-3 pl-11 pr-4 text-sm font-semibold text-slate-700 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-500/10"
                           />
+
                         </div>
                       </div>
 
+                      {/* DURASI */}
+
                       <div>
+
                         <label className="block text-sm font-semibold text-slate-700">
                           Durasi
                         </label>
 
                         <div className="relative mt-3">
+
                           <CalendarDays
                             size={16}
                             className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
@@ -1249,24 +1321,37 @@ export default function EditPaketPage() {
                                 e.target.value
                               )
                             }
+                            required
                             className="block w-full rounded-xl border border-slate-200 bg-slate-50/50 py-3 pl-11 pr-16 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-500/10"
                           />
 
                           <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400">
                             hari
                           </span>
+
                         </div>
+
+                        <p className="mt-2 text-[11px] text-slate-400">
+                          Contoh: 30 hari,
+                          365 hari, atau 14 hari.
+                        </p>
+
                       </div>
+
                     </div>
 
-                    {/* STATUS */}
+                    {/* ==================================================
+                        STATUS
+                    ================================================== */}
 
                     <div>
+
                       <label className="block text-sm font-semibold text-slate-700">
                         Status Paket
                       </label>
 
                       <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+
                         {/* AKTIF */}
 
                         <button
@@ -1283,6 +1368,7 @@ export default function EditPaketPage() {
                               : "border-slate-200 bg-white hover:bg-slate-50"
                           }`}
                         >
+
                           <span
                             className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
                               status ===
@@ -1297,6 +1383,7 @@ export default function EditPaketPage() {
                           </span>
 
                           <span className="min-w-0 flex-1">
+
                             <span className="block text-sm font-semibold text-slate-700">
                               Aktif
                             </span>
@@ -1304,15 +1391,17 @@ export default function EditPaketPage() {
                             <span className="block truncate text-xs text-slate-400">
                               Paket tersedia
                             </span>
+
                           </span>
 
                           {status ===
                             "aktif" && (
                             <Check
                               size={16}
-                              className="text-emerald-500"
+                              className="shrink-0 text-emerald-500"
                             />
                           )}
+
                         </button>
 
                         {/* NONAKTIF */}
@@ -1331,6 +1420,7 @@ export default function EditPaketPage() {
                               : "border-slate-200 bg-white hover:bg-slate-50"
                           }`}
                         >
+
                           <span
                             className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
                               status ===
@@ -1345,6 +1435,7 @@ export default function EditPaketPage() {
                           </span>
 
                           <span className="min-w-0 flex-1">
+
                             <span className="block text-sm font-semibold text-slate-700">
                               Nonaktif
                             </span>
@@ -1352,28 +1443,32 @@ export default function EditPaketPage() {
                             <span className="block truncate text-xs text-slate-400">
                               Paket tidak tersedia
                             </span>
+
                           </span>
 
                           {status ===
                             "nonaktif" && (
                             <Check
                               size={16}
-                              className="text-slate-600"
+                              className="shrink-0 text-slate-600"
                             />
                           )}
+
                         </button>
+
                       </div>
                     </div>
 
                     {/* ==================================================
-                        FITUR
+                        MODUL / FITUR
                     ================================================== */}
 
                     <div>
-                      {/* HEADER FITUR */}
 
                       <div className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
+
                         <div className="min-w-0">
+
                           <label className="block text-sm font-semibold text-slate-700">
                             Modul / Fitur
                           </label>
@@ -1383,9 +1478,11 @@ export default function EditPaketPage() {
                             ingin dimasukkan
                             ke dalam paket.
                           </p>
+
                         </div>
 
                         <div className="flex flex-wrap items-center gap-2">
+
                           <button
                             type="button"
                             onClick={
@@ -1424,6 +1521,7 @@ export default function EditPaketPage() {
                             }{" "}
                             dipilih
                           </span>
+
                         </div>
                       </div>
 
@@ -1433,6 +1531,7 @@ export default function EditPaketPage() {
                         fiturList.length >
                           0 && (
                           <div className="relative mt-4">
+
                             <Search
                               size={17}
                               className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
@@ -1442,9 +1541,7 @@ export default function EditPaketPage() {
                               value={
                                 searchFitur
                               }
-                              onChange={(
-                                e
-                              ) =>
+                              onChange={(e) =>
                                 setSearchFitur(
                                   e.target.value
                                 )
@@ -1452,28 +1549,33 @@ export default function EditPaketPage() {
                               placeholder="Cari modul atau fitur..."
                               className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-3 pl-11 pr-4 text-sm text-slate-700 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-500/10"
                             />
+
                           </div>
                         )}
 
-                      {/* LOADING FITUR */}
+                      {/* LOADING */}
 
                       {loadingFitur ? (
                         <div className="mt-4 flex min-h-[220px] items-center justify-center rounded-xl border border-slate-200 bg-slate-50/50">
+
                           <div className="flex flex-col items-center gap-3">
+
                             <Loader2
                               size={28}
                               className="animate-spin text-blue-600"
                             />
 
                             <p className="text-sm text-slate-400">
-                              Memuat daftar
-                              fitur...
+                              Memuat daftar fitur...
                             </p>
+
                           </div>
+
                         </div>
                       ) : fiturList.length ===
                         0 ? (
                         <div className="mt-4 rounded-xl border border-dashed border-slate-200 bg-slate-50 px-5 py-12 text-center">
+
                           <Layers
                             size={32}
                             className="mx-auto mb-3 text-slate-300"
@@ -1484,43 +1586,39 @@ export default function EditPaketPage() {
                           </p>
 
                           <p className="mx-auto mt-1 max-w-md text-xs leading-5 text-slate-400">
-                            Endpoint fitur belum
-                            mengembalikan data
-                            modul. Pastikan
-                            data Modul aktif
-                            tersedia di
-                            database.
+                            Belum ada modul aktif
+                            yang tersedia dari
+                            server.
                           </p>
+
                         </div>
                       ) : filteredFitur.length ===
                         0 ? (
                         <div className="mt-4 rounded-xl border border-dashed border-slate-200 bg-slate-50 px-5 py-10 text-center">
+
                           <Search
                             size={28}
                             className="mx-auto mb-2 text-slate-300"
                           />
 
                           <p className="text-sm font-semibold text-slate-500">
-                            Fitur tidak
-                            ditemukan
+                            Fitur tidak ditemukan
                           </p>
 
                           <p className="mt-1 text-xs text-slate-400">
                             Coba gunakan kata
                             pencarian lain.
                           </p>
+
                         </div>
                       ) : (
                         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+
                           {filteredFitur.map(
-                            (
-                              fitur
-                            ) => {
+                            (fitur) => {
                               const checked =
                                 fiturTerpilih.some(
-                                  (
-                                    selectedId
-                                  ) =>
+                                  (selectedId) =>
                                     String(
                                       selectedId
                                     ) ===
@@ -1550,6 +1648,7 @@ export default function EditPaketPage() {
                                       : "border-slate-200 bg-white hover:border-blue-200 hover:bg-slate-50"
                                   }`}
                                 >
+
                                   {/* CHECKBOX */}
 
                                   <span
@@ -1561,12 +1660,8 @@ export default function EditPaketPage() {
                                   >
                                     {checked && (
                                       <Check
-                                        size={
-                                          12
-                                        }
-                                        strokeWidth={
-                                          3
-                                        }
+                                        size={12}
+                                        strokeWidth={3}
                                         className="text-white"
                                       />
                                     )}
@@ -1582,15 +1677,14 @@ export default function EditPaketPage() {
                                     }`}
                                   >
                                     <Icon
-                                      size={
-                                        16
-                                      }
+                                      size={16}
                                     />
                                   </span>
 
                                   {/* TEXT */}
 
                                   <span className="min-w-0 flex-1">
+
                                     <span
                                       className={`block truncate text-sm font-semibold ${
                                         checked
@@ -1618,29 +1712,35 @@ export default function EditPaketPage() {
                                         }
                                       </span>
                                     )}
+
                                   </span>
 
                                   {checked && (
                                     <Check
-                                      size={
-                                        17
-                                      }
+                                      size={17}
                                       className="shrink-0 text-blue-600"
                                     />
                                   )}
+
                                 </button>
                               );
                             }
                           )}
+
                         </div>
                       )}
+
                     </div>
                   </div>
 
-                  {/* FOOTER */}
+                  {/* ==================================================
+                      FOOTER
+                  ================================================== */}
 
                   <div className="border-t border-slate-100 bg-slate-50/50 px-4 py-5 sm:px-6 lg:px-7">
+
                     <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+
                       <button
                         type="button"
                         onClick={
@@ -1661,12 +1761,11 @@ export default function EditPaketPage() {
                         }
                         className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm shadow-blue-200 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
                       >
+
                         {saving ? (
                           <>
                             <Loader2
-                              size={
-                                16
-                              }
+                              size={16}
                               className="animate-spin"
                             />
 
@@ -1675,17 +1774,17 @@ export default function EditPaketPage() {
                         ) : (
                           <>
                             <Check
-                              size={
-                                16
-                              }
+                              size={16}
                             />
 
-                            Simpan
-                            Perubahan
+                            Simpan Perubahan
                           </>
                         )}
+
                       </button>
+
                     </div>
+
                   </div>
                 </div>
               </form>
@@ -1695,12 +1794,17 @@ export default function EditPaketPage() {
               ================================================== */}
 
               <aside className="w-full min-w-0 xl:sticky xl:top-6">
+
                 <div className="w-full min-w-0 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_4px_20px_rgba(15,23,42,0.04)]">
-                  {/* HEADER */}
+
+                  {/* PREVIEW HEADER */}
 
                   <div className="bg-gradient-to-br from-blue-600 to-blue-700 px-4 py-5 text-white sm:px-5">
+
                     <div className="flex items-center justify-between gap-3">
+
                       <div className="min-w-0">
+
                         <p className="text-[11px] font-semibold uppercase tracking-wider text-blue-100">
                           Preview
                         </p>
@@ -1708,6 +1812,7 @@ export default function EditPaketPage() {
                         <h2 className="mt-1 truncate text-lg font-bold">
                           Paket Sekolah
                         </h2>
+
                       </div>
 
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/15">
@@ -1715,17 +1820,23 @@ export default function EditPaketPage() {
                           size={19}
                         />
                       </div>
+
                     </div>
+
                   </div>
 
-                  {/* BODY */}
+                  {/* PREVIEW BODY */}
 
                   <div className="p-4 sm:p-5">
+
                     {/* PACKAGE */}
 
                     <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+
                       <div className="flex items-start justify-between gap-3">
+
                         <div className="min-w-0 flex-1">
+
                           <p className="text-xs text-slate-400">
                             Nama Paket
                           </p>
@@ -1734,6 +1845,7 @@ export default function EditPaketPage() {
                             {nama.trim() ||
                               "Nama Paket"}
                           </h3>
+
                         </div>
 
                         <span
@@ -1749,6 +1861,7 @@ export default function EditPaketPage() {
                             ? "AKTIF"
                             : "NONAKTIF"}
                         </span>
+
                       </div>
 
                       <p className="mt-3 min-h-[48px] break-words text-xs leading-5 text-slate-400">
@@ -1757,6 +1870,7 @@ export default function EditPaketPage() {
                       </p>
 
                       <div className="mt-4 border-t border-slate-200 pt-4">
+
                         <p className="text-[11px] text-slate-400">
                           Harga
                         </p>
@@ -1764,26 +1878,35 @@ export default function EditPaketPage() {
                         <p className="mt-1 break-words text-xl font-bold text-slate-800">
                           Rp
                           {Number(
-                            harga ||
-                              0
+                            harga || 0
                           ).toLocaleString(
                             "id-ID"
                           )}
                         </p>
 
-                        <p className="mt-1 text-xs text-slate-400">
+                        <p className="mt-1 flex items-center gap-1.5 text-xs text-slate-400">
+
+                          <CalendarDays
+                            size={13}
+                          />
+
                           Berlaku{" "}
-                          {durasi ||
-                            0}{" "}
+                          {Number(
+                            durasi || 0
+                          )}{" "}
                           hari
+
                         </p>
+
                       </div>
                     </div>
 
-                    {/* SELECTED FEATURES */}
+                    {/* SELECTED MODULES */}
 
                     <div className="mt-5">
+
                       <div className="flex items-center justify-between gap-3">
+
                         <p className="text-sm font-bold text-slate-700">
                           Modul Termasuk
                         </p>
@@ -1794,18 +1917,18 @@ export default function EditPaketPage() {
                           }{" "}
                           fitur
                         </span>
+
                       </div>
 
                       <div className="mt-3 space-y-2">
+
                         {selectedFeatures
                           .slice(
                             0,
                             8
                           )
                           .map(
-                            (
-                              fitur
-                            ) => {
+                            (fitur) => {
                               const Icon =
                                 fitur.icon ||
                                 Layers;
@@ -1817,11 +1940,10 @@ export default function EditPaketPage() {
                                   }
                                   className="flex min-w-0 items-center gap-2.5 rounded-lg border border-slate-100 bg-white px-3 py-2.5"
                                 >
+
                                   <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
                                     <Icon
-                                      size={
-                                        14
-                                      }
+                                      size={14}
                                     />
                                   </span>
 
@@ -1832,11 +1954,10 @@ export default function EditPaketPage() {
                                   </span>
 
                                   <Check
-                                    size={
-                                      14
-                                    }
+                                    size={14}
                                     className="shrink-0 text-emerald-500"
                                   />
+
                                 </div>
                               );
                             }
@@ -1845,23 +1966,21 @@ export default function EditPaketPage() {
                         {selectedFeatures.length ===
                           0 && (
                           <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 py-7 text-center">
+
                             <Layers
-                              size={
-                                24
-                              }
+                              size={24}
                               className="mx-auto mb-2 text-slate-300"
                             />
 
                             <p className="text-xs font-medium text-slate-500">
-                              Belum ada
-                              fitur
+                              Belum ada fitur
                             </p>
 
                             <p className="mt-1 px-3 text-[11px] text-slate-400">
-                              Pilih fitur
-                              dari form
-                              di sebelah.
+                              Pilih fitur dari
+                              form di sebelah.
                             </p>
+
                           </div>
                         )}
 
@@ -1874,12 +1993,14 @@ export default function EditPaketPage() {
                             fitur lainnya
                           </p>
                         )}
+
                       </div>
                     </div>
 
                     {/* INFO */}
 
                     <div className="mt-5 flex min-w-0 gap-2.5 rounded-xl border border-blue-100 bg-blue-50 p-3.5">
+
                       <Info
                         size={16}
                         className="mt-0.5 shrink-0 text-blue-500"
@@ -1895,10 +2016,13 @@ export default function EditPaketPage() {
                         saat menyimpan
                         perubahan.
                       </p>
+
                     </div>
+
                   </div>
                 </div>
               </aside>
+
             </div>
           </div>
         </main>

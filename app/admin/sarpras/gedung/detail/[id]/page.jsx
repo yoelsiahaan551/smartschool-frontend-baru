@@ -24,7 +24,7 @@ import {
   getGedung,
   getLantaiByGedung,
   deleteGedung,
-} from "../../../../../services/infrastruktur.service";
+} from "../../../../../../services/infrastruktur.service";
 
 export default function DetailGedungPage() {
   const router = useRouter();

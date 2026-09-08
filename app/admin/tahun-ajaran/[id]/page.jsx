@@ -21,242 +21,100 @@ import {
   RefreshCw,
   AlertCircle,
   Info,
+  Layers,
+  ShieldCheck,
 } from "lucide-react";
 
 import { getTahunAjaran } from "../../../../services/tahunAjaran.service";
 
 export default function DetailTahunAjaranPage() {
-  // =========================================================
-  // ROUTER
-  // =========================================================
-
   const router = useRouter();
   const params = useParams();
-
   const id = params?.id;
 
-  // =========================================================
-  // STATE
-  // =========================================================
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState("");
 
-  const [isCollapsed, setIsCollapsed] =
-    useState(false);
-
-  const [data, setData] =
-    useState(null);
-
-  const [loading, setLoading] =
-    useState(true);
-
-  const [refreshing, setRefreshing] =
-    useState(false);
-
-  const [error, setError] =
-    useState("");
-
-  // =========================================================
-  // LOAD DETAIL
-  // =========================================================
-
-  const loadDetail = async (
-    isRefresh = false
-  ) => {
+  const loadDetail = async (isRefresh = false) => {
     try {
       setError("");
+      if (isRefresh) setRefreshing(true);
+      else setLoading(true);
 
-      if (isRefresh) {
-        setRefreshing(true);
-      } else {
-        setLoading(true);
-      }
+      const response = await getTahunAjaran();
 
-      const response =
-        await getTahunAjaran();
-
-      console.log(
-        "========== DETAIL TAHUN AJARAN =========="
-      );
-
-      console.log(
-        "Response:",
-        response
-      );
-
-      console.log(
-        "ID:",
-        id
-      );
-
-      console.log(
-        "========================================="
-      );
-
-      const list = Array.isArray(
-        response
-      )
+      const list = Array.isArray(response)
         ? response
-        : Array.isArray(
-            response?.data
-          )
-        ? response.data
-        : Array.isArray(
-            response?.data?.data
-          )
-        ? response.data.data
-        : [];
+        : Array.isArray(response?.data)
+          ? response.data
+          : Array.isArray(response?.data?.data)
+            ? response.data.data
+            : [];
 
-      const found = list.find(
-        (item) =>
-          String(item?.id) ===
-          String(id)
-      );
+      const found = list.find((item) => String(item?.id) === String(id));
 
       if (!found) {
         setData(null);
-
-        setError(
-          "Data tahun ajaran tidak ditemukan."
-        );
-
+        setError("Data tahun ajaran tidak ditemukan.");
         return;
       }
 
       setData(found);
     } catch (err) {
-      console.error(
-        "Gagal mengambil detail tahun ajaran:",
-        err
-      );
-
+      console.error(err);
       setData(null);
-
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Gagal mengambil detail tahun ajaran."
-      );
+      setError(err instanceof Error ? err.message : "Gagal mengambil detail tahun ajaran.");
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   };
 
-  // =========================================================
-  // INITIAL LOAD
-  // =========================================================
-
   useEffect(() => {
-    if (id) {
-      loadDetail(false);
-    }
+    if (id) loadDetail(false);
   }, [id]);
 
-  // =========================================================
-  // SIDEBAR
-  // =========================================================
+  const toggleSidebar = () => setIsCollapsed((prev) => !prev);
 
-  const toggleSidebar = () => {
-    setIsCollapsed(
-      (prev) => !prev
-    );
-  };
-
-  // =========================================================
-  // STATUS
-  // =========================================================
-
-  const isActive =
-    data?.status === "aktif";
-
-  const statusLabel = isActive
-    ? "Aktif"
-    : "Tidak Aktif";
-
-  // =========================================================
-  // DATE FORMAT
-  // =========================================================
-
-  const formatDate = (value) => {
-    if (!value) {
-      return "-";
-    }
-
-    const date =
-      new Date(value);
-
-    if (
-      Number.isNaN(
-        date.getTime()
-      )
-    ) {
-      return "-";
-    }
-
-    return date.toLocaleDateString(
-      "id-ID",
-      {
-        day: "2-digit",
-        month: "long",
-        year: "numeric",
-      }
-    );
-  };
+  const isActive = data?.status === "aktif";
+  const statusLabel = isActive ? "Aktif" : "Tidak Aktif";
 
   const formatDateTime = (value) => {
-    if (!value) {
-      return "-";
-    }
-
-    const date =
-      new Date(value);
-
-    if (
-      Number.isNaN(
-        date.getTime()
-      )
-    ) {
-      return "-";
-    }
-
-    return date.toLocaleString(
-      "id-ID",
-      {
-        day: "2-digit",
-        month: "long",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      }
-    );
+    if (!value) return "-";
+    const date = new Date(value);
+    if (isNaN(date.getTime())) return "-";
+    return date.toLocaleString("id-ID", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   };
 
-  // =========================================================
-  // SEMESTER DESCRIPTION
-  // =========================================================
+  const formatDate = (value) => {
+    if (!value) return "-";
+    const date = new Date(value);
+    if (isNaN(date.getTime())) return "-";
+    return date.toLocaleDateString("id-ID", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    });
+  };
 
-  const semesterDescription =
-    useMemo(() => {
-      if (
-        data?.semester ===
-        "Ganjil"
-      ) {
-        return "Semester pertama pada tahun ajaran.";
-      }
-
-      if (
-        data?.semester ===
-        "Genap"
-      ) {
-        return "Semester kedua pada tahun ajaran.";
-      }
-
-      return "Periode semester akademik.";
-    }, [data]);
+  const semesterDescription = useMemo(() => {
+    if (data?.semester === "Ganjil") return "Semester pertama pada tahun ajaran.";
+    if (data?.semester === "Genap") return "Semester kedua pada tahun ajaran.";
+    return "Periode semester akademik.";
+  }, [data]);
 
   // =========================================================
   // LOADING
   // =========================================================
-
   if (loading) {
     return (
       <div className="flex h-screen w-full overflow-hidden bg-slate-50">
@@ -264,32 +122,14 @@ export default function DetailTahunAjaranPage() {
           active="tahunAjaran"
           setActive={() => {}}
           collapsed={isCollapsed}
-          setCollapsed={
-            setIsCollapsed
-          }
+          setCollapsed={setIsCollapsed}
         />
-
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-          <Header
-            toggleSidebar={
-              toggleSidebar
-            }
-            notifications={[]}
-            user={{
-              name: "Admin Sekolah",
-              email:
-                "admin@smartschool.com",
-              avatar: "AD",
-            }}
-          />
-
+          <Header toggleSidebar={toggleSidebar} notifications={[]} user={{ name: "Admin Sekolah", email: "admin@smartschool.com", avatar: "AD" }} />
           <main className="flex min-h-0 flex-1 items-center justify-center">
-            <div className="flex flex-col items-center gap-3">
-              <div className="h-9 w-9 animate-spin rounded-full border-4 border-[#155DFC] border-t-transparent" />
-
-              <p className="text-sm font-medium text-slate-500">
-                Memuat detail tahun ajaran...
-              </p>
+            <div className="flex flex-col items-center gap-4">
+              <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#155DFC] border-t-transparent" />
+              <p className="text-sm font-medium text-slate-500">Memuat detail tahun ajaran...</p>
             </div>
           </main>
         </div>
@@ -298,705 +138,319 @@ export default function DetailTahunAjaranPage() {
   }
 
   // =========================================================
-  // PAGE
+  // MAIN
   // =========================================================
-
   return (
     <div className="flex h-screen w-full overflow-hidden bg-slate-50">
-
-      {/* =====================================================
-          SIDEBAR
-      ====================================================== */}
-
       <Sidebar
         active="tahunAjaran"
         setActive={() => {}}
         collapsed={isCollapsed}
-        setCollapsed={
-          setIsCollapsed
-        }
+        setCollapsed={setIsCollapsed}
       />
 
-      {/* =====================================================
-          CONTENT
-      ====================================================== */}
-
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-
-        {/* HEADER */}
-
         <Header
-          toggleSidebar={
-            toggleSidebar
-          }
+          toggleSidebar={toggleSidebar}
           notifications={[]}
-          user={{
-            name: "Admin Sekolah",
-            email:
-              "admin@smartschool.com",
-            avatar: "AD",
-          }}
+          user={{ name: "Admin Sekolah", email: "admin@smartschool.com", avatar: "AD" }}
         />
 
-        {/* MAIN */}
-
-        <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
-
-          <div className="mx-auto w-full max-w-[1280px] px-4 py-5 sm:px-6 sm:py-6 lg:px-8 xl:px-10">
-
-            <div className="space-y-6">
-
+        <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-gradient-to-b from-slate-50/80 to-white">
+          <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8 xl:px-10">
+            <div className="space-y-8">
               {/* =================================================
-                  BREADCRUMB
+                  BREADCRUMB & BACK
               ================================================== */}
-
-              <button
-                type="button"
-                onClick={() =>
-                  router.push(
-                    "/admin/tahun-ajaran"
-                  )
-                }
-                className="inline-flex items-center gap-2 text-xs font-semibold text-slate-500 transition hover:text-[#155DFC]"
-              >
-                <ArrowLeft size={15} />
-                Kembali ke Tahun Ajaran
-              </button>
-
-              {/* =================================================
-                  HEADER
-              ================================================== */}
-
-              <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
-
-                <div className="p-5 sm:p-6">
-
-                  <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-
-                    <div className="flex min-w-0 items-start gap-3">
-
-                      <div
-                        className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${
-                          isActive
-                            ? "bg-emerald-50 text-emerald-600"
-                            : "bg-[#eaf1ff] text-[#155DFC]"
-                        }`}
-                      >
-                        <CalendarDays
-                          size={22}
-                        />
-                      </div>
-
-                      <div className="min-w-0">
-
-                        <div className="flex flex-wrap items-center gap-2">
-
-                          <h1 className="text-xl font-bold tracking-tight text-slate-800 sm:text-2xl">
-                            {data?.nama ||
-                              "Detail Tahun Ajaran"}
-                          </h1>
-
-                          <span
-                            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-semibold ${
-                              isActive
-                                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                                : "border-slate-200 bg-slate-100 text-slate-500"
-                            }`}
-                          >
-                            {isActive ? (
-                              <CheckCircle2
-                                size={11}
-                              />
-                            ) : (
-                              <XCircle
-                                size={11}
-                              />
-                            )}
-
-                            {statusLabel}
-                          </span>
-
-                        </div>
-
-                        <p className="mt-1 text-xs leading-5 text-slate-500 sm:text-sm">
-                          Detail informasi periode akademik sekolah.
-                        </p>
-
-                      </div>
-
-                    </div>
-
-                    <div className="flex flex-col gap-2 sm:flex-row">
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          loadDetail(true)
-                        }
-                        disabled={
-                          refreshing
-                        }
-                        className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 shadow-sm transition hover:border-[#c7dbff] hover:bg-[#eaf1ff] hover:text-[#155DFC] disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        <RefreshCw
-                          size={14}
-                          className={
-                            refreshing
-                              ? "animate-spin"
-                              : ""
-                          }
-                        />
-
-                        Refresh
-                      </button>
-
-                      <Link
-                        href={`/admin/tahun-ajaran/edit/${data?.id}`}
-                        className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-[#155DFC] px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-[#0d47c9]"
-                      >
-                        <Edit size={14} />
-                        Edit Tahun Ajaran
-                      </Link>
-
-                    </div>
-
-                  </div>
-
-                </div>
-
-              </section>
+              <div className="flex items-center gap-2 text-sm">
+                <button
+                  onClick={() => router.push("/admin/tahun-ajaran")}
+                  className="inline-flex items-center gap-1.5 text-slate-500 transition hover:text-[#155DFC]"
+                >
+                  <ArrowLeft size={16} />
+                  <span className="font-medium">Kembali</span>
+                </button>
+                <span className="text-slate-300">/</span>
+                <span className="text-slate-600 font-medium">Detail Tahun Ajaran</span>
+              </div>
 
               {/* =================================================
                   ERROR
               ================================================== */}
-
               {error && (
-                <section className="rounded-xl border border-red-200 bg-red-50 p-4">
-
-                  <div className="flex items-start gap-3">
-
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-red-100">
-                      <AlertCircle
-                        size={17}
-                        className="text-red-600"
-                      />
+                <div className="rounded-xl border border-red-200 bg-red-50/80 p-5 backdrop-blur-sm">
+                  <div className="flex items-start gap-4">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100">
+                      <AlertCircle size={20} className="text-red-600" />
                     </div>
-
-                    <div className="min-w-0 flex-1">
-
-                      <p className="text-sm font-semibold text-red-700">
-                        Data tidak dapat dimuat
-                      </p>
-
-                      <p className="mt-1 text-xs leading-5 text-red-600">
-                        {error}
-                      </p>
-
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-red-800">Gagal memuat data</p>
+                      <p className="mt-1 text-sm text-red-600">{error}</p>
                     </div>
-
                     <button
-                      type="button"
-                      onClick={() =>
-                        router.push(
-                          "/admin/tahun-ajaran"
-                        )
-                      }
-                      className="rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50"
+                      onClick={() => router.push("/admin/tahun-ajaran")}
+                      className="rounded-lg border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
                     >
                       Kembali
                     </button>
-
                   </div>
-
-                </section>
+                </div>
               )}
-
-              {/* =================================================
-                  DETAIL
-              ================================================== */}
 
               {data && (
                 <>
                   {/* =================================================
-                      STATUS OVERVIEW
+                      HEADER CARD
                   ================================================== */}
+                  <div className="rounded-2xl border border-slate-200/80 bg-white shadow-sm overflow-hidden">
+                    <div className="bg-gradient-to-r from-[#0F172A] to-[#1E293B] px-6 py-6 sm:px-8 sm:py-7">
+                      <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-white/10 border border-white/5 text-white">
+                            <CalendarDays size={28} />
+                          </div>
+                          <div>
+                            <p className="text-xs font-semibold uppercase tracking-wider text-blue-300">Tahun Ajaran</p>
+                            <h1 className="mt-1 text-2xl font-bold tracking-tight text-white sm:text-3xl">
+                              {data.nama}
+                            </h1>
+                            <p className="mt-1 text-sm text-slate-300">Semester {data.semester}</p>
+                          </div>
+                        </div>
 
-                  <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-
-                    {/* STATUS */}
-
-                    <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-
-                      <div className="flex items-start justify-between gap-4">
-
-                        <div>
-                          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                            Status Periode
-                          </p>
-
-                          <p
-                            className={`mt-2 text-xl font-bold ${
+                        <div className="flex flex-wrap items-center gap-3">
+                          <span
+                            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold ${
                               isActive
-                                ? "text-emerald-600"
-                                : "text-slate-700"
+                                ? "bg-emerald-50/90 text-emerald-700 border border-emerald-200/50"
+                                : "bg-slate-100/90 text-slate-600 border border-slate-200/50"
                             }`}
                           >
+                            {isActive ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
                             {statusLabel}
-                          </p>
-
-                          <p className="mt-1 text-[11px] text-slate-400">
-                            Status tahun ajaran saat ini
-                          </p>
+                          </span>
+                          <button
+                            onClick={() => loadDetail(true)}
+                            disabled={refreshing}
+                            className="inline-flex items-center gap-2 rounded-lg bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/20 disabled:opacity-50"
+                          >
+                            <RefreshCw size={15} className={refreshing ? "animate-spin" : ""} />
+                            Refresh
+                          </button>
+                          <Link
+                            href={`/admin/tahun-ajaran/edit/${data.id}`}
+                            className="inline-flex items-center gap-2 rounded-lg bg-[#155DFC] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0d47c9]"
+                          >
+                            <Edit size={16} />
+                            Edit
+                          </Link>
                         </div>
-
-                        <div
-                          className={`flex h-10 w-10 items-center justify-center rounded-lg ${
-                            isActive
-                              ? "bg-emerald-50 text-emerald-600"
-                              : "bg-slate-100 text-slate-500"
-                          }`}
-                        >
-                          {isActive ? (
-                            <CheckCircle2
-                              size={19}
-                            />
-                          ) : (
-                            <XCircle
-                              size={19}
-                            />
-                          )}
-                        </div>
-
                       </div>
-
                     </div>
 
-                    {/* SEMESTER */}
-
-                    <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-
-                      <div className="flex items-start justify-between gap-4">
-
-                        <div>
-                          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                            Semester
-                          </p>
-
-                          <p className="mt-2 text-xl font-bold text-slate-800">
-                            {data.semester ||
-                              "-"}
-                          </p>
-
-                          <p className="mt-1 text-[11px] text-slate-400">
-                            {semesterDescription}
-                          </p>
-                        </div>
-
-                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#eaf1ff] text-[#155DFC]">
-                          <CalendarDays
-                            size={19}
-                          />
-                        </div>
-
-                      </div>
-
+                    {/* Quick Stats */}
+                    <div className="grid grid-cols-1 divide-y divide-slate-100 sm:grid-cols-3 sm:divide-y-0 sm:divide-x">
+                      <StatItem icon={<CalendarCheck size={18} />} label="Semester" value={data.semester || "-"} />
+                      <StatItem
+                        icon={isActive ? <CheckCircle2 size={18} className="text-emerald-600" /> : <XCircle size={18} className="text-slate-400" />}
+                        label="Status"
+                        value={statusLabel}
+                        valueClass={isActive ? "text-emerald-600" : "text-slate-600"}
+                      />
+                      <StatItem icon={<Hash size={18} />} label="ID Tahun Ajaran" value={data.id || "-"} truncate />
                     </div>
-
-                    {/* ID */}
-
-                    <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-
-                      <div className="flex items-start justify-between gap-4">
-
-                        <div className="min-w-0">
-
-                          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                            ID Tahun Ajaran
-                          </p>
-
-                          <p className="mt-2 truncate text-sm font-bold text-slate-800">
-                            {data.id ||
-                              "-"}
-                          </p>
-
-                          <p className="mt-1 text-[11px] text-slate-400">
-                            Identitas data pada sistem
-                          </p>
-
-                        </div>
-
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
-                          <Hash size={18} />
-                        </div>
-
-                      </div>
-
-                    </div>
-
-                  </section>
+                  </div>
 
                   {/* =================================================
-                      INFORMATION GRID
+                      DETAIL GRID
                   ================================================== */}
-
-                  <section className="grid grid-cols-1 gap-5 xl:grid-cols-2">
-
-                    {/* INFORMASI PERIODE */}
-
-                    <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
-
-                      <div className="border-b border-slate-100 px-5 py-4">
-
-                        <div className="flex items-center gap-3">
-
-                          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#eaf1ff] text-[#155DFC]">
-                            <CalendarCheck
-                              size={17}
-                            />
-                          </div>
-
-                          <div>
-                            <h2 className="text-sm font-bold text-slate-800">
-                              Informasi Periode
-                            </h2>
-
-                            <p className="mt-1 text-[11px] text-slate-400">
-                              Informasi utama tahun ajaran.
-                            </p>
-                          </div>
-
-                        </div>
-
-                      </div>
-
-                      <div className="p-5">
-
-                        <div className="divide-y divide-slate-100">
-
-                          {/* NAMA */}
-
-                          <div className="flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-5 first:pt-0">
-
-                            <span className="text-xs text-slate-400">
-                              Tahun Ajaran
-                            </span>
-
-                            <span className="text-sm font-semibold text-slate-700 sm:text-right">
-                              {data.nama ||
-                                "-"}
-                            </span>
-
-                          </div>
-
-                          {/* SEMESTER */}
-
-                          <div className="flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-5">
-
-                            <span className="text-xs text-slate-400">
-                              Semester
-                            </span>
-
-                            <span
-                              className={`inline-flex w-fit rounded-md border px-2.5 py-1 text-[10px] font-semibold sm:ml-auto ${
-                                data.semester ===
-                                "Ganjil"
-                                  ? "border-indigo-100 bg-indigo-50 text-indigo-600"
-                                  : "border-blue-100 bg-blue-50 text-blue-600"
-                              }`}
-                            >
-                              {data.semester ||
-                                "-"}
-                            </span>
-
-                          </div>
-
-                          {/* STATUS */}
-
-                          <div className="flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-5">
-
-                            <span className="text-xs text-slate-400">
-                              Status
-                            </span>
-
-                            <span
-                              className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-semibold sm:ml-auto ${
-                                isActive
-                                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                                  : "border-slate-200 bg-slate-100 text-slate-500"
-                              }`}
-                            >
-                              {isActive ? (
-                                <CheckCircle2
-                                  size={11}
-                                />
-                              ) : (
-                                <XCircle
-                                  size={11}
-                                />
-                              )}
-
-                              {statusLabel}
-                            </span>
-
-                          </div>
-
-                          {/* SEKOLAH */}
-
-                          <div className="flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-5">
-
-                            <span className="text-xs text-slate-400">
-                              Sekolah
-                            </span>
-
-                            <span className="text-sm font-semibold text-slate-700 sm:text-right">
-                              {data?.sekolah
-                                ?.nama ||
-                                "Sekolah Aktif"}
-                            </span>
-
-                          </div>
-
-                          {/* SCHOOL ID */}
-
-                          <div className="flex flex-col gap-1 py-3 last:pb-0 sm:flex-row sm:items-center sm:justify-between sm:gap-5">
-
-                            <span className="text-xs text-slate-400">
-                              Sekolah ID
-                            </span>
-
-                            <span className="break-all text-xs font-medium text-slate-600 sm:text-right">
-                              {data.sekolahId ||
-                                data?.sekolah
-                                  ?.id ||
-                                "-"}
-                            </span>
-
-                          </div>
-
-                        </div>
-
-                      </div>
-
-                    </div>
-
-                    {/* INFORMASI SISTEM */}
-
-                    <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
-
-                      <div className="border-b border-slate-100 px-5 py-4">
-
-                        <div className="flex items-center gap-3">
-
-                          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
-                            <Database
-                              size={17}
-                            />
-                          </div>
-
-                          <div>
-                            <h2 className="text-sm font-bold text-slate-800">
-                              Informasi Sistem
-                            </h2>
-
-                            <p className="mt-1 text-[11px] text-slate-400">
-                              Metadata data tahun ajaran.
-                            </p>
-                          </div>
-
-                        </div>
-
-                      </div>
-
-                      <div className="p-5">
-
-                        <div className="divide-y divide-slate-100">
-
-                          {/* CREATED */}
-
-                          <div className="flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-5 first:pt-0">
-
-                            <div className="flex items-center gap-2">
-                              <Clock3
-                                size={14}
-                                className="text-slate-400"
-                              />
-
-                              <span className="text-xs text-slate-400">
-                                Dibuat Pada
-                              </span>
-                            </div>
-
-                            <span className="text-xs font-medium text-slate-600 sm:text-right">
-                              {formatDateTime(
-                                data.dibuatPada
-                              )}
-                            </span>
-
-                          </div>
-
-                          {/* UPDATED */}
-
-                          <div className="flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-5">
-
-                            <div className="flex items-center gap-2">
-                              <RefreshCw
-                                size={14}
-                                className="text-slate-400"
-                              />
-
-                              <span className="text-xs text-slate-400">
-                                Diperbarui Pada
-                              </span>
-                            </div>
-
-                            <span className="text-xs font-medium text-slate-600 sm:text-right">
-                              {formatDateTime(
-                                data.diperbaruiPada
-                              )}
-                            </span>
-
-                          </div>
-
-                          {/* DELETED */}
-
-                          <div className="flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-5 last:pb-0">
-
-                            <div className="flex items-center gap-2">
-                              <XCircle
-                                size={14}
-                                className="text-slate-400"
-                              />
-
-                              <span className="text-xs text-slate-400">
-                                Dihapus Pada
-                              </span>
-                            </div>
-
-                            <span className="text-xs font-medium text-slate-600 sm:text-right">
-                              {formatDateTime(
-                                data.dihapusPada
-                              )}
-                            </span>
-
-                          </div>
-
-                        </div>
-
-                      </div>
-
-                    </div>
-
-                  </section>
+                  <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                    {/* Informasi Periode */}
+                    <DetailCard
+                      title="Informasi Periode"
+                      icon={<CalendarCheck size={20} />}
+                      description="Data utama tahun ajaran"
+                    >
+                      <DetailRow label="Nama Tahun Ajaran" value={data.nama} />
+                      <DetailRow
+                        label="Semester"
+                        value={
+                          <span
+                            className={`inline-flex rounded-md px-2.5 py-1 text-xs font-semibold ${
+                              data.semester === "Ganjil"
+                                ? "bg-indigo-50 text-indigo-700 border border-indigo-100"
+                                : "bg-blue-50 text-blue-700 border border-blue-100"
+                            }`}
+                          >
+                            {data.semester}
+                          </span>
+                        }
+                      />
+                      <DetailRow
+                        label="Status"
+                        value={
+                          <span
+                            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${
+                              isActive
+                                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                : "bg-slate-100 text-slate-600 border border-slate-200"
+                            }`}
+                          >
+                            {isActive ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
+                            {statusLabel}
+                          </span>
+                        }
+                      />
+                      <DetailRow label="Sekolah" value={data?.sekolah?.nama || "Sekolah Aktif"} />
+                      <DetailRow label="ID Sekolah" value={data.sekolahId || data?.sekolah?.id || "-"} breakValue />
+                    </DetailCard>
+
+                    {/* Informasi Sistem */}
+                    <DetailCard
+                      title="Informasi Sistem"
+                      icon={<Database size={20} />}
+                      description="Metadata & riwayat data"
+                    >
+                      <DetailRow
+                        label={
+                          <span className="flex items-center gap-1.5">
+                            <Clock3 size={14} className="text-slate-400" /> Dibuat
+                          </span>
+                        }
+                        value={formatDateTime(data.dibuatPada)}
+                      />
+                      <DetailRow
+                        label={
+                          <span className="flex items-center gap-1.5">
+                            <RefreshCw size={14} className="text-slate-400" /> Diperbarui
+                          </span>
+                        }
+                        value={formatDateTime(data.diperbaruiPada)}
+                      />
+                      <DetailRow
+                        label={
+                          <span className="flex items-center gap-1.5">
+                            <XCircle size={14} className="text-slate-400" /> Dihapus
+                          </span>
+                        }
+                        value={formatDateTime(data.dihapusPada)}
+                      />
+                    </DetailCard>
+                  </div>
 
                   {/* =================================================
-                      ACTIVE NOTICE
+                      STATUS NOTICE
                   ================================================== */}
-
-                  <section
-                    className={`rounded-xl border p-4 ${
+                  <div
+                    className={`rounded-2xl border p-5 ${
                       isActive
-                        ? "border-emerald-200 bg-emerald-50"
-                        : "border-[#c7dbff] bg-[#f7f9ff]"
+                        ? "border-emerald-200/70 bg-emerald-50/60"
+                        : "border-slate-200/70 bg-slate-50/60"
                     }`}
                   >
-
-                    <div className="flex items-start gap-3">
-
+                    <div className="flex items-start gap-4">
                       <div
-                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
-                          isActive
-                            ? "bg-white text-emerald-600"
-                            : "bg-white text-[#155DFC]"
+                        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${
+                          isActive ? "bg-white text-emerald-600" : "bg-white text-slate-500"
                         }`}
                       >
-                        {isActive ? (
-                          <CheckCircle2
-                            size={17}
-                          />
-                        ) : (
-                          <Info
-                            size={17}
-                          />
-                        )}
+                        {isActive ? <CheckCircle2 size={22} /> : <Info size={22} />}
                       </div>
-
-                      <div className="min-w-0">
-
-                        <p
-                          className={`text-xs font-bold ${
-                            isActive
-                              ? "text-emerald-800"
-                              : "text-slate-700"
-                          }`}
-                        >
-                          {isActive
-                            ? "Tahun ajaran sedang aktif"
-                            : "Tahun ajaran tidak aktif"}
+                      <div>
+                        <p className={`text-sm font-bold ${isActive ? "text-emerald-800" : "text-slate-700"}`}>
+                          {isActive ? "Tahun Ajaran Aktif" : "Tahun Ajaran Tidak Aktif"}
                         </p>
-
-                        <p
-                          className={`mt-1 text-[11px] leading-5 ${
-                            isActive
-                              ? "text-emerald-700/80"
-                              : "text-slate-500"
-                          }`}
-                        >
+                        <p className={`mt-1 text-sm leading-6 ${isActive ? "text-emerald-700/80" : "text-slate-500"}`}>
                           {isActive
                             ? `${data.nama} semester ${data.semester} sedang digunakan sebagai periode akademik aktif sekolah.`
                             : `${data.nama} semester ${data.semester} saat ini tidak digunakan sebagai periode akademik aktif.`}
                         </p>
-
                       </div>
-
                     </div>
-
-                  </section>
+                  </div>
 
                   {/* =================================================
                       ACTIONS
                   ================================================== */}
-
-                  <section className="flex flex-col gap-2 border-t border-slate-200 pt-5 sm:flex-row sm:justify-between">
-
+                  <div className="flex flex-col gap-3 border-t border-slate-200/60 pt-6 sm:flex-row sm:justify-between">
                     <button
-                      type="button"
-                      onClick={() =>
-                        router.push(
-                          "/admin/tahun-ajaran"
-                        )
-                      }
-                      className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
+                      onClick={() => router.push("/admin/tahun-ajaran")}
+                      className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50 hover:border-slate-300"
                     >
-                      <ArrowLeft
-                        size={14}
-                      />
+                      <ArrowLeft size={16} />
                       Kembali
                     </button>
-
                     <Link
                       href={`/admin/tahun-ajaran/edit/${data.id}`}
-                      className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-[#155DFC] px-5 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-[#0d47c9]"
+                      className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#155DFC] px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0d47c9]"
                     >
-                      <Edit size={14} />
+                      <Edit size={16} />
                       Edit Tahun Ajaran
                     </Link>
+                  </div>
 
-                  </section>
+                  {/* Footer */}
+                  <footer className="pt-6 text-center text-xs text-slate-400 border-t border-slate-200/50">
+                    © 2026 SmartSchool • Detail Tahun Ajaran
+                  </footer>
                 </>
               )}
-
-              {/* FOOTER */}
-
-              <footer className="py-4 text-center">
-                <p className="text-[10px] text-slate-400">
-                  © 2026 SmartSchool • Detail Tahun Ajaran
-                </p>
-              </footer>
-
             </div>
           </div>
         </main>
       </div>
+    </div>
+  );
+}
+
+// =========================================================
+// SUB-COMPONENTS
+// =========================================================
+
+function StatItem({ icon, label, value, valueClass = "text-slate-800", truncate = false }) {
+  return (
+    <div className="flex items-center gap-4 px-6 py-4 sm:py-5">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-50 text-[#155DFC]">
+        {icon}
+      </div>
+      <div className="min-w-0">
+        <p className="text-xs font-medium text-slate-400">{label}</p>
+        <p className={`mt-0.5 text-sm font-bold ${valueClass} ${truncate ? "truncate" : ""}`}>{value}</p>
+      </div>
+    </div>
+  );
+}
+
+function DetailCard({ title, icon, description, children }) {
+  return (
+    <div className="rounded-2xl border border-slate-200/80 bg-white shadow-sm overflow-hidden">
+      <div className="border-b border-slate-100/80 px-5 py-4 sm:px-6">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#eaf1ff] text-[#155DFC]">
+            {icon}
+          </div>
+          <div>
+            <h2 className="text-sm font-bold text-slate-800">{title}</h2>
+            <p className="mt-0.5 text-xs text-slate-400">{description}</p>
+          </div>
+        </div>
+      </div>
+      <div className="px-5 py-4 sm:px-6 sm:py-5">
+        <div className="divide-y divide-slate-100/80">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function DetailRow({ label, value, breakValue = false }) {
+  return (
+    <div className="flex flex-col gap-1 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+      <span className="text-xs font-medium text-slate-500">{label}</span>
+      <span
+        className={`text-sm font-semibold text-slate-700 sm:text-right ${breakValue ? "break-all" : "truncate"} sm:max-w-[60%]`}
+      >
+        {value || "-"}
+      </span>
     </div>
   );
 }
