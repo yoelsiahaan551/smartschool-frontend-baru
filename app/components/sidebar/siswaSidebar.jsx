@@ -6,6 +6,7 @@ import {
   GraduationCap,
   ClipboardCheck,
   User,
+  CalendarDays,
 } from "lucide-react";
 
 /**
@@ -14,27 +15,56 @@ import {
  * Struktur folder aktual (app/siswa):
  * - page.jsx                          -> Beranda (/siswa)
  * - absensi/page.jsx                  -> Absensi (/siswa/absensi)
+ * - jadwal/page.jsx                   -> Jadwal (/siswa/jadwal)
+ * - ujian/page.jsx                    -> Ujian (/siswa/ujian)
  * - mataPelajaran/page.jsx            -> Mata Pelajaran (/siswa/mataPelajaran)
- *   - materi/page.jsx                 -> Materi (/siswa/mataPelajaran/materi)
- *   - tugas/page.jsx                  -> Tugas (/siswa/mataPelajaran/tugas)
- *   - ujian/page.jsx                  -> Ujian (/siswa/mataPelajaran/ujian)
- * - profil/page.jsx                   -> Profil Saya (/siswa/profil)
+ *   - materi/page.jsx                 -> Materi
+ *   - tugas/page.jsx                  -> Tugas
+ *   - ujian/page.jsx                  -> Ujian
+ * - profil/pengaturan                  -> Pengaturan
  *
- * "mataPelajaran" dibikin bertingkat (children) karena punya 3 sub-halaman
- * (materi, tugas, ujian) yang masing-masing punya page.jsx sendiri.
- *
- * Kalau mau nambah/kurang menu siswa, tinggal edit array `menuSections`
- * di sini, tanpa nyentuh SidebarView.jsx atau Sidebar.jsx.
+ * "Mata Pelajaran" dibikin bertingkat karena memiliki
+ * beberapa sub-halaman pembelajaran.
  */
 export const siswaSidebarConfig = {
   basePath: "/siswa",
   brandName: "Portal Siswa",
   initials: "SW",
   email: "siswa@smartschool.com",
+
   menuSections: [
-    { type: "item", key: "dashboard", icon: Home, label: "dashboard", path: "/siswa" },
-    { type: "item", key: "absensi", icon: ClipboardCheck, label: "Absensi", path: "/siswa/absensi" },
-    { type: "item", key: "ujian", icon: ClipboardCheck, label: "Ujian", path: "/siswa/ujian" },
+    {
+      type: "item",
+      key: "dashboard",
+      icon: Home,
+      label: "Dashboard",
+      path: "/siswa",
+    },
+
+    {
+      type: "item",
+      key: "absensi",
+      icon: ClipboardCheck,
+      label: "Absensi",
+      path: "/siswa/absensi",
+    },
+
+    {
+      type: "item",
+      key: "jadwal",
+      icon: CalendarDays,
+      label: "Jadwal",
+      path: "/siswa/jadwal",
+    },
+
+    {
+      type: "item",
+      key: "ujian",
+      icon: ClipboardCheck,
+      label: "Ujian",
+      path: "/siswa/ujian",
+    },
+
     {
       type: "item",
       key: "mataPelajaran",
@@ -42,11 +72,33 @@ export const siswaSidebarConfig = {
       label: "Mata Pelajaran",
       path: "/siswa/mataPelajaran",
       children: [
-        { key: "materi", icon: FileText, label: "Materi", path: "/siswa/mataPelajaran/materi" },
-        { key: "tugas", icon: ClipboardList, label: "Tugas", path: "/siswa/mataPelajaran/tugas" },
-        { key: "ujian", icon: GraduationCap, label: "Ujian", path: "/siswa/mataPelajaran/ujian" },
+        {
+          key: "materi",
+          icon: FileText,
+          label: "Materi",
+          path: "/siswa/mataPelajaran/materi",
+        },
+        {
+          key: "tugas",
+          icon: ClipboardList,
+          label: "Tugas",
+          path: "/siswa/mataPelajaran/tugas",
+        },
+        {
+          key: "ujian",
+          icon: GraduationCap,
+          label: "Ujian",
+          path: "/siswa/mataPelajaran/ujian",
+        },
       ],
     },
-    { type: "item", key: "pengaturan", icon: User, label: "Pengaturan", path: "/siswa/pengaturan" },
+
+    {
+      type: "item",
+      key: "pengaturan",
+      icon: User,
+      label: "Pengaturan",
+      path: "/siswa/pengaturan",
+    },
   ],
 };
