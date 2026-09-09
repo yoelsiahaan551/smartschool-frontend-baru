@@ -38,6 +38,14 @@ const DEFAULT_ROLE = "super-admin";
 
 const SIDEBAR_COLLAPSED_KEY = "sidebar-collapsed";
 
+/*
+ * Menyimpan posisi scroll sidebar.
+ *
+ * sessionStorage dipakai supaya posisi scroll tetap bertahan
+ * ketika pindah halaman dalam satu sesi browser.
+ */
+const SIDEBAR_SCROLL_KEY = "sidebar-scroll-top";
+
 const SIDEBAR_EXPANDED_WIDTH = "w-64";
 const SIDEBAR_COLLAPSED_WIDTH = "w-[72px]";
 
@@ -125,6 +133,7 @@ export default function Sidebar({
 
   useEffect(() => {
     setCollapsedProp?.(collapsed);
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [collapsed]);
 
@@ -194,6 +203,97 @@ export default function Sidebar({
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /* =======================================================
+     RESTORE SIDEBAR SCROLL POSITION
+  ======================================================= */
+
+  useLayoutEffect(() => {
+    const nav = sidebarNavRef.current;
+
+    if (!nav) return;
+
+    let savedScrollTop = 0;
+
+    try {
+      const saved =
+        sessionStorage.getItem(
+          SIDEBAR_SCROLL_KEY
+        );
+
+      if (saved !== null) {
+        savedScrollTop = Number(saved) || 0;
+      }
+    } catch (error) {
+      savedScrollTop = 0;
+    }
+
+    /*
+     * Restore setelah DOM selesai melakukan layout.
+     * requestAnimationFrame membantu mencegah posisi
+     * kembali ke 0 setelah render submenu.
+     */
+    const restoreScroll = () => {
+      if (!sidebarNavRef.current) return;
+
+      sidebarNavRef.current.scrollTop =
+        savedScrollTop;
+    };
+
+    restoreScroll();
+
+    const raf1 =
+      requestAnimationFrame(restoreScroll);
+
+    const raf2 =
+      requestAnimationFrame(() => {
+        requestAnimationFrame(restoreScroll);
+      });
+
+    return () => {
+      cancelAnimationFrame(raf1);
+      cancelAnimationFrame(raf2);
+    };
+  }, [pathname, role]);
+
+  /* =======================================================
+     SAVE SIDEBAR SCROLL POSITION
+  ======================================================= */
+
+  useEffect(() => {
+    const nav = sidebarNavRef.current;
+
+    if (!nav) return;
+
+    const handleSidebarScroll = () => {
+      try {
+        sessionStorage.setItem(
+          SIDEBAR_SCROLL_KEY,
+          String(nav.scrollTop)
+        );
+      } catch (error) {
+        // Ignore sessionStorage errors.
+      }
+    };
+
+    nav.addEventListener(
+      "scroll",
+      handleSidebarScroll,
+      { passive: true }
+    );
+
+    /*
+     * Simpan posisi awal juga.
+     */
+    handleSidebarScroll();
+
+    return () => {
+      nav.removeEventListener(
+        "scroll",
+        handleSidebarScroll
+      );
+    };
+  }, [pathname, role]);
 
   /* =======================================================
      LOCK BODY SCROLL WHEN MOBILE DRAWER OPEN
@@ -647,6 +747,23 @@ export default function Sidebar({
     parentKey,
     child
   ) => {
+    /*
+     * Simpan posisi scroll tepat sebelum
+     * melakukan navigasi.
+     */
+    if (sidebarNavRef.current) {
+      try {
+        sessionStorage.setItem(
+          SIDEBAR_SCROLL_KEY,
+          String(
+            sidebarNavRef.current.scrollTop
+          )
+        );
+      } catch (error) {
+        // Ignore sessionStorage errors.
+      }
+    }
+
     setActive?.(child.key);
 
     router.push(child.path);
@@ -664,21 +781,6 @@ export default function Sidebar({
   /* =======================================================
      SIDEBAR WIDTH
   ======================================================= */
-
-  /*
-   * DESKTOP
-   *
-   * Sidebar benar-benar mengambil ruang 256px / 72px
-   * dari flex layout.
-   *
-   * MOBILE
-   *
-   * Wrapper selalu 72px.
-   * Sidebar yang terbuka menjadi fixed overlay.
-   *
-   * Dengan cara ini sidebar tidak akan "mendorong"
-   * konten saat drawer mobile dibuka.
-   */
 
   const desktopWidth =
     collapsed
@@ -763,19 +865,12 @@ export default function Sidebar({
 
       {/* ===================================================
           SIDEBAR WRAPPER
-
-          PENTING:
-          overflow-visible supaya tombol toggle yang
-          keluar -right-3 tidak pernah terpotong.
       =================================================== */}
 
       <div className={wrapperClasses}>
         <aside className={asideClasses}>
           {/* =================================================
               INTERNAL SIDEBAR
-
-              overflow-hidden hanya di area isi.
-              BUKAN pada <aside>.
           ================================================= */}
 
           <div
@@ -1392,14 +1487,6 @@ export default function Sidebar({
 
           {/* =================================================
               SIDEBAR TOGGLE
-
-              PENTING:
-              - absolute
-              - -right-3
-              - <aside> overflow-visible
-              - wrapper overflow-visible
-
-              Jadi tombol tidak terpotong.
           ================================================= */}
 
           <button
