@@ -2,45 +2,57 @@ import {
   LayoutDashboard,
   Users,
   UserCheck,
-  UserRoundCog,
+  UserPlus,
+  ScanFace,
+  GraduationCap,
+  Split,
+  Globe2,
   CalendarDays,
+  CalendarClock,
+  CalendarCheck,
   BookOpen,
   BookMarked,
-  ListChecks,
-  CalendarClock,
-  IdCard,
-  Library,
   BookOpenCheck,
   BookUp,
   BookDown,
-  MonitorPlay,
-  ClipboardList,
-  Server,
-  FileText,
-  GraduationCap,
-  FileCheck2,
-  History,
-  Trophy,
-  ClipboardCheck,
-  Building2,
-  Layers,
+  Library,
+  UserRoundCog,
+  Boxes,
+  Package,
   Settings,
-  FileBarChart,
+  Settings2,
+  NotebookPen,
+  School,
+  Layers,
+  PenLine,
+  Printer,
+  Award,
+  FileSpreadsheet,
   CreditCard,
+  History,
   Receipt,
-  MessageSquare,
+  MonitorPlay,
+  FileText,
+  ClipboardList,
+  ClipboardCheck,
+  FileCheck2,
+  FileSignature,
+  Server,
+  HeartHandshake,
   AlertTriangle,
-  Target,
-  UserPlus,
-  Wallet,
-  ScrollText,
-  Database,
+  AlertCircle,
+  Tags,
+  Brain,
+  FileInput,
+  PiggyBank,
+  DollarSign,
+  WalletCards,
 } from "lucide-react";
 
 export const adminSidebarConfig = {
   basePath: "/admin",
-  brandName: "SmartSchool",
-  initials: "SS",
+  brandName: "Admin Sekolah",
+  initials: "AS",
   email: "admin@smartschool.com",
 
   menuSections: [
@@ -56,252 +68,38 @@ export const adminSidebarConfig = {
     },
 
     // ==========================================================
-    // PENGGUNA
+    // PRESENSI & KEHADIRAN
     // ==========================================================
-    {
-      type: "header",
-      label: "Manajemen Pengguna",
-    },
-
-    {
-      type: "item",
-      key: "pengguna",
-      icon: Users,
-      label: "Pengguna",
-      path: "/admin/pengguna",
-      children: [
-        {
-          key: "guru",
-          icon: UserCheck,
-          label: "Data Guru",
-          path: "/admin/guru",
-        },
-        {
-          key: "siswa",
-          icon: Users,
-          label: "Data Siswa",
-          path: "/admin/siswa",
-        },
-        {
-          key: "faceId",
-          icon: IdCard,
-          label: "Face ID",
-          path: "/admin/pengguna/face-id",
-        },
-      ],
-    },
-
-    // ==========================================================
-    // DATA SEKOLAH
-    // ==========================================================
-    {
-      type: "header",
-      label: "Data Sekolah",
-    },
-
-    {
-      type: "item",
-      key: "kelas",
-      icon: Users,
-      label: "Kelas",
-      path: "/admin/kelas",
-    },
-
-    {
-      type: "item",
-      key: "jurusan",
-      icon: Layers,
-      label: "Jurusan",
-      path: "/admin/jurusan",
-    },
-
-    {
-      type: "item",
-      key: "tahunAjaran",
-      icon: CalendarDays,
-      label: "Tahun Ajaran",
-      path: "/admin/tahun-ajaran",
-      children: [
-        {
-          key: "tambahTahunAjaran",
-          icon: FileText,
-          label: "Tambah Tahun Ajaran",
-          path: "/admin/tahun-ajaran/tambah",
-        },
-        {
-          key: "editTahunAjaran",
-          icon: FileText,
-          label: "Edit Tahun Ajaran",
-          path: "/admin/tahun-ajaran/edit",
-        },
-      ],
-    },
-
-    // ==========================================================
-    // AKADEMIK
-    // ==========================================================
-    {
-      type: "header",
-      label: "Akademik",
-    },
-
-    {
-      type: "item",
-      key: "mataPelajaran",
-      icon: BookOpen,
-      label: "Mata Pelajaran",
-      path: "/admin/mata-pelajaran",
-      children: [
-        {
-          key: "jadwalMapelSiswa",
-          icon: CalendarClock,
-          label: "Jadwal Mapel Siswa",
-          path: "/admin/siswa/jadwal-mapel",
-        },
-        {
-          key: "tambahMataPelajaran",
-          icon: BookMarked,
-          label: "Tambah Mata Pelajaran",
-          path: "/admin/m/tambah",
-        },
-        {
-          key: "editMataPelajaran",
-          icon: BookOpen,
-          label: "Edit Mata Pelajaran",
-          path: "/admin/mata-pelajaran/edit",
-        },
-      ],
-    },
-
-    {
-      type: "item",
-      key: "jadwalPelajaran",
-      icon: CalendarClock,
-      label: "Jadwal Pelajaran",
-      path: "/admin/guru/jadwal-mengajar",
-      children: [
-        {
-          key: "jadwalSiswa",
-          icon: CalendarDays,
-          label: "Jadwal Siswa",
-          path: "/admin/siswa/jadwal-mapel",
-        },
-        {
-          key: "jadwalMengajar",
-          icon: CalendarClock,
-          label: "Jadwal Mengajar",
-          path: "/admin/guru/jadwal-mengajar",
-        },
-        {
-          key: "tambahJadwalMengajar",
-          icon: CalendarClock,
-          label: "Tambah Jadwal",
-          path: "/admin/guru/jadwal-mengajar/tambah",
-        },
-      ],
-    },
-
-    {
-      type: "item",
-      key: "akademik",
-      icon: GraduationCap,
-      label: "Akademik",
-      path: "/admin/akademik",
-      children: [
-        {
-          key: "prestasi",
-          icon: Trophy,
-          label: "Prestasi",
-          path: "/admin/akademik/prestasi",
-        },
-        {
-          key: "rapor",
-          icon: FileBarChart,
-          label: "Rapor",
-          path: "/admin/akademik/rapor",
-        },
-        {
-          key: "nilai",
-          icon: ListChecks,
-          label: "Nilai",
-          path: "/admin/akademik/nilai",
-        },
-      ],
-    },
-
-    // ==========================================================
-    // E-RAPORT
-    // ==========================================================
-    {
-      type: "header",
-      label: "e-Raport",
-    },
-
-    {
-      type: "item",
-      key: "eraport",
-      icon: FileBarChart,
-      label: "e-Raport",
-      path: "/admin/eraport/entry-nilai",
-      children: [
-        {
-          key: "entryNilai",
-          icon: ListChecks,
-          label: "Entry Nilai",
-          path: "/admin/eraport/entry-nilai",
-        },
-        {
-          key: "cetakRaport",
-          icon: FileText,
-          label: "Cetak Raport",
-          path: "/admin/eraport/cetak-raport",
-        },
-        {
-          key: "pengaturanAgregat",
-          icon: Settings,
-          label: "Pengaturan Agregat",
-          path: "/admin/eraport/pengaturan-agregat",
-        },
-      ],
-    },
-
-    // ==========================================================
-    // PRESENSI
-    // ==========================================================
-    {
-      type: "header",
-      label: "Presensi",
-    },
-
     {
       type: "item",
       key: "presensi",
-      icon: ClipboardCheck,
-      label: "Presensi",
-      path: "/admin/siswa/absen",
+      icon: CalendarCheck,
+      label: "Presensi & Kehadiran",
+      path: "/admin/presensi",
+
       children: [
         {
-          key: "absenSiswa",
+          key: "rekapPresensiSiswa",
           icon: ClipboardCheck,
-          label: "Absensi Siswa",
+          label: "Rekap Presensi Siswa",
           path: "/admin/siswa/absen",
         },
         {
-          key: "izinSiswa",
+          key: "permohonanIzinSiswa",
           icon: FileText,
-          label: "Izin Siswa",
+          label: "Permohonan Izin Siswa",
           path: "/admin/presensi/izin-siswa",
         },
         {
-          key: "rekapGuru",
-          icon: FileBarChart,
-          label: "Rekap Guru",
+          key: "rekapPresensiGuru",
+          icon: CalendarCheck,
+          label: "Rekap Presensi Guru",
           path: "/admin/presensi/rekap-guru",
         },
         {
-          key: "izinGuru",
-          icon: FileText,
-          label: "Izin Guru",
+          key: "permohonanIzinGuru",
+          icon: FileSignature,
+          label: "Permohonan Izin Guru",
           path: "/admin/presensi/izin-guru",
         },
         {
@@ -314,67 +112,275 @@ export const adminSidebarConfig = {
     },
 
     // ==========================================================
-    // LMS & CBT
+    // KEUANGAN & KAS
     // ==========================================================
     {
-  type: "header",
-  label: "LMS & CBT",
-},
+      type: "item",
+      key: "keuangan",
+      icon: WalletCards,
+      label: "Keuangan & Kas",
+      path: "/admin/keuangan",
 
-{
-  type: "item",
-  key: "modulLmsClass",
-  icon: MonitorPlay,
-  label: "Modul LMS & Class",
-  path: "/admin/lms-cbt/modul-class",
-},
-
-{
-  type: "item",
-  key: "materiModulAjar",
-  icon: BookOpenCheck,
-  label: "Materi dan Modul Ajar",
-  path: "/admin/lms-cbt/materi-modul-ajar",
-},
-
-{
-  type: "item",
-  key: "tugasSiswa",
-  icon: ClipboardList,
-  label: "Tugas Siswa",
-  path: "/admin/lms-cbt/tugas-siswa",
-},
-
-{
-  type: "item",
-  key: "ujianCbtOnline",
-  icon: FileCheck2,
-  label: "Ujian CBT Online",
-  path: "/admin/lms-cbt/ujian",
-},
-
-{
-  type: "item",
-  key: "kapasitasServerCbt",
-  icon: Server,
-  label: "Kapasitas & Server CBT",
-  path: "/admin/lms-cbt/server",
-},
+      children: [
+        {
+          key: "laporanKeuangan",
+          icon: FileSpreadsheet,
+          label: "Laporan Keuangan",
+          path: "/admin/keuangan/laporan",
+        },
+        {
+          key: "tabunganSiswa",
+          icon: PiggyBank,
+          label: "Tabungan Siswa",
+          path: "/admin/keuangan/tabunganSiswa",
+        },
+        {
+          key: "spp",
+          icon: DollarSign,
+          label: "SPP",
+          path: "/admin/keuangan/SPP",
+        },
+        {
+          key: "jurnalKasSekolah",
+          icon: NotebookPen,
+          label: "Jurnal & Kas Sekolah",
+          path: "/admin/keuangan/jurnalKas",
+        },
+        {
+          key: "settingTarifTagihan",
+          icon: Settings2,
+          label: "Setting Tarif Tagihan",
+          path: "/admin/keuangan/setting-tarif",
+        },
+        {
+          key: "trackingTunggakan",
+          icon: AlertCircle,
+          label: "Tracking Tunggakan",
+          path: "/admin/keuangan/tunggakan",
+        },
+      ],
+    },
 
     // ==========================================================
-    // PERPUSTAKAAN
+    // MASTER DATA
     // ==========================================================
     {
       type: "header",
-      label: "Perpustakaan",
+      label: "MASTER DATA",
     },
 
+    // ----------------------------------------------------------
+    // PENGGUNA
+    // ----------------------------------------------------------
+    {
+      type: "item",
+      key: "pengguna",
+      icon: Users,
+      label: "Pengguna",
+      path: "/admin/pengguna",
+
+      children: [
+        {
+          key: "dataGuruStaff",
+          icon: UserCheck,
+          label: "Data Guru & Staff",
+          path: "/admin/guru",
+        },
+        {
+          key: "dataSiswa",
+          icon: GraduationCap,
+          label: "Data Siswa",
+          path: "/admin/siswa",
+        },
+        {
+          key: "faceId",
+          icon: ScanFace,
+          label: "Face ID",
+          path: "/admin/pengguna/face-id",
+        },
+        {
+          key: "kelolaUserPermission",
+          icon: UserRoundCog,
+          label: "Kelola User & Izin",
+          path: "/admin/kelola-user",
+        },
+      ],
+    },
+
+    // ----------------------------------------------------------
+    // AKADEMIK
+    // ----------------------------------------------------------
+    {
+      type: "item",
+      key: "akademik",
+      icon: GraduationCap,
+      label: "Akademik",
+      path: "/admin/akademik",
+
+      children: [
+        {
+          key: "tahunAjaran",
+          icon: CalendarDays,
+          label: "Tahun Ajaran",
+          path: "/admin/tahun-ajaran",
+        },
+        {
+          key: "kelas",
+          icon: School,
+          label: "Kelas",
+          path: "/admin/kelas",
+        },
+        {
+          key: "jurusan",
+          icon: Split,
+          label: "Jurusan",
+          path: "/admin/jurusan",
+        },
+        {
+          key: "mataPelajaran",
+          icon: BookOpen,
+          label: "Mata Pelajaran",
+          path: "/admin/guru/mapel",
+        },
+        {
+          key: "jadwalPelajaran",
+          icon: CalendarClock,
+          label: "Jadwal Pelajaran",
+          path: "/admin/guru/jadwal-mengajar",
+        },
+      ],
+    },
+
+    // ----------------------------------------------------------
+    // LMS & CBT
+    // ----------------------------------------------------------
+    {
+      type: "item",
+      key: "lmsCbt",
+      icon: MonitorPlay,
+      label: "LMS & CBT",
+      path: "/admin/lms-cbt",
+
+      children: [
+        {
+          key: "modulLmsClass",
+          icon: MonitorPlay,
+          label: "Modul LMS & Class",
+          path: "/admin/lms-cbt/modul-class",
+        },
+        {
+          key: "materiModulAjar",
+          icon: BookOpenCheck,
+          label: "Materi dan Modul Ajar",
+          path: "/admin/lms-cbt/materi-modul-ajar",
+        },
+        {
+          key: "tugasSiswa",
+          icon: ClipboardList,
+          label: "Tugas Siswa",
+          path: "/admin/lms-cbt/tugas-siswa",
+        },
+        {
+          key: "ujianCbtOnline",
+          icon: FileCheck2,
+          label: "Ujian CBT Online",
+          path: "/admin/lms-cbt/ujian",
+        },
+        {
+          key: "kapasitasServerCbt",
+          icon: Server,
+          label: "Kapasitas & Server CBT",
+          path: "/admin/lms-cbt/server",
+        },
+      ],
+    },
+
+    // ----------------------------------------------------------
+    // E-RAPORT
+    // ----------------------------------------------------------
+    {
+      type: "item",
+      key: "eraport",
+      icon: FileSpreadsheet,
+      label: "E-Raport",
+      path: "/admin/eraport",
+
+      children: [
+        {
+          key: "entryNilai",
+          icon: PenLine,
+          label: "Entry Nilai",
+          path: "/admin/eraport/entry-nilai",
+        },
+        {
+          key: "cetakRaport",
+          icon: Printer,
+          label: "Cetak Raport",
+          path: "/admin/eraport/cetak-raport",
+        },
+        {
+          key: "pengaturanAgregat",
+          icon: Settings2,
+          label: "Pengaturan Agregat Nilai A-B-C-D",
+          path: "/admin/eraport/pengaturan-agregat",
+        },
+      ],
+    },
+
+    // ----------------------------------------------------------
+    // BIMBINGAN KONSELING
+    // ----------------------------------------------------------
+    {
+      type: "item",
+      key: "bk",
+      icon: HeartHandshake,
+      label: "Bimbingan Konseling",
+      path: "/admin/bk",
+
+      children: [
+        {
+          key: "sesiKonselingSiswa",
+          icon: HeartHandshake,
+          label: "Sesi Konseling Siswa",
+          path: "/admin/bk/sesi-konseling",
+        },
+        {
+          key: "prestasiSiswa",
+          icon: Award,
+          label: "Prestasi Siswa",
+          path: "/admin/bk/prestasi",
+        },
+        {
+          key: "pelanggaranSiswa",
+          icon: AlertTriangle,
+          label: "Pelanggaran Siswa",
+          path: "/admin/bk/pelanggaran",
+        },
+        {
+          key: "kategoriPointPelanggaran",
+          icon: Tags,
+          label: "Kategori & Point Pelanggaran",
+          path: "/admin/bk/kategori-point",
+        },
+        {
+          key: "asesmenMinatBakat",
+          icon: Brain,
+          label: "Asesmen & Minat Bakat Siswa",
+          path: "/admin/bk/asesmen-minat-bakat",
+        },
+      ],
+    },
+
+    // ----------------------------------------------------------
+    // PERPUSTAKAAN DIGITAL
+    // ----------------------------------------------------------
     {
       type: "item",
       key: "perpustakaan",
       icon: Library,
       label: "Perpustakaan Digital",
       path: "/admin/perpustakaan",
+
       children: [
         {
           key: "bukuDigital",
@@ -389,9 +395,9 @@ export const adminSidebarConfig = {
           path: "/admin/perpustakaan/data-buku",
         },
         {
-          key: "pinjam",
+          key: "peminjaman",
           icon: BookUp,
-          label: "Pinjam",
+          label: "Peminjaman",
           path: "/admin/perpustakaan/pinjam",
         },
         {
@@ -403,24 +409,20 @@ export const adminSidebarConfig = {
       ],
     },
 
-    // ==========================================================
-    // SARANA & PRASARANA
-    // ==========================================================
-    {
-      type: "header",
-      label: "Sarana & Prasarana",
-    },
-
+    // ----------------------------------------------------------
+    // SARPRAS
+    // ----------------------------------------------------------
     {
       type: "item",
       key: "sarpras",
-      icon: Building2,
-      label: "Sarana & Prasarana",
+      icon: Boxes,
+      label: "Sarpras",
       path: "/admin/sarpras",
+
       children: [
         {
           key: "gedung",
-          icon: Building2,
+          icon: School,
           label: "Gedung",
           path: "/admin/sarpras/gedung",
         },
@@ -430,215 +432,41 @@ export const adminSidebarConfig = {
           label: "Lantai",
           path: "/admin/sarpras/gedung/lantai",
         },
-      ],
-    },
-
-    // ==========================================================
-    // CMS
-    // ==========================================================
-    {
-      type: "header",
-      label: "CMS",
-    },
-
-    {
-      type: "item",
-      key: "cms",
-      icon: FileText,
-      label: "CMS",
-      path: "/cmsAdmin",
-      children: [
         {
-          key: "articles",
-          icon: FileText,
-          label: "Articles",
-          path: "/cmsAdmin/articles",
+          key: "gudang",
+          icon: Boxes,
+          label: "Gudang",
+          path: "/admin/sarpras/gudang/master",
         },
         {
-          key: "categories",
-          icon: Layers,
-          label: "Categories",
-          path: "/cmsAdmin/categories",
-        },
-        {
-          key: "pages",
-          icon: FileText,
-          label: "Pages",
-          path: "/cmsAdmin/pages",
-        },
-        {
-          key: "media",
-          icon: Library,
-          label: "Media",
-          path: "/cmsAdmin/media",
-        },
-        {
-          key: "banner",
-          icon: FileText,
-          label: "Banner",
-          path: "/cmsAdmin/banner",
-        },
-        {
-          key: "menu",
-          icon: ListChecks,
-          label: "Menu",
-          path: "/cmsAdmin/menu",
-        },
-        {
-          key: "pengumuman",
-          icon: MessageSquare,
-          label: "Pengumuman",
-          path: "/cmsAdmin/pengumuman",
-        },
-        {
-          key: "galeri",
-          icon: Library,
-          label: "Galeri",
-          path: "/cmsAdmin/galeri",
-        },
-        {
-          key: "settings",
-          icon: Settings,
-          label: "Settings",
-          path: "/cmsAdmin/settings",
+          key: "daftarAset",
+          icon: Package,
+          label: "Daftar Aset",
+          path: "/admin/sarpras/gudang",
         },
       ],
     },
 
     // ==========================================================
-    // SISTEM
+    // PENERIMAAN SPMB
     // ==========================================================
-    {
-      type: "header",
-      label: "Sistem",
-    },
-
-    {
-      type: "item",
-      key: "kelolaUser",
-      icon: UserRoundCog,
-      label: "Kelola User",
-      path: "/admin/kelola-user",
-    },
-
-    {
-      type: "item",
-      key: "auditLog",
-      icon: History,
-      label: "Audit Log",
-      path: "/admin/audit-log",
-    },
-
-    {
-      type: "item",
-      key: "database",
-      icon: Database,
-      label: "Database",
-      path: "/admin/database",
-    },
-
-    // ==========================================================
-    // LANGGANAN
-    // ==========================================================
-    {
-      type: "header",
-      label: "Langganan",
-    },
-
-    {
-      type: "item",
-      key: "langganan",
-      icon: CreditCard,
-      label: "Langganan",
-      path: "/admin/langganan/paket",
-      children: [
-        {
-          key: "paket",
-          icon: CreditCard,
-          label: "Paket",
-          path: "/admin/langganan/paket",
-        },
-        {
-          key: "riwayatPembayaran",
-          icon: History,
-          label: "Riwayat Pembayaran",
-          path: "/admin/langganan/riwayat-pembayaran",
-        },
-        {
-          key: "invoice",
-          icon: Receipt,
-          label: "Invoice",
-          path: "/admin/langganan/invoice",
-        },
-      ],
-    },
-
-    // ==========================================================
-    // BIMBINGAN KONSELING
-    // ==========================================================
-    {
-      type: "header",
-      label: "Bimbingan Konseling",
-    },
-
-    {
-      type: "item",
-      key: "bk",
-      icon: MessageSquare,
-      label: "Bimbingan Konseling",
-      path: "/admin/bk/sesi-konseling",
-      children: [
-        {
-          key: "sesiKonseling",
-          icon: MessageSquare,
-          label: "Sesi Konseling",
-          path: "/admin/bk/sesi-konseling",
-        },
-        {
-          key: "pelanggaran",
-          icon: AlertTriangle,
-          label: "Pelanggaran",
-          path: "/admin/bk/pelanggaran",
-        },
-        {
-          key: "kategoriPoint",
-          icon: ListChecks,
-          label: "Kategori Point",
-          path: "/admin/bk/kategori-point",
-        },
-        {
-          key: "asesmentMinatBakat",
-          icon: Target,
-          label: "Asesment Minat & Bakat",
-          path: "/admin/bk/asesment-minat-bakat",
-        },
-      ],
-    },
-
-    // ==========================================================
-    // SPMB
-    // ==========================================================
-    {
-      type: "header",
-      label: "SPMB",
-    },
-
     {
       type: "item",
       key: "spmb",
       icon: UserPlus,
-      label: "SPMB",
-      path: "/admin/spmb/data-pendaftaran",
+      label: "Penerimaan (SPMB)",
+      path: "/admin/spmb",
+
       children: [
         {
           key: "dataPendaftaran",
-          icon: Users,
+          icon: FileInput,
           label: "Data Pendaftaran",
           path: "/admin/spmb/data-pendaftaran",
         },
         {
           key: "gelombang",
-          icon: CalendarDays,
+          icon: Layers,
           label: "Gelombang",
           path: "/admin/spmb/gelombang",
         },
@@ -652,55 +480,65 @@ export const adminSidebarConfig = {
     },
 
     // ==========================================================
-    // KEUANGAN
+    // CMS
     // ==========================================================
     {
-      type: "header",
-      label: "Keuangan",
-    },
-
-    {
       type: "item",
-      key: "keuangan",
-      icon: Wallet,
-      label: "Keuangan",
-      path: "/admin/keuangan/laporan",
+      key: "cms",
+      icon: Globe2,
+      label: "CMS",
+      path: "/cmsAdmin",
+
       children: [
         {
-          key: "laporanKeuangan",
-          icon: FileBarChart,
-          label: "Laporan",
-          path: "/admin/keuangan/laporan",
+          key: "cmsPages",
+          icon: FileText,
+          label: "Halaman Website",
+          path: "/cmsAdmin/pages",
         },
         {
-          key: "tabunganSiswa",
-          icon: Wallet,
-          label: "Tabungan Siswa",
-          path: "/admin/keuangan/tabunganSiswa",
+          key: "cmsMedia",
+          icon: FileInput,
+          label: "Media, Files, Banner & Slider",
+          path: "/cmsAdmin/media",
         },
         {
-          key: "spp",
+          key: "cmsSettings",
+          icon: Settings2,
+          label: "Sistem & Pengaturan",
+          path: "/cmsAdmin/settings",
+        },
+      ],
+    },
+
+    // ==========================================================
+    // LANGGANAN
+    // ==========================================================
+    {
+      type: "item",
+      key: "langganan",
+      icon: CreditCard,
+      label: "Langganan",
+      path: "/admin/langganan",
+
+      children: [
+        {
+          key: "paketLangganan",
           icon: CreditCard,
-          label: "SPP",
-          path: "/admin/keuangan/SPP",
+          label: "Paket Langganan",
+          path: "/admin/langganan/paket",
         },
         {
-          key: "jurnalKas",
-          icon: ScrollText,
-          label: "Jurnal Kas",
-          path: "/admin/keuangan/jurnalKas",
+          key: "riwayatPembayaran",
+          icon: History,
+          label: "Riwayat Pembayaran",
+          path: "/admin/langganan/riwayat-pembayaran",
         },
         {
-          key: "settingTarif",
-          icon: Settings,
-          label: "Setting Tarif",
-          path: "/admin/keuangan/setting-tarif",
-        },
-        {
-          key: "tunggakan",
-          icon: AlertTriangle,
-          label: "Tunggakan",
-          path: "/admin/keuangan/tunggakan",
+          key: "invoice",
+          icon: Receipt,
+          label: "Tagihan / Invoice",
+          path: "/admin/langganan/invoice",
         },
       ],
     },

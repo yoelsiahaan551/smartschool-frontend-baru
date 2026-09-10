@@ -1,32 +1,58 @@
 ﻿const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
-export interface Guru {
+/* =========================================================
+   TYPES
+========================================================= */
+
+export interface User {
   id: string;
-  email: string;
-  namaPengguna: string;
-  namaLengkap: string;
+
+  email?: string | null;
+  namaPengguna?: string | null;
+  username?: string | null;
+  namaLengkap?: string | null;
+  nama?: string | null;
+
   avatar?: string | null;
-  nipd?: string | null;
+  fotoProfil?: string | null;
+
   nip?: string | null;
+  nipd?: string | null;
   nisn?: string | null;
+
   jenisKelamin?: string | null;
-  status: string;
-  dibuatPada?: string;
+
+  status?: string | null;
+
   jabatan?: string | null;
   golongan?: string | null;
 
+  sekolahId?: string | null;
+  yayasanId?: string | null;
+  peranId?: string | null;
+
   sekolah?: {
     id: string;
-    nama: string;
-    kode?: string;
+    nama?: string | null;
+    kode?: string | null;
+  } | null;
+
+  yayasan?: {
+    id: string;
+    nama?: string | null;
   } | null;
 
   peran?: {
     id: string;
-    nama: string;
-    namaTampilan?: string;
+    nama?: string | null;
+    namaTampilan?: string | null;
   } | null;
+
+  dibuatPada?: string | null;
+  diperbaruiPada?: string | null;
+
+  [key: string]: any;
 }
 
 export interface GetUsersParams {
@@ -39,24 +65,85 @@ export interface GetUsersParams {
   sortOrder?: "asc" | "desc";
 }
 
+export interface Pagination {
+  page: number;
+  limit: number;
+  totalData: number;
+  totalPages: number;
+}
+
 export interface GetUsersResponse {
   success: boolean;
-  message: string;
-  data: Guru[];
-  pagination?: {
-    page: number;
-    limit: number;
-    totalData: number;
-    totalPages: number;
-  };
+  message?: string;
+  data: User[];
+  pagination?: Pagination;
 }
+
+export interface GetUserResponse {
+  success: boolean;
+  message?: string;
+  data: User;
+}
+
+export interface CreateUserPayload {
+  email: string;
+  namaPengguna?: string;
+  namaLengkap: string;
+  kataSandi: string;
+
+  peranId?: string | null;
+  sekolahId?: string | null;
+  yayasanId?: string | null;
+
+  jenisKelamin?: string | null;
+  nip?: string | null;
+  nipd?: string | null;
+  nisn?: string | null;
+
+  jabatan?: string | null;
+  golongan?: string | null;
+
+  status?: string;
+}
+
+export interface UpdateUserPayload {
+  email?: string;
+  namaPengguna?: string;
+  namaLengkap?: string;
+
+  kataSandi?: string;
+
+  peranId?: string | null;
+  sekolahId?: string | null;
+  yayasanId?: string | null;
+
+  jenisKelamin?: string | null;
+  nip?: string | null;
+  nipd?: string | null;
+  nisn?: string | null;
+
+  jabatan?: string | null;
+  golongan?: string | null;
+
+  status?: string;
+}
+
+export interface UserMutationResponse {
+  success: boolean;
+  message: string;
+  data?: User;
+}
+
+/* =========================================================
+   TOKEN
+========================================================= */
 
 function getToken(): string | null {
   if (typeof window === "undefined") {
     return null;
   }
 
-  const keys = [
+  const tokenKeys = [
     "token",
     "accessToken",
     "access_token",
@@ -64,16 +151,22 @@ function getToken(): string | null {
     "jwt",
   ];
 
-  for (const key of keys) {
+  for (const key of tokenKeys) {
     const value = localStorage.getItem(key);
 
     if (value && value.trim()) {
-      return value.trim().replace(/^Bearer\s+/i, "");
+      return value
+        .trim()
+        .replace(/^Bearer\s+/i, "");
     }
   }
 
   return null;
 }
+
+/* =========================================================
+   REQUEST
+========================================================= */
 
 async function request<T>(
   endpoint: string,
@@ -90,12 +183,23 @@ async function request<T>(
   const headers = new Headers(options.headers);
 
   if (!headers.has("Content-Type")) {
-    headers.set("Content-Type", "application/json");
+    headers.set(
+      "Content-Type",
+      "application/json"
+    );
   }
 
-  headers.set("Authorization", `Bearer ${token}`);
+  headers.set(
+    "Accept",
+    "application/json"
+  );
 
-  const url = `${API_URL}${endpoint}`;
+  headers.set(
+    "Authorization",
+    `Bearer ${token}`
+  );
+
+  const url = `${API_URL}/api${endpoint}`;
 
   let response: Response;
 
@@ -106,15 +210,15 @@ async function request<T>(
       cache: "no-store",
     });
   } catch (error) {
-    console.error("Network error:", error);
+    console.error(
+      "User service network error:",
+      error
+    );
 
     throw new Error(
-      "Tidak dapat terhubung ke server. Pastikan backend berjalan."
+      "Tidak dapat terhubung ke server. Pastikan backend berjalan di http://localhost:5000."
     );
   }
-
-  const contentType =
-    response.headers.get("content-type") || "";
 
   const rawText = await response.text();
 
@@ -124,18 +228,24 @@ async function request<T>(
     try {
       result = JSON.parse(rawText);
     } catch {
-      console.error("Response bukan JSON:", {
-        url,
-        status: response.status,
-        contentType,
-        body: rawText,
-      });
+      console.error(
+        "Response user bukan JSON:",
+        {
+          url,
+          status: response.status,
+          body: rawText,
+        }
+      );
 
       throw new Error(
         `Server mengembalikan response tidak valid (${response.status}).`
       );
     }
   }
+
+  /* =====================================================
+     401 - UNAUTHORIZED
+  ===================================================== */
 
   if (response.status === 401) {
     throw new Error(
@@ -144,12 +254,42 @@ async function request<T>(
     );
   }
 
+  /* =====================================================
+     403 - FORBIDDEN
+  ===================================================== */
+
   if (response.status === 403) {
     throw new Error(
       result?.message ||
-        "Anda tidak memiliki akses ke data pengguna."
+        "Akses ditolak. Anda tidak memiliki izin untuk mengelola pengguna."
     );
   }
+
+  /* =====================================================
+     404 - NOT FOUND
+  ===================================================== */
+
+  if (response.status === 404) {
+    throw new Error(
+      result?.message ||
+        "Endpoint pengguna tidak ditemukan."
+    );
+  }
+
+  /* =====================================================
+     409 - CONFLICT
+  ===================================================== */
+
+  if (response.status === 409) {
+    throw new Error(
+      result?.message ||
+        "Data pengguna sudah digunakan."
+    );
+  }
+
+  /* =====================================================
+     OTHER ERROR
+  ===================================================== */
 
   if (!response.ok) {
     throw new Error(
@@ -161,10 +301,16 @@ async function request<T>(
   return result as T;
 }
 
+/* =========================================================
+   GET USERS
+   GET /api/users
+========================================================= */
+
 export async function getUsers(
   params: GetUsersParams = {}
 ): Promise<GetUsersResponse> {
-  const searchParams = new URLSearchParams();
+  const searchParams =
+    new URLSearchParams();
 
   searchParams.set(
     "page",
@@ -214,25 +360,142 @@ export async function getUsers(
     );
   }
 
+  const query =
+    searchParams.toString();
+
   return request<GetUsersResponse>(
-    `/users?${searchParams.toString()}`
+    `/users${query ? `?${query}` : ""}`
   );
 }
 
-export async function deleteUser(
+/* =========================================================
+   GET USER BY ID
+   GET /api/users/:id
+========================================================= */
+
+export async function getUserById(
   id: string
-) {
+): Promise<GetUserResponse> {
   if (!id) {
     throw new Error(
       "ID pengguna tidak ditemukan."
     );
   }
 
-  return request<{
-    success: boolean;
-    message: string;
-    data?: Guru;
-  }>(`/users/${id}`, {
-    method: "DELETE",
-  });
+  return request<GetUserResponse>(
+    `/users/${id}`
+  );
+}
+
+/* =========================================================
+   CREATE USER
+   POST /api/users
+========================================================= */
+
+export async function createUser(
+  payload: CreateUserPayload
+): Promise<UserMutationResponse> {
+  if (!payload.email?.trim()) {
+    throw new Error(
+      "Email pengguna wajib diisi."
+    );
+  }
+
+  if (!payload.namaLengkap?.trim()) {
+    throw new Error(
+      "Nama lengkap pengguna wajib diisi."
+    );
+  }
+
+  if (!payload.kataSandi?.trim()) {
+    throw new Error(
+      "Kata sandi pengguna wajib diisi."
+    );
+  }
+
+  return request<UserMutationResponse>(
+    "/users",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }
+  );
+}
+
+/* =========================================================
+   UPDATE USER
+   PUT /api/users/:id
+========================================================= */
+
+export async function updateUser(
+  id: string,
+  payload: UpdateUserPayload
+): Promise<UserMutationResponse> {
+  if (!id) {
+    throw new Error(
+      "ID pengguna tidak ditemukan."
+    );
+  }
+
+  return request<UserMutationResponse>(
+    `/users/${id}`,
+    {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }
+  );
+}
+
+/* =========================================================
+   DELETE USER
+   DELETE /api/users/:id
+========================================================= */
+
+export async function deleteUser(
+  id: string
+): Promise<UserMutationResponse> {
+  if (!id) {
+    throw new Error(
+      "ID pengguna tidak ditemukan."
+    );
+  }
+
+  return request<UserMutationResponse>(
+    `/users/${id}`,
+    {
+      method: "DELETE",
+    }
+  );
+}
+
+/* =========================================================
+   UPDATE USER STATUS
+   PUT /api/users/:id
+========================================================= */
+
+export async function updateUserStatus(
+  id: string,
+  status: string
+): Promise<UserMutationResponse> {
+  if (!id) {
+    throw new Error(
+      "ID pengguna tidak ditemukan."
+    );
+  }
+
+  if (!status?.trim()) {
+    throw new Error(
+      "Status pengguna wajib diisi."
+    );
+  }
+
+  return request<UserMutationResponse>(
+    `/users/${id}`,
+    {
+      method: "PUT",
+      body: JSON.stringify({
+        status,
+      }),
+    }
+  );
 }

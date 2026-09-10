@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "../../components/Sidebar";
 import Header from "../../components/Header";
@@ -13,7 +13,23 @@ import {
   AlertCircle,
   CheckCircle,
   FileText,
+  BookOpen,
+  FileCheck,
+  PenTool,
+  ClipboardList,
+  Layers,
+  RefreshCw,
+  GraduationCap,
+  Timer,
+  CircleCheck,
+  CircleDot,
+  ArrowUpRight,
 } from "lucide-react";
+
+import {
+  getKelas,
+  getKelasById,
+} from "../../../services/kelas.service";
 
 import { getKelasMapel } from "../../../services/kelasMapel.service";
 import { getUjianByKelasMapel } from "../../../services/ujian.service";
@@ -27,48 +43,66 @@ const colorMap = {
     bg: "bg-blue-50",
     border: "border-blue-200",
     text: "text-blue-600",
-    grad: "from-blue-500 to-blue-600",
-    hover: "hover:border-blue-300",
+    grad: "from-blue-500 to-blue-700",
+    soft: "bg-blue-50",
+    badge: "border-blue-200 bg-blue-50 text-blue-700",
+    icon: "bg-blue-100 text-blue-600",
+    line: "bg-blue-500",
   },
 
   rose: {
     bg: "bg-rose-50",
     border: "border-rose-200",
     text: "text-rose-600",
-    grad: "from-rose-500 to-rose-600",
-    hover: "hover:border-rose-300",
+    grad: "from-rose-500 to-rose-700",
+    soft: "bg-rose-50",
+    badge: "border-rose-200 bg-rose-50 text-rose-700",
+    icon: "bg-rose-100 text-rose-600",
+    line: "bg-rose-500",
   },
 
   emerald: {
     bg: "bg-emerald-50",
     border: "border-emerald-200",
     text: "text-emerald-600",
-    grad: "from-emerald-500 to-emerald-600",
-    hover: "hover:border-emerald-300",
+    grad: "from-emerald-500 to-emerald-700",
+    soft: "bg-emerald-50",
+    badge: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    icon: "bg-emerald-100 text-emerald-600",
+    line: "bg-emerald-500",
   },
 
   amber: {
     bg: "bg-amber-50",
     border: "border-amber-200",
     text: "text-amber-600",
-    grad: "from-amber-500 to-amber-600",
-    hover: "hover:border-amber-300",
+    grad: "from-amber-500 to-amber-700",
+    soft: "bg-amber-50",
+    badge: "border-amber-200 bg-amber-50 text-amber-700",
+    icon: "bg-amber-100 text-amber-600",
+    line: "bg-amber-500",
   },
 
   indigo: {
     bg: "bg-indigo-50",
     border: "border-indigo-200",
     text: "text-indigo-600",
-    grad: "from-indigo-500 to-indigo-600",
-    hover: "hover:border-indigo-300",
+    grad: "from-indigo-500 to-indigo-700",
+    soft: "bg-indigo-50",
+    badge: "border-indigo-200 bg-indigo-50 text-indigo-700",
+    icon: "bg-indigo-100 text-indigo-600",
+    line: "bg-indigo-500",
   },
 
   orange: {
     bg: "bg-orange-50",
     border: "border-orange-200",
     text: "text-orange-600",
-    grad: "from-orange-500 to-orange-600",
-    hover: "hover:border-orange-300",
+    grad: "from-orange-500 to-orange-700",
+    soft: "bg-orange-50",
+    badge: "border-orange-200 bg-orange-50 text-orange-700",
+    icon: "bg-orange-100 text-orange-600",
+    line: "bg-orange-500",
   },
 };
 
@@ -90,14 +124,14 @@ function getColorByJenis(jenis) {
 
 function getIconByJenis(jenis) {
   const map = {
-    UTS: "📐",
-    UAS: "📝",
-    Kuis: "📚",
-    Harian: "✏️",
-    Lainnya: "📖",
+    UTS: BookOpen,
+    UAS: FileCheck,
+    Kuis: PenTool,
+    Harian: ClipboardList,
+    Lainnya: Layers,
   };
 
-  return map[jenis] || "📖";
+  return map[jenis] || Layers;
 }
 
 function getStatusUjian(ujian) {
@@ -111,7 +145,6 @@ function getStatusUjian(ujian) {
     ? new Date(ujian.waktuSelesai)
     : null;
 
-  // Belum dimulai
   if (
     waktuMulai &&
     !Number.isNaN(waktuMulai.getTime()) &&
@@ -120,7 +153,6 @@ function getStatusUjian(ujian) {
     return "belum";
   }
 
-  // Sudah selesai berdasarkan waktu
   if (
     waktuSelesai &&
     !Number.isNaN(waktuSelesai.getTime()) &&
@@ -129,7 +161,6 @@ function getStatusUjian(ujian) {
     return "selesai";
   }
 
-  // Tidak ada waktu / sedang berlangsung
   return "sedang";
 }
 
@@ -150,8 +181,287 @@ function normalizeArrayResponse(response) {
     return response.data.data;
   }
 
+  if (Array.isArray(response?.data?.list)) {
+    return response.data.list;
+  }
+
+  if (Array.isArray(response?.list)) {
+    return response.list;
+  }
+
+  if (Array.isArray(response?.items)) {
+    return response.items;
+  }
+
   return [];
 }
+
+function normalizeObjectResponse(response) {
+  if (!response) {
+    return null;
+  }
+
+  if (
+    typeof response === "object" &&
+    !Array.isArray(response) &&
+    response.id
+  ) {
+    return response;
+  }
+
+  if (
+    response?.data &&
+    typeof response.data === "object" &&
+    !Array.isArray(response.data) &&
+    response.data.id
+  ) {
+    return response.data;
+  }
+
+  if (
+    response?.data?.data &&
+    typeof response.data.data === "object" &&
+    !Array.isArray(response.data.data) &&
+    response.data.data.id
+  ) {
+    return response.data.data;
+  }
+
+  return null;
+}
+
+// =========================================================
+// GET USER ID
+// =========================================================
+
+function getLoggedInUserId() {
+  try {
+    const rawUser = localStorage.getItem("user");
+
+    if (!rawUser) {
+      return null;
+    }
+
+    const user = JSON.parse(rawUser);
+
+    const userId =
+      user?.userId ||
+      user?.id ||
+      user?.penggunaId ||
+      user?.siswaId ||
+      user?.siswa?.id ||
+      user?.data?.userId ||
+      user?.data?.id ||
+      user?.data?.penggunaId ||
+      user?.data?.siswaId ||
+      user?.data?.siswa?.id ||
+      null;
+
+    return userId ? String(userId) : null;
+  } catch (error) {
+    console.error("Gagal membaca data user:", error);
+    return null;
+  }
+}
+
+// =========================================================
+// GET KELAS ID
+// =========================================================
+
+function getExistingKelasId() {
+  try {
+    const rawUser = localStorage.getItem("user");
+
+    if (!rawUser) {
+      return null;
+    }
+
+    const user = JSON.parse(rawUser);
+
+    const kelasId =
+      user?.kelasId ||
+      user?.kelas_id ||
+      user?.kelas?.id ||
+      user?.siswa?.kelasId ||
+      user?.siswa?.kelas?.id ||
+      user?.data?.kelasId ||
+      user?.data?.kelas?.id ||
+      user?.data?.siswa?.kelasId ||
+      user?.data?.siswa?.kelas?.id ||
+      null;
+
+    return kelasId ? String(kelasId) : null;
+  } catch (error) {
+    console.error(
+      "Gagal membaca kelas dari localStorage:",
+      error
+    );
+
+    return null;
+  }
+}
+
+// =========================================================
+// CHECK STUDENT MEMBER
+// =========================================================
+
+function isStudentMemberOfClass(anggota, userId) {
+  if (!anggota || !userId) {
+    return false;
+  }
+
+  const anggotaUserId =
+    anggota?.siswa?.id ||
+    anggota?.siswaId ||
+    anggota?.penggunaId ||
+    anggota?.pengguna?.id ||
+    anggota?.userId ||
+    anggota?.user?.id ||
+    null;
+
+  if (!anggotaUserId) {
+    return false;
+  }
+
+  return String(anggotaUserId) === String(userId);
+}
+
+// =========================================================
+// FIND STUDENT CLASS
+// =========================================================
+
+async function findStudentClass() {
+  const userId = getLoggedInUserId();
+  const existingKelasId = getExistingKelasId();
+
+  if (!userId) {
+    throw new Error(
+      "Data siswa yang sedang login tidak ditemukan. Silakan login kembali."
+    );
+  }
+
+  // PRIORITAS 1
+  if (existingKelasId) {
+    try {
+      const response = await getKelasById(existingKelasId);
+      const kelasDetail = normalizeObjectResponse(response);
+
+      if (kelasDetail?.id) {
+        const anggota = Array.isArray(kelasDetail?.anggota)
+          ? kelasDetail.anggota
+          : [];
+
+        const isMember =
+          anggota.length === 0 ||
+          anggota.some((item) =>
+            isStudentMemberOfClass(item, userId)
+          );
+
+        if (isMember) {
+          return kelasDetail;
+        }
+      }
+    } catch (error) {
+      console.warn(
+        "Kelas dari localStorage tidak bisa digunakan:",
+        error
+      );
+    }
+  }
+
+  // PRIORITAS 2
+  const kelasResponse = await getKelas({
+    page: 1,
+    limit: 100,
+  });
+
+  const daftarKelas = normalizeArrayResponse(
+    kelasResponse
+  );
+
+  if (daftarKelas.length === 0) {
+    throw new Error(
+      "Belum ada data kelas yang tersedia untuk siswa."
+    );
+  }
+
+  const hasilPencarian = await Promise.allSettled(
+    daftarKelas.map(async (kelas) => {
+      if (!kelas?.id) {
+        return null;
+      }
+
+      try {
+        const response = await getKelasById(kelas.id);
+        const detail = normalizeObjectResponse(response);
+
+        if (!detail?.id) {
+          return null;
+        }
+
+        const anggota = Array.isArray(detail?.anggota)
+          ? detail.anggota
+          : [];
+
+        const ditemukan = anggota.some((item) =>
+          isStudentMemberOfClass(item, userId)
+        );
+
+        if (ditemukan) {
+          return detail;
+        }
+
+        return null;
+      } catch (error) {
+        console.warn(
+          `Gagal mengambil detail kelas ${kelas.id}:`,
+          error
+        );
+
+        return null;
+      }
+    })
+  );
+
+  for (const result of hasilPencarian) {
+    if (
+      result.status === "fulfilled" &&
+      result.value?.id
+    ) {
+      return result.value;
+    }
+  }
+
+  throw new Error(
+    "Kelas siswa tidak ditemukan. Pastikan siswa sudah dimasukkan ke kelas oleh Admin Sekolah."
+  );
+}
+
+// =========================================================
+// STATUS CONFIG
+// =========================================================
+
+const STATUS_CONFIG = {
+  semua: {
+    label: "Semua",
+    icon: Layers,
+  },
+
+  belum: {
+    label: "Belum Dimulai",
+    icon: Clock,
+  },
+
+  sedang: {
+    label: "Berlangsung",
+    icon: CircleDot,
+  },
+
+  selesai: {
+    label: "Selesai",
+    icon: CircleCheck,
+  },
+};
 
 // =========================================================
 // PAGE
@@ -167,56 +477,76 @@ export default function DaftarUjianPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // =========================================================
-  // LOAD UJIAN DARI BE
-  // =========================================================
+  // =======================================================
+  // LOAD UJIAN
+  // =======================================================
 
   const loadUjian = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
 
-      // -----------------------------------------------------
-      // 1. Ambil semua kelas-mapel
-      // -----------------------------------------------------
+      // 1. KELAS SISWA
+      const kelasSiswa = await findStudentClass();
 
+      if (!kelasSiswa?.id) {
+        throw new Error("Kelas siswa tidak ditemukan.");
+      }
+
+      const kelasSiswaId = String(kelasSiswa.id);
+
+      // 2. KELAS MAPEL
       const kelasMapelResponse = await getKelasMapel();
 
-      /*
-       * getKelasMapel() dari service sudah mengembalikan:
-       *
-       * [
-       *   {
-       *     id: "...",
-       *     kelas: {...},
-       *     mataPelajaran: {...},
-       *     guruPengajar: {...}
-       *   }
-       * ]
-       *
-       * Jadi jangan lagi memakai response.data sebagai sumber utama.
-       */
-
-      const kelasMapelData = normalizeArrayResponse(
+      const semuaKelasMapel = normalizeArrayResponse(
         kelasMapelResponse
       );
 
+      // 3. FILTER KELAS MAPEL
+      let kelasMapelData = semuaKelasMapel.filter((km) => {
+        const kmKelasId =
+          km?.kelasId ||
+          km?.kelas?.id ||
+          null;
+
+        return (
+          kmKelasId &&
+          String(kmKelasId) === kelasSiswaId
+        );
+      });
+
+      // FALLBACK
+      if (
+        kelasMapelData.length === 0 &&
+        Array.isArray(kelasSiswa?.kelasMapel)
+      ) {
+        kelasMapelData =
+          kelasSiswa.kelasMapel.filter((km) => {
+            const kmKelasId =
+              km?.kelasId ||
+              km?.kelas?.id ||
+              null;
+
+            return (
+              kmKelasId &&
+              String(kmKelasId) === kelasSiswaId
+            );
+          });
+      }
+
       if (kelasMapelData.length === 0) {
         setDaftarUjian([]);
+
+        setError(
+          `Belum ada mata pelajaran yang terdaftar untuk kelas ${
+            kelasSiswa?.nama || "siswa"
+          }`
+        );
+
         return;
       }
 
-      // -----------------------------------------------------
-      // 2. Ambil ujian dari setiap kelas-mapel
-      // -----------------------------------------------------
-
-      const hasilUjian = [];
-
-      /*
-       * Promise.allSettled digunakan supaya kalau salah satu
-       * kelas-mapel gagal, kelas-mapel lainnya tetap diproses.
-       */
-
+      // 4. AMBIL UJIAN
       const hasilRequest = await Promise.allSettled(
         kelasMapelData.map(async (km) => {
           if (!km?.id) {
@@ -226,75 +556,93 @@ export default function DaftarUjianPage() {
           const response =
             await getUjianByKelasMapel(km.id);
 
-          const data = normalizeArrayResponse(response);
+          const data =
+            normalizeArrayResponse(response);
 
-          return data.map((ujian) => ({
-            ...ujian,
+          return data
+            .map((ujian) => {
+              if (!ujian?.id) {
+                return null;
+              }
 
-            // -------------------------------------------------
-            // Fallback relasi dari kelas-mapel
-            // -------------------------------------------------
+              return {
+                ...ujian,
 
-            kelasMapel: {
-              ...(km || {}),
-              ...(ujian?.kelasMapel || {}),
+                kelasMapel: {
+                  ...(km || {}),
+                  ...(ujian?.kelasMapel || {}),
 
-              kelas:
-                ujian?.kelasMapel?.kelas ||
-                km?.kelas ||
-                null,
+                  kelas:
+                    ujian?.kelasMapel?.kelas ||
+                    km?.kelas ||
+                    kelasSiswa ||
+                    null,
 
-              mataPelajaran:
-                ujian?.kelasMapel?.mataPelajaran ||
-                km?.mataPelajaran ||
-                null,
+                  mataPelajaran:
+                    ujian?.kelasMapel?.mataPelajaran ||
+                    km?.mataPelajaran ||
+                    null,
 
-              guruPengajar:
-                ujian?.kelasMapel?.guruPengajar ||
-                km?.guruPengajar ||
-                null,
-            },
-          }));
+                  guruPengajar:
+                    ujian?.kelasMapel?.guruPengajar ||
+                    km?.guruPengajar ||
+                    null,
+                },
+              };
+            })
+            .filter(Boolean);
         })
       );
 
-      // -----------------------------------------------------
-      // 3. Gabungkan hasil request
-      // -----------------------------------------------------
+      // 5. GABUNGKAN
+      const hasilUjian = [];
 
       hasilRequest.forEach((result) => {
-        if (result.status === "fulfilled") {
-          if (Array.isArray(result.value)) {
-            hasilUjian.push(...result.value);
-          }
+        if (
+          result.status === "fulfilled" &&
+          Array.isArray(result.value)
+        ) {
+          hasilUjian.push(...result.value);
         }
       });
 
-      // -----------------------------------------------------
-      // 4. Hilangkan duplikat berdasarkan ID
-      // -----------------------------------------------------
+      // 6. FILTER KELAS
+      const ujianKelasSiswa =
+        hasilUjian.filter((ujian) => {
+          const ujianKelasId =
+            ujian?.kelasMapel?.kelasId ||
+            ujian?.kelasMapel?.kelas?.id ||
+            null;
 
+          return (
+            ujianKelasId &&
+            String(ujianKelasId) === kelasSiswaId
+          );
+        });
+
+      // 7. HILANGKAN DUPLIKAT
       const uniqueUjian = Array.from(
         new Map(
-          hasilUjian
+          ujianKelasSiswa
             .filter((item) => item?.id)
             .map((item) => [item.id, item])
         ).values()
       );
 
-      // -----------------------------------------------------
-      // 5. Mapping BE → FE
-      // -----------------------------------------------------
-
+      // 8. MAPPING
       const mapped = uniqueUjian.map((ujian) => {
         const kelas =
-          ujian?.kelasMapel?.kelas || null;
+          ujian?.kelasMapel?.kelas ||
+          kelasSiswa ||
+          null;
 
         const mapel =
-          ujian?.kelasMapel?.mataPelajaran || null;
+          ujian?.kelasMapel?.mataPelajaran ||
+          null;
 
         const guru =
-          ujian?.kelasMapel?.guruPengajar || null;
+          ujian?.kelasMapel?.guruPengajar ||
+          null;
 
         const status =
           getStatusUjian(ujian);
@@ -316,6 +664,7 @@ export default function DaftarUjianPage() {
 
           kelas:
             kelas?.nama ||
+            kelasSiswa?.nama ||
             "-",
 
           tanggal:
@@ -336,10 +685,14 @@ export default function DaftarUjianPage() {
           status,
 
           warna:
-            getColorByJenis(ujian?.jenis),
+            getColorByJenis(
+              ujian?.jenis
+            ),
 
           icon:
-            getIconByJenis(ujian?.jenis),
+            getIconByJenis(
+              ujian?.jenis
+            ),
 
           waktuMulai:
             ujian?.waktuMulai ||
@@ -350,7 +703,9 @@ export default function DaftarUjianPage() {
             null,
 
           dipublikasikan:
-            Boolean(ujian?.dipublikasikan),
+            Boolean(
+              ujian?.dipublikasikan
+            ),
 
           jenis:
             ujian?.jenis ||
@@ -360,12 +715,10 @@ export default function DaftarUjianPage() {
 
       setDaftarUjian(mapped);
     } catch (err) {
-      /*
-       * Error dari apiFetch ditangkap di sini.
-       *
-       * Tidak menggunakan console.error agar error 500
-       * yang sudah ditangani tidak muncul sebagai Console Error.
-       */
+      console.error(
+        "Gagal memuat ujian siswa:",
+        err
+      );
 
       setDaftarUjian([]);
 
@@ -378,74 +731,85 @@ export default function DaftarUjianPage() {
     }
   }, []);
 
-  // =========================================================
+  // =======================================================
   // EFFECT
-  // =========================================================
+  // =======================================================
 
   useEffect(() => {
     loadUjian();
   }, [loadUjian]);
 
-  // =========================================================
+  // =======================================================
   // FILTER
-  // =========================================================
+  // =======================================================
 
-  const filtered = daftarUjian.filter((ujian) => {
-    const keyword = search
-      .toLowerCase()
-      .trim();
+  const filtered = useMemo(() => {
+    const keyword =
+      search.toLowerCase().trim();
 
-    const judul =
-      String(ujian?.judul || "").toLowerCase();
+    return daftarUjian.filter((ujian) => {
+      const judul = String(
+        ujian?.judul || ""
+      ).toLowerCase();
 
-    const mapel =
-      String(ujian?.mapel || "").toLowerCase();
+      const mapel = String(
+        ujian?.mapel || ""
+      ).toLowerCase();
 
-    const guru =
-      String(ujian?.guru || "").toLowerCase();
+      const guru = String(
+        ujian?.guru || ""
+      ).toLowerCase();
 
-    const matchSearch =
-      judul.includes(keyword) ||
-      mapel.includes(keyword) ||
-      guru.includes(keyword);
+      const matchSearch =
+        judul.includes(keyword) ||
+        mapel.includes(keyword) ||
+        guru.includes(keyword);
 
-    if (!matchSearch) {
-      return false;
-    }
+      if (!matchSearch) {
+        return false;
+      }
 
-    if (
-      filterStatus !== "semua" &&
-      ujian.status !== filterStatus
-    ) {
-      return false;
-    }
+      if (
+        filterStatus !== "semua" &&
+        ujian.status !== filterStatus
+      ) {
+        return false;
+      }
 
-    return true;
-  });
+      return true;
+    });
+  }, [
+    daftarUjian,
+    search,
+    filterStatus,
+  ]);
 
-  // =========================================================
+  // =======================================================
   // STATISTIK
-  // =========================================================
+  // =======================================================
 
-  const stats = {
-    total: daftarUjian.length,
+  const stats = useMemo(
+    () => ({
+      total: daftarUjian.length,
 
-    belum: daftarUjian.filter(
-      (u) => u.status === "belum"
-    ).length,
+      belum: daftarUjian.filter(
+        (u) => u.status === "belum"
+      ).length,
 
-    sedang: daftarUjian.filter(
-      (u) => u.status === "sedang"
-    ).length,
+      sedang: daftarUjian.filter(
+        (u) => u.status === "sedang"
+      ).length,
 
-    selesai: daftarUjian.filter(
-      (u) => u.status === "selesai"
-    ).length,
-  };
+      selesai: daftarUjian.filter(
+        (u) => u.status === "selesai"
+      ).length,
+    }),
+    [daftarUjian]
+  );
 
-  // =========================================================
+  // =======================================================
   // FORMAT DATE
-  // =========================================================
+  // =======================================================
 
   const formatDate = (dateStr) => {
     if (!dateStr) {
@@ -458,538 +822,752 @@ export default function DaftarUjianPage() {
       return "-";
     }
 
-    return d.toLocaleDateString("id-ID", {
-      weekday: "short",
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
+    return d.toLocaleDateString(
+      "id-ID",
+      {
+        weekday: "short",
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      }
+    );
   };
 
-  // =========================================================
+  const formatTime = (dateStr) => {
+    if (!dateStr) {
+      return "-";
+    }
+
+    const d = new Date(dateStr);
+
+    if (Number.isNaN(d.getTime())) {
+      return "-";
+    }
+
+    return d.toLocaleTimeString(
+      "id-ID",
+      {
+        hour: "2-digit",
+        minute: "2-digit",
+      }
+    );
+  };
+
+  // =======================================================
   // CARD CLICK
-  // =========================================================
+  // =======================================================
 
   const handleCardClick = (ujianId) => {
     if (!ujianId) {
       return;
     }
 
-    router.push(`/siswa/ujian/${ujianId}`);
+    router.push(
+      `/siswa/ujian/${ujianId}`
+    );
   };
 
-  // =========================================================
-  // STATUS BADGE
-  // =========================================================
+  // =======================================================
+  // STATUS
+  // =======================================================
 
   const getStatusBadge = (status) => {
     const map = {
       belum: {
         label: "Belum Dimulai",
         color:
-          "bg-slate-100 text-slate-600 border-slate-200",
-        icon: <Clock size={12} />,
+          "border-slate-200 bg-slate-50 text-slate-600",
+        dot: "bg-slate-400",
+        icon: Clock,
       },
 
       sedang: {
-        label: "Sedang Berlangsung",
+        label: "Berlangsung",
         color:
-          "bg-amber-100 text-amber-700 border-amber-200",
-        icon: <AlertCircle size={12} />,
+          "border-amber-200 bg-amber-50 text-amber-700",
+        dot: "bg-amber-500",
+        icon: AlertCircle,
       },
 
       selesai: {
         label: "Selesai",
         color:
-          "bg-emerald-100 text-emerald-700 border-emerald-200",
-        icon: <CheckCircle size={12} />,
+          "border-emerald-200 bg-emerald-50 text-emerald-700",
+        dot: "bg-emerald-500",
+        icon: CheckCircle,
       },
     };
 
-    return map[status] || map.belum;
+    return (
+      map[status] ||
+      map.belum
+    );
   };
 
-  // =========================================================
+  // =======================================================
   // RENDER
-  // =========================================================
+  // =======================================================
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-slate-50">
-
-      {/* =====================================================
-          SIDEBAR
-      ===================================================== */}
+    <div className="flex h-screen w-full overflow-hidden bg-[#F6F8FC]">
+      {/* SIDEBAR */}
 
       <Sidebar
         role="siswa"
-        active="dashboard"
+        active="ujian"
         setActive={() => {}}
         collapsed={false}
         setCollapsed={() => {}}
       />
 
-      {/* =====================================================
-          CONTENT
-      ===================================================== */}
+      {/* MAIN */}
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-
-        {/* ===================================================
-            HEADER
-        =================================================== */}
-
-        <div className="flex-shrink-0">
+        <div className="shrink-0">
           <Header
-            toggleSidebar={() => {}}
-            notifications={[]}
-            user={{
-              name: "Andi Saputra",
-              email: "siswa@smartschool.com",
-              avatar: "AS",
-            }}
+            
           />
         </div>
 
-        {/* ===================================================
-            MAIN
-        =================================================== */}
-
         <main className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden">
-
-          <div className="w-full min-w-0 px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8 xl:px-10">
-
-            <div className="w-full min-w-0 space-y-6">
+          <div className="w-full px-4 py-5 sm:px-6 lg:px-8 xl:px-10">
+            <div className="mx-auto w-full max-w-[1600px] space-y-6">
 
               {/* =================================================
-                  HEADER HALAMAN
+                  PREMIUM HERO
               ================================================= */}
 
-              <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+              <section className="relative overflow-hidden rounded-[24px] bg-[#0D47C9] shadow-[0_18px_45px_rgba(15,70,200,0.18)]">
+                {/* decorative background */}
 
-                <div className="min-w-0">
+                <div className="absolute -right-24 -top-28 h-72 w-72 rounded-full bg-white/10 blur-2xl" />
 
-                  <h1 className="text-2xl font-bold text-slate-800 sm:text-3xl">
-                    Daftar Ujian
-                  </h1>
+                <div className="absolute -bottom-32 right-32 h-64 w-64 rounded-full bg-blue-300/10 blur-3xl" />
 
-                  <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-500">
+                <div className="absolute left-1/3 top-0 h-full w-px bg-white/[0.04]" />
 
-                    <span>
-                      {stats.total} ujian terjadwal
-                    </span>
+                <div className="absolute right-1/4 top-0 h-full w-px bg-white/[0.04]" />
 
-                    <span className="h-1 w-1 rounded-full bg-slate-300" />
+                <div className="relative p-6 sm:p-8 lg:p-9">
+                  <div className="flex flex-col gap-7 lg:flex-row lg:items-end lg:justify-between">
 
-                    <span className="text-amber-600">
-                      {stats.sedang} sedang berlangsung
-                    </span>
+                    {/* TITLE */}
 
-                  </p>
+                    <div className="min-w-0 max-w-2xl">
+                      <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-medium text-blue-50 backdrop-blur-sm">
+                        <GraduationCap size={14} />
+                        <span>AKADEMIK SISWA</span>
+                      </div>
 
+                      <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl lg:text-[34px]">
+                        Daftar Ujian
+                      </h1>
+
+                      <p className="mt-2 max-w-xl text-sm leading-6 text-blue-100 sm:text-[15px]">
+                        Kelola dan ikuti seluruh ujian yang
+                        tersedia untuk kelas kamu dalam satu
+                        tempat.
+                      </p>
+                    </div>
+
+                    {/* HERO STATS */}
+
+                    <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                      <HeroStat
+                        value={stats.total}
+                        label="Total"
+                      />
+
+                      <HeroStat
+                        value={stats.sedang}
+                        label="Berlangsung"
+                        highlight
+                      />
+
+                      <HeroStat
+                        value={stats.selesai}
+                        label="Selesai"
+                      />
+                    </div>
+                  </div>
                 </div>
-
-                {/* FILTER */}
-
-                <div className="flex w-full flex-wrap gap-2 xl:w-auto xl:justify-end">
-
-                  <button
-                    onClick={() =>
-                      setFilterStatus("semua")
-                    }
-                    className={`whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium transition ${
-                      filterStatus === "semua"
-                        ? "border-indigo-600 bg-indigo-600 text-white"
-                        : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-                    }`}
-                  >
-                    Semua ({stats.total})
-                  </button>
-
-                  <button
-                    onClick={() =>
-                      setFilterStatus("belum")
-                    }
-                    className={`whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium transition ${
-                      filterStatus === "belum"
-                        ? "border-slate-600 bg-slate-600 text-white"
-                        : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-                    }`}
-                  >
-                    Belum ({stats.belum})
-                  </button>
-
-                  <button
-                    onClick={() =>
-                      setFilterStatus("sedang")
-                    }
-                    className={`whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium transition ${
-                      filterStatus === "sedang"
-                        ? "border-amber-500 bg-amber-500 text-white"
-                        : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-                    }`}
-                  >
-                    Sedang ({stats.sedang})
-                  </button>
-
-                  <button
-                    onClick={() =>
-                      setFilterStatus("selesai")
-                    }
-                    className={`whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium transition ${
-                      filterStatus === "selesai"
-                        ? "border-emerald-500 bg-emerald-500 text-white"
-                        : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-                    }`}
-                  >
-                    Selesai ({stats.selesai})
-                  </button>
-
-                </div>
-
-              </div>
+              </section>
 
               {/* =================================================
-                  SEARCH
+                  TOOLBAR
               ================================================= */}
 
-              <div className="w-full sm:max-w-xl">
+              <section className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_4px_20px_rgba(15,23,42,0.04)] sm:p-5">
+                <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
 
-                <div className="relative">
+                  {/* SEARCH */}
 
-                  <Search
-                    size={18}
-                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
-                  />
+                  <div className="relative w-full xl:max-w-md">
+                    <Search
+                      size={18}
+                      className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
+                    />
 
-                  <input
-                    type="text"
-                    placeholder="Cari ujian, mapel, atau guru..."
-                    value={search}
-                    onChange={(e) =>
-                      setSearch(e.target.value)
-                    }
-                    className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-4 text-sm text-slate-700 shadow-sm transition focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                  />
-
-                </div>
-
-              </div>
-
-              {/* =================================================
-                  LOADING
-              ================================================= */}
-
-              {loading ? (
-
-                <div className="rounded-2xl border border-slate-200 bg-white py-16 text-center shadow-sm">
-
-                  <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-indigo-500" />
-
-                  <p className="text-sm font-medium text-slate-600">
-                    Memuat data ujian...
-                  </p>
-
-                </div>
-
-              ) : error ? (
-
-                /* =================================================
-                   ERROR
-                ================================================= */
-
-                <div className="rounded-2xl border border-red-200 bg-red-50 py-16 text-center">
-
-                  <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100 text-red-500">
-                    <AlertCircle size={28} />
+                    <input
+                      type="text"
+                      value={search}
+                      onChange={(e) =>
+                        setSearch(e.target.value)
+                      }
+                      placeholder="Cari ujian, mata pelajaran, atau guru..."
+                      className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50/70 pl-10 pr-4 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10"
+                    />
                   </div>
 
-                  <p className="text-sm font-medium text-red-600">
-                    {error}
-                  </p>
+                  {/* FILTER */}
 
-                  <p className="mx-auto mt-2 max-w-md px-4 text-xs text-red-500">
-                    Data ujian belum dapat dimuat dari server.
-                    Silakan coba kembali beberapa saat lagi.
-                  </p>
+                  <div className="flex min-w-0 overflow-x-auto rounded-xl bg-slate-100 p-1">
+                    {Object.entries(
+                      STATUS_CONFIG
+                    ).map(
+                      ([
+                        key,
+                        config,
+                      ]) => {
+                        const Icon =
+                          config.icon;
+
+                        const count =
+                          key === "semua"
+                            ? stats.total
+                            : stats[key];
+
+                        const active =
+                          filterStatus ===
+                          key;
+
+                        return (
+                          <button
+                            key={key}
+                            onClick={() =>
+                              setFilterStatus(
+                                key
+                              )
+                            }
+                            className={`flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-all sm:px-3.5 ${
+                              active
+                                ? "bg-white text-blue-600 shadow-sm"
+                                : "text-slate-500 hover:text-slate-700"
+                            }`}
+                          >
+                            <Icon size={14} />
+
+                            <span>
+                              {config.label}
+                            </span>
+
+                            <span
+                              className={`ml-0.5 rounded-md px-1.5 py-0.5 text-[10px] ${
+                                active
+                                  ? "bg-blue-50 text-blue-600"
+                                  : "bg-slate-200 text-slate-500"
+                              }`}
+                            >
+                              {count}
+                            </span>
+                          </button>
+                        );
+                      }
+                    )}
+                  </div>
+
+                  {/* REFRESH */}
 
                   <button
                     onClick={loadUjian}
-                    className="mt-4 rounded-xl bg-red-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-600"
+                    disabled={loading}
+                    className="flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    Coba Lagi
-                  </button>
+                    <RefreshCw
+                      size={16}
+                      className={
+                        loading
+                          ? "animate-spin"
+                          : ""
+                      }
+                    />
 
+                    <span className="hidden sm:inline">
+                      Refresh
+                    </span>
+                  </button>
                 </div>
 
+                {/* RESULT INFO */}
+
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-4">
+                  <p className="text-xs text-slate-500">
+                    Menampilkan{" "}
+                    <span className="font-semibold text-slate-700">
+                      {filtered.length}
+                    </span>{" "}
+                    dari{" "}
+                    <span className="font-semibold text-slate-700">
+                      {daftarUjian.length}
+                    </span>{" "}
+                    ujian
+                  </p>
+
+                  {search && (
+                    <button
+                      onClick={() =>
+                        setSearch("")
+                      }
+                      className="text-xs font-medium text-blue-600 hover:text-blue-700"
+                    >
+                      Reset pencarian
+                    </button>
+                  )}
+                </div>
+              </section>
+
+              {/* =================================================
+                  CONTENT
+              ================================================= */}
+
+              {loading ? (
+                <LoadingState />
+              ) : error ? (
+                <ErrorState
+                  error={error}
+                  onRetry={loadUjian}
+                />
               ) : filtered.length === 0 ? (
+                <EmptyState
+                  search={search}
+                  onReset={() => {
+                    setSearch("");
+                    setFilterStatus(
+                      "semua"
+                    );
+                  }}
+                />
+              ) : (
+                <section>
+                  <div className="mb-4 flex items-center justify-between">
+                    <div>
+                      <h2 className="text-base font-bold text-slate-800">
+                        Ujian Tersedia
+                      </h2>
 
-                /* =================================================
-                   EMPTY
-                ================================================= */
-
-                <div className="rounded-2xl border border-slate-200 bg-white py-16 text-center shadow-sm">
-
-                  <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-slate-100 text-slate-300">
-                    <Search size={32} />
+                      <p className="mt-0.5 text-xs text-slate-500">
+                        Pilih ujian untuk melihat
+                        detail dan instruksi.
+                      </p>
+                    </div>
                   </div>
 
-                  <p className="text-sm font-medium text-slate-600">
-                    Tidak ada ujian ditemukan
-                  </p>
+                  {/* CARD GRID */}
 
-                  <p className="mt-1 text-xs text-slate-400">
-                    Coba ubah kata pencarian atau filter
-                  </p>
+                  <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+                    {filtered.map(
+                      (ujian) => {
+                        const c =
+                          colorMap[
+                            ujian.warna
+                          ] ||
+                          colorMap.indigo;
 
-                </div>
+                        const statusBadge =
+                          getStatusBadge(
+                            ujian.status
+                          );
 
-              ) : (
+                        const StatusIcon =
+                          statusBadge.icon;
 
-                /* =================================================
-                   CARD UJIAN
-                ================================================= */
+                        const IconComponent =
+                          ujian.icon;
 
-                <div
-                  className="
-                    grid
-                    w-full
-                    min-w-0
-                    grid-cols-1
-                    gap-4
-                    sm:grid-cols-2
-                    lg:grid-cols-3
-                    xl:grid-cols-4
-                    2xl:grid-cols-5
-                  "
-                >
+                        const isSelesai =
+                          ujian.status ===
+                          "selesai";
 
-                  {filtered.map((ujian) => {
+                        const isSedang =
+                          ujian.status ===
+                          "sedang";
 
-                    const c =
-                      colorMap[ujian.warna] ||
-                      colorMap.indigo;
-
-                    const statusBadge =
-                      getStatusBadge(
-                        ujian.status
-                      );
-
-                    const isSelesai =
-                      ujian.status ===
-                      "selesai";
-
-                    return (
-
-                      <div
-                        key={ujian.id}
-                        onClick={() =>
-                          handleCardClick(
-                            ujian.id
-                          )
-                        }
-                        className={`
-                          group
-                          min-w-0
-                          cursor-pointer
-                          overflow-hidden
-                          rounded-2xl
-                          border
-                          ${c.border}
-                          bg-white
-                          shadow-sm
-                          transition-all
-                          duration-300
-                          ${c.hover}
-                          hover:-translate-y-1
-                          hover:shadow-xl
-                        `}
-                      >
-
-                        {/* CARD HEADER */}
-
-                        <div
-                          className={`
-                            relative
-                            flex
-                            h-28
-                            items-center
-                            justify-center
-                            bg-gradient-to-br
-                            ${c.grad}
-                            sm:h-32
-                          `}
-                        >
-
-                          <div className="absolute inset-0 bg-black/10" />
-
-                          <div className="relative text-4xl drop-shadow-lg sm:text-5xl">
-                            {ujian.icon}
-                          </div>
-
-                          <div className="absolute right-2.5 top-2.5 sm:right-3 sm:top-3">
-
-                            <span
-                              className={`
-                                inline-flex
-                                items-center
-                                gap-1
-                                whitespace-nowrap
-                                rounded-full
-                                border
-                                px-2
-                                py-1
-                                text-[9px]
-                                font-medium
-                                sm:px-2.5
-                                sm:text-[10px]
-                                ${statusBadge.color}
-                              `}
-                            >
-                              {statusBadge.icon}
-                              {statusBadge.label}
-                            </span>
-
-                          </div>
-
-                        </div>
-
-                        {/* CARD BODY */}
-
-                        <div className="min-w-0 p-4">
-
-                          <h3 className="line-clamp-2 text-sm font-bold leading-tight text-slate-800 sm:text-base">
-                            {ujian.judul}
-                          </h3>
-
-                          <p className="mt-1 truncate text-sm text-slate-500">
-                            {ujian.mapel} ·{" "}
-                            {ujian.guru}
-                          </p>
-
-                          <p className="truncate text-xs text-slate-400">
-                            {ujian.kelas}
-                          </p>
-
-                          {/* INFO */}
-
-                          <div className="mt-3 grid grid-cols-1 gap-2 border-t border-slate-100 pt-3 text-xs text-slate-500">
-
-                            <span className="flex min-w-0 items-center gap-1.5">
-
-                              <Calendar
-                                size={13}
-                                className="shrink-0 text-slate-400"
-                              />
-
-                              <span className="truncate">
-                                {formatDate(
-                                  ujian.tanggal
-                                )}
-                              </span>
-
-                            </span>
-
-                            <div className="flex items-center justify-between gap-2">
-
-                              <span className="flex items-center gap-1.5">
-
-                                <Clock
-                                  size={13}
-                                  className="shrink-0 text-slate-400"
-                                />
-
-                                {ujian.durasi}
-
-                              </span>
-
-                              <span className="flex items-center gap-1.5">
-
-                                <FileText
-                                  size={13}
-                                  className="shrink-0 text-slate-400"
-                                />
-
-                                {ujian.soal} soal
-
-                              </span>
-
-                            </div>
-
-                          </div>
-
-                          {/* BUTTON */}
-
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-
+                        return (
+                          <article
+                            key={ujian.id}
+                            onClick={() =>
                               handleCardClick(
                                 ujian.id
-                              );
-                            }}
-                            className={`
-                              mt-3
-                              flex
-                              w-full
-                              items-center
-                              justify-center
-                              gap-1.5
-                              rounded-xl
-                              py-2.5
-                              text-sm
-                              font-medium
-                              transition
-                              ${
-                                isSelesai
-                                  ? "bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
-                                  : ujian.status ===
-                                    "sedang"
-                                  ? "bg-amber-50 text-amber-600 hover:bg-amber-100"
-                                  : "bg-indigo-50 text-indigo-600 hover:bg-indigo-100"
-                              }
-                            `}
+                              )
+                            }
+                            className="group relative flex min-w-0 cursor-pointer flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_4px_18px_rgba(15,23,42,0.045)] transition-all duration-300 hover:-translate-y-1 hover:border-blue-200 hover:shadow-[0_14px_32px_rgba(15,23,42,0.09)]"
                           >
+                            {/* TOP ACCENT */}
 
-                            {isSelesai
-                              ? "Lihat Hasil"
-                              : ujian.status ===
-                                "sedang"
-                              ? "Mulai Ujian"
-                              : "Lihat Detail"}
-
-                            <ChevronRight
-                              size={15}
+                            <div
+                              className={`h-1 w-full bg-gradient-to-r ${c.grad}`}
                             />
 
-                          </button>
+                            {/* CARD TOP */}
 
-                        </div>
+                            <div className="p-5 pb-4">
+                              <div className="flex items-start justify-between gap-3">
+                                <div
+                                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${c.icon}`}
+                                >
+                                  <IconComponent
+                                    size={21}
+                                  />
+                                </div>
 
-                      </div>
+                                <span
+                                  className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-[10px] font-semibold ${statusBadge.color}`}
+                                >
+                                  <span
+                                    className={`h-1.5 w-1.5 rounded-full ${statusBadge.dot}`}
+                                  />
 
-                    );
-                  })}
+                                  {statusBadge.label}
+                                </span>
+                              </div>
 
-                </div>
+                              {/* TITLE */}
 
+                              <div className="mt-4">
+                                <p
+                                  className={`text-[11px] font-bold uppercase tracking-[0.08em] ${c.text}`}
+                                >
+                                  {ujian.jenis}
+                                </p>
+
+                                <h3 className="mt-1.5 line-clamp-2 min-h-[42px] text-[15px] font-bold leading-5 text-slate-800 transition-colors group-hover:text-blue-700">
+                                  {ujian.judul}
+                                </h3>
+                              </div>
+
+                              {/* MAPEL */}
+
+                              <div className="mt-3 flex min-w-0 items-center gap-2">
+                                <BookOpen
+                                  size={14}
+                                  className="shrink-0 text-slate-400"
+                                />
+
+                                <span className="truncate text-xs font-semibold text-slate-600">
+                                  {ujian.mapel}
+                                </span>
+                              </div>
+
+                              <p className="mt-1 truncate pl-5 text-[11px] text-slate-400">
+                                {ujian.guru}
+                              </p>
+                            </div>
+
+                            {/* INFO */}
+
+                            <div className="mx-5 border-t border-slate-100" />
+
+                            <div className="grid grid-cols-2 gap-2 p-5">
+                              <InfoItem
+                                icon={Calendar}
+                                label="Tanggal"
+                                value={formatDate(
+                                  ujian.tanggal
+                                )}
+                              />
+
+                              <InfoItem
+                                icon={Clock}
+                                label="Waktu"
+                                value={formatTime(
+                                  ujian.waktuMulai
+                                )}
+                              />
+
+                              <InfoItem
+                                icon={Timer}
+                                label="Durasi"
+                                value={ujian.durasi}
+                              />
+
+                              <InfoItem
+                                icon={FileText}
+                                label="Soal"
+                                value={`${ujian.soal} soal`}
+                              />
+                            </div>
+
+                            {/* CLASS */}
+
+                            <div className="mx-5 rounded-xl bg-slate-50 px-3.5 py-3">
+                              <div className="flex items-center justify-between gap-3">
+                                <div className="min-w-0">
+                                  <p className="text-[10px] font-medium uppercase tracking-wide text-slate-400">
+                                    Kelas
+                                  </p>
+
+                                  <p className="mt-0.5 truncate text-xs font-semibold text-slate-700">
+                                    {ujian.kelas}
+                                  </p>
+                                </div>
+
+                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-slate-400 shadow-sm">
+                                  <GraduationCap
+                                    size={15}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* ACTION */}
+
+                            <div className="mt-auto p-5 pt-4">
+                              <button
+                                onClick={(
+                                  e
+                                ) => {
+                                  e.stopPropagation();
+
+                                  handleCardClick(
+                                    ujian.id
+                                  );
+                                }}
+                                className={`flex w-full items-center justify-between rounded-xl border px-3.5 py-2.5 text-xs font-bold transition-all active:scale-[0.98] ${
+                                  isSelesai
+                                    ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                                    : isSedang
+                                    ? "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100"
+                                    : "border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100"
+                                }`}
+                              >
+                                <span>
+                                  {isSelesai
+                                    ? "Lihat Hasil"
+                                    : isSedang
+                                    ? "Mulai Ujian"
+                                    : "Lihat Detail"}
+                                </span>
+
+                                <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-white/70">
+                                  <ArrowUpRight
+                                    size={14}
+                                  />
+                                </span>
+                              </button>
+                            </div>
+
+                            {/* HOVER LINE */}
+
+                            <div
+                              className={`absolute bottom-0 left-0 h-0.5 w-0 bg-gradient-to-r ${c.grad} transition-all duration-300 group-hover:w-full`}
+                            />
+                          </article>
+                        );
+                      }
+                    )}
+                  </div>
+                </section>
               )}
 
               {/* =================================================
                   FOOTER
               ================================================= */}
 
-              <footer className="border-t border-slate-100 py-4 text-center text-xs text-slate-400">
-                © 2026 SmartSchool • Daftar Ujian Siswa
+              <footer className="border-t border-slate-200/70 py-5">
+                <div className="flex flex-col items-center justify-between gap-2 text-center sm:flex-row sm:text-left">
+                  <p className="text-[11px] text-slate-400">
+                    © 2026 SmartSchool. Daftar Ujian Siswa.
+                  </p>
+
+                  <p className="text-[11px] text-slate-400">
+                    Sistem Informasi Akademik
+                  </p>
+                </div>
               </footer>
-
             </div>
-
           </div>
-
         </main>
+      </div>
+    </div>
+  );
+}
 
+// =========================================================
+// HERO STAT
+// =========================================================
+
+function HeroStat({
+  value,
+  label,
+  highlight = false,
+}) {
+  return (
+    <div className="min-w-[92px] rounded-xl border border-white/10 bg-white/10 px-4 py-3 backdrop-blur-md">
+      <div
+        className={`text-xl font-bold ${
+          highlight
+            ? "text-amber-300"
+            : "text-white"
+        }`}
+      >
+        {value}
       </div>
 
+      <div className="mt-0.5 text-[10px] font-medium text-blue-100">
+        {label}
+      </div>
     </div>
+  );
+}
+
+// =========================================================
+// INFO ITEM
+// =========================================================
+
+function InfoItem({
+  icon: Icon,
+  label,
+  value,
+}) {
+  return (
+    <div className="min-w-0 rounded-xl border border-slate-100 bg-slate-50/60 p-2.5">
+      <div className="flex items-center gap-1.5">
+        <Icon
+          size={12}
+          className="shrink-0 text-slate-400"
+        />
+
+        <span className="text-[9px] font-semibold uppercase tracking-wide text-slate-400">
+          {label}
+        </span>
+      </div>
+
+      <p className="mt-1 truncate text-[11px] font-semibold text-slate-700">
+        {value}
+      </p>
+    </div>
+  );
+}
+
+// =========================================================
+// LOADING
+// =========================================================
+
+function LoadingState() {
+  return (
+    <section className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      {Array.from({ length: 8 }).map(
+        (_, index) => (
+          <div
+            key={index}
+            className="overflow-hidden rounded-2xl border border-slate-200 bg-white"
+          >
+            <div className="h-1 bg-slate-100" />
+
+            <div className="animate-pulse p-5">
+              <div className="flex justify-between">
+                <div className="h-11 w-11 rounded-xl bg-slate-100" />
+
+                <div className="h-7 w-24 rounded-full bg-slate-100" />
+              </div>
+
+              <div className="mt-5 h-3 w-16 rounded bg-slate-100" />
+
+              <div className="mt-2 h-4 w-4/5 rounded bg-slate-100" />
+
+              <div className="mt-2 h-4 w-3/5 rounded bg-slate-100" />
+
+              <div className="mt-5 grid grid-cols-2 gap-2">
+                <div className="h-12 rounded-xl bg-slate-50" />
+                <div className="h-12 rounded-xl bg-slate-50" />
+                <div className="h-12 rounded-xl bg-slate-50" />
+                <div className="h-12 rounded-xl bg-slate-50" />
+              </div>
+
+              <div className="mt-3 h-12 rounded-xl bg-slate-50" />
+
+              <div className="mt-4 h-10 rounded-xl bg-slate-100" />
+            </div>
+          </div>
+        )
+      )}
+    </section>
+  );
+}
+
+// =========================================================
+// ERROR
+// =========================================================
+
+function ErrorState({
+  error,
+  onRetry,
+}) {
+  return (
+    <section className="rounded-2xl border border-red-200 bg-white p-8 shadow-sm sm:p-12">
+      <div className="mx-auto max-w-lg text-center">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-red-50 text-red-500">
+          <AlertCircle size={28} />
+        </div>
+
+        <h3 className="mt-5 text-base font-bold text-slate-800">
+          Data ujian belum dapat dimuat
+        </h3>
+
+        <p className="mt-2 text-sm leading-6 text-slate-500">
+          {error}
+        </p>
+
+        <button
+          onClick={onRetry}
+          className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[#155DFC] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0D47C9] active:scale-[0.98]"
+        >
+          <RefreshCw size={15} />
+          Coba Lagi
+        </button>
+      </div>
+    </section>
+  );
+}
+
+// =========================================================
+// EMPTY
+// =========================================================
+
+function EmptyState({
+  search,
+  onReset,
+}) {
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-white px-6 py-16 text-center shadow-sm">
+      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50 text-blue-500">
+        {search ? (
+          <Search size={27} />
+        ) : (
+          <FileCheck size={27} />
+        )}
+      </div>
+
+      <h3 className="mt-5 text-base font-bold text-slate-800">
+        {search
+          ? "Ujian tidak ditemukan"
+          : "Belum ada ujian tersedia"}
+      </h3>
+
+      <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
+        {search
+          ? "Tidak ada ujian yang sesuai dengan pencarian atau filter yang dipilih."
+          : "Belum terdapat ujian yang tersedia untuk kelas kamu saat ini."}
+      </p>
+
+      {search && (
+        <button
+          onClick={onReset}
+          className="mt-5 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
+        >
+          Reset Filter
+        </button>
+      )}
+    </section>
   );
 }

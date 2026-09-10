@@ -22,45 +22,36 @@ import {
   Camera,
   UserCheck,
   Plus,
+  GraduationCap,
+  ChevronDown,
 } from "lucide-react";
 
 import { getAbsensiKelas } from "../../../services/absensi.service";
+import { getKelas } from "../../../services/kelas.service";
 
 const STATUS_CONFIG = {
   hadir: {
     label: "Hadir",
     icon: CheckCircle2,
-    active:
-      "bg-emerald-500 text-white border-emerald-500",
-    badge:
-      "bg-emerald-50 text-emerald-600 border-emerald-200",
+    badge: "bg-emerald-50 text-emerald-600 border-emerald-200",
   },
 
   sakit: {
     label: "Sakit",
     icon: Stethoscope,
-    active:
-      "bg-amber-500 text-white border-amber-500",
-    badge:
-      "bg-amber-50 text-amber-600 border-amber-200",
+    badge: "bg-amber-50 text-amber-600 border-amber-200",
   },
 
   izin: {
     label: "Izin",
     icon: FileText,
-    active:
-      "bg-blue-500 text-white border-blue-500",
-    badge:
-      "bg-blue-50 text-blue-600 border-blue-200",
+    badge: "bg-blue-50 text-blue-600 border-blue-200",
   },
 
   alpha: {
     label: "Alpha",
     icon: XCircle,
-    active:
-      "bg-rose-500 text-white border-rose-500",
-    badge:
-      "bg-rose-50 text-rose-600 border-rose-200",
+    badge: "bg-rose-50 text-rose-600 border-rose-200",
   },
 };
 
@@ -92,7 +83,7 @@ function formatTanggal(tanggal) {
   const date = new Date(tanggal);
 
   if (Number.isNaN(date.getTime())) {
-    return tanggal;
+    return String(tanggal);
   }
 
   return date.toLocaleDateString("id-ID", {
@@ -117,12 +108,63 @@ function formatJam(tanggal) {
   });
 }
 
-function normalizeAbsensi(data) {
-  if (!Array.isArray(data)) {
-    return [];
+/**
+ * Karena response backend bisa berbentuk:
+ *
+ * {
+ *   success: true,
+ *   data: [...]
+ * }
+ *
+ * atau:
+ *
+ * {
+ *   success: true,
+ *   data: {
+ *      data: [...]
+ *   }
+ * }
+ *
+ * maka kita buat normalizer supaya frontend aman.
+ */
+function normalizeKelasResponse(response) {
+  if (Array.isArray(response)) {
+    return response;
   }
 
-  return data;
+  if (Array.isArray(response?.data)) {
+    return response.data;
+  }
+
+  if (Array.isArray(response?.data?.data)) {
+    return response.data.data;
+  }
+
+  if (Array.isArray(response?.items)) {
+    return response.items;
+  }
+
+  return [];
+}
+
+function normalizeAbsensiResponse(response) {
+  if (Array.isArray(response)) {
+    return response;
+  }
+
+  if (Array.isArray(response?.data)) {
+    return response.data;
+  }
+
+  if (Array.isArray(response?.data?.data)) {
+    return response.data.data;
+  }
+
+  if (Array.isArray(response?.items)) {
+    return response.items;
+  }
+
+  return [];
 }
 
 export default function GuruAbsensiPage() {
@@ -130,15 +172,33 @@ export default function GuruAbsensiPage() {
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
+  /**
+   * DATA KELAS
+   */
+  const [kelas, setKelas] = useState([]);
   const [kelasId, setKelasId] = useState("");
 
+  /**
+   * FILTER TANGGAL
+   */
   const [tanggal, setTanggal] = useState("");
 
+  /**
+   * DATA ABSENSI
+   */
   const [absensi, setAbsensi] = useState([]);
 
-  const [loading, setLoading] = useState(false);
+  /**
+   * LOADING
+   */
+  const [loadingKelas, setLoadingKelas] = useState(false);
+  const [loadingAbsensi, setLoadingAbsensi] = useState(false);
 
-  const [error, setError] = useState("");
+  /**
+   * ERROR
+   */
+  const [errorKelas, setErrorKelas] = useState("");
+  const [errorAbsensi, setErrorAbsensi] = useState("");
 
   const [lastUpdated, setLastUpdated] = useState(null);
 
@@ -158,10 +218,82 @@ export default function GuruAbsensiPage() {
   ];
 
   /**
-   * Ambil kelasId dari query URL.
+   * ============================================================
+   * AMBIL DAFTAR KELAS DARI BACKEND
+   * GET /api/kelas
+   * ============================================================
+   */
+  const fetchKelas = useCallback(async () => {
+    try {
+      setLoadingKelas(true);
+      setErrorKelas("");
+
+      const response = await getKelas({
+        page: 1,
+        limit: 100,
+        sortBy: "tingkat",
+        sortOrder: "asc",
+      });
+
+      console.log("========== DATA KELAS ==========");
+      console.log("RESPONSE:", response);
+
+      const dataKelas = normalizeKelasResponse(response);
+
+      console.log("KELAS NORMALIZED:", dataKelas);
+      console.log("===============================");
+
+      setKelas(dataKelas);
+
+      /**
+       * Kalau belum ada kelas yang dipilih,
+       * otomatis pilih kelas pertama.
+       */
+      if (dataKelas.length > 0) {
+        setKelasId((currentId) => {
+          if (currentId) {
+            const masihAda = dataKelas.some(
+              (item) => item?.id === currentId,
+            );
+
+            if (masihAda) {
+              return currentId;
+            }
+          }
+
+          return dataKelas[0]?.id || "";
+        });
+      } else {
+        setKelasId("");
+      }
+    } catch (err) {
+      console.error("Error fetch kelas:", err);
+
+      setKelas([]);
+      setKelasId("");
+
+      setErrorKelas(
+        err?.message || "Gagal mengambil data kelas.",
+      );
+    } finally {
+      setLoadingKelas(false);
+    }
+  }, []);
+
+  /**
+   * LOAD KELAS SAAT HALAMAN DIBUKA
+   */
+  useEffect(() => {
+    fetchKelas();
+  }, [fetchKelas]);
+
+  /**
+   * ============================================================
+   * AMBIL KELAS ID DARI URL JIKA ADA
    *
    * Contoh:
-   * /guru/absensi?kelasId=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+   * /guru/absensi?kelasId=uuid
+   * ============================================================
    */
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -170,17 +302,18 @@ export default function GuruAbsensiPage() {
       window.location.search,
     );
 
-    const id = params.get("kelasId");
+    const idFromUrl = params.get("kelasId");
 
-    if (id) {
-      setKelasId(id);
+    if (idFromUrl) {
+      setKelasId(idFromUrl);
     }
   }, []);
 
   /**
-   * FETCH ABSENSI KELAS
-   *
+   * ============================================================
+   * FETCH ABSENSI
    * GET /api/v1/absensi/kelas/:kelasId
+   * ============================================================
    */
   const fetchAbsensi = useCallback(async () => {
     if (!kelasId) {
@@ -189,16 +322,36 @@ export default function GuruAbsensiPage() {
     }
 
     try {
-      setLoading(true);
-      setError("");
+      setLoadingAbsensi(true);
+      setErrorAbsensi("");
 
-      const data = await getAbsensiKelas(
+      console.log(
+        "========== GET ABSENSI ==========",
+      );
+
+      console.log("KELAS ID:", kelasId);
+      console.log("TANGGAL:", tanggal || "SEMUA");
+
+      const response = await getAbsensiKelas(
         kelasId,
         tanggal || null,
       );
 
-      setAbsensi(normalizeAbsensi(data));
+      console.log("RESPONSE ABSENSI:", response);
 
+      const dataAbsensi =
+        normalizeAbsensiResponse(response);
+
+      console.log(
+        "ABSENSI NORMALIZED:",
+        dataAbsensi,
+      );
+
+      console.log(
+        "=================================",
+      );
+
+      setAbsensi(dataAbsensi);
       setLastUpdated(new Date());
     } catch (err) {
       console.error(
@@ -208,21 +361,39 @@ export default function GuruAbsensiPage() {
 
       setAbsensi([]);
 
-      setError(
+      setErrorAbsensi(
         err?.message ||
           "Gagal mengambil data absensi kelas.",
       );
     } finally {
-      setLoading(false);
+      setLoadingAbsensi(false);
     }
   }, [kelasId, tanggal]);
 
+  /**
+   * FETCH ABSENSI SETIAP KELAS ID / TANGGAL BERUBAH
+   */
   useEffect(() => {
-    fetchAbsensi();
-  }, [fetchAbsensi]);
+    if (kelasId) {
+      fetchAbsensi();
+    }
+  }, [kelasId, fetchAbsensi]);
 
   /**
-   * REKAP DATA DARI RESPONSE BE
+   * ============================================================
+   * KELAS YANG SEDANG DIPILIH
+   * ============================================================
+   */
+  const selectedKelas = useMemo(() => {
+    return kelas.find(
+      (item) => item?.id === kelasId,
+    );
+  }, [kelas, kelasId]);
+
+  /**
+   * ============================================================
+   * REKAP ABSENSI
+   * ============================================================
    */
   const rekap = useMemo(() => {
     const result = {
@@ -250,7 +421,10 @@ export default function GuruAbsensiPage() {
         result.izin += 1;
       }
 
-      if (status === "alpha") {
+      if (
+        status === "alpha" ||
+        status === "alpa"
+      ) {
         result.alpha += 1;
       }
     });
@@ -259,7 +433,9 @@ export default function GuruAbsensiPage() {
   }, [absensi]);
 
   /**
-   * Tanggal yang tersedia dari BE
+   * ============================================================
+   * RIWAYAT TANGGAL
+   * ============================================================
    */
   const riwayatTanggal = useMemo(() => {
     const map = new Map();
@@ -267,7 +443,10 @@ export default function GuruAbsensiPage() {
     absensi.forEach((item) => {
       if (!item?.tanggal) return;
 
-      const key = String(item.tanggal);
+      const key = String(item.tanggal).slice(
+        0,
+        10,
+      );
 
       if (!map.has(key)) {
         map.set(key, {
@@ -287,7 +466,9 @@ export default function GuruAbsensiPage() {
   }, [absensi]);
 
   /**
-   * Data ditampilkan sesuai response BE
+   * ============================================================
+   * SORT DATA ABSENSI
+   * ============================================================
    */
   const daftarAbsensi = useMemo(() => {
     return [...absensi].sort(
@@ -306,7 +487,39 @@ export default function GuruAbsensiPage() {
   }, [absensi]);
 
   /**
-   * Pilih tanggal dari riwayat
+   * ============================================================
+   * PILIH KELAS
+   * ============================================================
+   */
+  const handleChangeKelas = (e) => {
+    const value = e.target.value;
+
+    setKelasId(value);
+    setTanggal("");
+
+    setErrorAbsensi("");
+
+    /**
+     * Update URL juga.
+     *
+     * Contoh:
+     * /guru/absensi?kelasId=uuid
+     */
+    if (value) {
+      router.replace(
+        `/guru/absensi?kelasId=${encodeURIComponent(
+          value,
+        )}`,
+      );
+    } else {
+      router.replace("/guru/absensi");
+    }
+  };
+
+  /**
+   * ============================================================
+   * PILIH TANGGAL DARI RIWAYAT
+   * ============================================================
    */
   const pilihTanggal = (value) => {
     if (!value) return;
@@ -333,18 +546,14 @@ export default function GuruAbsensiPage() {
   };
 
   /**
-   * BUTTON TAMBAH
-   *
-   * Membuka:
-   * /guru/absensi/tambah?kelasId=UUID
-   *
-   * kelasId diteruskan supaya halaman tambah
-   * bisa langsung menggunakan kelas yang sedang dipilih.
+   * ============================================================
+   * TAMBAH ABSENSI
+   * ============================================================
    */
   const handleTambahAbsensi = () => {
     if (!kelasId) {
-      setError(
-        "Pilih atau masukkan Kelas ID terlebih dahulu.",
+      setErrorAbsensi(
+        "Silakan pilih kelas terlebih dahulu.",
       );
       return;
     }
@@ -356,9 +565,24 @@ export default function GuruAbsensiPage() {
     );
   };
 
+  /**
+   * ============================================================
+   * REFRESH SEMUA
+   * ============================================================
+   */
+  const handleRefresh = async () => {
+    await fetchKelas();
+
+    if (kelasId) {
+      await fetchAbsensi();
+    }
+  };
+
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
-      {/* SIDEBAR */}
+      {/* ======================================================
+          SIDEBAR
+      ====================================================== */}
       <Sidebar
         active="absensi"
         setActive={() => {}}
@@ -369,7 +593,9 @@ export default function GuruAbsensiPage() {
       />
 
       <div className="flex-1 flex flex-col min-w-0">
-        {/* HEADER */}
+        {/* ====================================================
+            HEADER
+        ==================================================== */}
         <Header
           toggleSidebar={() =>
             setSidebarOpen((prev) => !prev)
@@ -384,9 +610,10 @@ export default function GuruAbsensiPage() {
 
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
           <div className="w-full space-y-6">
-
-            {/* PAGE HEADER */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            {/* =================================================
+                PAGE HEADER
+            ================================================= */}
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
               <div className="min-w-0">
                 <div className="flex items-center gap-2.5">
                   <div className="p-2 rounded-lg bg-blue-600 text-white shadow-sm flex-shrink-0">
@@ -399,39 +626,40 @@ export default function GuruAbsensiPage() {
                 </div>
 
                 <p className="text-sm text-slate-500 mt-1 ml-[42px]">
-                  Data absensi siswa berdasarkan kelas
-                  dari sistem.
+                  Kelola dan lihat data absensi
+                  siswa berdasarkan kelas.
                 </p>
               </div>
 
-              {/* ACTIONS */}
-              <div className="flex items-center gap-2">
-
-                {/* TAMBAH */}
+              {/* ACTION */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                 <button
                   type="button"
                   onClick={handleTambahAbsensi}
-                  disabled={!kelasId}
+                  disabled={
+                    !kelasId ||
+                    loadingKelas
+                  }
                   className="flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-blue-600 border border-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
                 >
                   <Plus size={16} />
-
                   Tambah Absensi
                 </button>
 
-                {/* REFRESH */}
                 <button
                   type="button"
-                  onClick={fetchAbsensi}
+                  onClick={handleRefresh}
                   disabled={
-                    loading || !kelasId
+                    loadingKelas ||
+                    loadingAbsensi
                   }
                   className="flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   <RefreshCw
                     size={15}
                     className={
-                      loading
+                      loadingKelas ||
+                      loadingAbsensi
                         ? "animate-spin"
                         : ""
                     }
@@ -442,31 +670,117 @@ export default function GuruAbsensiPage() {
               </div>
             </div>
 
-            {/* FILTER */}
+            {/* =================================================
+                FILTER
+            ================================================= */}
             <div className="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm">
-              <div className="flex flex-col lg:flex-row gap-3">
-
-                {/* KELAS ID */}
-                <div className="flex-1">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* KELAS */}
+                <div>
                   <label className="block text-xs font-medium text-slate-500 mb-1.5">
-                    Kelas ID
+                    Kelas
                   </label>
 
-                  <input
-                    type="text"
-                    value={kelasId}
-                    onChange={(e) =>
-                      setKelasId(
-                        e.target.value,
-                      )
-                    }
-                    placeholder="Masukkan UUID kelas"
-                    className="w-full px-3 py-2.5 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
-                  />
+                  <div className="relative">
+                    <GraduationCap
+                      size={16}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+                    />
+
+                    <select
+                      value={kelasId}
+                      onChange={
+                        handleChangeKelas
+                      }
+                      disabled={
+                        loadingKelas ||
+                        kelas.length === 0
+                      }
+                      className="appearance-none w-full pl-10 pr-10 py-2.5 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 disabled:opacity-60"
+                    >
+                      {loadingKelas ? (
+                        <option value="">
+                          Mengambil data
+                          kelas...
+                        </option>
+                      ) : kelas.length ===
+                        0 ? (
+                        <option value="">
+                          Belum ada kelas
+                        </option>
+                      ) : (
+                        <>
+                          <option value="">
+                            Pilih kelas
+                          </option>
+
+                          {kelas.map(
+                            (item) => (
+                              <option
+                                key={
+                                  item.id
+                                }
+                                value={
+                                  item.id
+                                }
+                              >
+                                {item.nama ||
+                                  `Kelas ${item.tingkat}`}
+                                {item.tingkat
+                                  ? ` - Tingkat ${item.tingkat}`
+                                  : ""}
+                              </option>
+                            ),
+                          )}
+                        </>
+                      )}
+                    </select>
+
+                    <ChevronDown
+                      size={16}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+                    />
+                  </div>
+
+                  {/* INFO KELAS */}
+                  {selectedKelas && (
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <span className="inline-flex items-center gap-1.5 text-[11px] text-blue-600 bg-blue-50 border border-blue-100 px-2 py-1 rounded-md">
+                        <GraduationCap
+                          size={12}
+                        />
+
+                        {selectedKelas.nama ||
+                          "-"}
+                      </span>
+
+                      {selectedKelas.tingkat && (
+                        <span className="text-[11px] text-slate-400">
+                          Tingkat{" "}
+                          {
+                            selectedKelas.tingkat
+                          }
+                        </span>
+                      )}
+
+                      {selectedKelas
+                        .waliKelas
+                        ?.namaLengkap && (
+                        <span className="text-[11px] text-slate-400">
+                          Wali Kelas:{" "}
+                          {
+                            selectedKelas
+                              .waliKelas
+                              .namaLengkap
+                          }
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* TANGGAL */}
-                <div className="w-full lg:w-56">
+                <div>
                   <label className="block text-xs font-medium text-slate-500 mb-1.5">
                     Tanggal
                   </label>
@@ -485,28 +799,31 @@ export default function GuruAbsensiPage() {
                           e.target.value,
                         )
                       }
-                      className="w-full pl-9 pr-3 py-2.5 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+                      disabled={!kelasId}
+                      className="w-full pl-9 pr-3 py-2.5 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 disabled:opacity-60"
                     />
                   </div>
-                </div>
 
-                {/* RESET */}
-                <div className="flex items-end">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setTanggal("")
-                    }
-                    className="w-full lg:w-auto px-4 py-2.5 text-sm font-medium text-slate-600 bg-slate-100 border border-slate-200 rounded-lg hover:bg-slate-200 transition-colors"
-                  >
-                    Semua Tanggal
-                  </button>
+                  {tanggal && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setTanggal("")
+                      }
+                      className="mt-2 text-[11px] font-medium text-blue-600 hover:text-blue-700"
+                    >
+                      Tampilkan semua
+                      tanggal
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
 
-            {/* ERROR */}
-            {error && (
+            {/* =================================================
+                ERROR KELAS
+            ================================================= */}
+            {errorKelas && (
               <div className="flex items-start gap-3 p-4 bg-rose-50 border border-rose-200 rounded-xl">
                 <AlertCircle
                   size={18}
@@ -515,40 +832,71 @@ export default function GuruAbsensiPage() {
 
                 <div>
                   <p className="text-sm font-medium text-rose-700">
-                    Gagal mengambil data absensi
+                    Gagal mengambil data
+                    kelas
                   </p>
 
                   <p className="text-xs text-rose-600 mt-1">
-                    {error}
+                    {errorKelas}
                   </p>
                 </div>
               </div>
             )}
 
-            {/* BELUM ADA KELAS ID */}
-            {!kelasId && !error && (
-              <div className="bg-white border border-slate-200 rounded-xl p-8 text-center">
-                <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-blue-50 flex items-center justify-center">
-                  <Users
-                    size={20}
-                    className="text-blue-500"
-                  />
+            {/* =================================================
+                ERROR ABSENSI
+            ================================================= */}
+            {errorAbsensi && (
+              <div className="flex items-start gap-3 p-4 bg-rose-50 border border-rose-200 rounded-xl">
+                <AlertCircle
+                  size={18}
+                  className="text-rose-500 mt-0.5 flex-shrink-0"
+                />
+
+                <div>
+                  <p className="text-sm font-medium text-rose-700">
+                    Gagal mengambil data
+                    absensi
+                  </p>
+
+                  <p className="text-xs text-rose-600 mt-1">
+                    {errorAbsensi}
+                  </p>
                 </div>
-
-                <h2 className="text-sm font-semibold text-slate-700">
-                  Kelas belum dipilih
-                </h2>
-
-                <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
-                  Masukkan UUID kelas pada kolom
-                  Kelas ID untuk mengambil data
-                  absensi dari backend.
-                </p>
               </div>
             )}
 
-            {/* LOADING */}
-            {loading && (
+            {/* =================================================
+                BELUM ADA KELAS
+            ================================================= */}
+            {!loadingKelas &&
+              kelas.length === 0 &&
+              !errorKelas && (
+                <div className="bg-white border border-slate-200 rounded-xl p-8 text-center">
+                  <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-blue-50 flex items-center justify-center">
+                    <Users
+                      size={20}
+                      className="text-blue-500"
+                    />
+                  </div>
+
+                  <h2 className="text-sm font-semibold text-slate-700">
+                    Belum ada kelas
+                  </h2>
+
+                  <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
+                    Backend belum
+                    mengembalikan data
+                    kelas untuk sekolah
+                    ini.
+                  </p>
+                </div>
+              )}
+
+            {/* =================================================
+                LOADING ABSENSI
+            ================================================= */}
+            {loadingAbsensi && (
               <div className="bg-white rounded-xl border border-slate-200 p-8 text-center">
                 <RefreshCw
                   size={24}
@@ -558,17 +906,28 @@ export default function GuruAbsensiPage() {
                 <p className="text-sm text-slate-500 mt-3">
                   Mengambil data absensi...
                 </p>
+
+                {selectedKelas && (
+                  <p className="text-xs text-slate-400 mt-1">
+                    {selectedKelas.nama ||
+                      "-"}
+                  </p>
+                )}
               </div>
             )}
 
-            {/* CONTENT */}
-            {!loading &&
+            {/* =================================================
+                CONTENT
+            ================================================= */}
+            {!loadingKelas &&
+              !loadingAbsensi &&
               kelasId &&
-              !error && (
+              !errorAbsensi && (
                 <>
-                  {/* SUMMARY */}
+                  {/* =================================================
+                      SUMMARY
+                  ================================================= */}
                   <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-
                     {/* TOTAL */}
                     <div className="bg-white rounded-xl border border-slate-200/80 p-3.5 shadow-sm flex items-center gap-3">
                       <div className="p-2 rounded-lg border bg-slate-100 text-slate-500 border-slate-200">
@@ -590,10 +949,7 @@ export default function GuruAbsensiPage() {
                     {Object.entries(
                       STATUS_CONFIG,
                     ).map(
-                      ([
-                        key,
-                        config,
-                      ]) => {
+                      ([key, config]) => {
                         const Icon =
                           config.icon;
 
@@ -610,7 +966,9 @@ export default function GuruAbsensiPage() {
 
                             <div>
                               <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">
-                                {config.label}
+                                {
+                                  config.label
+                                }
                               </p>
 
                               <p className="text-lg font-bold text-slate-800">
@@ -627,9 +985,10 @@ export default function GuruAbsensiPage() {
                     )}
                   </div>
 
-                  {/* DATA ABSENSI */}
+                  {/* =================================================
+                      DATA ABSENSI
+                  ================================================= */}
                   <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-hidden">
-
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 sm:p-5 border-b border-slate-100">
                       <div>
                         <h2 className="text-sm font-semibold text-slate-800">
@@ -637,11 +996,16 @@ export default function GuruAbsensiPage() {
                         </h2>
 
                         <p className="text-xs text-slate-400 mt-0.5">
+                          {selectedKelas
+                            ?.nama
+                            ? `Kelas ${selectedKelas.nama}`
+                            : "Kelas terpilih"}
+
                           {tanggal
-                            ? `Tanggal ${formatTanggal(
+                            ? ` • ${formatTanggal(
                                 tanggal,
                               )}`
-                            : "Seluruh data absensi kelas"}
+                            : ""}
                         </p>
                       </div>
 
@@ -666,14 +1030,28 @@ export default function GuruAbsensiPage() {
                         </div>
 
                         <p className="text-sm font-medium text-slate-600 mt-3">
-                          Belum ada data absensi
+                          Belum ada data
+                          absensi
                         </p>
 
                         <p className="text-xs text-slate-400 mt-1">
-                          Tidak ada record absensi
-                          yang dikembalikan backend
-                          untuk filter ini.
+                          Tidak ada record
+                          absensi untuk
+                          kelas dan
+                          tanggal yang
+                          dipilih.
                         </p>
+
+                        <button
+                          type="button"
+                          onClick={
+                            handleTambahAbsensi
+                          }
+                          className="inline-flex items-center gap-2 mt-4 px-3.5 py-2 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-100 rounded-lg hover:bg-blue-100 transition-colors"
+                        >
+                          <Plus size={14} />
+                          Tambah Absensi
+                        </button>
                       </div>
                     ) : (
                       <div className="overflow-x-auto">
@@ -739,7 +1117,8 @@ export default function GuruAbsensiPage() {
                                   ClipboardCheck;
 
                                 const siswa =
-                                  item?.pengguna;
+                                  item?.pengguna ||
+                                  item?.siswa;
 
                                 return (
                                   <tr
@@ -763,12 +1142,14 @@ export default function GuruAbsensiPage() {
                                         <div className="min-w-0">
                                           <p className="text-sm font-medium text-slate-800 truncate">
                                             {siswa?.namaLengkap ||
+                                              item?.namaLengkap ||
                                               "-"}
                                           </p>
 
                                           <p className="text-[11px] text-slate-400">
                                             NISN:{" "}
                                             {siswa?.nisn ||
+                                              item?.nisn ||
                                               "-"}
                                           </p>
                                         </div>
@@ -847,9 +1228,10 @@ export default function GuruAbsensiPage() {
                     )}
                   </div>
 
-                  {/* RIWAYAT */}
+                  {/* =================================================
+                      RIWAYAT
+                  ================================================= */}
                   <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-hidden">
-
                     <div className="flex items-center gap-2 p-4 sm:p-5 border-b border-slate-100">
                       <History
                         size={16}
@@ -862,8 +1244,8 @@ export default function GuruAbsensiPage() {
                         </h2>
 
                         <p className="text-xs text-slate-400 mt-0.5">
-                          Tanggal yang tersedia dari
-                          backend
+                          Riwayat tanggal absensi
+                          dari backend
                         </p>
                       </div>
                     </div>
@@ -872,28 +1254,37 @@ export default function GuruAbsensiPage() {
                     0 ? (
                       <div className="p-6 text-center">
                         <p className="text-xs text-slate-400">
-                          Belum ada riwayat.
+                          Belum ada riwayat
+                          absensi.
                         </p>
                       </div>
                     ) : (
                       <div className="divide-y divide-slate-100">
                         {riwayatTanggal.map(
                           (item) => {
-                            const isActive =
-                              tanggal &&
-                              formatTanggal(
+                            const tanggalItem =
+                              new Date(
                                 item.tanggal,
-                              ) ===
-                                formatTanggal(
-                                  tanggal,
+                              );
+
+                            const tanggalKey =
+                              tanggalItem
+                                .toISOString()
+                                .slice(
+                                  0,
+                                  10,
                                 );
+
+                            const isActive =
+                              tanggal ===
+                              tanggalKey;
 
                             return (
                               <button
                                 type="button"
-                                key={String(
-                                  item.tanggal,
-                                )}
+                                key={
+                                  tanggalKey
+                                }
                                 onClick={() =>
                                   pilihTanggal(
                                     item.tanggal,
@@ -925,7 +1316,8 @@ export default function GuruAbsensiPage() {
                                       {
                                         item.jumlah
                                       }{" "}
-                                      data absensi
+                                      data
+                                      absensi
                                     </p>
                                   </div>
                                 </div>

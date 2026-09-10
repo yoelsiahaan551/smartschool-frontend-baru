@@ -22,6 +22,7 @@ import {
   Download,
   FileSpreadsheet,
   Filter,
+  Image as ImageIcon,
 } from "lucide-react";
 
 import {
@@ -71,6 +72,43 @@ function StatCard({
 }
 
 /* =========================================================
+   IMAGE COMPONENT
+========================================================= */
+
+function GedungImage({ src, nama }) {
+  const [imageError, setImageError] = useState(false);
+
+  const hasImage =
+    typeof src === "string" &&
+    src.trim() !== "" &&
+    !imageError;
+
+  if (!hasImage) {
+    return (
+      <div className="flex h-14 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-br from-slate-50 to-slate-100">
+        <div className="flex flex-col items-center justify-center text-slate-400">
+          <Building size={21} strokeWidth={1.7} />
+          <span className="mt-0.5 text-[8px] font-medium">
+            Tidak ada foto
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-14 w-20 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-100 shadow-sm">
+      <img
+        src={src}
+        alt={`Foto ${nama || "gedung"}`}
+        className="h-full w-full object-cover transition-transform duration-300 hover:scale-105"
+        onError={() => setImageError(true)}
+      />
+    </div>
+  );
+}
+
+/* =========================================================
    MAIN PAGE
 ========================================================= */
 
@@ -105,19 +143,6 @@ export default function SarprasGedungPage() {
       setError("");
 
       const response = await getGedung();
-
-      /*
-       * successResponse backend biasanya mengembalikan:
-       *
-       * {
-       *   success: true,
-       *   message: "...",
-       *   data: [...]
-       * }
-       *
-       * Tetapi kita buat sedikit fleksibel jika apiFetch
-       * mengembalikan response.data secara langsung.
-       */
 
       const result =
         response?.data ??
@@ -361,6 +386,14 @@ export default function SarprasGedungPage() {
     );
   }, [data]);
 
+  const totalFoto = useMemo(() => {
+    return data.filter(
+      (item) =>
+        typeof item?.fotoUrl === "string" &&
+        item.fotoUrl.trim() !== ""
+    ).length;
+  }, [data]);
+
   /* =========================================================
      EXPORT CSV
   ========================================================= */
@@ -372,6 +405,7 @@ export default function SarprasGedungPage() {
       "No",
       "Nama Gedung",
       "Kode",
+      "URL Foto",
       "Jumlah Lantai",
     ];
 
@@ -379,6 +413,7 @@ export default function SarprasGedungPage() {
       index + 1,
       item?.nama ?? "",
       item?.kode ?? "",
+      item?.fotoUrl ?? "",
       item?.lantai?.length ?? 0,
     ]);
 
@@ -443,6 +478,7 @@ export default function SarprasGedungPage() {
       "No",
       "Nama Gedung",
       "Kode",
+      "URL Foto",
       "Jumlah Lantai",
     ];
 
@@ -469,6 +505,7 @@ export default function SarprasGedungPage() {
           <td>${index + 1}</td>
           <td>${escapeHTML(item?.nama)}</td>
           <td>${escapeHTML(item?.kode)}</td>
+          <td>${escapeHTML(item?.fotoUrl)}</td>
           <td>${item?.lantai?.length ?? 0}</td>
         </tr>
       `;
@@ -511,8 +548,6 @@ export default function SarprasGedungPage() {
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-[#f8fafc]">
-      {/* SIDEBAR */}
-
       <Sidebar
         active="sarpras"
         setActive={() => {}}
@@ -521,8 +556,6 @@ export default function SarprasGedungPage() {
       />
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        {/* HEADER */}
-
         <Header
           toggleSidebar={() =>
             setIsCollapsed(!isCollapsed)
@@ -596,7 +629,6 @@ export default function SarprasGedungPage() {
                         className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-600 shadow-[0_2px_5px_rgba(15,23,42,0.05)] transition-all hover:border-slate-300 hover:bg-slate-50 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-50 sm:h-11 sm:px-5"
                       >
                         <Download size={16} />
-
                         Export
                       </button>
 
@@ -694,7 +726,8 @@ export default function SarprasGedungPage() {
                   STATS
               ================================================= */}
 
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-2">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+
                 <StatCard
                   icon={Building}
                   label="Total Gedung"
@@ -712,6 +745,16 @@ export default function SarprasGedungPage() {
                   iconClass="bg-indigo-50 text-indigo-600"
                   valueClass="text-indigo-700"
                 />
+
+                <StatCard
+                  icon={ImageIcon}
+                  label="Gedung Berfoto"
+                  value={totalFoto}
+                  description="Memiliki URL foto"
+                  iconClass="bg-emerald-50 text-emerald-600"
+                  valueClass="text-emerald-700"
+                />
+
               </div>
 
               {/* =================================================
@@ -741,8 +784,6 @@ export default function SarprasGedungPage() {
 
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
 
-                  {/* SEARCH */}
-
                   <div className="relative">
                     <Search
                       size={15}
@@ -759,8 +800,6 @@ export default function SarprasGedungPage() {
                       className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 text-sm text-slate-700 outline-none transition-all placeholder:text-slate-400 focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-500/10"
                     />
                   </div>
-
-                  {/* SORT */}
 
                   <select
                     value={sortBy}
@@ -794,8 +833,6 @@ export default function SarprasGedungPage() {
                     </option>
                   </select>
 
-                  {/* RESET */}
-
                   <button
                     onClick={() => {
                       setSearch("");
@@ -826,6 +863,7 @@ export default function SarprasGedungPage() {
 
                 <div className="border-b border-slate-100 px-5 py-4 sm:px-6 sm:py-5">
                   <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+
                     <div>
                       <h2 className="text-sm font-semibold text-slate-800">
                         Daftar Gedung
@@ -843,7 +881,8 @@ export default function SarprasGedungPage() {
                 </div>
 
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[760px] border-collapse">
+                  <table className="w-full min-w-[900px] border-collapse">
+
                     <thead>
                       <tr className="border-b border-slate-200 bg-slate-50/80">
 
@@ -851,7 +890,11 @@ export default function SarprasGedungPage() {
                           No
                         </th>
 
-                        <th className="min-w-[220px] px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+                        <th className="w-28 px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+                          Foto
+                        </th>
+
+                        <th className="min-w-[250px] px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">
                           Nama Gedung
                         </th>
 
@@ -866,6 +909,7 @@ export default function SarprasGedungPage() {
                         <th className="w-32 px-4 py-3 text-center text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">
                           Aksi
                         </th>
+
                       </tr>
                     </thead>
 
@@ -876,10 +920,11 @@ export default function SarprasGedungPage() {
                       {loading && (
                         <tr>
                           <td
-                            colSpan={5}
+                            colSpan={6}
                             className="px-4 py-16 text-center"
                           >
                             <div className="flex flex-col items-center justify-center">
+
                               <RefreshCw
                                 size={24}
                                 className="animate-spin text-blue-500"
@@ -892,6 +937,7 @@ export default function SarprasGedungPage() {
                               <p className="mt-1 text-xs text-slate-400">
                                 Mengambil data dari server
                               </p>
+
                             </div>
                           </td>
                         </tr>
@@ -911,31 +957,53 @@ export default function SarprasGedungPage() {
                             return (
                               <tr
                                 key={item.id}
-                                className="transition-colors hover:bg-slate-50/70"
+                                className="group transition-colors hover:bg-blue-50/30"
                               >
+
                                 {/* NO */}
 
                                 <td className="px-4 py-3.5 text-center text-sm text-slate-400">
                                   {rowNumber}
                                 </td>
 
+                                {/* FOTO */}
+
+                                <td className="px-4 py-3.5">
+                                  <GedungImage
+                                    src={item?.fotoUrl}
+                                    nama={item?.nama}
+                                  />
+                                </td>
+
                                 {/* GEDUNG */}
 
                                 <td className="px-4 py-3.5">
                                   <div className="flex items-center gap-3">
+
                                     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-                                      <Building size={17} />
+                                      <Building
+                                        size={17}
+                                      />
                                     </div>
 
                                     <div className="min-w-0">
-                                      <p className="text-sm font-semibold text-slate-800">
+
+                                      <button
+                                        onClick={() =>
+                                          handleDetail(
+                                            item.id
+                                          )
+                                        }
+                                        className="block max-w-[320px] truncate text-left text-sm font-semibold text-slate-800 transition hover:text-blue-600"
+                                      >
                                         {item?.nama ||
                                           "-"}
-                                      </p>
+                                      </button>
 
-                                      <p className="text-xs text-slate-400">
+                                      <p className="max-w-[320px] truncate text-xs text-slate-400">
                                         ID #{item?.id}
                                       </p>
+
                                     </div>
                                   </div>
                                 </td>
@@ -1026,6 +1094,7 @@ export default function SarprasGedungPage() {
 
                                   </div>
                                 </td>
+
                               </tr>
                             );
                           }
@@ -1039,6 +1108,7 @@ export default function SarprasGedungPage() {
                 {!loading &&
                   currentItems.length === 0 && (
                     <div className="flex flex-col items-center justify-center py-16 text-center">
+
                       <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
                         <Building size={24} />
                       </div>
@@ -1062,6 +1132,7 @@ export default function SarprasGedungPage() {
                           Tambah Gedung
                         </button>
                       )}
+
                     </div>
                   )}
 
@@ -1208,6 +1279,7 @@ export default function SarprasGedungPage() {
                             size={14}
                           />
                         </button>
+
                       </div>
                     </div>
                   )}
@@ -1217,11 +1289,11 @@ export default function SarprasGedungPage() {
 
               <footer className="border-t border-slate-200/70 pt-4 text-center sm:pt-5">
                 <p className="text-xs text-slate-400">
-                  © 2026 SmartSchool •
-                  Pengelolaan Gedung - Sarana &
-                  Prasarana
+                  © 2026 SmartSchool • Pengelolaan
+                  Gedung - Sarana & Prasarana
                 </p>
               </footer>
+
             </div>
           </div>
         </main>

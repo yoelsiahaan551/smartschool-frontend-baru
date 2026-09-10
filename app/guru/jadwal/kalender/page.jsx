@@ -1,7 +1,7 @@
 // app/guru/jadwal/kalender/page.jsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
     Calendar,
@@ -19,7 +19,6 @@ import {
     Building2,
     Sparkles,
     Sun,
-    Coffee,
     Award,
     Bell,
     Timer,
@@ -28,298 +27,14 @@ import {
     ClockArrowUp,
     Star,
     ArrowRight,
+    RefreshCw,
+    AlertCircle,
 } from 'lucide-react';
 
 import Sidebar from '../../../components/Sidebar';
 import Header from '../../../components/Header';
 
-// ============================================================
-// DATA CABANG
-// ============================================================
-
-const MOCK_BRANCHES = [
-    { id: 'b1', name: 'SMK Taruna Bhakti Depok' },
-    { id: 'b2', name: 'SMK Taruna Bhakti Jakarta' },
-    { id: 'b3', name: 'SMK Taruna Bhakti Bandung' },
-];
-
-// ============================================================
-// DATA MAPEL
-// ============================================================
-
-const MOCK_SUBJECTS = [
-    { id: '1', name: 'Matematika', color: '#0D9488' },
-    { id: '2', name: 'Pemrograman Dasar', color: '#2563EB' },
-    { id: '3', name: 'Bahasa Indonesia', color: '#059669' },
-    { id: '4', name: 'Bahasa Inggris', color: '#DC2626' },
-    { id: '5', name: 'IPA', color: '#0891B2' },
-    { id: '6', name: 'PKN', color: '#D97706' },
-    { id: '7', name: 'Sejarah', color: '#7C3AED' },
-    { id: '8', name: 'Seni Budaya', color: '#DB2777' },
-    { id: '9', name: 'Quiz Aljabar', color: '#F59E0B' },
-];
-
-// ============================================================
-// DATA KELAS
-// ============================================================
-
-const MOCK_CLASSES = [
-    { id: '1', name: 'X RPL 1' },
-    { id: '2', name: 'X RPL 2' },
-    { id: '3', name: 'XI RPL 1' },
-    { id: '4', name: 'XI RPL 2' },
-    { id: '5', name: 'XII RPL 1' },
-    { id: '6', name: 'XII RPL 2' },
-];
-
-// ============================================================
-// DATA RUANGAN
-// ============================================================
-
-const MOCK_ROOMS = [
-    { id: '1', name: 'Ruang 301' },
-    { id: '2', name: 'Ruang 302' },
-    { id: '3', name: 'Ruang 303' },
-    { id: '4', name: 'Ruang 304' },
-    { id: '5', name: 'Lab Komputer 1' },
-    { id: '6', name: 'Lab Komputer 2' },
-    { id: '7', name: 'Ruang BK' },
-    { id: '8', name: 'Ruang Guru' },
-];
-
-// ============================================================
-// DATA JADWAL
-// ============================================================
-
-const DUMMY_SCHEDULES = [
-    {
-        id: 'd1',
-        branchId: 'b1',
-        day: 'Senin',
-        startTime: '07:00',
-        endTime: '08:00',
-        subjectId: '1',
-        subjectName: 'Matematika',
-        subjectColor: '#0D9488',
-        classId: '1',
-        className: 'X RPL 1',
-        roomId: '1',
-        roomName: 'Ruang 301',
-        notes: '',
-    },
-    {
-        id: 'd2',
-        branchId: 'b1',
-        day: 'Senin',
-        startTime: '08:00',
-        endTime: '09:00',
-        subjectId: '1',
-        subjectName: 'Matematika',
-        subjectColor: '#0D9488',
-        classId: '2',
-        className: 'X RPL 2',
-        roomId: '2',
-        roomName: 'Ruang 302',
-        notes: '',
-    },
-    {
-        id: 'd3',
-        branchId: 'b1',
-        day: 'Senin',
-        startTime: '09:00',
-        endTime: '09:45',
-        subjectId: '1',
-        subjectName: 'Matematika',
-        subjectColor: '#0D9488',
-        classId: '3',
-        className: 'XI RPL 1',
-        roomId: '3',
-        roomName: 'Ruang 303',
-        notes: '',
-    },
-    {
-        id: 'd4',
-        branchId: 'b1',
-        day: 'Senin',
-        startTime: '09:45',
-        endTime: '10:15',
-        subjectId: null,
-        subjectName: 'Istirahat',
-        subjectColor: '#94A3B8',
-        classId: null,
-        className: '',
-        roomId: null,
-        roomName: '',
-        notes: '',
-        isBreak: true,
-    },
-    {
-        id: 'd5',
-        branchId: 'b1',
-        day: 'Senin',
-        startTime: '10:15',
-        endTime: '11:15',
-        subjectId: '9',
-        subjectName: 'Quiz Aljabar',
-        subjectColor: '#F59E0B',
-        classId: '1',
-        className: 'X RPL 1',
-        roomId: '1',
-        roomName: 'Ruang 301',
-        notes: '',
-    },
-    {
-        id: 'd6',
-        branchId: 'b1',
-        day: 'Selasa',
-        startTime: '07:00',
-        endTime: '08:00',
-        subjectId: '2',
-        subjectName: 'Pemrograman Dasar',
-        subjectColor: '#2563EB',
-        classId: '2',
-        className: 'X RPL 2',
-        roomId: '5',
-        roomName: 'Lab Komputer 1',
-        notes: '',
-    },
-    {
-        id: 'd7',
-        branchId: 'b1',
-        day: 'Selasa',
-        startTime: '08:00',
-        endTime: '09:00',
-        subjectId: '2',
-        subjectName: 'Pemrograman Dasar',
-        subjectColor: '#2563EB',
-        classId: '4',
-        className: 'XI RPL 2',
-        roomId: '5',
-        roomName: 'Lab Komputer 1',
-        notes: '',
-    },
-    {
-        id: 'd8',
-        branchId: 'b1',
-        day: 'Rabu',
-        startTime: '08:00',
-        endTime: '09:00',
-        subjectId: '3',
-        subjectName: 'Bahasa Indonesia',
-        subjectColor: '#059669',
-        classId: '3',
-        className: 'XI RPL 1',
-        roomId: '3',
-        roomName: 'Ruang 303',
-        notes: '',
-    },
-    {
-        id: 'd9',
-        branchId: 'b1',
-        day: 'Rabu',
-        startTime: '09:00',
-        endTime: '10:00',
-        subjectId: '4',
-        subjectName: 'Bahasa Inggris',
-        subjectColor: '#DC2626',
-        classId: '1',
-        className: 'X RPL 1',
-        roomId: '1',
-        roomName: 'Ruang 301',
-        notes: '',
-    },
-    {
-        id: 'd10',
-        branchId: 'b1',
-        day: 'Kamis',
-        startTime: '07:00',
-        endTime: '08:00',
-        subjectId: '5',
-        subjectName: 'IPA',
-        subjectColor: '#0891B2',
-        classId: '5',
-        className: 'XII RPL 1',
-        roomId: '6',
-        roomName: 'Lab Komputer 2',
-        notes: '',
-    },
-    {
-        id: 'd11',
-        branchId: 'b1',
-        day: 'Kamis',
-        startTime: '08:00',
-        endTime: '09:00',
-        subjectId: '6',
-        subjectName: 'PKN',
-        subjectColor: '#D97706',
-        classId: '2',
-        className: 'X RPL 2',
-        roomId: '2',
-        roomName: 'Ruang 302',
-        notes: '',
-    },
-    {
-        id: 'd12',
-        branchId: 'b1',
-        day: 'Jumat',
-        startTime: '07:00',
-        endTime: '08:00',
-        subjectId: '7',
-        subjectName: 'Sejarah',
-        subjectColor: '#7C3AED',
-        classId: '1',
-        className: 'X RPL 1',
-        roomId: '1',
-        roomName: 'Ruang 301',
-        notes: '',
-    },
-    {
-        id: 'd13',
-        branchId: 'b1',
-        day: 'Jumat',
-        startTime: '08:00',
-        endTime: '09:00',
-        subjectId: '8',
-        subjectName: 'Seni Budaya',
-        subjectColor: '#DB2777',
-        classId: '3',
-        className: 'XI RPL 1',
-        roomId: '3',
-        roomName: 'Ruang 303',
-        notes: '',
-    },
-];
-
-// ============================================================
-// AGENDA
-// ============================================================
-
-const UPCOMING_EVENTS = [
-    {
-        id: 'e1',
-        title: 'Rapat Guru Mapel Matematika',
-        date: 'Rabu, 22 Mei 2025',
-        time: '13.00 - 14.30',
-        location: 'Ruang Guru',
-        branchId: 'b1',
-    },
-    {
-        id: 'e2',
-        title: 'Penilaian Tengah Semester',
-        date: '27 Mei - 31 Mei 2025',
-        time: '',
-        location: 'X RPL 1, X RPL 2, XI RPL 1',
-        branchId: 'b1',
-    },
-    {
-        id: 'e3',
-        title: 'Pengumpulan Nilai',
-        date: 'Jumat, 31 Mei 2025',
-        time: '',
-        location: 'Semua Kelas',
-        branchId: 'b1',
-    },
-];
+import { getJadwalMengajar } from '../../../../services/jadwalMengajar.service';
 
 // ============================================================
 // CONSTANT
@@ -340,200 +55,1329 @@ const monthNames = [
     'Desember',
 ];
 
+const dayNames = [
+    'Minggu',
+    'Senin',
+    'Selasa',
+    'Rabu',
+    'Kamis',
+    'Jumat',
+    'Sabtu',
+];
+
+const subjectColors = [
+    '#2563EB',
+    '#0D9488',
+    '#059669',
+    '#DC2626',
+    '#0891B2',
+    '#D97706',
+    '#7C3AED',
+    '#DB2777',
+    '#F59E0B',
+    '#4F46E5',
+];
+
 const getDayName = (dayIndex) => {
-    const map = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-    return map[dayIndex];
+    return dayNames[dayIndex] ?? '';
 };
 
 // ============================================================
-// KOMPONEN UTAMA
+// NORMALIZER
+// ============================================================
+
+function normalizeText(value) {
+    return String(value ?? '')
+        .trim()
+        .toLowerCase();
+}
+
+function normalizeDay(value) {
+    return normalizeText(value);
+}
+
+function normalizeEmail(value) {
+    return normalizeText(value);
+}
+
+// ============================================================
+// TOKEN / USER
+// ============================================================
+
+function getToken() {
+    if (typeof window === 'undefined') {
+        return null;
+    }
+
+    const tokenKeys = [
+        'token',
+        'accessToken',
+        'access_token',
+        'authToken',
+        'jwt',
+    ];
+
+    for (const key of tokenKeys) {
+        const value = localStorage.getItem(key);
+
+        if (value && value.trim()) {
+            return value
+                .trim()
+                .replace(/^Bearer\s+/i, '');
+        }
+    }
+
+    return null;
+}
+
+function getCurrentUserFromToken() {
+    const token = getToken();
+
+    if (!token) {
+        return null;
+    }
+
+    try {
+        const parts = token.split('.');
+
+        if (parts.length !== 3) {
+            return null;
+        }
+
+        let base64 = parts[1]
+            .replace(/-/g, '+')
+            .replace(/_/g, '/');
+
+        base64 += '='.repeat(
+            (4 - (base64.length % 4)) % 4
+        );
+
+        const binary = atob(base64);
+
+        const bytes = Uint8Array.from(
+            binary,
+            (char) => char.charCodeAt(0)
+        );
+
+        const json = new TextDecoder().decode(bytes);
+
+        const payload = JSON.parse(json);
+
+        return {
+            id:
+                payload?.userId ??
+                payload?.id ??
+                payload?.sub ??
+                null,
+
+            name:
+                payload?.namaLengkap ??
+                payload?.name ??
+                payload?.nama ??
+                null,
+
+            email:
+                payload?.email ??
+                null,
+
+            username:
+                payload?.username ??
+                payload?.userName ??
+                null,
+
+            sekolahId:
+                payload?.sekolahId ??
+                null,
+
+            role:
+                payload?.role ??
+                payload?.peran ??
+                null,
+        };
+    } catch (error) {
+        console.error(
+            '[KALENDER GURU] Gagal membaca JWT:',
+            error
+        );
+
+        return null;
+    }
+}
+
+// ============================================================
+// SUBJECT COLOR
+// ============================================================
+
+function getSubjectColor(subjectId, subjectName) {
+    const source = String(
+        subjectId ||
+            subjectName ||
+            'subject'
+    );
+
+    let hash = 0;
+
+    for (let i = 0; i < source.length; i++) {
+        hash =
+            source.charCodeAt(i) +
+            ((hash << 5) - hash);
+    }
+
+    const index =
+        Math.abs(hash) %
+        subjectColors.length;
+
+    return subjectColors[index];
+}
+
+// ============================================================
+// NORMALIZE BACKEND SCHEDULE
+// ============================================================
+
+function normalizeSchedule(schedule) {
+    const kelasMapel =
+        schedule?.kelasMapel || {};
+
+    const kelas =
+        kelasMapel?.kelas || {};
+
+    const mataPelajaran =
+        kelasMapel?.mataPelajaran || {};
+
+    const guru =
+        kelasMapel?.guruPengajar || {};
+
+    const subjectId =
+        kelasMapel?.mataPelajaranId ??
+        mataPelajaran?.id ??
+        '';
+
+    const subjectName =
+        mataPelajaran?.nama ??
+        'Mata Pelajaran';
+
+    const teacherId =
+        kelasMapel?.guruPengajarId ??
+        guru?.id ??
+        '';
+
+    const teacherName =
+        guru?.namaLengkap ??
+        guru?.nama ??
+        '';
+
+    const teacherEmail =
+        guru?.email ??
+        '';
+
+    return {
+        id:
+            schedule?.id ??
+            '',
+
+        kelasMapelId:
+            schedule?.kelasMapelId ??
+            kelasMapel?.id ??
+            '',
+
+        // PENTING:
+        // Backend mengirim "senin", "selasa", dst.
+        day: normalizeDay(
+            schedule?.hari
+        ),
+
+        startTime:
+            schedule?.jamMulai ??
+            '',
+
+        endTime:
+            schedule?.jamSelesai ??
+            '',
+
+        roomName:
+            schedule?.ruangan ??
+            '',
+
+        subjectId,
+
+        subjectName,
+
+        subjectCode:
+            mataPelajaran?.kode ??
+            '',
+
+        subjectColor:
+            getSubjectColor(
+                subjectId,
+                subjectName
+            ),
+
+        classId:
+            kelasMapel?.kelasId ??
+            kelas?.id ??
+            '',
+
+        className:
+            kelas?.nama ??
+            'Kelas',
+
+        teacherId,
+
+        teacherName,
+
+        teacherEmail,
+
+        schoolId:
+            kelas?.sekolahId ??
+            schedule?.sekolahId ??
+            null,
+
+        notes:
+            schedule?.keterangan ??
+            '',
+
+        raw: schedule,
+    };
+}
+
+// ============================================================
+// TIME HELPERS
+// ============================================================
+
+function timeToMinutes(time) {
+    if (
+        !time ||
+        !String(time).includes(':')
+    ) {
+        return 0;
+    }
+
+    const [hour, minute] =
+        String(time)
+            .split(':')
+            .map(Number);
+
+    return (
+        (Number.isFinite(hour)
+            ? hour
+            : 0) *
+            60 +
+        (Number.isFinite(minute)
+            ? minute
+            : 0)
+    );
+}
+
+function getDurationInMinutes(
+    start,
+    end
+) {
+    return Math.max(
+        0,
+        timeToMinutes(end) -
+            timeToMinutes(start)
+    );
+}
+
+function formatDuration(
+    totalMinutes
+) {
+    const hours = Math.floor(
+        totalMinutes / 60
+    );
+
+    const minutes =
+        totalMinutes % 60;
+
+    if (
+        hours === 0 &&
+        minutes === 0
+    ) {
+        return '0j 0m';
+    }
+
+    return `${hours}j ${minutes}m`;
+}
+
+// ============================================================
+// DATE HELPERS
+// ============================================================
+
+function isSameDate(
+    dateA,
+    dateB
+) {
+    return (
+        dateA.getFullYear() ===
+            dateB.getFullYear() &&
+        dateA.getMonth() ===
+            dateB.getMonth() &&
+        dateA.getDate() ===
+            dateB.getDate()
+    );
+}
+
+function getWeekDays(
+    baseDate
+) {
+    const date = new Date(
+        baseDate
+    );
+
+    const day = date.getDay();
+
+    const diff =
+        day === 0
+            ? -6
+            : 1 - day;
+
+    const weekStart =
+        new Date(date);
+
+    weekStart.setDate(
+        date.getDate() + diff
+    );
+
+    return Array.from(
+        { length: 7 },
+        (_, index) => {
+            const current =
+                new Date(
+                    weekStart
+                );
+
+            current.setDate(
+                weekStart.getDate() +
+                    index
+            );
+
+            return current;
+        }
+    );
+}
+
+// ============================================================
+// COMPONENT
 // ============================================================
 
 export default function KalenderGuruPage() {
     const router = useRouter();
 
-    const [schedules, setSchedules] = useState([]);
-    const [branches] = useState(MOCK_BRANCHES);
+    // ========================================================
+    // USER
+    // ========================================================
 
-    const [selectedBranch, setSelectedBranch] = useState('b1');
-    const [selectedDate, setSelectedDate] = useState(new Date(2025, 4, 20));
-    const [viewDate, setViewDate] = useState(new Date(2025, 4, 20));
+    const [
+        currentUser,
+        setCurrentUser,
+    ] = useState(null);
 
-    const [filterClass, setFilterClass] = useState('all');
-    const [filterSubject, setFilterSubject] = useState('all');
-    const [selectedDay, setSelectedDay] = useState(2);
+    // ========================================================
+    // DATA
+    // ========================================================
 
-    // ============================================================
-    // LOAD DATA
-    // ============================================================
+    const [
+        schedules,
+        setSchedules,
+    ] = useState([]);
+
+    const [
+        loading,
+        setLoading,
+    ] = useState(true);
+
+    const [
+        error,
+        setError,
+    ] = useState('');
+
+    // ========================================================
+    // DATE
+    // ========================================================
+
+    const [
+        selectedDate,
+        setSelectedDate,
+    ] = useState(
+        () => new Date()
+    );
+
+    const [
+        viewDate,
+        setViewDate,
+    ] = useState(
+        () => new Date()
+    );
+
+    // ========================================================
+    // FILTER
+    // ========================================================
+
+    const [
+        filterClass,
+        setFilterClass,
+    ] = useState('all');
+
+    const [
+        filterSubject,
+        setFilterSubject,
+    ] = useState('all');
+
+    // ========================================================
+    // LOAD USER
+    // ========================================================
 
     useEffect(() => {
-        const stored = localStorage.getItem('teacher_schedules');
+        const user =
+            getCurrentUserFromToken();
 
-        if (stored) {
-            try {
-                const parsed = JSON.parse(stored);
+        console.log(
+            '[KALENDER GURU] USER LOGIN:',
+            user
+        );
 
-                if (Array.isArray(parsed) && parsed.length > 0) {
-                    setSchedules(parsed);
-                    return;
-                }
-            } catch (error) {
-                console.error('Gagal membaca jadwal:', error);
-            }
-        }
-
-        setSchedules(DUMMY_SCHEDULES);
-        localStorage.setItem('teacher_schedules', JSON.stringify(DUMMY_SCHEDULES));
+        setCurrentUser(user);
     }, []);
 
-    // ============================================================
+    // ========================================================
+    // LOAD JADWAL
+    // ========================================================
+
+    const loadSchedules =
+        async () => {
+            try {
+                setLoading(true);
+                setError('');
+
+                const user =
+                    getCurrentUserFromToken();
+
+                if (!user) {
+                    throw new Error(
+                        'Data user tidak ditemukan dari token login. Silakan login kembali.'
+                    );
+                }
+
+                setCurrentUser(user);
+
+                const response =
+                    await getJadwalMengajar();
+
+                console.log(
+                    '[KALENDER GURU] RESPONSE API:',
+                    response
+                );
+
+                if (
+                    !response?.success
+                ) {
+                    throw new Error(
+                        response?.message ||
+                            'Gagal mengambil jadwal mengajar.'
+                    );
+                }
+
+                const backendSchedules =
+                    Array.isArray(
+                        response?.data
+                    )
+                        ? response.data
+                        : [];
+
+                console.log(
+                    '[KALENDER GURU] JUMLAH DATA BACKEND:',
+                    backendSchedules.length
+                );
+
+                /*
+                 * =====================================================
+                 * DEBUG DATA BACKEND
+                 * =====================================================
+                 */
+
+                backendSchedules.forEach(
+                    (
+                        item,
+                        index
+                    ) => {
+                        const guru =
+                            item
+                                ?.kelasMapel
+                                ?.guruPengajar;
+
+                        console.log(
+                            `[KALENDER GURU] JADWAL ${index + 1}:`,
+                            {
+                                id:
+                                    item?.id,
+
+                                hari:
+                                    item?.hari,
+
+                                jamMulai:
+                                    item?.jamMulai,
+
+                                jamSelesai:
+                                    item?.jamSelesai,
+
+                                kelas:
+                                    item
+                                        ?.kelasMapel
+                                        ?.kelas
+                                        ?.nama,
+
+                                mapel:
+                                    item
+                                        ?.kelasMapel
+                                        ?.mataPelajaran
+                                        ?.nama,
+
+                                guruId:
+                                    guru?.id,
+
+                                guruNama:
+                                    guru?.namaLengkap ??
+                                    guru?.nama,
+
+                                guruEmail:
+                                    guru?.email,
+
+                                userId:
+                                    user?.id,
+
+                                userName:
+                                    user?.name,
+
+                                userEmail:
+                                    user?.email,
+                            }
+                        );
+                    }
+                );
+
+                /*
+                 * =====================================================
+                 * FILTER GURU
+                 * =====================================================
+                 *
+                 * Masalah sebelumnya:
+                 *
+                 * guruPengajar.id
+                 * tidak selalu sama dengan
+                 * userId JWT.
+                 *
+                 * Jadi sekarang kita coba:
+                 *
+                 * 1. ID
+                 * 2. Email
+                 * 3. Nama
+                 *
+                 * =====================================================
+                 */
+
+                const teacherSchedules =
+                    backendSchedules.filter(
+                        (item) => {
+                            const guru =
+                                item
+                                    ?.kelasMapel
+                                    ?.guruPengajar;
+
+                            const guruId =
+                                guru?.id ??
+                                item
+                                    ?.kelasMapel
+                                    ?.guruPengajarId ??
+                                '';
+
+                            const guruEmail =
+                                guru?.email ??
+                                '';
+
+                            const guruName =
+                                guru?.namaLengkap ??
+                                guru?.nama ??
+                                '';
+
+                            const userId =
+                                user?.id ??
+                                '';
+
+                            const userEmail =
+                                user?.email ??
+                                '';
+
+                            const userName =
+                                user?.name ??
+                                '';
+
+                            const matchById =
+                                Boolean(
+                                    guruId &&
+                                        userId
+                                ) &&
+                                String(
+                                    guruId
+                                ) ===
+                                    String(
+                                        userId
+                                    );
+
+                            const matchByEmail =
+                                Boolean(
+                                    guruEmail &&
+                                        userEmail
+                                ) &&
+                                normalizeEmail(
+                                    guruEmail
+                                ) ===
+                                    normalizeEmail(
+                                        userEmail
+                                    );
+
+                            const matchByName =
+                                Boolean(
+                                    guruName &&
+                                        userName
+                                ) &&
+                                normalizeText(
+                                    guruName
+                                ) ===
+                                    normalizeText(
+                                        userName
+                                    );
+
+                            const cocok =
+                                matchById ||
+                                matchByEmail ||
+                                matchByName;
+
+                            console.log(
+                                '[KALENDER GURU] CEK GURU:',
+                                {
+                                    guruId,
+                                    userId,
+                                    guruEmail,
+                                    userEmail,
+                                    guruName,
+                                    userName,
+                                    matchById,
+                                    matchByEmail,
+                                    matchByName,
+                                    cocok,
+                                }
+                            );
+
+                            return cocok;
+                        }
+                    );
+
+                console.log(
+                    '[KALENDER GURU] HASIL FILTER GURU:',
+                    teacherSchedules
+                );
+
+                /*
+                 * =====================================================
+                 * NORMALIZE
+                 * =====================================================
+                 */
+
+                const normalized =
+                    teacherSchedules
+                        .map(
+                            normalizeSchedule
+                        )
+                        .filter(
+                            (item) =>
+                                item.id &&
+                                item.day &&
+                                item.startTime &&
+                                item.endTime
+                        );
+
+                console.log(
+                    '[KALENDER GURU] HASIL NORMALIZE:',
+                    normalized
+                );
+
+                /*
+                 * =====================================================
+                 * PENTING
+                 * =====================================================
+                 *
+                 * Jika hasil filter kosong,
+                 * kita TIDAK langsung menampilkan
+                 * semua jadwal sekolah.
+                 *
+                 * Karena halaman Guru harus tetap
+                 * hanya menampilkan jadwal guru.
+                 */
+
+                setSchedules(
+                    normalized
+                );
+
+                if (
+                    backendSchedules.length >
+                        0 &&
+                    normalized.length === 0
+                ) {
+                    console.warn(
+                        '[KALENDER GURU] API memiliki jadwal, tetapi tidak ada yang cocok dengan user login.'
+                    );
+                }
+            } catch (err) {
+                console.error(
+                    '[KALENDER GURU] ERROR:',
+                    err
+                );
+
+                setSchedules([]);
+
+                setError(
+                    err?.message ||
+                        'Gagal mengambil jadwal mengajar dari backend.'
+                );
+            } finally {
+                setLoading(false);
+            }
+        };
+
+    useEffect(() => {
+        loadSchedules();
+    }, []);
+
+    // ========================================================
+    // TODAY
+    // ========================================================
+
+    const today =
+        new Date();
+
+    // ========================================================
     // WEEK
-    // ============================================================
+    // ========================================================
 
-    const getWeekDays = (baseDate) => {
-        const date = new Date(baseDate);
-        const day = date.getDay();
-        const diff = day === 0 ? -6 : 1 - day;
-        const weekStart = new Date(date);
-        weekStart.setDate(date.getDate() + diff);
+    const weekDays =
+        useMemo(
+            () =>
+                getWeekDays(
+                    viewDate
+                ),
+            [viewDate]
+        );
 
-        return Array.from({ length: 7 }, (_, index) => {
-            const d = new Date(weekStart);
-            d.setDate(weekStart.getDate() + index);
-            return d;
-        });
-    };
+    // ========================================================
+    // FILTER OPTIONS
+    // ========================================================
 
-    const weekDays = getWeekDays(viewDate);
+    const classOptions =
+        useMemo(() => {
+            const map =
+                new Map();
 
-    // ============================================================
-    // FILTER
-    // ============================================================
+            schedules.forEach(
+                (schedule) => {
+                    if (
+                        schedule.classId
+                    ) {
+                        map.set(
+                            schedule.classId,
+                            {
+                                id:
+                                    schedule.classId,
+                                name:
+                                    schedule.className,
+                            }
+                        );
+                    }
+                }
+            );
 
-    const filteredSchedules = schedules
-        .filter((s) => s.branchId === selectedBranch)
-        .filter((s) => s.day === getDayName(selectedDay))
-        .filter((s) => filterClass === 'all' || s.classId === filterClass)
-        .filter((s) => filterSubject === 'all' || s.subjectId === filterSubject)
-        .sort((a, b) => a.startTime.localeCompare(b.startTime));
+            return Array.from(
+                map.values()
+            ).sort(
+                (a, b) =>
+                    a.name.localeCompare(
+                        b.name,
+                        'id'
+                    )
+            );
+        }, [schedules]);
 
-    // ============================================================
-    // STATISTIC
-    // ============================================================
+    const subjectOptions =
+        useMemo(() => {
+            const map =
+                new Map();
 
-    const totalMinutes = filteredSchedules.reduce((acc, schedule) => {
-        if (schedule.isBreak) return acc;
+            schedules.forEach(
+                (schedule) => {
+                    if (
+                        schedule.subjectId
+                    ) {
+                        map.set(
+                            schedule.subjectId,
+                            {
+                                id:
+                                    schedule.subjectId,
+                                name:
+                                    schedule.subjectName,
+                            }
+                        );
+                    }
+                }
+            );
 
-        const [sh, sm] = schedule.startTime.split(':').map(Number);
-        const [eh, em] = schedule.endTime.split(':').map(Number);
+            return Array.from(
+                map.values()
+            ).sort(
+                (a, b) =>
+                    a.name.localeCompare(
+                        b.name,
+                        'id'
+                    )
+            );
+        }, [schedules]);
 
-        return acc + (eh * 60 + em) - (sh * 60 + sm);
-    }, 0);
+    // ========================================================
+    // SELECTED DAY
+    // ========================================================
 
-    const hours = Math.floor(totalMinutes / 60);
-    const minutes = totalMinutes % 60;
+    const selectedDay =
+        selectedDate.getDay();
 
-    const totalSessions = filteredSchedules.filter((s) => !s.isBreak).length;
+    /*
+     * PENTING:
+     *
+     * getDayName(1) = "Senin"
+     *
+     * Backend = "senin"
+     *
+     * Maka keduanya dinormalisasi menjadi:
+     *
+     * "senin"
+     */
 
-    const uniqueClasses = [
-        ...new Set(
-            filteredSchedules.filter((s) => !s.isBreak).map((s) => s.className)
-        ),
-    ];
+    const selectedDayName =
+        normalizeDay(
+            getDayName(
+                selectedDay
+            )
+        );
 
-    const uniqueSubjects = [
-        ...new Set(
-            filteredSchedules.filter((s) => !s.isBreak).map((s) => s.subjectName)
-        ),
-    ];
+    const selectedDayDisplay =
+        getDayName(
+            selectedDay
+        );
 
-    // ============================================================
-    // CURRENT TIME
-    // ============================================================
+    // ========================================================
+    // FILTERED SCHEDULES
+    // ========================================================
 
-    const now = new Date();
+    const filteredSchedules =
+        useMemo(() => {
+            return schedules
+                .filter(
+                    (schedule) =>
+                        normalizeDay(
+                            schedule.day
+                        ) ===
+                        selectedDayName
+                )
+                .filter(
+                    (schedule) =>
+                        filterClass ===
+                            'all' ||
+                        String(
+                            schedule.classId
+                        ) ===
+                            String(
+                                filterClass
+                            )
+                )
+                .filter(
+                    (schedule) =>
+                        filterSubject ===
+                            'all' ||
+                        String(
+                            schedule.subjectId
+                        ) ===
+                            String(
+                                filterSubject
+                            )
+                )
+                .sort(
+                    (a, b) =>
+                        timeToMinutes(
+                            a.startTime
+                        ) -
+                        timeToMinutes(
+                            b.startTime
+                        )
+                );
+        }, [
+            schedules,
+            selectedDayName,
+            filterClass,
+            filterSubject,
+        ]);
 
-    const nowTime =
-        `${String(now.getHours()).padStart(2, '0')}:` +
-        `${String(now.getMinutes()).padStart(2, '0')}`;
+    // ========================================================
+    // STATISTICS
+    // ========================================================
 
-    const nextSchedule = filteredSchedules
-        .filter((s) => s.startTime > nowTime && !s.isBreak)
-        .sort((a, b) => a.startTime.localeCompare(b.startTime))[0];
+    const totalMinutes =
+        useMemo(() => {
+            return filteredSchedules.reduce(
+                (
+                    total,
+                    schedule
+                ) =>
+                    total +
+                    getDurationInMinutes(
+                        schedule.startTime,
+                        schedule.endTime
+                    ),
+                0
+            );
+        }, [filteredSchedules]);
 
-    // ============================================================
+    const totalSessions =
+        filteredSchedules.length;
+
+    const uniqueClasses =
+        useMemo(() => {
+            return [
+                ...new Set(
+                    filteredSchedules
+                        .map(
+                            (
+                                schedule
+                            ) =>
+                                schedule.className
+                        )
+                        .filter(
+                            Boolean
+                        )
+                ),
+            ];
+        }, [filteredSchedules]);
+
+    const uniqueSubjects =
+        useMemo(() => {
+            return [
+                ...new Set(
+                    filteredSchedules
+                        .map(
+                            (
+                                schedule
+                            ) =>
+                                schedule.subjectName
+                        )
+                        .filter(
+                            Boolean
+                        )
+                ),
+            ];
+        }, [filteredSchedules]);
+
+    // ========================================================
+    // NEXT SCHEDULE
+    // ========================================================
+
+    const nextSchedule =
+        useMemo(() => {
+            if (
+                filteredSchedules.length ===
+                0
+            ) {
+                return null;
+            }
+
+            const nowDate =
+                new Date();
+
+            const selectedIsToday =
+                isSameDate(
+                    selectedDate,
+                    nowDate
+                );
+
+            if (
+                !selectedIsToday
+            ) {
+                return (
+                    filteredSchedules[0] ||
+                    null
+                );
+            }
+
+            const nowMinutes =
+                nowDate.getHours() *
+                    60 +
+                nowDate.getMinutes();
+
+            return (
+                filteredSchedules.find(
+                    (
+                        schedule
+                    ) =>
+                        timeToMinutes(
+                            schedule.startTime
+                        ) >
+                        nowMinutes
+                ) || null
+            );
+        }, [
+            filteredSchedules,
+            selectedDate,
+        ]);
+
+    // ========================================================
     // GREETING
-    // ============================================================
+    // ========================================================
 
-    const getGreeting = () => {
-        const hour = now.getHours();
+    const getGreeting =
+        () => {
+            const hour =
+                today.getHours();
 
-        if (hour < 12) {
-            return { text: 'Selamat Pagi', icon: Sun };
-        }
+            if (hour < 12) {
+                return {
+                    text: 'Selamat Pagi',
+                    icon: Sun,
+                };
+            }
 
-        if (hour < 15) {
-            return { text: 'Selamat Siang', icon: Sun };
-        }
+            if (hour < 15) {
+                return {
+                    text: 'Selamat Siang',
+                    icon: Sun,
+                };
+            }
 
-        if (hour < 18) {
-            return { text: 'Selamat Sore', icon: Sun };
-        }
+            if (hour < 18) {
+                return {
+                    text: 'Selamat Sore',
+                    icon: Sun,
+                };
+            }
 
-        return { text: 'Selamat Malam', icon: Moon };
-    };
+            return {
+                text: 'Selamat Malam',
+                icon: Moon,
+            };
+        };
 
-    const greeting = getGreeting();
-    const GreetingIcon = greeting.icon;
+    const greeting =
+        getGreeting();
 
-    // ============================================================
-    // NAVIGASI
-    // ============================================================
+    const GreetingIcon =
+        greeting.icon;
 
-    const goToPrevWeek = () => {
-        const date = new Date(viewDate);
-        date.setDate(date.getDate() - 7);
-        setViewDate(date);
-    };
+    // ========================================================
+    // NAVIGATION
+    // ========================================================
 
-    const goToNextWeek = () => {
-        const date = new Date(viewDate);
-        date.setDate(date.getDate() + 7);
-        setViewDate(date);
-    };
+    const goToPrevWeek =
+        () => {
+            const date =
+                new Date(
+                    viewDate
+                );
 
-    const goToToday = () => {
-        const today = new Date();
-        setViewDate(today);
-        setSelectedDate(today);
-        setSelectedDay(today.getDay());
-    };
+            date.setDate(
+                date.getDate() - 7
+            );
 
-    const handleDateClick = (date) => {
-        if (!date) return;
+            setViewDate(date);
+        };
 
-        setSelectedDate(date);
-        setSelectedDay(date.getDay());
-    };
+    const goToNextWeek =
+        () => {
+            const date =
+                new Date(
+                    viewDate
+                );
 
-    // ============================================================
+            date.setDate(
+                date.getDate() + 7
+            );
+
+            setViewDate(date);
+        };
+
+    const goToToday =
+        () => {
+            const current =
+                new Date();
+
+            setViewDate(
+                current
+            );
+
+            setSelectedDate(
+                current
+            );
+
+            setFilterClass(
+                'all'
+            );
+
+            setFilterSubject(
+                'all'
+            );
+        };
+
+    const handleDateClick =
+        (date) => {
+            if (!date) {
+                return;
+            }
+
+            setSelectedDate(
+                new Date(date)
+            );
+        };
+
+    // ========================================================
+    // STATUS JADWAL
+    // ========================================================
+
+    const getScheduleStatus =
+        (schedule) => {
+            const selected =
+                new Date(
+                    selectedDate
+                );
+
+            const current =
+                new Date();
+
+            const selectedDayStart =
+                new Date(
+                    selected
+                );
+
+            selectedDayStart.setHours(
+                0,
+                0,
+                0,
+                0
+            );
+
+            const todayStart =
+                new Date(
+                    current
+                );
+
+            todayStart.setHours(
+                0,
+                0,
+                0,
+                0
+            );
+
+            if (
+                selectedDayStart <
+                todayStart
+            ) {
+                return 'past';
+            }
+
+            if (
+                selectedDayStart >
+                todayStart
+            ) {
+                return 'upcoming';
+            }
+
+            const nowMinutes =
+                current.getHours() *
+                    60 +
+                current.getMinutes();
+
+            const startMinutes =
+                timeToMinutes(
+                    schedule.startTime
+                );
+
+            const endMinutes =
+                timeToMinutes(
+                    schedule.endTime
+                );
+
+            if (
+                nowMinutes >=
+                    startMinutes &&
+                nowMinutes <
+                    endMinutes
+            ) {
+                return 'current';
+            }
+
+            if (
+                nowMinutes >=
+                endMinutes
+            ) {
+                return 'past';
+            }
+
+            return 'upcoming';
+        };
+
+    // ========================================================
     // RENDER
-    // ============================================================
+    // ========================================================
 
     return (
         <div className="flex h-screen min-h-0 w-full overflow-hidden bg-slate-50">
             <Sidebar />
 
             <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-                <Header user={{ name: "Bu Sari", email: "guru@smartschool.com", avatar: "BS" }} />
+                <Header
+                    user={{
+                        name:
+                            currentUser?.name ||
+                            'Bapak/Ibu Guru',
+
+                        email:
+                            currentUser?.email ||
+                            'guru@smartschool.com',
+
+                        avatar:
+                            currentUser?.name
+                                ? currentUser.name
+                                      .split(
+                                          ' '
+                                      )
+                                      .map(
+                                          (
+                                              word
+                                          ) =>
+                                              word
+                                                  .charAt(
+                                                      0
+                                                  )
+                                                  .toUpperCase()
+                                      )
+                                      .slice(
+                                          0,
+                                          2
+                                      )
+                                      .join(
+                                          ''
+                                      )
+                                : 'GU',
+                    }}
+                />
 
                 <main className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden">
                     <div className="w-full min-w-0 p-3 sm:p-4 lg:p-6 xl:p-8">
                         <div className="mx-auto w-full min-w-0 max-w-none space-y-4 sm:space-y-5 lg:space-y-6">
-                            {/* ==================================================
-                                HEADER
-                            ================================================== */}
+
+                            {/* HEADER */}
 
                             <section className="relative w-full min-w-0 overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm sm:rounded-3xl sm:p-5 lg:p-7">
                                 <div className="pointer-events-none absolute right-0 top-0 h-56 w-56 -translate-y-1/2 translate-x-1/3 rounded-full bg-blue-100/30 blur-3xl" />
@@ -551,7 +1395,8 @@ export default function KalenderGuruPage() {
                                                 <h1 className="min-w-0 text-xl font-bold tracking-tight text-slate-800 sm:text-2xl lg:text-3xl">
                                                     {greeting.text},{' '}
                                                     <span className="text-blue-700">
-                                                        Bapak/Ibu Guru
+                                                        {currentUser?.name ||
+                                                            'Bapak/Ibu Guru'}
                                                     </span>
                                                 </h1>
 
@@ -573,19 +1418,21 @@ export default function KalenderGuruPage() {
 
                                     <button
                                         onClick={() =>
-                                            router.push('/guru/jadwal/kalender/buat')
+                                            router.push(
+                                                '/guru/jadwal/kalender/buat'
+                                            )
                                         }
                                         className="group inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-blue-200 transition-all duration-300 hover:bg-blue-700 hover:shadow-blue-300 sm:w-auto"
                                     >
                                         <Plus className="h-4 w-4 transition-transform duration-300 group-hover:rotate-90" />
 
-                                        <span>Buat Jadwal</span>
+                                        <span>
+                                            Buat Jadwal
+                                        </span>
 
                                         <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
                                     </button>
                                 </div>
-
-                                {/* STAT */}
 
                                 <div className="relative mt-4 grid w-full min-w-0 grid-cols-2 gap-2 sm:mt-5 sm:grid-cols-4 sm:gap-3">
                                     {[
@@ -596,47 +1443,93 @@ export default function KalenderGuruPage() {
                                         },
                                         {
                                             label: 'Total Jam',
-                                            value: `${hours}j ${minutes}m`,
+                                            value: formatDuration(
+                                                totalMinutes
+                                            ),
                                             icon: Timer,
                                         },
                                         {
                                             label: 'Kelas',
-                                            value: uniqueClasses.length || '-',
+                                            value:
+                                                uniqueClasses.length ||
+                                                '-',
                                             icon: Users,
                                         },
                                         {
                                             label: 'Mapel',
-                                            value: uniqueSubjects.length || '-',
+                                            value:
+                                                uniqueSubjects.length ||
+                                                '-',
                                             icon: BookOpen,
                                         },
-                                    ].map((stat, index) => {
-                                        const Icon = stat.icon;
+                                    ].map(
+                                        (
+                                            stat,
+                                            index
+                                        ) => {
+                                            const Icon =
+                                                stat.icon;
 
-                                        return (
-                                            <div
-                                                key={index}
-                                                className="min-w-0 rounded-xl border border-slate-200/60 bg-slate-50/80 p-3 transition-all duration-300 hover:bg-slate-100/80"
-                                            >
-                                                <div className="flex min-w-0 items-center gap-2">
-                                                    <Icon className="h-3.5 w-3.5 shrink-0 text-blue-600/70" />
+                                            return (
+                                                <div
+                                                    key={
+                                                        index
+                                                    }
+                                                    className="min-w-0 rounded-xl border border-slate-200/60 bg-slate-50/80 p-3 transition-all duration-300 hover:bg-slate-100/80"
+                                                >
+                                                    <div className="flex min-w-0 items-center gap-2">
+                                                        <Icon className="h-3.5 w-3.5 shrink-0 text-blue-600/70" />
 
-                                                    <span className="min-w-0 truncate text-xs font-medium text-slate-500">
-                                                        {stat.label}
-                                                    </span>
+                                                        <span className="min-w-0 truncate text-xs font-medium text-slate-500">
+                                                            {
+                                                                stat.label
+                                                            }
+                                                        </span>
+                                                    </div>
+
+                                                    <p className="mt-0.5 truncate text-lg font-bold text-slate-800 sm:text-xl">
+                                                        {
+                                                            stat.value
+                                                        }
+                                                    </p>
                                                 </div>
-
-                                                <p className="mt-0.5 truncate text-lg font-bold text-slate-800 sm:text-xl">
-                                                    {stat.value}
-                                                </p>
-                                            </div>
-                                        );
-                                    })}
+                                            );
+                                        }
+                                    )}
                                 </div>
                             </section>
 
-                            {/* ==================================================
-                                FILTER
-                            ================================================== */}
+                            {/* ERROR */}
+
+                            {error && (
+                                <section className="rounded-2xl border border-red-200 bg-red-50 p-4 shadow-sm">
+                                    <div className="flex min-w-0 items-start gap-3">
+                                        <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-red-500" />
+
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-sm font-semibold text-red-700">
+                                                Gagal memuat jadwal
+                                            </p>
+
+                                            <p className="mt-1 text-xs leading-5 text-red-600 sm:text-sm">
+                                                {error}
+                                            </p>
+                                        </div>
+
+                                        <button
+                                            onClick={
+                                                loadSchedules
+                                            }
+                                            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-50"
+                                        >
+                                            <RefreshCw className="h-3.5 w-3.5" />
+                                            Coba lagi
+                                        </button>
+                                    </div>
+                                </section>
+                            )}
+
+                            {/* FILTER */}
 
                             <section className="w-full min-w-0 rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm sm:p-4">
                                 <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
@@ -649,84 +1542,122 @@ export default function KalenderGuruPage() {
                                     </div>
 
                                     <span className="min-w-0 truncate text-xs font-medium text-slate-600 sm:text-sm">
-                                        {selectedDate.toLocaleDateString('id-ID', {
-                                            weekday: 'long',
-                                            day: 'numeric',
-                                            month: 'long',
-                                            year: 'numeric',
-                                        })}
+                                        {selectedDate.toLocaleDateString(
+                                            'id-ID',
+                                            {
+                                                weekday:
+                                                    'long',
+                                                day: 'numeric',
+                                                month: 'long',
+                                                year: 'numeric',
+                                            }
+                                        )}
                                     </span>
 
                                     <div className="hidden h-6 w-px bg-slate-200 lg:block" />
 
                                     <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-                                        {/* CABANG */}
-
                                         <div className="flex min-w-0 items-center gap-1.5">
                                             <Building2 className="h-3.5 w-3.5 shrink-0 text-slate-400" />
 
-                                            <select
-                                                value={selectedBranch}
-                                                onChange={(e) =>
-                                                    setSelectedBranch(e.target.value)
-                                                }
-                                                className="h-9 min-w-0 max-w-full rounded-xl border border-slate-200 bg-white px-2.5 text-xs text-slate-700 outline-none transition-all focus:border-blue-400 focus:ring-2 focus:ring-blue-400 sm:text-sm"
-                                            >
-                                                {branches.map((branch) => (
-                                                    <option key={branch.id} value={branch.id}>
-                                                        {branch.name}
-                                                    </option>
-                                                ))}
-                                            </select>
+                                            <div className="flex h-9 min-w-0 items-center rounded-xl border border-slate-200 bg-slate-50 px-2.5 text-xs text-slate-600 sm:text-sm">
+                                                <span className="truncate">
+                                                    Sekolah saya
+                                                </span>
+                                            </div>
                                         </div>
-
-                                        {/* KELAS */}
 
                                         <div className="flex min-w-0 items-center gap-1.5">
                                             <Users className="h-3.5 w-3.5 shrink-0 text-slate-400" />
 
                                             <select
-                                                value={filterClass}
-                                                onChange={(e) =>
-                                                    setFilterClass(e.target.value)
+                                                value={
+                                                    filterClass
+                                                }
+                                                onChange={(
+                                                    e
+                                                ) =>
+                                                    setFilterClass(
+                                                        e
+                                                            .target
+                                                            .value
+                                                    )
                                                 }
                                                 className="h-9 min-w-0 rounded-xl border border-slate-200 bg-white px-2.5 text-xs text-slate-700 outline-none transition-all focus:border-blue-400 focus:ring-2 focus:ring-blue-400 sm:text-sm"
                                             >
-                                                <option value="all">Semua Kelas</option>
+                                                <option value="all">
+                                                    Semua Kelas
+                                                </option>
 
-                                                {MOCK_CLASSES.map((item) => (
-                                                    <option key={item.id} value={item.id}>
-                                                        {item.name}
-                                                    </option>
-                                                ))}
+                                                {classOptions.map(
+                                                    (
+                                                        item
+                                                    ) => (
+                                                        <option
+                                                            key={
+                                                                item.id
+                                                            }
+                                                            value={
+                                                                item.id
+                                                            }
+                                                        >
+                                                            {
+                                                                item.name
+                                                            }
+                                                        </option>
+                                                    )
+                                                )}
                                             </select>
                                         </div>
-
-                                        {/* MAPEL */}
 
                                         <div className="flex min-w-0 items-center gap-1.5">
                                             <BookOpen className="h-3.5 w-3.5 shrink-0 text-slate-400" />
 
                                             <select
-                                                value={filterSubject}
-                                                onChange={(e) =>
-                                                    setFilterSubject(e.target.value)
+                                                value={
+                                                    filterSubject
+                                                }
+                                                onChange={(
+                                                    e
+                                                ) =>
+                                                    setFilterSubject(
+                                                        e
+                                                            .target
+                                                            .value
+                                                    )
                                                 }
                                                 className="h-9 min-w-0 rounded-xl border border-slate-200 bg-white px-2.5 text-xs text-slate-700 outline-none transition-all focus:border-blue-400 focus:ring-2 focus:ring-blue-400 sm:text-sm"
                                             >
-                                                <option value="all">Semua Mapel</option>
+                                                <option value="all">
+                                                    Semua Mapel
+                                                </option>
 
-                                                {MOCK_SUBJECTS.map((item) => (
-                                                    <option key={item.id} value={item.id}>
-                                                        {item.name}
-                                                    </option>
-                                                ))}
+                                                {subjectOptions.map(
+                                                    (
+                                                        item
+                                                    ) => (
+                                                        <option
+                                                            key={
+                                                                item.id
+                                                            }
+                                                            value={
+                                                                item.id
+                                                            }
+                                                        >
+                                                            {
+                                                                item.name
+                                                            }
+                                                        </option>
+                                                    )
+                                                )}
                                             </select>
                                         </div>
                                     </div>
 
                                     <button
-                                        onClick={goToToday}
+                                        onClick={
+                                            goToToday
+                                        }
                                         className="shrink-0 rounded-xl bg-blue-600 px-3 py-2 text-xs font-medium text-white shadow-sm transition-all hover:bg-blue-700 sm:px-4 sm:text-sm"
                                     >
                                         Hari ini
@@ -734,16 +1665,14 @@ export default function KalenderGuruPage() {
                                 </div>
                             </section>
 
-                            {/* ==================================================
-                                MAIN CONTENT
-                            ================================================== */}
+                            {/* MAIN */}
 
                             <div className="grid w-full min-w-0 grid-cols-1 gap-4 lg:grid-cols-[280px_minmax(0,1fr)] lg:gap-5 xl:grid-cols-[300px_minmax(0,1fr)]">
-                                {/* ==================================================
-                                    LEFT COLUMN
-                                ================================================== */}
+
+                                {/* LEFT */}
 
                                 <aside className="min-w-0 space-y-4 sm:space-y-5">
+
                                     {/* CALENDAR */}
 
                                     <div className="w-full min-w-0 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm sm:p-5">
@@ -752,21 +1681,31 @@ export default function KalenderGuruPage() {
                                                 <Calendar className="h-4 w-4 shrink-0 text-blue-500" />
 
                                                 <span className="truncate">
-                                                    {monthNames[viewDate.getMonth()]}{' '}
-                                                    {viewDate.getFullYear()}
+                                                    {
+                                                        monthNames[
+                                                            viewDate.getMonth()
+                                                        ]
+                                                    }{' '}
+                                                    {
+                                                        viewDate.getFullYear()
+                                                    }
                                                 </span>
                                             </h3>
 
                                             <div className="flex shrink-0 gap-0.5">
                                                 <button
-                                                    onClick={goToPrevWeek}
+                                                    onClick={
+                                                        goToPrevWeek
+                                                    }
                                                     className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100"
                                                 >
                                                     <ChevronLeft className="h-4 w-4" />
                                                 </button>
 
                                                 <button
-                                                    onClick={goToNextWeek}
+                                                    onClick={
+                                                        goToNextWeek
+                                                    }
                                                     className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100"
                                                 >
                                                     <ChevronRight className="h-4 w-4" />
@@ -775,89 +1714,142 @@ export default function KalenderGuruPage() {
                                         </div>
 
                                         <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-semibold text-slate-400 sm:text-xs">
-                                            {['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'].map(
-                                                (day) => (
-                                                    <div key={day} className="py-1">
-                                                        {day}
+                                            {[
+                                                'Sen',
+                                                'Sel',
+                                                'Rab',
+                                                'Kam',
+                                                'Jum',
+                                                'Sab',
+                                                'Min',
+                                            ].map(
+                                                (
+                                                    day
+                                                ) => (
+                                                    <div
+                                                        key={
+                                                            day
+                                                        }
+                                                        className="py-1"
+                                                    >
+                                                        {
+                                                            day
+                                                        }
                                                     </div>
                                                 )
                                             )}
                                         </div>
 
                                         <div className="grid grid-cols-7 gap-1">
-                                            {weekDays.map((date, index) => {
-                                                const isToday =
-                                                    date.toDateString() ===
-                                                    new Date().toDateString();
+                                            {weekDays.map(
+                                                (
+                                                    date
+                                                ) => {
+                                                    const isToday =
+                                                        isSameDate(
+                                                            date,
+                                                            today
+                                                        );
 
-                                                const isSelected =
-                                                    date.toDateString() ===
-                                                    selectedDate.toDateString();
+                                                    const isSelected =
+                                                        isSameDate(
+                                                            date,
+                                                            selectedDate
+                                                        );
 
-                                                const dayName = getDayName(date.getDay());
+                                                    const dayName =
+                                                        normalizeDay(
+                                                            getDayName(
+                                                                date.getDay()
+                                                            )
+                                                        );
 
-                                                const hasSchedule = schedules.some(
-                                                    (schedule) =>
-                                                        schedule.day === dayName &&
-                                                        schedule.branchId === selectedBranch
-                                                );
+                                                    /*
+                                                     * PENTING:
+                                                     * schedules.day sekarang sudah lowercase.
+                                                     * dayName juga lowercase.
+                                                     */
 
-                                                const isWeekend =
-                                                    date.getDay() === 0 || date.getDay() === 6;
+                                                    const hasSchedule =
+                                                        schedules.some(
+                                                            (
+                                                                schedule
+                                                            ) =>
+                                                                normalizeDay(
+                                                                    schedule.day
+                                                                ) ===
+                                                                dayName
+                                                        );
 
-                                                return (
-                                                    <button
-                                                        key={index}
-                                                        onClick={() => handleDateClick(date)}
-                                                        className={`
-                                                            relative aspect-square min-w-0 rounded-lg
-                                                            flex flex-col items-center justify-center
-                                                            text-xs font-medium transition-all
-                                                            sm:text-sm
-                                                            ${
-                                                                isSelected
-                                                                    ? 'scale-95 bg-blue-600 text-white shadow-sm'
-                                                                    : ''
+                                                    const isWeekend =
+                                                        date.getDay() ===
+                                                            0 ||
+                                                        date.getDay() ===
+                                                            6;
+
+                                                    return (
+                                                        <button
+                                                            key={date.toISOString()}
+                                                            onClick={() =>
+                                                                handleDateClick(
+                                                                    date
+                                                                )
                                                             }
-                                                            ${
-                                                                isToday && !isSelected
-                                                                    ? 'border-2 border-blue-300/50 bg-blue-50 text-blue-700'
-                                                                    : ''
-                                                            }
-                                                            ${
-                                                                !isSelected && !isToday
-                                                                    ? 'text-slate-700 hover:bg-slate-100'
-                                                                    : ''
-                                                            }
-                                                            ${
-                                                                isWeekend && !isSelected && !isToday
-                                                                    ? 'text-slate-300'
-                                                                    : ''
-                                                            }
-                                                        `}
-                                                    >
-                                                        <span>{date.getDate()}</span>
+                                                            className={`
+                                                                relative flex aspect-square min-w-0 flex-col items-center justify-center rounded-lg text-xs font-medium transition-all sm:text-sm
+                                                                ${
+                                                                    isSelected
+                                                                        ? 'scale-95 bg-blue-600 text-white shadow-sm'
+                                                                        : ''
+                                                                }
+                                                                ${
+                                                                    isToday &&
+                                                                    !isSelected
+                                                                        ? 'border-2 border-blue-300/50 bg-blue-50 text-blue-700'
+                                                                        : ''
+                                                                }
+                                                                ${
+                                                                    !isSelected &&
+                                                                    !isToday
+                                                                        ? 'text-slate-700 hover:bg-slate-100'
+                                                                        : ''
+                                                                }
+                                                                ${
+                                                                    isWeekend &&
+                                                                    !isSelected &&
+                                                                    !isToday
+                                                                        ? 'text-slate-300'
+                                                                        : ''
+                                                                }
+                                                            `}
+                                                        >
+                                                            <span>
+                                                                {date.getDate()}
+                                                            </span>
 
-                                                        {hasSchedule && (
-                                                            <span
-                                                                className={`
-                                                                    absolute bottom-1 h-1.5 w-1.5 rounded-full
-                                                                    ${
-                                                                        isSelected
-                                                                            ? 'bg-white/70'
-                                                                            : 'bg-blue-400'
-                                                                    }
-                                                                `}
-                                                            />
-                                                        )}
-                                                    </button>
-                                                );
-                                            })}
+                                                            {hasSchedule && (
+                                                                <span
+                                                                    className={`
+                                                                        absolute bottom-1 h-1.5 w-1.5 rounded-full
+                                                                        ${
+                                                                            isSelected
+                                                                                ? 'bg-white/70'
+                                                                                : 'bg-blue-400'
+                                                                        }
+                                                                    `}
+                                                                />
+                                                            )}
+                                                        </button>
+                                                    );
+                                                }
+                                            )}
                                         </div>
 
                                         <div className="mt-4 flex items-center justify-between gap-2 border-t border-slate-100 pt-3">
                                             <button
-                                                onClick={goToToday}
+                                                onClick={
+                                                    goToToday
+                                                }
                                                 className="flex shrink-0 items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800"
                                             >
                                                 <CalendarCheck className="h-3.5 w-3.5" />
@@ -883,7 +1875,9 @@ export default function KalenderGuruPage() {
                                             {[
                                                 {
                                                     label: 'Total Jam',
-                                                    value: `${hours}j ${minutes}m`,
+                                                    value: formatDuration(
+                                                        totalMinutes
+                                                    ),
                                                     icon: Timer,
                                                     color: 'text-blue-600',
                                                 },
@@ -895,49 +1889,68 @@ export default function KalenderGuruPage() {
                                                 },
                                                 {
                                                     label: 'Kelas',
-                                                    value: uniqueClasses.join(', ') || '-',
+                                                    value:
+                                                        uniqueClasses.join(
+                                                            ', '
+                                                        ) ||
+                                                        '-',
                                                     icon: Users,
                                                     color: 'text-indigo-600',
                                                 },
                                                 {
                                                     label: 'Mapel',
-                                                    value: uniqueSubjects.join(', ') || '-',
+                                                    value:
+                                                        uniqueSubjects.join(
+                                                            ', '
+                                                        ) ||
+                                                        '-',
                                                     icon: BookOpen,
                                                     color: 'text-amber-600',
                                                 },
-                                            ].map((item, index) => {
-                                                const Icon = item.icon;
+                                            ].map(
+                                                (
+                                                    item,
+                                                    index
+                                                ) => {
+                                                    const Icon =
+                                                        item.icon;
 
-                                                return (
-                                                    <div
-                                                        key={index}
-                                                        className="flex min-w-0 items-center justify-between gap-3 border-b border-slate-100/80 py-1.5 last:border-0"
-                                                    >
-                                                        <div className="flex min-w-0 items-center gap-2">
-                                                            <Icon
-                                                                className={`h-3.5 w-3.5 shrink-0 ${item.color}`}
-                                                            />
+                                                    return (
+                                                        <div
+                                                            key={
+                                                                index
+                                                            }
+                                                            className="flex min-w-0 items-center justify-between gap-3 border-b border-slate-100/80 py-1.5 last:border-0"
+                                                        >
+                                                            <div className="flex min-w-0 items-center gap-2">
+                                                                <Icon
+                                                                    className={`h-3.5 w-3.5 shrink-0 ${item.color}`}
+                                                                />
 
-                                                            <span className="truncate text-xs text-slate-500 sm:text-sm">
-                                                                {item.label}
+                                                                <span className="truncate text-xs text-slate-500 sm:text-sm">
+                                                                    {
+                                                                        item.label
+                                                                    }
+                                                                </span>
+                                                            </div>
+
+                                                            <span className="max-w-[55%] truncate text-right text-xs font-semibold text-slate-700 sm:text-sm">
+                                                                {
+                                                                    item.value
+                                                                }
                                                             </span>
                                                         </div>
-
-                                                        <span className="max-w-[50%] truncate text-right text-xs font-semibold text-slate-700 sm:text-sm">
-                                                            {item.value}
-                                                        </span>
-                                                    </div>
-                                                );
-                                            })}
+                                                    );
+                                                }
+                                            )}
                                         </div>
                                     </div>
                                 </aside>
 
-                                {/* ==================================================
-                                    RIGHT COLUMN
-                                ================================================== */}
+                                {/* RIGHT */}
 
                                 <section className="min-w-0 space-y-4 sm:space-y-5">
+
                                     {/* JADWAL */}
 
                                     <div className="w-full min-w-0 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm sm:p-5 lg:p-6">
@@ -946,158 +1959,207 @@ export default function KalenderGuruPage() {
                                                 <h2 className="flex min-w-0 items-center gap-2 text-base font-bold text-slate-800 sm:text-lg">
                                                     <Clock className="h-5 w-5 shrink-0 text-blue-500" />
 
-                                                    <span>Jadwal {getDayName(selectedDay)}</span>
+                                                    <span>
+                                                        Jadwal{' '}
+                                                        {
+                                                            selectedDayDisplay
+                                                        }
+                                                    </span>
                                                 </h2>
 
                                                 <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-normal text-slate-400">
-                                                    {selectedDate.toLocaleDateString('id-ID', {
-                                                        day: 'numeric',
-                                                        month: 'short',
-                                                        year: 'numeric',
-                                                    })}
+                                                    {selectedDate.toLocaleDateString(
+                                                        'id-ID',
+                                                        {
+                                                            day: 'numeric',
+                                                            month: 'short',
+                                                            year: 'numeric',
+                                                        }
+                                                    )}
                                                 </span>
 
-                                                <span className="max-w-full truncate rounded-full bg-slate-100 px-2.5 py-0.5 text-xs text-slate-400">
-                                                    {
-                                                        branches.find(
-                                                            (b) => b.id === selectedBranch
-                                                        )?.name
-                                                    }
+                                                <span className="flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs text-slate-400">
+                                                    <Building2 className="h-3 w-3" />
+                                                    Sekolah saya
                                                 </span>
                                             </div>
 
                                             <span className="w-fit shrink-0 rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-400 sm:text-sm">
-                                                {filteredSchedules.filter((s) => !s.isBreak).length} sesi
+                                                {
+                                                    filteredSchedules.length
+                                                }{' '}
+                                                sesi
                                             </span>
                                         </div>
 
-                                        {filteredSchedules.length === 0 ? (
+                                        {loading ? (
+                                            <div className="flex min-h-[260px] items-center justify-center">
+                                                <div className="flex flex-col items-center gap-3">
+                                                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50">
+                                                        <RefreshCw className="h-6 w-6 animate-spin text-blue-500" />
+                                                    </div>
+
+                                                    <p className="text-sm font-medium text-slate-500">
+                                                        Memuat jadwal mengajar...
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        ) : filteredSchedules.length ===
+                                          0 ? (
                                             <div className="py-10 text-center text-slate-400 sm:py-14">
                                                 <CalendarOff className="mx-auto mb-2 h-10 w-10 text-slate-300 sm:h-12 sm:w-12" />
 
-                                                <p className="text-sm">Tidak ada jadwal untuk hari ini</p>
+                                                <p className="text-sm">
+                                                    Tidak ada jadwal untuk{' '}
+                                                    {
+                                                        selectedDayDisplay
+                                                    }
+                                                </p>
+
+                                                <p className="mt-1 text-xs text-slate-400">
+                                                    Jadwal yang tampil berasal dari data backend dan hanya untuk guru yang sedang login.
+                                                </p>
                                             </div>
                                         ) : (
                                             <div className="space-y-2.5">
-                                                {filteredSchedules.map((schedule) => {
-                                                    const isNow =
-                                                        schedule.startTime <= nowTime &&
-                                                        schedule.endTime > nowTime &&
-                                                        !schedule.isBreak;
+                                                {filteredSchedules.map(
+                                                    (
+                                                        schedule
+                                                    ) => {
+                                                        const status =
+                                                            getScheduleStatus(
+                                                                schedule
+                                                            );
 
-                                                    const isPast =
-                                                        schedule.endTime <= nowTime &&
-                                                        !schedule.isBreak;
+                                                        const isNow =
+                                                            status ===
+                                                            'current';
 
-                                                    if (schedule.isBreak) {
+                                                        const isPast =
+                                                            status ===
+                                                            'past';
+
                                                         return (
                                                             <div
-                                                                key={schedule.id}
-                                                                className="flex min-w-0 items-center gap-3 rounded-xl border border-amber-200/60 bg-amber-50/80 p-3 sm:gap-4 sm:p-4"
+                                                                key={
+                                                                    schedule.id
+                                                                }
+                                                                className={`
+                                                                    flex min-w-0 items-start gap-3 rounded-xl p-3 transition-all sm:gap-4 sm:p-4
+                                                                    ${
+                                                                        isNow
+                                                                            ? 'border-2 border-blue-300/60 bg-blue-50/90 shadow-sm'
+                                                                            : isPast
+                                                                            ? 'border border-slate-100 bg-slate-50/70 opacity-70'
+                                                                            : 'border border-slate-100 bg-white hover:border-blue-200 hover:shadow-sm'
+                                                                    }
+                                                                `}
                                                             >
-                                                                <div className="w-12 shrink-0 text-xs font-semibold text-amber-600 sm:w-16 sm:text-sm">
-                                                                    {schedule.startTime}
+                                                                <div className="w-12 shrink-0 pt-0.5 text-xs font-semibold text-slate-600 sm:w-16 sm:text-sm">
+                                                                    {
+                                                                        schedule.startTime
+                                                                    }
                                                                 </div>
 
-                                                                <div className="flex min-w-0 flex-1 items-center gap-2">
-                                                                    <Coffee className="h-4 w-4 shrink-0 text-amber-500 sm:h-5 sm:w-5" />
+                                                                <div className="min-w-0 flex-1">
+                                                                    <div className="flex min-w-0 flex-wrap items-center gap-2">
+                                                                        <span
+                                                                            className="h-2.5 w-2.5 shrink-0 rounded-full shadow-sm sm:h-3 sm:w-3"
+                                                                            style={{
+                                                                                backgroundColor:
+                                                                                    schedule.subjectColor,
+                                                                            }}
+                                                                        />
 
-                                                                    <span className="truncate text-sm font-medium text-amber-700 sm:text-base">
-                                                                        {schedule.subjectName}
-                                                                    </span>
+                                                                        <span className="max-w-full truncate text-sm font-bold text-slate-800 sm:text-base">
+                                                                            {
+                                                                                schedule.subjectName
+                                                                            }
+                                                                        </span>
 
-                                                                    <span className="hidden shrink-0 text-xs text-amber-500 sm:inline">
-                                                                        {schedule.startTime} - {schedule.endTime}
-                                                                    </span>
+                                                                        <span className="max-w-full truncate rounded-lg bg-slate-100 px-2 py-0.5 text-xs text-slate-500">
+                                                                            {
+                                                                                schedule.className
+                                                                            }
+                                                                        </span>
+
+                                                                        {schedule.roomName && (
+                                                                            <span className="flex min-w-0 max-w-full items-center gap-1 text-xs text-slate-500">
+                                                                                <MapPin className="h-3 w-3 shrink-0" />
+
+                                                                                <span className="truncate">
+                                                                                    {
+                                                                                        schedule.roomName
+                                                                                    }
+                                                                                </span>
+                                                                            </span>
+                                                                        )}
+
+                                                                        <div className="ml-auto shrink-0">
+                                                                            {isNow && (
+                                                                                <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-600 sm:text-xs">
+                                                                                    <CheckCircle className="h-3 w-3" />
+                                                                                    Mengajar
+                                                                                </span>
+                                                                            )}
+
+                                                                            {isPast && (
+                                                                                <span className="inline-flex items-center gap-1 rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-semibold text-slate-400 sm:text-xs">
+                                                                                    <XCircle className="h-3 w-3" />
+                                                                                    Selesai
+                                                                                </span>
+                                                                            )}
+
+                                                                            {!isNow &&
+                                                                                !isPast && (
+                                                                                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 sm:text-xs">
+                                                                                        <Clock className="h-3 w-3" />
+                                                                                        Akan datang
+                                                                                    </span>
+                                                                                )}
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <div className="mt-1 flex min-w-0 items-center gap-2 text-xs text-slate-400">
+                                                                        <Clock className="h-3 w-3 shrink-0" />
+
+                                                                        <span>
+                                                                            {
+                                                                                schedule.startTime
+                                                                            }{' '}
+                                                                            -{' '}
+                                                                            {
+                                                                                schedule.endTime
+                                                                            }
+                                                                        </span>
+
+                                                                        {schedule.subjectCode && (
+                                                                            <>
+                                                                                <span>
+                                                                                    •
+                                                                                </span>
+
+                                                                                <span className="truncate">
+                                                                                    {
+                                                                                        schedule.subjectCode
+                                                                                    }
+                                                                                </span>
+                                                                            </>
+                                                                        )}
+                                                                    </div>
                                                                 </div>
                                                             </div>
                                                         );
                                                     }
-
-                                                    return (
-                                                        <div
-                                                            key={schedule.id}
-                                                            className={`
-                                                                flex min-w-0 items-start gap-3 rounded-xl p-3 transition-all sm:gap-4 sm:p-4
-                                                                ${
-                                                                    isNow
-                                                                        ? 'border-2 border-blue-300/60 bg-blue-50/90 shadow-sm'
-                                                                        : isPast
-                                                                        ? 'border border-slate-100 bg-slate-50/70 opacity-70'
-                                                                        : 'border border-slate-100 bg-white hover:border-blue-200 hover:shadow-sm'
-                                                                }
-                                                            `}
-                                                        >
-                                                            <div className="w-12 shrink-0 pt-0.5 text-xs font-semibold text-slate-600 sm:w-16 sm:text-sm">
-                                                                {schedule.startTime}
-                                                            </div>
-
-                                                            <div className="min-w-0 flex-1">
-                                                                <div className="flex min-w-0 flex-wrap items-center gap-2">
-                                                                    <span
-                                                                        className="h-2.5 w-2.5 shrink-0 rounded-full shadow-sm sm:h-3 sm:w-3"
-                                                                        style={{
-                                                                            backgroundColor:
-                                                                                schedule.subjectColor,
-                                                                        }}
-                                                                    />
-
-                                                                    <span className="max-w-full truncate text-sm font-bold text-slate-800 sm:text-base">
-                                                                        {schedule.subjectName}
-                                                                    </span>
-
-                                                                    <span className="max-w-full truncate rounded-lg bg-slate-100 px-2 py-0.5 text-xs text-slate-500">
-                                                                        {schedule.className}
-                                                                    </span>
-
-                                                                    <span className="flex min-w-0 max-w-full items-center gap-1 text-xs text-slate-500">
-                                                                        <MapPin className="h-3 w-3 shrink-0" />
-
-                                                                        <span className="truncate">
-                                                                            {schedule.roomName}
-                                                                        </span>
-                                                                    </span>
-
-                                                                    <div className="ml-auto shrink-0">
-                                                                        {isNow && (
-                                                                            <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-600 sm:text-xs">
-                                                                                <CheckCircle className="h-3 w-3" />
-                                                                                Mengajar
-                                                                            </span>
-                                                                        )}
-
-                                                                        {isPast && (
-                                                                            <span className="inline-flex items-center gap-1 rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-semibold text-slate-400 sm:text-xs">
-                                                                                <XCircle className="h-3 w-3" />
-                                                                                Selesai
-                                                                            </span>
-                                                                        )}
-
-                                                                        {!isNow && !isPast && (
-                                                                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 sm:text-xs">
-                                                                                <Clock className="h-3 w-3" />
-                                                                                Akan datang
-                                                                            </span>
-                                                                        )}
-                                                                    </div>
-                                                                </div>
-
-                                                                {schedule.notes && (
-                                                                    <p className="mt-1 truncate text-xs text-slate-500 sm:text-sm">
-                                                                        {schedule.notes}
-                                                                    </p>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                })}
+                                                )}
                                             </div>
                                         )}
                                     </div>
 
-                                    {/* BOTTOM CARDS */}
+                                    {/* BOTTOM */}
 
                                     <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-2">
+
                                         {/* AGENDA */}
 
                                         <div className="min-w-0 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm sm:p-5">
@@ -1106,67 +2168,32 @@ export default function KalenderGuruPage() {
                                                 Agenda Mendatang
                                             </h3>
 
-                                            <div className="custom-scrollbar max-h-[240px] space-y-3 overflow-y-auto pr-1">
-                                                {UPCOMING_EVENTS.filter(
-                                                    (event) => event.branchId === selectedBranch
-                                                ).map((event) => (
-                                                    <div
-                                                        key={event.id}
-                                                        className="min-w-0 rounded-xl border border-slate-100 bg-slate-50/80 p-3 transition hover:border-blue-200"
-                                                    >
-                                                        <p className="flex min-w-0 items-start gap-1.5 text-xs font-semibold text-slate-800 sm:text-sm">
-                                                            <Star className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-400" />
+                                            <div className="flex min-h-[180px] flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 text-center">
+                                                <Star className="mb-2 h-8 w-8 text-slate-300" />
 
-                                                            <span className="min-w-0">{event.title}</span>
-                                                        </p>
+                                                <p className="text-sm font-medium text-slate-500">
+                                                    Agenda belum tersedia
+                                                </p>
 
-                                                        <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-1.5 text-[10px] text-slate-500 sm:text-xs">
-                                                            <span className="flex items-center gap-1">
-                                                                <Calendar className="h-3 w-3 shrink-0" />
-                                                                {event.date}
-                                                            </span>
-
-                                                            {event.time && (
-                                                                <>
-                                                                    <span className="text-slate-300">•</span>
-
-                                                                    <span className="flex items-center gap-1">
-                                                                        <Clock className="h-3 w-3 shrink-0" />
-                                                                        {event.time}
-                                                                    </span>
-                                                                </>
-                                                            )}
-
-                                                            {event.location && (
-                                                                <>
-                                                                    <span className="text-slate-300">•</span>
-
-                                                                    <span className="flex min-w-0 max-w-full items-center gap-1">
-                                                                        <MapPin className="h-3 w-3 shrink-0" />
-
-                                                                        <span className="truncate">
-                                                                            {event.location}
-                                                                        </span>
-                                                                    </span>
-                                                                </>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                ))}
+                                                <p className="mt-1 max-w-sm text-xs leading-5 text-slate-400">
+                                                    Backend yang digunakan halaman ini hanya menyediakan endpoint jadwal mengajar. Belum ada endpoint agenda mendatang.
+                                                </p>
                                             </div>
 
                                             <button
                                                 onClick={() =>
-                                                    router.push('/guru/jadwal/buat')
+                                                    router.push(
+                                                        '/guru/jadwal/kalender/buat'
+                                                    )
                                                 }
                                                 className="mt-4 flex w-full items-center justify-center gap-1 rounded-xl border border-dashed border-blue-200 py-2 text-xs font-medium text-blue-600 transition hover:border-blue-300 hover:bg-blue-50 sm:text-sm"
                                             >
                                                 <Plus className="h-4 w-4" />
-                                                Tambah Agenda
+                                                Buat Jadwal
                                             </button>
                                         </div>
 
-                                        {/* JADWAL BERIKUTNYA */}
+                                        {/* NEXT */}
 
                                         <div className="min-w-0 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm sm:p-5">
                                             <h3 className="mb-4 flex items-center gap-2 text-sm font-bold text-slate-800">
@@ -1183,28 +2210,48 @@ export default function KalenderGuruPage() {
 
                                                         <div className="min-w-0">
                                                             <p className="text-base font-bold text-amber-800 sm:text-lg">
-                                                                {nextSchedule.startTime} - {nextSchedule.endTime}
+                                                                {
+                                                                    nextSchedule.startTime
+                                                                }{' '}
+                                                                -{' '}
+                                                                {
+                                                                    nextSchedule.endTime
+                                                                }
                                                             </p>
 
                                                             <p className="truncate text-xs font-semibold text-slate-700 sm:text-sm">
-                                                                {nextSchedule.subjectName} • {nextSchedule.className}
+                                                                {
+                                                                    nextSchedule.subjectName
+                                                                }{' '}
+                                                                •{' '}
+                                                                {
+                                                                    nextSchedule.className
+                                                                }
                                                             </p>
 
-                                                            <p className="flex min-w-0 items-center gap-1 truncate text-[10px] text-slate-500 sm:text-xs">
-                                                                <MapPin className="h-3 w-3 shrink-0" />
+                                                            {nextSchedule.roomName && (
+                                                                <p className="flex min-w-0 items-center gap-1 truncate text-[10px] text-slate-500 sm:text-xs">
+                                                                    <MapPin className="h-3 w-3 shrink-0" />
 
-                                                                <span className="truncate">
-                                                                    {nextSchedule.roomName}
-                                                                </span>
-                                                            </p>
+                                                                    <span className="truncate">
+                                                                        {
+                                                                            nextSchedule.roomName
+                                                                        }
+                                                                    </span>
+                                                                </p>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 </div>
                                             ) : (
                                                 <div className="flex min-h-[120px] items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50">
-                                                    <p className="text-xs text-slate-400">
-                                                        Tidak ada jadwal berikutnya
-                                                    </p>
+                                                    <div className="text-center">
+                                                        <ClockArrowUp className="mx-auto mb-2 h-7 w-7 text-slate-300" />
+
+                                                        <p className="text-xs text-slate-400">
+                                                            Tidak ada jadwal berikutnya
+                                                        </p>
+                                                    </div>
                                                 </div>
                                             )}
                                         </div>

@@ -2,7 +2,6 @@
 
 import {
   LayoutDashboard,
-  Users,
   BookOpen,
   ClipboardList,
   FileCheck2,
@@ -45,6 +44,9 @@ export const guruSidebarConfig = {
       label: "Proses Belajar",
     },
 
+    // -----------------------------------------------------
+    // MATERI
+    // -----------------------------------------------------
     {
       type: "dropdown",
       key: "materi",
@@ -53,12 +55,14 @@ export const guruSidebarConfig = {
       path: "/guru/materi",
       children: [
         {
+          type: "item",
           key: "tugas",
           label: "Tugas",
           icon: ClipboardList,
           path: "/guru/tugas",
         },
         {
+          type: "item",
           key: "ujian",
           label: "Ujian",
           icon: FileCheck2,
@@ -92,6 +96,9 @@ export const guruSidebarConfig = {
       path: "/guru/histori-absensi",
     },
 
+    // -----------------------------------------------------
+    // NILAI
+    // -----------------------------------------------------
     {
       type: "dropdown",
       key: "nilai",
@@ -100,18 +107,21 @@ export const guruSidebarConfig = {
       path: "/guru/nilai",
       children: [
         {
+          type: "item",
           key: "nilai-tugas",
           label: "Nilai Tugas",
           icon: ClipboardList,
           path: "/guru/nilai/nilaiTugas",
         },
         {
+          type: "item",
           key: "nilai-ujian",
           label: "Nilai Ujian",
           icon: FileCheck2,
           path: "/guru/nilaiUjian",
         },
         {
+          type: "item",
           key: "rapor",
           label: "Rapor",
           icon: Award,
@@ -134,20 +144,24 @@ export const guruSidebarConfig = {
       key: "jadwal",
       label: "Jadwal",
       icon: CalendarDays,
+      path: "/guru/jadwal",
       children: [
         {
+          type: "item",
           key: "kalender",
           label: "Kalender",
           icon: CalendarDays,
-          path: "/guru/jadwal",
+          path: "/guru/jadwal/kalender",
         },
         {
+          type: "item",
           key: "presensi-jadwal",
           label: "Presensi",
           icon: CalendarCheck,
           path: "/guru/jadwal/presensi",
         },
         {
+          type: "item",
           key: "izin",
           label: "Izin",
           icon: UserCheck,
@@ -170,20 +184,24 @@ export const guruSidebarConfig = {
       key: "sarpras",
       label: "Sarpras",
       icon: Package,
+      path: "/guru/sarpras",
       children: [
         {
+          type: "item",
           key: "pinjam",
           label: "Pinjam",
           icon: HandCoins,
           path: "/guru/sarpras/pinjam",
         },
         {
+          type: "item",
           key: "peminjaman",
           label: "Peminjaman",
           icon: Package,
           path: "/guru/sarpras/peminjaman",
         },
         {
+          type: "item",
           key: "riwayat-peminjaman",
           label: "Riwayat",
           icon: Clock3,

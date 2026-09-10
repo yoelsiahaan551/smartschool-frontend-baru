@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+
 import Header from "../../components/Header";
 import Sidebar from "../../components/Sidebar";
+
 import {
   Users,
   Plus,
@@ -18,228 +20,304 @@ import {
   Printer,
   FileSpreadsheet,
   ChevronDown,
-  X,
   AlertTriangle,
+  Loader2,
 } from "lucide-react";
 
-// =========================================================
-// STORAGE
-// =========================================================
-const STORAGE_KEY = "siswa_data";
+import { apiFetch } from "../../../lib/api";
 
 // =========================================================
-// DATA DEFAULT - 45 SISWA
+// HELPER RESPONSE
 // =========================================================
-const getDefaultSiswa = () => {
-  const data = [];
 
-  const names = [
-    "Ahmad Fauzan",
-    "Bella Safira",
-    "Cahyo Nugroho",
-    "Dinda Maharani",
-    "Eko Prasetyo",
-    "Fira Amelia",
-    "Galang Ramadhan",
-    "Hana Putri",
-    "Iqbal Maulana",
-    "Jihan Anastasya",
-    "Kevin Alexander",
-    "Larasati Indah",
-    "Muhammad Rizky",
-    "Nabila Putri",
-    "Oscar Wijaya",
-    "Putri Maharani",
-    "Raka Firmansyah",
-    "Salsa Amelia",
-    "Tegar Pratama",
-    "Ulfa Rahma",
-    "Vino Aditya",
-    "Wulan Sari",
-    "Yoga Saputra",
-    "Zahra Khairunnisa",
-    "Ardiansyah Putra",
-    "Bunga Citra",
-    "Daffa Alfarizi",
-    "Elsa Permata",
-    "Farhan Akbar",
-    "Gisella Anjani",
-  ];
+function getResponseData(response) {
+  if (!response) return [];
 
-  const kelasList = [
-    "X RPL 1",
-    "X RPL 2",
-    "X TKJ 1",
-    "X TKJ 2",
-    "XI RPL 1",
-    "XI RPL 2",
-    "XI TKJ 1",
-    "XI TKJ 2",
-    "XII RPL 1",
-    "XII RPL 2",
-    "XII TKJ 1",
-  ];
-
-  const statuses = ["Aktif", "Nonaktif"];
-  const genders = ["L", "P"];
-
-  for (let i = 0; i < 45; i++) {
-    const nameIdx = i % names.length;
-    const kelasIdx = i % kelasList.length;
-    const statusIdx = i % 5 === 3 ? 1 : 0;
-    const genderIdx = i % 2;
-
-    data.push({
-      id: i + 1,
-      nama: names[nameIdx],
-      nis: String(2401001 + i),
-      nisn: String(1234567890 + i),
-      kelas: kelasList[kelasIdx],
-      email: `${names[nameIdx]
-        .split(" ")[0]
-        .toLowerCase()}@sekolah.com`,
-      phone: `081234567${String(800 + i).padStart(3, "0")}`,
-      status: statuses[statusIdx],
-      alamat: `Jl. Contoh No. ${i + 1}, Jakarta`,
-      tglLahir: `200${String(5 + (i % 4))}-${String(
-        1 + (i % 12)
-      ).padStart(2, "0")}-${String(
-        1 + (i % 28)
-      ).padStart(2, "0")}`,
-      gender: genders[genderIdx],
-      joinDate: `${2020 + (i % 5)}-${String(
-        1 + (i % 12)
-      ).padStart(2, "0")}-${String(
-        1 + (i % 28)
-      ).padStart(2, "0")}`,
-      kecamatan: `Kec. ${String.fromCharCode(
-        65 + (i % 26)
-      )}`,
-      kota: `Kota ${String.fromCharCode(
-        65 + (i % 26)
-      )}`,
-      kelurahan: `Kel. ${String.fromCharCode(
-        65 + (i % 26)
-      )}`,
-      provinsi: "DKI Jakarta",
-      nikOrtu: String(1234567890 + i),
-      namaOrtu: `Orang Tua ${i + 1}`,
-      pekerjaanOrtu: [
-        "PNS",
-        "Swasta",
-        "Wirausaha",
-        "Petani",
-      ][i % 4],
-      alamatKtpOrtu: `Jl. KTP ${i + 1}`,
-      alamatDomisiliOrtu: `Jl. Domisili ${i + 1}`,
-      domisiliSama: i % 2 === 0,
-    });
+  if (Array.isArray(response)) {
+    return response;
   }
 
-  return data;
-};
-
-// =========================================================
-// LOAD DATA
-// =========================================================
-const loadSiswa = () => {
-  if (typeof window === "undefined") {
-    return getDefaultSiswa();
+  if (Array.isArray(response.data)) {
+    return response.data;
   }
 
-  try {
-    const defaultData = getDefaultSiswa();
-    const stored = localStorage.getItem(STORAGE_KEY);
+  if (Array.isArray(response.data?.data)) {
+    return response.data.data;
+  }
 
-    if (!stored) {
-      localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify(defaultData)
-      );
+  if (Array.isArray(response.users)) {
+    return response.users;
+  }
 
-      return defaultData;
+  if (Array.isArray(response.data?.users)) {
+    return response.data.users;
+  }
+
+  if (Array.isArray(response.rows)) {
+    return response.rows;
+  }
+
+  if (Array.isArray(response.data?.rows)) {
+    return response.data.rows;
+  }
+
+  return [];
+}
+
+// =========================================================
+// NORMALIZE SISWA
+// =========================================================
+
+function normalizeSiswa(item) {
+  if (!item) return null;
+
+  let kelas = "-";
+
+  /*
+   * Bentuk data yang mungkin:
+   *
+   * anggotaKelas: [
+   *   {
+   *     kelas: {
+   *       id,
+   *       nama
+   *     }
+   *   }
+   * ]
+   */
+
+  const anggotaKelas =
+    item?.anggotaKelas ||
+    item?.kelasSiswa ||
+    item?.kelasAnggota ||
+    null;
+
+  if (Array.isArray(anggotaKelas)) {
+    if (anggotaKelas.length > 0) {
+      const anggota = anggotaKelas[0];
+
+      kelas =
+        anggota?.kelas?.nama ||
+        anggota?.kelasNama ||
+        anggota?.nama ||
+        "-";
     }
+  } else if (anggotaKelas) {
+    kelas =
+      anggotaKelas?.kelas?.nama ||
+      anggotaKelas?.kelasNama ||
+      anggotaKelas?.nama ||
+      "-";
+  }
 
-    const oldData = JSON.parse(stored);
+  /*
+   * Beberapa response mungkin langsung punya:
+   *
+   * kelas: {
+   *   nama: "VII A"
+   * }
+   */
 
-    if (!Array.isArray(oldData)) {
-      return defaultData;
+  if (item?.kelas) {
+    if (typeof item.kelas === "string") {
+      kelas = item.kelas;
+    } else {
+      kelas =
+        item.kelas?.nama ||
+        item.kelas?.kelasNama ||
+        kelas;
     }
-
-    const merged = [...oldData];
-
-    defaultData.forEach((defaultItem) => {
-      if (
-        !merged.some(
-          (item) =>
-            Number(item.id) ===
-            Number(defaultItem.id)
-        )
-      ) {
-        merged.push(defaultItem);
-      }
-    });
-
-    merged.sort(
-      (a, b) =>
-        Number(a.id) - Number(b.id)
-    );
-
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify(merged)
-    );
-
-    return merged;
-  } catch (error) {
-    console.error(
-      "Gagal membaca data siswa:",
-      error
-    );
-
-    return getDefaultSiswa();
   }
-};
+
+  const statusRaw = String(
+    item?.status || "aktif"
+  ).toLowerCase();
+
+  return {
+    id: item?.id || null,
+
+    nama:
+      item?.namaLengkap ||
+      item?.nama ||
+      item?.namaPengguna ||
+      "-",
+
+    namaPengguna:
+      item?.namaPengguna ||
+      "-",
+
+    email:
+      item?.email ||
+      "-",
+
+    nis:
+      item?.nis ||
+      item?.nipd ||
+      "-",
+
+    nisn:
+      item?.nisn ||
+      "-",
+
+    nik:
+      item?.nik ||
+      "-",
+
+    kelas,
+
+    phone:
+      item?.noTelepon ||
+      item?.phone ||
+      "-",
+
+    alamat:
+      item?.alamat ||
+      "-",
+
+    alamatKtp:
+      item?.alamatKtp ||
+      "-",
+
+    alamatDomisili:
+      item?.alamatDomisili ||
+      "-",
+
+    kecamatan:
+      item?.kecamatan ||
+      "-",
+
+    kelurahan:
+      item?.kelurahan ||
+      "-",
+
+    kota:
+      item?.kota ||
+      "-",
+
+    namaAyah:
+      item?.namaAyah ||
+      "-",
+
+    pekerjaanAyah:
+      item?.pekerjaanAyah ||
+      "-",
+
+    namaIbu:
+      item?.namaIbu ||
+      "-",
+
+    pekerjaanIbu:
+      item?.pekerjaanIbu ||
+      "-",
+
+    tglLahir:
+      item?.tanggalLahir ||
+      item?.tglLahir ||
+      null,
+
+    tempatLahir:
+      item?.tempatLahir ||
+      "-",
+
+    gender:
+      item?.jenisKelamin ||
+      item?.gender ||
+      "-",
+
+    status:
+      statusRaw === "aktif"
+        ? "Aktif"
+        : "Nonaktif",
+
+    joinDate:
+      item?.dibuatPada ||
+      item?.createdAt ||
+      null,
+
+    sekolah:
+      item?.sekolah || null,
+
+    peran:
+      item?.peran || null,
+
+    raw: item,
+  };
+}
 
 // =========================================================
-// SAVE DATA
+// FORMAT DATE
 // =========================================================
-const saveSiswa = (data) => {
-  if (typeof window !== "undefined") {
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify(data)
-    );
+
+function formatDate(value) {
+  if (!value) return "-";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "-";
   }
-};
+
+  return date.toLocaleDateString("id-ID", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
 
 // =========================================================
-// COMPONENT
+// FORMAT GENDER
 // =========================================================
+
+function formatGender(value) {
+  if (!value) return "-";
+
+  const gender = String(value).toUpperCase();
+
+  if (gender === "L") {
+    return "Laki-laki";
+  }
+
+  if (gender === "P") {
+    return "Perempuan";
+  }
+
+  return value;
+}
+
+// =========================================================
+// PAGE
+// =========================================================
+
 export default function AdminSiswaPage() {
   const router = useRouter();
 
-  const [isCollapsed, setIsCollapsed] =
-    useState(false);
+  // =======================================================
+  // SIDEBAR
+  // =======================================================
+
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
+  // =======================================================
+  // DATA
+  // =======================================================
 
   const [siswa, setSiswa] = useState([]);
+
+  const [loading, setLoading] = useState(true);
+
+  const [refreshing, setRefreshing] = useState(false);
+
+  const [error, setError] = useState("");
+
+  // =======================================================
+  // SEARCH
+  // =======================================================
 
   const [search, setSearch] = useState("");
 
   // =======================================================
-  // DELETE MODAL
+  // FILTER
   // =======================================================
-  const [deleteModal, setDeleteModal] = useState({
-    open: false,
-    id: null,
-    nama: "",
-  });
-
-  // =======================================================
-  // SORT & FILTER
-  // =======================================================
-  const [sortBy, setSortBy] =
-    useState("nama_asc");
 
   const [filterStatus, setFilterStatus] =
     useState("semua");
@@ -247,9 +325,13 @@ export default function AdminSiswaPage() {
   const [filterKelas, setFilterKelas] =
     useState("semua");
 
+  const [sortBy, setSortBy] =
+    useState("nama_asc");
+
   // =======================================================
-  // SEARCHABLE SELECT KELAS
+  // KELAS DROPDOWN
   // =======================================================
+
   const [kelasSearch, setKelasSearch] =
     useState("");
 
@@ -259,8 +341,23 @@ export default function AdminSiswaPage() {
   const kelasRef = useRef(null);
 
   // =======================================================
+  // DELETE
+  // =======================================================
+
+  const [deleteModal, setDeleteModal] =
+    useState({
+      open: false,
+      id: null,
+      nama: "",
+    });
+
+  const [deleting, setDeleting] =
+    useState(false);
+
+  // =======================================================
   // PAGINATION
   // =======================================================
+
   const [currentPage, setCurrentPage] =
     useState(1);
 
@@ -268,20 +365,101 @@ export default function AdminSiswaPage() {
     useState(10);
 
   // =======================================================
-  // LOAD
+  // LOAD DATA
   // =======================================================
+
+  const loadSiswa = async (isRefresh = false) => {
+    try {
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+
+      setError("");
+
+      /*
+       * Sesuai BE:
+       *
+       * GET /api/users
+       * GET /api/users?role=siswa
+       *
+       * Ditambah limit besar supaya data siswa
+       * yang dikembalikan tidak hanya sedikit.
+       */
+
+      const response = await apiFetch(
+        "/api/users?role=siswa&page=1&limit=1000",
+        {
+          method: "GET",
+        }
+      );
+
+      console.log(
+        "GET SISWA RESPONSE:",
+        response
+      );
+
+      const rawData =
+        getResponseData(response);
+
+      console.log(
+        "RAW SISWA DATA:",
+        rawData
+      );
+
+      const normalized =
+        rawData
+          .map(normalizeSiswa)
+          .filter(
+            (item) => item && item.id
+          );
+
+      console.log(
+        "NORMALIZED SISWA:",
+        normalized
+      );
+
+      setSiswa(normalized);
+
+      setCurrentPage(1);
+    } catch (err) {
+      console.error(
+        "Gagal mengambil data siswa:",
+        err
+      );
+
+      setError(
+        err?.message ||
+          "Gagal mengambil data siswa dari backend."
+      );
+
+      setSiswa([]);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  // =======================================================
+  // INITIAL LOAD
+  // =======================================================
+
   useEffect(() => {
-    setSiswa(loadSiswa());
+    loadSiswa();
   }, []);
 
   // =======================================================
-  // CLOSE DROPDOWN
+  // CLICK OUTSIDE KELAS
   // =======================================================
+
   useEffect(() => {
-    const handleClickOutside = (e) => {
+    const handleClickOutside = (event) => {
       if (
         kelasRef.current &&
-        !kelasRef.current.contains(e.target)
+        !kelasRef.current.contains(
+          event.target
+        )
       ) {
         setIsKelasOpen(false);
       }
@@ -292,189 +470,277 @@ export default function AdminSiswaPage() {
       handleClickOutside
     );
 
-    return () =>
+    return () => {
       document.removeEventListener(
         "mousedown",
         handleClickOutside
       );
+    };
   }, []);
 
   // =======================================================
-  // OPEN DELETE MODAL
+  // UNIQUE KELAS
   // =======================================================
-  const handleDelete = (id, nama) => {
-    setDeleteModal({
-      open: true,
-      id,
-      nama,
-    });
-  };
 
-  // =======================================================
-  // CLOSE DELETE MODAL
-  // =======================================================
-  const closeDeleteModal = () => {
-    setDeleteModal({
-      open: false,
-      id: null,
-      nama: "",
-    });
-  };
-
-  // =======================================================
-  // CONFIRM DELETE
-  // =======================================================
-  const confirmDelete = () => {
-    const { id } = deleteModal;
-
-    if (id === null) {
-      return;
-    }
-
-    const updated = siswa.filter(
-      (item) => item.id !== id
+  const uniqueKelas = useMemo(() => {
+    return [
+      ...new Set(
+        siswa
+          .map((item) => item.kelas)
+          .filter(
+            (kelas) =>
+              kelas &&
+              kelas !== "-"
+          )
+      ),
+    ].sort((a, b) =>
+      String(a).localeCompare(
+        String(b),
+        "id"
+      )
     );
-
-    setSiswa(updated);
-    saveSiswa(updated);
-
-    const totalItems = updated.length;
-
-    const maxPage = Math.ceil(
-      totalItems / itemsPerPage
-    );
-
-    if (
-      currentPage > maxPage &&
-      maxPage > 0
-    ) {
-      setCurrentPage(maxPage);
-    } else if (totalItems === 0) {
-      setCurrentPage(1);
-    }
-
-    closeDeleteModal();
-  };
+  }, [siswa]);
 
   // =======================================================
-  // REFRESH
+  // FILTER KELAS OPTION
   // =======================================================
-  const handleRefresh = () => {
-    setSiswa(loadSiswa());
-    setCurrentPage(1);
-  };
+
+  const filteredKelasOptions =
+    useMemo(() => {
+      const keyword =
+        kelasSearch
+          .trim()
+          .toLowerCase();
+
+      if (!keyword) {
+        return uniqueKelas;
+      }
+
+      return uniqueKelas.filter(
+        (kelas) =>
+          String(kelas)
+            .toLowerCase()
+            .includes(keyword)
+      );
+    }, [
+      uniqueKelas,
+      kelasSearch,
+    ]);
 
   // =======================================================
   // SEARCH
   // =======================================================
-  const filteredBySearch = siswa.filter(
-    (s) => {
-      const keyword =
-        search.toLowerCase();
 
+  const filteredBySearch = useMemo(() => {
+    const keyword =
+      search
+        .trim()
+        .toLowerCase();
+
+    if (!keyword) {
+      return siswa;
+    }
+
+    return siswa.filter((item) => {
       return (
-        s.nama
+        String(item.nama || "")
           .toLowerCase()
           .includes(keyword) ||
-        s.nis.includes(search) ||
-        s.kelas
+
+        String(item.nis || "")
           .toLowerCase()
           .includes(keyword) ||
-        s.email
+
+        String(item.nisn || "")
+          .toLowerCase()
+          .includes(keyword) ||
+
+        String(item.email || "")
+          .toLowerCase()
+          .includes(keyword) ||
+
+        String(item.kelas || "")
+          .toLowerCase()
+          .includes(keyword) ||
+
+        String(item.phone || "")
+          .toLowerCase()
+          .includes(keyword) ||
+
+        String(item.nik || "")
           .toLowerCase()
           .includes(keyword)
       );
-    }
-  );
+    });
+  }, [
+    siswa,
+    search,
+  ]);
 
   // =======================================================
   // FILTER STATUS
   // =======================================================
-  const filteredByStatus =
-    filterStatus === "semua"
-      ? filteredBySearch
-      : filteredBySearch.filter(
-          (s) =>
-            s.status ===
-            filterStatus
-        );
+
+  const filteredByStatus = useMemo(() => {
+    if (
+      filterStatus === "semua"
+    ) {
+      return filteredBySearch;
+    }
+
+    return filteredBySearch.filter(
+      (item) =>
+        item.status ===
+        filterStatus
+    );
+  }, [
+    filteredBySearch,
+    filterStatus,
+  ]);
 
   // =======================================================
   // FILTER KELAS
   // =======================================================
-  const filteredByKelas =
-    filterKelas === "semua"
-      ? filteredByStatus
-      : filteredByStatus.filter(
-          (s) =>
-            s.kelas ===
-            filterKelas
-        );
+
+  const filteredByKelas = useMemo(() => {
+    if (
+      filterKelas === "semua"
+    ) {
+      return filteredByStatus;
+    }
+
+    return filteredByStatus.filter(
+      (item) =>
+        item.kelas ===
+        filterKelas
+    );
+  }, [
+    filteredByStatus,
+    filterKelas,
+  ]);
 
   // =======================================================
   // SORT
   // =======================================================
-  const sorted = [
-    ...filteredByKelas,
-  ].sort((a, b) => {
-    switch (sortBy) {
-      case "nama_asc":
-        return a.nama.localeCompare(
-          b.nama
-        );
 
-      case "nama_desc":
-        return b.nama.localeCompare(
-          a.nama
-        );
+  const sorted = useMemo(() => {
+    return [
+      ...filteredByKelas,
+    ].sort((a, b) => {
+      switch (sortBy) {
+        case "nama_asc":
+          return String(
+            a.nama || ""
+          ).localeCompare(
+            String(
+              b.nama || ""
+            ),
+            "id"
+          );
 
-      case "nis_asc":
-        return a.nis.localeCompare(
-          b.nis
-        );
+        case "nama_desc":
+          return String(
+            b.nama || ""
+          ).localeCompare(
+            String(
+              a.nama || ""
+            ),
+            "id"
+          );
 
-      case "nis_desc":
-        return b.nis.localeCompare(
-          a.nis
-        );
+        case "nis_asc":
+          return String(
+            a.nis || ""
+          ).localeCompare(
+            String(
+              b.nis || ""
+            ),
+            "id"
+          );
 
-      case "kelas":
-        return a.kelas.localeCompare(
-          b.kelas
-        );
+        case "nis_desc":
+          return String(
+            b.nis || ""
+          ).localeCompare(
+            String(
+              a.nis || ""
+            ),
+            "id"
+          );
 
-      case "status":
-        return a.status.localeCompare(
-          b.status
-        );
+        case "kelas":
+          return String(
+            a.kelas || ""
+          ).localeCompare(
+            String(
+              b.kelas || ""
+            ),
+            "id"
+          );
 
-      default:
-        return 0;
-    }
-  });
+        case "status":
+          return String(
+            a.status || ""
+          ).localeCompare(
+            String(
+              b.status || ""
+            ),
+            "id"
+          );
+
+        default:
+          return 0;
+      }
+    });
+  }, [
+    filteredByKelas,
+    sortBy,
+  ]);
 
   // =======================================================
   // PAGINATION
   // =======================================================
-  const totalItems = sorted.length;
 
-  const totalPages = Math.ceil(
-    totalItems / itemsPerPage
-  );
+  const totalItems =
+    sorted.length;
+
+  const totalPages =
+    Math.max(
+      1,
+      Math.ceil(
+        totalItems /
+          itemsPerPage
+      )
+    );
+
+  const safeCurrentPage =
+    Math.min(
+      currentPage,
+      totalPages
+    );
 
   const startIndex =
-    (currentPage - 1) *
-    itemsPerPage;
+    totalItems === 0
+      ? 0
+      : (safeCurrentPage - 1) *
+        itemsPerPage;
 
-  const endIndex = Math.min(
-    startIndex + itemsPerPage,
-    totalItems
-  );
+  const endIndex =
+    Math.min(
+      startIndex +
+        itemsPerPage,
+      totalItems
+    );
 
-  const currentItems = sorted.slice(
-    startIndex,
-    endIndex
-  );
+  const currentItems =
+    sorted.slice(
+      startIndex,
+      endIndex
+    );
+
+  // =======================================================
+  // RESET PAGE
+  // =======================================================
 
   useEffect(() => {
     setCurrentPage(1);
@@ -486,6 +752,28 @@ export default function AdminSiswaPage() {
     itemsPerPage,
   ]);
 
+  // =======================================================
+  // PAGE FIX
+  // =======================================================
+
+  useEffect(() => {
+    if (
+      currentPage >
+      totalPages
+    ) {
+      setCurrentPage(
+        totalPages
+      );
+    }
+  }, [
+    currentPage,
+    totalPages,
+  ]);
+
+  // =======================================================
+  // GO PAGE
+  // =======================================================
+
   const goToPage = (page) => {
     if (
       page >= 1 &&
@@ -496,159 +784,343 @@ export default function AdminSiswaPage() {
   };
 
   // =======================================================
+  // DELETE MODAL
+  // =======================================================
+
+  const openDeleteModal = (
+    id,
+    nama
+  ) => {
+    setDeleteModal({
+      open: true,
+      id,
+      nama,
+    });
+  };
+
+  const closeDeleteModal = () => {
+    if (deleting) return;
+
+    setDeleteModal({
+      open: false,
+      id: null,
+      nama: "",
+    });
+  };
+
+  // =======================================================
+  // DELETE
+  // =======================================================
+
+  const confirmDelete = async () => {
+    const id =
+      deleteModal.id;
+
+    if (!id) return;
+
+    try {
+      setDeleting(true);
+      setError("");
+
+      await apiFetch(
+        `/api/users/${id}`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      setSiswa((prev) =>
+        prev.filter(
+          (item) =>
+            item.id !== id
+        )
+      );
+
+      setDeleteModal({
+        open: false,
+        id: null,
+        nama: "",
+      });
+    } catch (err) {
+      console.error(
+        "Gagal menghapus siswa:",
+        err
+      );
+
+      setError(
+        err?.message ||
+          "Gagal menghapus data siswa."
+      );
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  // =======================================================
+  // REFRESH
+  // =======================================================
+
+  const handleRefresh = () => {
+    loadSiswa(true);
+  };
+
+  // =======================================================
+  // RESET FILTER
+  // =======================================================
+
+  const resetFilter = () => {
+    setSearch("");
+    setFilterStatus("semua");
+    setFilterKelas("semua");
+    setKelasSearch("");
+    setSortBy("nama_asc");
+  };
+
+  // =======================================================
   // EXPORT CSV
   // =======================================================
+
   const exportCSV = () => {
     const headers = [
       "No",
       "Nama",
       "NIS",
       "NISN",
+      "NIK",
       "Kelas",
       "Email",
       "Telepon",
-      "Status",
-      "Alamat",
-      "Tanggal Lahir",
       "Jenis Kelamin",
+      "Tempat Lahir",
+      "Tanggal Lahir",
+      "Alamat",
+      "Alamat KTP",
+      "Alamat Domisili",
+      "Kecamatan",
+      "Kelurahan",
+      "Kota",
+      "Nama Ayah",
+      "Pekerjaan Ayah",
+      "Nama Ibu",
+      "Pekerjaan Ibu",
+      "Status",
       "Bergabung",
     ];
 
+    const escapeCSV = (
+      value
+    ) => {
+      const text = String(
+        value ?? "-"
+      );
+
+      return `"${text.replace(
+        /"/g,
+        '""'
+      )}"`;
+    };
+
     const rows = sorted.map(
-      (s, idx) => [
-        idx + 1,
-        s.nama,
-        s.nis,
-        s.nisn || "-",
-        s.kelas,
-        s.email,
-        s.phone,
-        s.status,
-        s.alamat,
-        s.tglLahir,
-        s.gender === "L"
-          ? "Laki-laki"
-          : "Perempuan",
-        s.joinDate,
+      (item, index) => [
+        index + 1,
+        item.nama,
+        item.nis,
+        item.nisn,
+        item.nik,
+        item.kelas,
+        item.email,
+        item.phone,
+        formatGender(
+          item.gender
+        ),
+        item.tempatLahir,
+        formatDate(
+          item.tglLahir
+        ),
+        item.alamat,
+        item.alamatKtp,
+        item.alamatDomisili,
+        item.kecamatan,
+        item.kelurahan,
+        item.kota,
+        item.namaAyah,
+        item.pekerjaanAyah,
+        item.namaIbu,
+        item.pekerjaanIbu,
+        item.status,
+        formatDate(
+          item.joinDate
+        ),
       ]
     );
 
     let csv =
-      headers.join(",") +
+      headers
+        .map(escapeCSV)
+        .join(",") +
       "\n";
 
     rows.forEach((row) => {
       csv +=
-        row.join(",") +
+        row
+          .map(escapeCSV)
+          .join(",") +
         "\n";
     });
 
     const blob = new Blob(
-      [csv],
+      ["\ufeff" + csv],
       {
-        type: "text/csv;charset=utf-8;",
+        type:
+          "text/csv;charset=utf-8;",
       }
     );
 
     const url =
-      URL.createObjectURL(blob);
+      URL.createObjectURL(
+        blob
+      );
 
     const link =
-      document.createElement("a");
+      document.createElement(
+        "a"
+      );
 
     link.href = url;
 
-    link.download = `data_siswa_${new Date()
-      .toISOString()
-      .slice(0, 10)}.csv`;
+    link.download =
+      `data_siswa_${new Date()
+        .toISOString()
+        .slice(0, 10)}.csv`;
 
-    document.body.appendChild(link);
+    document.body.appendChild(
+      link
+    );
 
     link.click();
 
-    document.body.removeChild(link);
+    document.body.removeChild(
+      link
+    );
 
-    URL.revokeObjectURL(url);
+    URL.revokeObjectURL(
+      url
+    );
   };
 
   // =======================================================
   // EXPORT EXCEL
   // =======================================================
+
   const exportExcel = () => {
     const headers = [
       "No",
       "Nama",
       "NIS",
       "NISN",
+      "NIK",
       "Kelas",
       "Email",
       "Telepon",
-      "Status",
-      "Alamat",
-      "Tanggal Lahir",
       "Jenis Kelamin",
+      "Tempat Lahir",
+      "Tanggal Lahir",
+      "Alamat",
+      "Alamat KTP",
+      "Alamat Domisili",
+      "Kecamatan",
+      "Kelurahan",
+      "Kota",
+      "Nama Ayah",
+      "Pekerjaan Ayah",
+      "Nama Ibu",
+      "Pekerjaan Ibu",
+      "Status",
       "Bergabung",
     ];
 
     let tableHtml = `
       <html>
         <head>
-          <meta charset="UTF-8">
+          <meta charset="UTF-8" />
+
           <style>
-            th,td{
-              border:1px solid #ccc;
-              padding:6px 10px;
-              font-size:12px;
-              font-family:Arial,sans-serif;
+            table {
+              border-collapse: collapse;
+              width: 100%;
             }
 
-            th{
-              background:#2563eb;
-              color:white;
-              font-weight:bold;
+            th,
+            td {
+              border: 1px solid #cbd5e1;
+              padding: 7px 9px;
+              font-size: 11px;
+              font-family: Arial, sans-serif;
+            }
+
+            th {
+              background: #2563eb;
+              color: white;
+              font-weight: bold;
             }
           </style>
         </head>
 
         <body>
+
           <table>
+
             <tr>
               ${headers
                 .map(
-                  (h) =>
-                    `<th>${h}</th>`
+                  (header) =>
+                    `<th>${header}</th>`
                 )
                 .join("")}
             </tr>
     `;
 
-    sorted.forEach((s, idx) => {
-      tableHtml += `
-        <tr>
-          <td>${idx + 1}</td>
-          <td>${s.nama}</td>
-          <td>${s.nis}</td>
-          <td>${s.nisn || "-"}</td>
-          <td>${s.kelas}</td>
-          <td>${s.email}</td>
-          <td>${s.phone}</td>
-          <td>${s.status}</td>
-          <td>${s.alamat}</td>
-          <td>${s.tglLahir}</td>
-          <td>
-            ${
-              s.gender === "L"
-                ? "Laki-laki"
-                : "Perempuan"
-            }
-          </td>
-          <td>${s.joinDate}</td>
-        </tr>
-      `;
-    });
+    sorted.forEach(
+      (item, index) => {
+        tableHtml += `
+          <tr>
+            <td>${index + 1}</td>
+            <td>${item.nama}</td>
+            <td>${item.nis}</td>
+            <td>${item.nisn}</td>
+            <td>${item.nik}</td>
+            <td>${item.kelas}</td>
+            <td>${item.email}</td>
+            <td>${item.phone}</td>
+            <td>${formatGender(
+              item.gender
+            )}</td>
+            <td>${item.tempatLahir}</td>
+            <td>${formatDate(
+              item.tglLahir
+            )}</td>
+            <td>${item.alamat}</td>
+            <td>${item.alamatKtp}</td>
+            <td>${item.alamatDomisili}</td>
+            <td>${item.kecamatan}</td>
+            <td>${item.kelurahan}</td>
+            <td>${item.kota}</td>
+            <td>${item.namaAyah}</td>
+            <td>${item.pekerjaanAyah}</td>
+            <td>${item.namaIbu}</td>
+            <td>${item.pekerjaanIbu}</td>
+            <td>${item.status}</td>
+            <td>${formatDate(
+              item.joinDate
+            )}</td>
+          </tr>
+        `;
+      }
+    );
 
     tableHtml += `
           </table>
+
         </body>
       </html>
     `;
@@ -656,45 +1128,58 @@ export default function AdminSiswaPage() {
     const blob = new Blob(
       [tableHtml],
       {
-        type: "application/vnd.ms-excel",
+        type:
+          "application/vnd.ms-excel",
       }
     );
 
     const url =
-      URL.createObjectURL(blob);
+      URL.createObjectURL(
+        blob
+      );
 
     const link =
-      document.createElement("a");
+      document.createElement(
+        "a"
+      );
 
     link.href = url;
 
-    link.download = `data_siswa_${new Date()
-      .toISOString()
-      .slice(0, 10)}.xls`;
+    link.download =
+      `data_siswa_${new Date()
+        .toISOString()
+        .slice(0, 10)}.xls`;
 
-    document.body.appendChild(link);
+    document.body.appendChild(
+      link
+    );
 
     link.click();
 
-    document.body.removeChild(link);
+    document.body.removeChild(
+      link
+    );
 
-    URL.revokeObjectURL(url);
+    URL.revokeObjectURL(
+      url
+    );
   };
 
   // =======================================================
-  // EXPORT PDF
+  // EXPORT PDF / PRINT
   // =======================================================
+
   const exportPDF = () => {
     const printWindow =
       window.open(
         "",
         "_blank",
-        "width=1024,height=768"
+        "width=1200,height=800"
       );
 
     if (!printWindow) {
       alert(
-        "Mohon izinkan popup untuk mencetak PDF"
+        "Mohon izinkan popup browser untuk mencetak PDF."
       );
 
       return;
@@ -704,58 +1189,76 @@ export default function AdminSiswaPage() {
       "No",
       "Nama",
       "NIS",
+      "NISN",
       "Kelas",
       "Email",
+      "Telepon",
       "Status",
     ];
 
     let tableHtml = `
       <html>
+
         <head>
-          <title>Data Siswa</title>
+
+          <title>
+            Data Siswa SmartSchool
+          </title>
 
           <style>
-            body{
-              font-family:Arial,sans-serif;
-              padding:20px;
+
+            body {
+              font-family: Arial, sans-serif;
+              padding: 24px;
+              color: #1e293b;
             }
 
-            h1{
-              font-size:18px;
-              color:#1e293b;
+            h1 {
+              margin: 0;
+              font-size: 20px;
             }
 
-            table{
-              width:100%;
-              border-collapse:collapse;
-              font-size:11px;
+            p {
+              color: #64748b;
+              font-size: 12px;
             }
 
-            th{
-              background:#2563eb;
-              color:white;
-              padding:8px 10px;
-              text-align:left;
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-top: 20px;
+              font-size: 11px;
             }
 
-            td{
-              border:1px solid #e2e8f0;
-              padding:6px 10px;
+            th {
+              background: #2563eb;
+              color: white;
+              padding: 8px;
+              text-align: left;
             }
 
-            tr:nth-child(even){
-              background:#f8fafc;
+            td {
+              border: 1px solid #cbd5e1;
+              padding: 7px 8px;
             }
+
+            tr:nth-child(even) {
+              background: #f8fafc;
+            }
+
           </style>
+
         </head>
 
         <body>
 
-          <h1>Data Siswa</h1>
+          <h1>
+            Data Siswa SmartSchool
+          </h1>
 
           <p>
-            Total: ${sorted.length} siswa |
-            ${new Date().toLocaleDateString(
+            Total ${sorted.length} siswa
+            • ${new Date().toLocaleDateString(
               "id-ID"
             )}
           </p>
@@ -765,30 +1268,35 @@ export default function AdminSiswaPage() {
             <tr>
               ${headers
                 .map(
-                  (h) =>
-                    `<th>${h}</th>`
+                  (header) =>
+                    `<th>${header}</th>`
                 )
                 .join("")}
             </tr>
     `;
 
-    sorted.forEach((s, idx) => {
-      tableHtml += `
-        <tr>
-          <td>${idx + 1}</td>
-          <td>${s.nama}</td>
-          <td>${s.nis}</td>
-          <td>${s.kelas}</td>
-          <td>${s.email}</td>
-          <td>${s.status}</td>
-        </tr>
-      `;
-    });
+    sorted.forEach(
+      (item, index) => {
+        tableHtml += `
+          <tr>
+            <td>${index + 1}</td>
+            <td>${item.nama}</td>
+            <td>${item.nis}</td>
+            <td>${item.nisn}</td>
+            <td>${item.kelas}</td>
+            <td>${item.email}</td>
+            <td>${item.phone}</td>
+            <td>${item.status}</td>
+          </tr>
+        `;
+      }
+    );
 
     tableHtml += `
           </table>
 
         </body>
+
       </html>
     `;
 
@@ -798,41 +1306,40 @@ export default function AdminSiswaPage() {
 
     printWindow.document.close();
 
-    printWindow.onload =
-      function () {
-        printWindow.focus();
-        printWindow.print();
-      };
+    printWindow.onload = () => {
+      printWindow.focus();
+      printWindow.print();
+    };
   };
 
   // =======================================================
   // STATISTICS
   // =======================================================
+
   const totalSiswa =
     siswa.length;
 
   const totalAktif =
     siswa.filter(
-      (s) =>
-        s.status === "Aktif"
+      (item) =>
+        item.status ===
+        "Aktif"
     ).length;
 
   const totalNonaktif =
     siswa.filter(
-      (s) =>
-        s.status !== "Aktif"
+      (item) =>
+        item.status !==
+        "Aktif"
     ).length;
 
   const totalKelas =
-    new Set(
-      siswa.map(
-        (s) => s.kelas
-      )
-    ).size;
+    uniqueKelas.length;
 
   // =======================================================
-  // HELPERS
+  // AVATAR
   // =======================================================
+
   const getInitials = (
     nama
   ) => {
@@ -841,16 +1348,20 @@ export default function AdminSiswaPage() {
     }
 
     const parts =
-      nama.trim().split(" ");
+      String(nama)
+        .trim()
+        .split(/\s+/);
 
-    if (parts.length >= 2) {
+    if (
+      parts.length >= 2
+    ) {
       return (
         parts[0][0] +
         parts[1][0]
       ).toUpperCase();
     }
 
-    return nama
+    return String(nama)
       .substring(0, 2)
       .toUpperCase();
   };
@@ -872,42 +1383,21 @@ export default function AdminSiswaPage() {
     ];
 
     return colors[
-      nama.length %
+      String(nama || "")
+        .length %
         colors.length
     ];
   };
 
   // =======================================================
-  // UNIQUE KELAS
+  // RENDER
   // =======================================================
-  const uniqueKelas = [
-    ...new Set(
-      siswa.map(
-        (s) => s.kelas
-      )
-    ),
-  ].sort();
 
-  // =======================================================
-  // FILTER KELAS OPTIONS
-  // =======================================================
-  const filteredKelasOptions =
-    uniqueKelas.filter(
-      (k) =>
-        k
-          .toLowerCase()
-          .includes(
-            kelasSearch.toLowerCase()
-          )
-    );
-
-  // =======================================================
-  // RETURN
-  // =======================================================
   return (
     <div className="flex h-screen w-full overflow-hidden bg-slate-100">
 
       {/* SIDEBAR */}
+
       <Sidebar
         active="siswa"
         setActive={() => {}}
@@ -920,10 +1410,11 @@ export default function AdminSiswaPage() {
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
 
         {/* HEADER */}
+
         <Header
           toggleSidebar={() =>
             setIsCollapsed(
-              !isCollapsed
+              (prev) => !prev
             )
           }
           notifications={[]}
@@ -935,15 +1426,16 @@ export default function AdminSiswaPage() {
           }}
         />
 
+        {/* MAIN */}
+
         <main className="min-h-0 flex-1 overflow-y-auto">
 
           <div className="w-full px-3 py-4 sm:px-4 md:px-6 lg:px-8 xl:px-10">
 
             <div className="w-full space-y-5">
 
-              {/* =================================================
-                  HEADER
-              ================================================= */}
+              {/* PAGE HEADER */}
+
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 
                 <div className="flex min-w-0 items-center gap-3">
@@ -969,90 +1461,152 @@ export default function AdminSiswaPage() {
                 <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
 
                   {/* EXPORT */}
-                  <div className="relative group">
 
-                    <button className="flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition-all hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700">
+                  <div className="group relative">
 
-                      <Download size={17} />
+                    <button
+                      type="button"
+                      className="flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700"
+                    >
+                      <Download
+                        size={17}
+                      />
 
-                      <span>
-                        Export
-                      </span>
+                      Export
 
+                      <ChevronDown
+                        size={14}
+                      />
                     </button>
 
-                    <div className="absolute right-0 top-full z-10 mt-1 w-44 rounded-xl border border-slate-300 bg-white shadow-lg opacity-0 invisible transition-all group-hover:visible group-hover:opacity-100">
+                    <div className="invisible absolute right-0 top-full z-30 mt-1 w-44 rounded-xl border border-slate-200 bg-white p-1 shadow-xl opacity-0 transition-all group-hover:visible group-hover:opacity-100">
 
                       <button
+                        type="button"
                         onClick={
                           exportPDF
                         }
-                        className="flex w-full items-center gap-2 rounded-t-xl px-4 py-2.5 text-sm text-slate-700 transition hover:bg-blue-50 hover:text-blue-700"
+                        className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700"
                       >
-                        <Printer size={16} />
+                        <Printer
+                          size={16}
+                        />
                         PDF
                       </button>
 
                       <button
+                        type="button"
                         onClick={
                           exportExcel
                         }
-                        className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-slate-700 transition hover:bg-blue-50 hover:text-blue-700"
+                        className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700"
                       >
-                        <FileSpreadsheet size={16} />
+                        <FileSpreadsheet
+                          size={16}
+                        />
                         Excel
                       </button>
 
                       <button
+                        type="button"
                         onClick={
                           exportCSV
                         }
-                        className="flex w-full items-center gap-2 rounded-b-xl px-4 py-2.5 text-sm text-slate-700 transition hover:bg-blue-50 hover:text-blue-700"
+                        className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700"
                       >
-                        <FileSpreadsheet size={16} />
+                        <FileSpreadsheet
+                          size={16}
+                        />
                         CSV
                       </button>
 
                     </div>
+
                   </div>
 
                   {/* REFRESH */}
+
                   <button
+                    type="button"
                     onClick={
                       handleRefresh
                     }
-                    className="flex h-10 items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:shadow-sm"
-                    title="Refresh"
+                    disabled={
+                      refreshing
+                    }
+                    className="flex h-10 items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                    title="Refresh data"
                   >
-                    <RefreshCw size={16} />
+                    <RefreshCw
+                      size={16}
+                      className={
+                        refreshing
+                          ? "animate-spin"
+                          : ""
+                      }
+                    />
                   </button>
 
-                  {/* TAMBAH SISWA */}
+                  {/* TAMBAH */}
+
                   <button
+                    type="button"
                     onClick={() =>
                       router.push(
                         "/admin/siswa/tambah"
                       )
                     }
-                    className="flex h-10 flex-1 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700 hover:shadow-lg sm:flex-none"
+                    className="flex h-10 flex-1 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700 sm:flex-none"
                   >
-                    <Plus size={18} />
-
-                    <span>
-                      Tambah Siswa
-                    </span>
+                    <Plus
+                      size={18}
+                    />
+                    Tambah Siswa
                   </button>
 
                 </div>
 
               </div>
 
-              {/* =================================================
-                  STATISTICS
-              ================================================= */}
+              {/* ERROR */}
+
+              {error && (
+                <div className="flex items-start gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3">
+
+                  <AlertTriangle
+                    size={19}
+                    className="mt-0.5 shrink-0 text-rose-600"
+                  />
+
+                  <div className="min-w-0 flex-1">
+
+                    <p className="text-sm font-semibold text-rose-700">
+                      Gagal memuat data siswa
+                    </p>
+
+                    <p className="mt-1 break-words text-sm text-rose-600">
+                      {error}
+                    </p>
+
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setError("")
+                    }
+                    className="text-xl leading-none text-rose-500 hover:text-rose-700"
+                  >
+                    ×
+                  </button>
+
+                </div>
+              )}
+
+              {/* STATISTICS */}
+
               <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
 
-                {/* TOTAL */}
                 <div className="rounded-xl border border-slate-300 bg-white p-4 shadow-sm transition hover:shadow-md">
 
                   <div className="flex items-center gap-2">
@@ -1073,13 +1627,14 @@ export default function AdminSiswaPage() {
 
                 </div>
 
-                {/* AKTIF */}
                 <div className="rounded-xl border border-slate-300 bg-white p-4 shadow-sm transition hover:shadow-md">
 
                   <div className="flex items-center gap-2">
 
                     <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
-                      <CheckCircle size={16} />
+                      <CheckCircle
+                        size={16}
+                      />
                     </div>
 
                     <p className="text-[10px] font-medium uppercase tracking-wider text-slate-500">
@@ -1094,13 +1649,14 @@ export default function AdminSiswaPage() {
 
                 </div>
 
-                {/* NONAKTIF */}
                 <div className="rounded-xl border border-slate-300 bg-white p-4 shadow-sm transition hover:shadow-md">
 
                   <div className="flex items-center gap-2">
 
                     <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-100 text-rose-700">
-                      <XCircle size={16} />
+                      <XCircle
+                        size={16}
+                      />
                     </div>
 
                     <p className="text-[10px] font-medium uppercase tracking-wider text-slate-500">
@@ -1115,7 +1671,6 @@ export default function AdminSiswaPage() {
 
                 </div>
 
-                {/* KELAS */}
                 <div className="rounded-xl border border-slate-300 bg-white p-4 shadow-sm transition hover:shadow-md">
 
                   <div className="flex items-center gap-2">
@@ -1138,14 +1693,14 @@ export default function AdminSiswaPage() {
 
               </div>
 
-              {/* =================================================
-                  SEARCH + FILTER
-              ================================================= */}
+              {/* SEARCH FILTER */}
+
               <div className="rounded-xl border border-slate-300 bg-white p-4 shadow-sm">
 
                 <div className="flex flex-col gap-3">
 
                   {/* SEARCH */}
+
                   <div className="relative w-full">
 
                     <Search
@@ -1155,13 +1710,14 @@ export default function AdminSiswaPage() {
 
                     <input
                       type="text"
-                      placeholder="Cari nama, NIS, kelas, atau email..."
                       value={search}
-                      onChange={(e) =>
+                      onChange={(event) =>
                         setSearch(
-                          e.target.value
+                          event.target
+                            .value
                         )
                       }
+                      placeholder="Cari nama, NIS, NISN, kelas, email, telepon..."
                       className="w-full rounded-xl border border-slate-300 bg-slate-50 py-2.5 pl-10 pr-4 text-sm text-slate-800 outline-none transition placeholder:text-slate-500 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/30"
                     />
 
@@ -1169,17 +1725,19 @@ export default function AdminSiswaPage() {
 
                   <div className="flex flex-wrap items-center gap-2">
 
-                    {/* FILTER STATUS */}
+                    {/* STATUS */}
+
                     <select
                       value={
                         filterStatus
                       }
-                      onChange={(e) =>
+                      onChange={(event) =>
                         setFilterStatus(
-                          e.target.value
+                          event.target
+                            .value
                         )
                       }
-                      className="min-w-[120px] rounded-lg border border-slate-300 bg-slate-50 px-3 py-1.5 text-sm text-slate-700 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                      className="min-w-[130px] rounded-lg border border-slate-300 bg-slate-50 px-3 py-1.5 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30"
                     >
                       <option value="semua">
                         Semua Status
@@ -1194,60 +1752,45 @@ export default function AdminSiswaPage() {
                       </option>
                     </select>
 
-                    {/* FILTER KELAS */}
+                    {/* KELAS */}
+
                     <div
                       ref={kelasRef}
-                      className="relative min-w-[150px]"
+                      className="relative min-w-[160px]"
                     >
 
-                      <div
-                        className="w-full cursor-pointer rounded-lg border border-slate-300 bg-slate-50 px-3 py-1.5 text-sm text-slate-700 outline-none transition hover:border-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30"
-                        onClick={() =>
-                          setIsKelasOpen(
-                            (prev) =>
-                              !prev
-                          )
-                        }
-                      >
+                      <div className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-1.5">
 
                         <div className="flex items-center gap-1">
 
                           <input
                             type="text"
-                            placeholder={
-                              filterKelas ===
-                              "semua"
-                                ? "Semua Kelas"
-                                : filterKelas
-                            }
                             value={
                               kelasSearch
                             }
-                            onChange={(e) => {
+                            onChange={(event) => {
                               setKelasSearch(
-                                e.target.value
+                                event
+                                  .target
+                                  .value
                               );
 
                               setIsKelasOpen(
                                 true
                               );
-
-                              if (
-                                e.target
-                                  .value ===
-                                ""
-                              ) {
-                                setFilterKelas(
-                                  "semua"
-                                );
-                              }
                             }}
                             onFocus={() =>
                               setIsKelasOpen(
                                 true
                               )
                             }
-                            className="min-w-[80px] flex-1 bg-transparent text-slate-800 outline-none placeholder:text-slate-500"
+                            placeholder={
+                              filterKelas ===
+                              "semua"
+                                ? "Semua Kelas"
+                                : filterKelas
+                            }
+                            className="min-w-0 flex-1 bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-500"
                             autoComplete="off"
                           />
 
@@ -1265,15 +1808,10 @@ export default function AdminSiswaPage() {
                       </div>
 
                       {isKelasOpen && (
-                        <ul className="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded-lg border border-slate-300 bg-white shadow-lg">
+                        <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-60 overflow-y-auto rounded-lg border border-slate-300 bg-white shadow-xl">
 
-                          <li
-                            className={`cursor-pointer px-3 py-2 text-sm transition hover:bg-blue-50 ${
-                              filterKelas ===
-                              "semua"
-                                ? "bg-blue-100 font-semibold text-blue-700"
-                                : "text-slate-700"
-                            }`}
+                          <button
+                            type="button"
                             onClick={() => {
                               setFilterKelas(
                                 "semua"
@@ -1287,30 +1825,32 @@ export default function AdminSiswaPage() {
                                 false
                               );
                             }}
+                            className={`block w-full px-3 py-2 text-left text-sm hover:bg-blue-50 ${
+                              filterKelas ===
+                              "semua"
+                                ? "bg-blue-100 font-semibold text-blue-700"
+                                : "text-slate-700"
+                            }`}
                           >
                             Semua Kelas
-                          </li>
+                          </button>
 
                           {filteredKelasOptions.length ===
                           0 ? (
-                            <li className="px-3 py-2 text-sm text-slate-500">
-                              Tidak ada kelas yang
-                              cocok
-                            </li>
+                            <div className="px-3 py-3 text-sm text-slate-500">
+                              Belum ada kelas
+                            </div>
                           ) : (
                             filteredKelasOptions.map(
-                              (k) => (
-                                <li
-                                  key={k}
-                                  className={`cursor-pointer px-3 py-2 text-sm transition hover:bg-blue-50 ${
-                                    filterKelas ===
-                                    k
-                                      ? "bg-blue-100 font-semibold text-blue-700"
-                                      : "text-slate-700"
-                                  }`}
+                              (kelas) => (
+                                <button
+                                  type="button"
+                                  key={
+                                    kelas
+                                  }
                                   onClick={() => {
                                     setFilterKelas(
-                                      k
+                                      kelas
                                     );
 
                                     setKelasSearch(
@@ -1321,31 +1861,38 @@ export default function AdminSiswaPage() {
                                       false
                                     );
                                   }}
+                                  className={`block w-full px-3 py-2 text-left text-sm hover:bg-blue-50 ${
+                                    filterKelas ===
+                                    kelas
+                                      ? "bg-blue-100 font-semibold text-blue-700"
+                                      : "text-slate-700"
+                                  }`}
                                 >
-                                  {k}
-                                </li>
+                                  {
+                                    kelas
+                                  }
+                                </button>
                               )
                             )
                           )}
 
-                        </ul>
+                        </div>
                       )}
 
                     </div>
 
                     {/* SORT */}
+
                     <select
-                      value={
-                        sortBy
-                      }
-                      onChange={(e) =>
+                      value={sortBy}
+                      onChange={(event) =>
                         setSortBy(
-                          e.target.value
+                          event.target
+                            .value
                         )
                       }
-                      className="min-w-[130px] rounded-lg border border-slate-300 bg-slate-50 px-3 py-1.5 text-sm text-slate-700 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                      className="min-w-[140px] rounded-lg border border-slate-300 bg-slate-50 px-3 py-1.5 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30"
                     >
-
                       <option value="nama_asc">
                         Nama A-Z
                       </option>
@@ -1369,27 +1916,16 @@ export default function AdminSiswaPage() {
                       <option value="status">
                         Status
                       </option>
-
                     </select>
 
                     {/* RESET */}
+
                     <button
-                      onClick={() => {
-                        setSearch("");
-                        setFilterStatus(
-                          "semua"
-                        );
-                        setFilterKelas(
-                          "semua"
-                        );
-                        setKelasSearch(
-                          ""
-                        );
-                        setSortBy(
-                          "nama_asc"
-                        );
-                      }}
-                      className="rounded-lg px-3 py-1.5 text-sm text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-800"
+                      type="button"
+                      onClick={
+                        resetFilter
+                      }
+                      className="rounded-lg px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-100 hover:text-slate-800"
                     >
                       Reset
                     </button>
@@ -1407,44 +1943,47 @@ export default function AdminSiswaPage() {
 
               </div>
 
-              {/* =================================================
-                  TABLE
-              ================================================= */}
+              {/* TABLE */}
+
               <div className="w-full overflow-hidden rounded-xl border border-slate-300 bg-white shadow-sm">
 
                 <div className="w-full overflow-x-auto">
 
-                  <table className="w-full min-w-[800px] table-auto">
+                  <table className="w-full min-w-[900px]">
 
                     <thead>
 
-                      <tr className="border-b border-blue-700 bg-blue-600">
+                      <tr className="bg-blue-600">
 
-                        <th className="w-[6%] whitespace-nowrap px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-white">
+                        <th className="w-[5%] px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-white">
                           No
                         </th>
 
-                        <th className="w-[27%] whitespace-nowrap px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white">
+                        <th className="w-[25%] px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white">
                           Profil
                         </th>
 
-                        <th className="w-[12%] whitespace-nowrap px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white">
+                        <th className="w-[11%] px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white">
                           NIS
                         </th>
 
-                        <th className="w-[14%] whitespace-nowrap px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white">
+                        <th className="w-[13%] px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white">
+                          NISN
+                        </th>
+
+                        <th className="w-[13%] px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white">
                           Kelas
                         </th>
 
-                        <th className="hidden w-[17%] whitespace-nowrap px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white md:table-cell">
+                        <th className="hidden w-[18%] px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white md:table-cell">
                           Email
                         </th>
 
-                        <th className="w-[10%] whitespace-nowrap px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white">
+                        <th className="w-[10%] px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white">
                           Status
                         </th>
 
-                        <th className="w-[14%] whitespace-nowrap px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-white">
+                        <th className="w-[13%] px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-white">
                           Aksi
                         </th>
 
@@ -1454,188 +1993,241 @@ export default function AdminSiswaPage() {
 
                     <tbody className="divide-y divide-slate-200">
 
-                      {currentItems.map(
-                        (item, index) => {
-                          const rowNumber =
-                            startIndex +
-                            index +
-                            1;
+                      {/* LOADING */}
 
-                          return (
-                            <tr
-                              key={
-                                item.id
-                              }
-                              className="group transition-colors hover:bg-blue-50/50"
-                            >
+                      {loading && (
+                        <tr>
 
-                              {/* NO */}
-                              <td className="px-3 py-4 text-center text-sm font-medium text-slate-700">
-                                {
-                                  rowNumber
+                          <td
+                            colSpan={8}
+                            className="px-4 py-16 text-center"
+                          >
+
+                            <div className="flex flex-col items-center">
+
+                              <Loader2
+                                size={30}
+                                className="animate-spin text-blue-600"
+                              />
+
+                              <p className="mt-3 text-sm font-medium text-slate-700">
+                                Mengambil data siswa...
+                              </p>
+
+                              <p className="mt-1 text-xs text-slate-500">
+                                Menghubungkan ke database SmartSchool
+                              </p>
+
+                            </div>
+
+                          </td>
+
+                        </tr>
+                      )}
+
+                      {/* DATA */}
+
+                      {!loading &&
+                        currentItems.map(
+                          (
+                            item,
+                            index
+                          ) => {
+                            const rowNumber =
+                              startIndex +
+                              index +
+                              1;
+
+                            return (
+                              <tr
+                                key={
+                                  item.id
                                 }
-                              </td>
+                                className="group transition-colors hover:bg-blue-50/50"
+                              >
 
-                              {/* PROFIL */}
-                              <td className="px-3 py-4">
+                                {/* NO */}
 
-                                <div className="flex min-w-0 items-center gap-3">
+                                <td className="px-3 py-4 text-center text-sm font-medium text-slate-700">
+                                  {
+                                    rowNumber
+                                  }
+                                </td>
 
-                                  <div
-                                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${getAvatarColor(
-                                      item.nama
-                                    )} text-sm font-bold text-white shadow-sm`}
-                                  >
-                                    {getInitials(
-                                      item.nama
-                                    )}
-                                  </div>
+                                {/* PROFIL */}
 
-                                  <div className="min-w-0">
+                                <td className="px-3 py-4">
 
-                                    <p className="truncate text-sm font-semibold text-slate-800">
-                                      {
+                                  <div className="flex min-w-0 items-center gap-3">
+
+                                    <div
+                                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${getAvatarColor(
                                         item.nama
-                                      }
-                                    </p>
+                                      )} text-sm font-bold text-white shadow-sm`}
+                                    >
+                                      {getInitials(
+                                        item.nama
+                                      )}
+                                    </div>
 
-                                    <p className="truncate text-xs text-slate-500">
-                                      {item.gender ===
-                                      "L"
-                                        ? "Laki-laki"
-                                        : "Perempuan"}{" "}
-                                      ·{" "}
-                                      {
-                                        item.nis
-                                      }
-                                    </p>
+                                    <div className="min-w-0">
+
+                                      <p className="truncate text-sm font-semibold text-slate-800">
+                                        {
+                                          item.nama
+                                        }
+                                      </p>
+
+                                      <p className="truncate text-xs text-slate-500">
+                                        {
+                                          formatGender(
+                                            item.gender
+                                          )
+                                        }
+                                      </p>
+
+                                    </div>
 
                                   </div>
 
-                                </div>
+                                </td>
 
-                              </td>
+                                {/* NIS */}
 
-                              {/* NIS */}
-                              <td className="px-3 py-4">
-
-                                <span className="whitespace-nowrap text-sm text-slate-700">
+                                <td className="px-3 py-4 text-sm text-slate-700">
                                   {
                                     item.nis
                                   }
-                                </span>
+                                </td>
 
-                              </td>
+                                {/* NISN */}
 
-                              {/* KELAS */}
-                              <td className="px-3 py-4">
-
-                                <span className="inline-flex whitespace-nowrap rounded-lg bg-indigo-100 px-2.5 py-1 text-xs font-medium text-indigo-700">
+                                <td className="px-3 py-4 text-sm text-slate-700">
                                   {
-                                    item.kelas
+                                    item.nisn
                                   }
-                                </span>
+                                </td>
 
-                              </td>
+                                {/* KELAS */}
 
-                              {/* EMAIL */}
-                              <td className="hidden px-3 py-4 md:table-cell">
+                                <td className="px-3 py-4">
 
-                                <span className="block max-w-[200px] truncate text-sm text-slate-600">
-                                  {
-                                    item.email
-                                  }
-                                </span>
-
-                              </td>
-
-                              {/* STATUS */}
-                              <td className="px-3 py-4">
-
-                                <span
-                                  className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-medium ${
-                                    item.status ===
-                                    "Aktif"
-                                      ? "border-emerald-300 bg-emerald-100 text-emerald-700"
-                                      : "border-rose-300 bg-rose-100 text-rose-700"
-                                  }`}
-                                >
-
-                                  <span className="h-1.5 w-1.5 rounded-full bg-current" />
-
-                                  {
-                                    item.status
-                                  }
-
-                                </span>
-
-                              </td>
-
-                              {/* AKSI */}
-                              <td className="px-3 py-4">
-
-                                <div className="flex justify-end gap-1.5">
-
-                                  {/* DETAIL */}
-                                  <button
-                                    onClick={() =>
-                                      router.push(
-                                        `/admin/siswa/${item.id}`
-                                      )
-                                    }
-                                    className="rounded-lg p-2 text-slate-500 transition-all hover:bg-blue-100 hover:text-blue-700 hover:shadow-sm"
-                                    title="Lihat Profil"
-                                  >
-                                    <Eye
-                                      size={
-                                        17
+                                  {item.kelas !==
+                                  "-" ? (
+                                    <span className="inline-flex whitespace-nowrap rounded-lg bg-indigo-100 px-2.5 py-1 text-xs font-medium text-indigo-700">
+                                      {
+                                        item.kelas
                                       }
-                                    />
-                                  </button>
+                                    </span>
+                                  ) : (
+                                    <span className="text-sm text-slate-400">
+                                      Belum masuk kelas
+                                    </span>
+                                  )}
 
-                                  {/* EDIT */}
-                                  <button
-                                    onClick={() =>
-                                      router.push(
-                                        `/admin/siswa/edit/${item.id}`
-                                      )
+                                </td>
+
+                                {/* EMAIL */}
+
+                                <td className="hidden px-3 py-4 md:table-cell">
+
+                                  <span className="block max-w-[220px] truncate text-sm text-slate-600">
+                                    {
+                                      item.email
                                     }
-                                    className="rounded-lg p-2 text-slate-500 transition-all hover:bg-amber-100 hover:text-amber-700 hover:shadow-sm"
-                                    title="Edit"
-                                  >
-                                    <Edit
-                                      size={
-                                        17
-                                      }
-                                    />
-                                  </button>
+                                  </span>
 
-                                  {/* DELETE */}
-                                  <button
-                                    onClick={() =>
-                                      handleDelete(
-                                        item.id,
-                                        item.nama
-                                      )
+                                </td>
+
+                                {/* STATUS */}
+
+                                <td className="px-3 py-4">
+
+                                  <span
+                                    className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-medium ${
+                                      item.status ===
+                                      "Aktif"
+                                        ? "border-emerald-300 bg-emerald-100 text-emerald-700"
+                                        : "border-rose-300 bg-rose-100 text-rose-700"
+                                    }`}
+                                  >
+
+                                    <span className="h-1.5 w-1.5 rounded-full bg-current" />
+
+                                    {
+                                      item.status
                                     }
-                                    className="rounded-lg p-2 text-slate-500 transition-all hover:bg-rose-100 hover:text-rose-700 hover:shadow-sm"
-                                    title="Hapus"
-                                  >
-                                    <Trash2
-                                      size={
-                                        17
+
+                                  </span>
+
+                                </td>
+
+                                {/* AKSI */}
+
+                                <td className="px-3 py-4">
+
+                                  <div className="flex justify-end gap-1.5">
+
+                                    {/* DETAIL */}
+
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        router.push(
+                                          `/admin/siswa/${item.id}`
+                                        )
                                       }
-                                    />
-                                  </button>
+                                      className="rounded-lg p-2 text-slate-500 transition hover:bg-blue-100 hover:text-blue-700"
+                                      title="Lihat detail"
+                                    >
+                                      <Eye
+                                        size={17}
+                                      />
+                                    </button>
 
-                                </div>
+                                    {/* EDIT */}
 
-                              </td>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        router.push(
+                                          `/admin/siswa/edit/${item.id}`
+                                        )
+                                      }
+                                      className="rounded-lg p-2 text-slate-500 transition hover:bg-amber-100 hover:text-amber-700"
+                                      title="Edit siswa"
+                                    >
+                                      <Edit
+                                        size={17}
+                                      />
+                                    </button>
 
-                            </tr>
-                          );
-                        }
-                      )}
+                                    {/* DELETE */}
+
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        openDeleteModal(
+                                          item.id,
+                                          item.nama
+                                        )
+                                      }
+                                      className="rounded-lg p-2 text-slate-500 transition hover:bg-rose-100 hover:text-rose-700"
+                                      title="Hapus siswa"
+                                    >
+                                      <Trash2
+                                        size={17}
+                                      />
+                                    </button>
+
+                                  </div>
+
+                                </td>
+
+                              </tr>
+                            );
+                          }
+                        )}
 
                     </tbody>
 
@@ -1643,296 +2235,277 @@ export default function AdminSiswaPage() {
 
                 </div>
 
-                {/* EMPTY STATE */}
-                {currentItems.length ===
-                  0 && (
-                  <div className="p-10 text-center">
+                {/* EMPTY */}
 
-                    <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-slate-100">
-                      <Users
-                        size={28}
-                        className="text-slate-400"
-                      />
+                {!loading &&
+                  currentItems.length ===
+                    0 && (
+                    <div className="p-12 text-center">
+
+                      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-slate-100">
+                        <Users
+                          size={28}
+                          className="text-slate-400"
+                        />
+                      </div>
+
+                      <p className="mt-4 text-sm font-semibold text-slate-700">
+                        Tidak ada data siswa
+                      </p>
+
+                      <p className="mt-1 text-xs text-slate-500">
+                        {search ||
+                        filterStatus !==
+                          "semua" ||
+                        filterKelas !==
+                          "semua"
+                          ? "Tidak ada siswa yang sesuai dengan filter."
+                          : "Belum ada data siswa dari database."}
+                      </p>
+
+                      {!search &&
+                        filterStatus ===
+                          "semua" &&
+                        filterKelas ===
+                          "semua" && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              router.push(
+                                "/admin/siswa/tambah"
+                              )
+                            }
+                            className="mt-4 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700"
+                          >
+                            <Plus
+                              size={17}
+                            />
+                            Tambah Siswa
+                          </button>
+                        )}
+
                     </div>
-
-                    <p className="text-sm font-semibold text-slate-700">
-                      Tidak ada data siswa
-                    </p>
-
-                    <p className="mt-1 text-xs text-slate-500">
-                      {search
-                        ? "Coba ubah kata pencarian"
-                        : "Silakan tambahkan siswa baru"}
-                    </p>
-
-                  </div>
-                )}
+                  )}
 
                 {/* PAGINATION */}
-                {totalPages > 1 && (
-                  <div className="flex flex-col items-center justify-between gap-3 border-t border-slate-300 bg-slate-50 px-4 py-3 sm:flex-row">
 
-                    <div className="flex items-center gap-3 text-sm text-slate-600">
+                {!loading &&
+                  totalItems > 0 && (
+                    <div className="flex flex-col items-center justify-between gap-3 border-t border-slate-300 bg-slate-50 px-4 py-3 sm:flex-row">
 
-                      <span>
-                        Menampilkan{" "}
-                        {
-                          startIndex +
-                          1
-                        }{" "}
-                        -{" "}
-                        {endIndex}{" "}
-                        dari{" "}
-                        {
-                          totalItems
-                        }{" "}
-                        data
-                      </span>
-
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-3 text-sm text-slate-600">
 
                         <span>
-                          Tampil
+                          Menampilkan{" "}
+                          {startIndex +
+                            1}{" "}
+                          -{" "}
+                          {endIndex}{" "}
+                          dari{" "}
+                          {
+                            totalItems
+                          }{" "}
+                          data
                         </span>
 
-                        <select
-                          value={
-                            itemsPerPage
-                          }
-                          onChange={(
-                            e
-                          ) => {
-                            setItemsPerPage(
-                              Number(
-                                e
-                                  .target
-                                  .value
-                              )
-                            );
+                        <div className="flex items-center gap-1">
 
-                            setCurrentPage(
-                              1
-                            );
-                          }}
-                          className="cursor-pointer rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
-                        >
-                          <option value={10}>
-                            10
-                          </option>
+                          <span>
+                            Tampil
+                          </span>
 
-                          <option value={20}>
-                            20
-                          </option>
+                          <select
+                            value={
+                              itemsPerPage
+                            }
+                            onChange={(
+                              event
+                            ) => {
+                              setItemsPerPage(
+                                Number(
+                                  event
+                                    .target
+                                    .value
+                                )
+                              );
 
-                          <option value={40}>
-                            40
-                          </option>
-                        </select>
+                              setCurrentPage(
+                                1
+                              );
+                            }}
+                            className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm text-slate-700"
+                          >
+                            <option value={10}>
+                              10
+                            </option>
+
+                            <option value={20}>
+                              20
+                            </option>
+
+                            <option value={40}>
+                              40
+                            </option>
+
+                            <option value={80}>
+                              80
+                            </option>
+                          </select>
+
+                        </div>
 
                       </div>
 
-                    </div>
+                      {totalPages >
+                        1 && (
+                        <div className="flex items-center gap-1">
 
-                    <div className="flex items-center gap-1">
-
-                      {/* FIRST */}
-                      <button
-                        onClick={() =>
-                          goToPage(1)
-                        }
-                        disabled={
-                          currentPage ===
-                          1
-                        }
-                        className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-200 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"
-                      >
-                        <svg
-                          className="h-4 w-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={
-                              2
-                            }
-                            d="M11 19l-7-7 7-7m8 14l-7-7 7-7"
-                          />
-                        </svg>
-                      </button>
-
-                      {/* PREVIOUS */}
-                      <button
-                        onClick={() =>
-                          goToPage(
-                            currentPage -
+                          <button
+                            type="button"
+                            disabled={
+                              currentPage ===
                               1
-                          )
-                        }
-                        disabled={
-                          currentPage ===
-                          1
-                        }
-                        className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-200 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"
-                      >
-                        <svg
-                          className="h-4 w-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={
-                              2
                             }
-                            d="M15 19l-7-7 7-7"
-                          />
-                        </svg>
-                      </button>
+                            onClick={() =>
+                              goToPage(
+                                1
+                              )
+                            }
+                            className="rounded-lg px-2 py-1.5 text-sm text-slate-600 hover:bg-slate-200 disabled:opacity-30"
+                          >
+                            «
+                          </button>
 
-                      {/* PAGE NUMBERS */}
-                      {Array.from(
-                        {
-                          length:
-                            Math.min(
-                              5,
+                          <button
+                            type="button"
+                            disabled={
+                              currentPage ===
+                              1
+                            }
+                            onClick={() =>
+                              goToPage(
+                                currentPage -
+                                  1
+                              )
+                            }
+                            className="rounded-lg px-2 py-1.5 text-sm text-slate-600 hover:bg-slate-200 disabled:opacity-30"
+                          >
+                            ‹
+                          </button>
+
+                          {Array.from(
+                            {
+                              length:
+                                Math.min(
+                                  5,
+                                  totalPages
+                                ),
+                            },
+                            (
+                              _,
+                              index
+                            ) => {
+                              let pageNumber;
+
+                              if (
+                                totalPages <=
+                                5
+                              ) {
+                                pageNumber =
+                                  index +
+                                  1;
+                              } else if (
+                                currentPage <=
+                                3
+                              ) {
+                                pageNumber =
+                                  index +
+                                  1;
+                              } else if (
+                                currentPage >=
+                                totalPages -
+                                  2
+                              ) {
+                                pageNumber =
+                                  totalPages -
+                                  4 +
+                                  index;
+                              } else {
+                                pageNumber =
+                                  currentPage -
+                                  2 +
+                                  index;
+                              }
+
+                              return (
+                                <button
+                                  type="button"
+                                  key={
+                                    pageNumber
+                                  }
+                                  onClick={() =>
+                                    goToPage(
+                                      pageNumber
+                                    )
+                                  }
+                                  className={`h-8 w-8 rounded-lg text-sm font-medium ${
+                                    currentPage ===
+                                    pageNumber
+                                      ? "bg-blue-600 text-white"
+                                      : "text-slate-700 hover:bg-slate-200"
+                                  }`}
+                                >
+                                  {
+                                    pageNumber
+                                  }
+                                </button>
+                              );
+                            }
+                          )}
+
+                          <button
+                            type="button"
+                            disabled={
+                              currentPage ===
                               totalPages
-                            ),
-                        },
-                        (
-                          _,
-                          i
-                        ) => {
-                          let pageNumber;
+                            }
+                            onClick={() =>
+                              goToPage(
+                                currentPage +
+                                  1
+                              )
+                            }
+                            className="rounded-lg px-2 py-1.5 text-sm text-slate-600 hover:bg-slate-200 disabled:opacity-30"
+                          >
+                            ›
+                          </button>
 
-                          if (
-                            totalPages <=
-                            5
-                          ) {
-                            pageNumber =
-                              i +
-                              1;
-                          } else if (
-                            currentPage <=
-                            3
-                          ) {
-                            pageNumber =
-                              i +
-                              1;
-                          } else if (
-                            currentPage >=
-                            totalPages -
-                              2
-                          ) {
-                            pageNumber =
-                              totalPages -
-                              4 +
-                              i;
-                          } else {
-                            pageNumber =
-                              currentPage -
-                              2 +
-                              i;
-                          }
+                          <button
+                            type="button"
+                            disabled={
+                              currentPage ===
+                              totalPages
+                            }
+                            onClick={() =>
+                              goToPage(
+                                totalPages
+                              )
+                            }
+                            className="rounded-lg px-2 py-1.5 text-sm text-slate-600 hover:bg-slate-200 disabled:opacity-30"
+                          >
+                            »
+                          </button>
 
-                          return (
-                            <button
-                              key={
-                                pageNumber
-                              }
-                              onClick={() =>
-                                goToPage(
-                                  pageNumber
-                                )
-                              }
-                              className={`h-8 w-8 rounded-lg text-sm font-medium transition ${
-                                currentPage ===
-                                pageNumber
-                                  ? "bg-blue-600 text-white"
-                                  : "text-slate-700 hover:bg-slate-200"
-                              }`}
-                            >
-                              {
-                                pageNumber
-                              }
-                            </button>
-                          );
-                        }
+                        </div>
                       )}
 
-                      {/* NEXT */}
-                      <button
-                        onClick={() =>
-                          goToPage(
-                            currentPage +
-                              1
-                          )
-                        }
-                        disabled={
-                          currentPage ===
-                          totalPages
-                        }
-                        className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-200 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"
-                      >
-                        <svg
-                          className="h-4 w-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={
-                              2
-                            }
-                            d="M9 5l7 7-7 7"
-                          />
-                        </svg>
-                      </button>
-
-                      {/* LAST */}
-                      <button
-                        onClick={() =>
-                          goToPage(
-                            totalPages
-                          )
-                        }
-                        disabled={
-                          currentPage ===
-                          totalPages
-                        }
-                        className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-200 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"
-                      >
-                        <svg
-                          className="h-4 w-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={
-                              2
-                            }
-                            d="M13 5l7 7-7 7"
-                          />
-                        </svg>
-                      </button>
-
                     </div>
-
-                  </div>
-                )}
+                  )}
 
               </div>
 
               {/* FOOTER */}
+
               <footer className="border-t border-slate-300 py-4 text-center text-sm text-slate-500">
                 © 2026 SmartSchool • Data Siswa
               </footer>
@@ -1945,23 +2518,23 @@ export default function AdminSiswaPage() {
 
       </div>
 
-      {/* =====================================================
-          POPUP HAPUS SISWA
-      ===================================================== */}
+      {/* DELETE MODAL */}
+
       {deleteModal.open && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
-          onClick={closeDeleteModal}
+          onClick={
+            closeDeleteModal
+          }
         >
 
           <div
             className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl"
-            onClick={(e) =>
-              e.stopPropagation()
+            onClick={(event) =>
+              event.stopPropagation()
             }
           >
 
-            {/* ICON + TEXT */}
             <div className="p-6 text-center">
 
               <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-rose-100">
@@ -1976,45 +2549,69 @@ export default function AdminSiswaPage() {
               </h3>
 
               <p className="mt-2 text-sm leading-relaxed text-slate-500">
+
                 Apakah kamu yakin ingin
                 menghapus data siswa
+
                 <br />
 
                 <span className="font-semibold text-slate-800">
                   "{deleteModal.nama}"
                 </span>
                 ?
+
               </p>
 
               <p className="mt-3 text-xs text-rose-500">
-                Data yang sudah dihapus
-                tidak dapat dikembalikan.
+                Data akan dihapus melalui
+                backend SmartSchool.
               </p>
 
             </div>
 
-            {/* BUTTON */}
             <div className="flex gap-3 border-t border-slate-200 bg-slate-50 p-4">
 
               <button
+                type="button"
                 onClick={
                   closeDeleteModal
                 }
-                className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+                disabled={deleting}
+                className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50"
               >
                 Batal
               </button>
 
               <button
+                type="button"
                 onClick={
                   confirmDelete
                 }
-                className="flex-1 rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-rose-700"
+                disabled={deleting}
+                className="flex-1 rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-rose-700 disabled:opacity-60"
               >
+
                 <span className="flex items-center justify-center gap-2">
-                  <Trash2 size={16} />
-                  Hapus
+
+                  {deleting ? (
+                    <>
+                      <Loader2
+                        size={16}
+                        className="animate-spin"
+                      />
+                      Menghapus...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2
+                        size={16}
+                      />
+                      Hapus
+                    </>
+                  )}
+
                 </span>
+
               </button>
 
             </div>

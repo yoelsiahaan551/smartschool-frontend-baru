@@ -1,224 +1,1122 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+
 import Sidebar from "../../../components/Sidebar";
 import Header from "../../../components/Header";
+
 import {
-  Award,
-  CheckCircle,
-  XCircle,
-  BarChart3,
-  ChevronDown,
-  ChevronUp,
-  Home,
-  Clock,
-  Calendar,
-  User,
-  BookOpen,
-  ThumbsUp,
-  ThumbsDown,
-  TrendingUp,
-  Activity,
-  Target,
-  Sparkles,
+  AlertCircle,
   ArrowLeft,
+  Award,
+  BookOpen,
+  CalendarDays,
+  CheckCircle2,
+  Clock3,
+  FileText,
+  Loader2,
+  MinusCircle,
+  Trophy,
+  XCircle,
 } from "lucide-react";
 
-// =========================================================
-// DATA DUMMY HASIL UJIAN
-// =========================================================
+/* =========================================================
+   API
+========================================================= */
 
-const HASIL_DATA = {
-  "ujian-1": {
-    judul: "UTS Matematika Semester 1",
-    mapel: "Matematika",
-    kelas: "X IPA 1",
-    tanggal: "2026-08-30",
-    durasi: "45:30",
-    totalSoal: 30,
-    benar: 22,
-    salah: 8,
-    skor: 73.33,
-    detailSoal: Array.from({ length: 30 }, (_, i) => ({
-      nomor: i + 1,
-      status: i < 22 ? "benar" : "salah",
-      jawabanUser: i < 22 ? "B" : "C",
-      jawabanBenar: "B",
-      isCorrect: i < 22,
-    })),
-  },
+async function getUjianById(id) {
+  if (!id) {
+    throw new Error("ID ujian tidak ditemukan.");
+  }
 
-  "ujian-2": {
-    judul: "UAS Matematika Semester 1",
-    mapel: "Matematika",
-    kelas: "X IPA 1",
-    tanggal: "2026-09-15",
-    durasi: "112:30",
-    totalSoal: 40,
-    benar: 32,
-    salah: 8,
-    skor: 80.0,
-    detailSoal: Array.from({ length: 40 }, (_, i) => ({
-      nomor: i + 1,
-      status: i < 32 ? "benar" : "salah",
-      jawabanUser: i < 32 ? "D" : "A",
-      jawabanBenar: "D",
-      isCorrect: i < 32,
-    })),
-  },
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
-  "ujian-3": {
-    judul: "UTS Bahasa Indonesia",
-    mapel: "Bahasa Indonesia",
-    kelas: "X IPA 1",
-    tanggal: "2026-08-28",
-    durasi: "78:15",
-    totalSoal: 25,
-    benar: 20,
-    salah: 5,
-    skor: 80.0,
-    detailSoal: Array.from({ length: 25 }, (_, i) => ({
-      nomor: i + 1,
-      status: i < 20 ? "benar" : "salah",
-      jawabanUser: i < 20 ? "C" : "B",
-      jawabanBenar: "C",
-      isCorrect: i < 20,
-    })),
-  },
+  const token =
+    typeof window !== "undefined"
+      ? localStorage.getItem("token")
+      : null;
 
-  "ujian-4": {
-    judul: "UTS IPA Semester 1",
-    mapel: "IPA",
-    kelas: "X IPA 1",
-    tanggal: "2026-08-25",
-    durasi: "82:20",
-    totalSoal: 30,
-    benar: 18,
-    salah: 12,
-    skor: 60.0,
-    detailSoal: Array.from({ length: 30 }, (_, i) => ({
-      nomor: i + 1,
-      status: i < 18 ? "benar" : "salah",
-      jawabanUser: i < 18 ? "A" : "D",
-      jawabanBenar: "A",
-      isCorrect: i < 18,
-    })),
-  },
+  const response = await fetch(
+    `${API_URL}/api/v1/ujian/${id}`,
+    {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token
+          ? {
+              Authorization: `Bearer ${token}`,
+            }
+          : {}),
+      },
+      cache: "no-store",
+    }
+  );
 
-  "ujian-5": {
-    judul: "UTS IPS Semester 1",
-    mapel: "IPS",
-    kelas: "X IPA 1",
-    tanggal: "2026-08-27",
-    durasi: "55:40",
-    totalSoal: 25,
-    benar: 15,
-    salah: 10,
-    skor: 60.0,
-    detailSoal: Array.from({ length: 25 }, (_, i) => ({
-      nomor: i + 1,
-      status: i < 15 ? "benar" : "salah",
-      jawabanUser: i < 15 ? "B" : "C",
-      jawabanBenar: "B",
-      isCorrect: i < 15,
-    })),
-  },
+  let data = null;
 
-  "ujian-6": {
-    judul: "UTS Bahasa Inggris",
-    mapel: "Bahasa Inggris",
-    kelas: "X IPA 1",
-    tanggal: "2026-08-29",
-    durasi: "68:50",
-    totalSoal: 30,
-    benar: 25,
-    salah: 5,
-    skor: 83.33,
-    detailSoal: Array.from({ length: 30 }, (_, i) => ({
-      nomor: i + 1,
-      status: i < 25 ? "benar" : "salah",
-      jawabanUser: i < 25 ? "A" : "B",
-      jawabanBenar: "A",
-      isCorrect: i < 25,
-    })),
-  },
+  try {
+    data = await response.json();
+  } catch {
+    throw new Error(
+      "Server mengembalikan response yang tidak valid."
+    );
+  }
 
-  "ujian-7": {
-    judul: "UTS Penjaskes",
-    mapel: "Penjaskes",
-    kelas: "X IPA 1",
-    tanggal: "2026-08-31",
-    durasi: "48:10",
-    totalSoal: 20,
-    benar: 18,
-    salah: 2,
-    skor: 90.0,
-    detailSoal: Array.from({ length: 20 }, (_, i) => ({
-      nomor: i + 1,
-      status: i < 18 ? "benar" : "salah",
-      jawabanUser: i < 18 ? "D" : "B",
-      jawabanBenar: "D",
-      isCorrect: i < 18,
-    })),
-  },
-};
+  if (!response.ok) {
+    throw new Error(
+      data?.message ||
+        data?.error ||
+        "Gagal mengambil hasil ujian."
+    );
+  }
+
+  return data;
+}
+
+/* =========================================================
+   NORMALIZER RESPONSE UTAMA
+========================================================= */
+
+function normalizeObjectResponse(response) {
+  if (!response) {
+    return null;
+  }
+
+  if (
+    response?.data?.data !== undefined &&
+    response?.data?.data !== null
+  ) {
+    return response.data.data;
+  }
+
+  if (
+    response?.data !== undefined &&
+    response?.data !== null &&
+    typeof response.data === "object"
+  ) {
+    return response.data;
+  }
+
+  if (
+    response?.result?.data !== undefined &&
+    response?.result?.data !== null
+  ) {
+    return response.result.data;
+  }
+
+  if (
+    response?.result !== undefined &&
+    response?.result !== null &&
+    typeof response.result === "object"
+  ) {
+    return response.result;
+  }
+
+  return response;
+}
+
+/* =========================================================
+   NORMALIZE HASIL UJIAN
+========================================================= */
+
+function normalizeHasilUjian(value) {
+  if (
+    value === null ||
+    value === undefined
+  ) {
+    return null;
+  }
+
+  if (Array.isArray(value)) {
+    if (value.length === 0) {
+      return null;
+    }
+
+    return normalizeHasilUjian(value[0]);
+  }
+
+  if (
+    value?.data?.data &&
+    typeof value.data.data === "object"
+  ) {
+    return normalizeHasilUjian(
+      value.data.data
+    );
+  }
+
+  if (
+    value?.data &&
+    typeof value.data === "object" &&
+    !Array.isArray(value.data)
+  ) {
+    return normalizeHasilUjian(
+      value.data
+    );
+  }
+
+  if (
+    value?.hasilAsesmen &&
+    typeof value.hasilAsesmen === "object"
+  ) {
+    return normalizeHasilUjian(
+      value.hasilAsesmen
+    );
+  }
+
+  if (
+    value?.hasilUjian &&
+    typeof value.hasilUjian === "object"
+  ) {
+    return normalizeHasilUjian(
+      value.hasilUjian
+    );
+  }
+
+  if (
+    value?.hasil_ujian &&
+    typeof value.hasil_ujian === "object"
+  ) {
+    return normalizeHasilUjian(
+      value.hasil_ujian
+    );
+  }
+
+  if (
+    value?.hasil &&
+    typeof value.hasil === "object"
+  ) {
+    return normalizeHasilUjian(
+      value.hasil
+    );
+  }
+
+  if (
+    value?.result &&
+    typeof value.result === "object"
+  ) {
+    return normalizeHasilUjian(
+      value.result
+    );
+  }
+
+  return value;
+}
+
+/* =========================================================
+   CEK APAKAH OBJECT MERUPAKAN HASIL UJIAN
+========================================================= */
+
+function isValidHasilUjian(value) {
+  if (
+    !value ||
+    typeof value !== "object" ||
+    Array.isArray(value)
+  ) {
+    return false;
+  }
+
+  return (
+    value.totalNilai !== undefined ||
+    value.total_nilai !== undefined ||
+    value.nilai !== undefined ||
+    value.jumlahBenar !== undefined ||
+    value.jumlah_benar !== undefined ||
+    value.jumlahSalah !== undefined ||
+    value.jumlah_salah !== undefined ||
+    value.jumlahLewati !== undefined ||
+    value.jumlah_lewati !== undefined
+  );
+}
+
+/* =========================================================
+   CARI HASIL UJIAN DARI BERBAGAI STRUKTUR RESPONSE
+========================================================= */
+
+function getResultData(ujian, percobaan) {
+  const candidates = [
+    percobaan?.hasilAsesmen,
+    percobaan?.hasilUjian,
+    percobaan?.hasil_ujian,
+    percobaan?.hasil,
+    percobaan?.result,
+
+    ujian?.hasilAsesmen,
+    ujian?.hasilUjian,
+    ujian?.hasil_ujian,
+    ujian?.hasil,
+    ujian?.result,
+
+    percobaan?.data?.hasilAsesmen,
+    percobaan?.data?.hasilUjian,
+    percobaan?.data?.hasil,
+    percobaan?.data?.result,
+
+    ujian?.data?.hasilAsesmen,
+    ujian?.data?.hasilUjian,
+    ujian?.data?.hasil,
+    ujian?.data?.result,
+  ];
+
+  for (const candidate of candidates) {
+    const normalized =
+      normalizeHasilUjian(candidate);
+
+    if (
+      isValidHasilUjian(normalized)
+    ) {
+      return normalized;
+    }
+  }
+
+  if (
+    isValidHasilUjian(percobaan)
+  ) {
+    return percobaan;
+  }
+
+  if (
+    isValidHasilUjian(ujian)
+  ) {
+    return ujian;
+  }
+
+  return null;
+}
+
+/* =========================================================
+   AMBIL HASIL DARI LOCAL STORAGE
+========================================================= */
+
+function getSavedHasilUjian(id) {
+  if (
+    typeof window === "undefined" ||
+    !id
+  ) {
+    return null;
+  }
+
+  const keys = [
+    `hasil-ujian-${id}`,
+    `hasil-asesmen-${id}`,
+  ];
+
+  const storages = [
+    window.sessionStorage,
+    window.localStorage,
+  ];
+
+  for (const storage of storages) {
+    for (const key of keys) {
+      try {
+        const raw =
+          storage.getItem(key);
+
+        if (!raw) {
+          continue;
+        }
+
+        const parsed =
+          JSON.parse(raw);
+
+        if (!parsed) {
+          continue;
+        }
+
+        if (
+          parsed?.ujianId &&
+          String(parsed.ujianId) !==
+            String(id)
+        ) {
+          continue;
+        }
+
+        const hasil =
+          normalizeHasilUjian(
+            parsed?.hasilAsesmen ??
+              parsed?.hasilUjian ??
+              parsed?.hasil ??
+              parsed
+          );
+
+        if (
+          isValidHasilUjian(hasil)
+        ) {
+          return {
+            ...parsed,
+            hasil,
+          };
+        }
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  try {
+    const raw =
+      localStorage.getItem(
+        "hasil-ujian-last"
+      );
+
+    if (raw) {
+      const parsed =
+        JSON.parse(raw);
+
+      if (
+        parsed?.ujianId &&
+        String(parsed.ujianId) ===
+          String(id)
+      ) {
+        const hasil =
+          normalizeHasilUjian(
+            parsed?.hasilAsesmen ??
+              parsed?.hasilUjian ??
+              parsed?.hasil ??
+              parsed
+          );
+
+        if (
+          isValidHasilUjian(hasil)
+        ) {
+          return {
+            ...parsed,
+            hasil,
+          };
+        }
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  return null;
+}
+
+/* =========================================================
+   GET VALUE HELPER
+========================================================= */
+
+function firstValidNumber(...values) {
+  for (const value of values) {
+    if (
+      value !== null &&
+      value !== undefined &&
+      value !== ""
+    ) {
+      const number =
+        Number(value);
+
+      if (
+        !Number.isNaN(number)
+      ) {
+        return number;
+      }
+    }
+  }
+
+  return 0;
+}
+
+/* =========================================================
+   GET SCORE
+========================================================= */
+
+function getScore(ujian, percobaan) {
+  const hasil =
+    getResultData(
+      ujian,
+      percobaan
+    );
+
+  return firstValidNumber(
+    hasil?.totalNilai,
+    hasil?.total_nilai,
+    hasil?.nilai,
+
+    percobaan?.nilai,
+    percobaan?.totalNilai,
+    percobaan?.total_nilai,
+
+    ujian?.totalNilai,
+    ujian?.total_nilai,
+    ujian?.nilai
+  );
+}
+
+/* =========================================================
+   JUMLAH BENAR
+========================================================= */
+
+function getJumlahBenar(
+  ujian,
+  percobaan
+) {
+  const hasil =
+    getResultData(
+      ujian,
+      percobaan
+    );
+
+  return firstValidNumber(
+    hasil?.jumlahBenar,
+    hasil?.jumlah_benar,
+
+    percobaan?.jumlahBenar,
+    percobaan?.jumlah_benar
+  );
+}
+
+/* =========================================================
+   JUMLAH SALAH
+========================================================= */
+
+function getJumlahSalah(
+  ujian,
+  percobaan
+) {
+  const hasil =
+    getResultData(
+      ujian,
+      percobaan
+    );
+
+  return firstValidNumber(
+    hasil?.jumlahSalah,
+    hasil?.jumlah_salah,
+
+    percobaan?.jumlahSalah,
+    percobaan?.jumlah_salah
+  );
+}
+
+/* =========================================================
+   JUMLAH LEWATI
+========================================================= */
+
+function getJumlahLewati(
+  ujian,
+  percobaan
+) {
+  const hasil =
+    getResultData(
+      ujian,
+      percobaan
+    );
+
+  return firstValidNumber(
+    hasil?.jumlahLewati,
+    hasil?.jumlah_lewati,
+
+    percobaan?.jumlahLewati,
+    percobaan?.jumlah_lewati
+  );
+}
+
+/* =========================================================
+   FORMAT NUMBER
+========================================================= */
+
+function formatNumber(value) {
+  const number =
+    Number(value);
+
+  if (
+    Number.isNaN(number)
+  ) {
+    return "0";
+  }
+
+  if (
+    Number.isInteger(number)
+  ) {
+    return String(number);
+  }
+
+  return number.toFixed(2);
+}
+
+/* =========================================================
+   FORMAT DATE
+========================================================= */
+
+function formatDateTime(
+  dateString
+) {
+  if (!dateString) {
+    return "-";
+  }
+
+  const date =
+    new Date(dateString);
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return "-";
+  }
+
+  return date.toLocaleString(
+    "id-ID",
+    {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }
+  );
+}
+
+/* =========================================================
+   STATUS
+========================================================= */
+
+function getStatusLabel(
+  status
+) {
+  const normalized =
+    String(status || "")
+      .toLowerCase()
+      .replace(/\s+/g, "_");
+
+  if (
+    normalized === "selesai" ||
+    normalized === "dikumpulkan" ||
+    normalized === "completed" ||
+    normalized === "finished"
+  ) {
+    return "Selesai";
+  }
+
+  if (
+    normalized === "berlangsung" ||
+    normalized ===
+      "sedang_mengerjakan" ||
+    normalized === "in_progress" ||
+    normalized === "ongoing"
+  ) {
+    return "Sedang Mengerjakan";
+  }
+
+  return "Belum Selesai";
+}
+
+/* =========================================================
+   CARI PERCOBAAN DARI DETAIL UJIAN
+========================================================= */
+
+function getPercobaanFromUjian(
+  ujian
+) {
+  if (!ujian) {
+    return null;
+  }
+
+  const daftarPercobaan =
+    Array.isArray(
+      ujian?.percobaanUjian
+    )
+      ? ujian.percobaanUjian
+      : Array.isArray(
+          ujian?.percobaanAsesmen
+        )
+      ? ujian.percobaanAsesmen
+      : [];
+
+  if (
+    daftarPercobaan.length === 0
+  ) {
+    return null;
+  }
+
+  const selesai =
+    daftarPercobaan.find(
+      (item) => {
+        const status =
+          String(
+            item?.status || ""
+          )
+            .toLowerCase()
+            .replace(/\s+/g, "_");
+
+        return (
+          status === "selesai" ||
+          status ===
+            "dikumpulkan" ||
+          status === "completed" ||
+          status === "finished"
+        );
+      }
+    );
+
+  return (
+    selesai ||
+    daftarPercobaan[0]
+  );
+}
+
+/* =========================================================
+   PAGE
+========================================================= */
 
 export default function HasilUjianPage() {
   const router = useRouter();
   const params = useParams();
-  const id = params.id;
 
-  const [hasil, setHasil] = useState(null);
-  const [selectedSoal, setSelectedSoal] = useState(null);
-  const [filter, setFilter] = useState("semua");
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const id = Array.isArray(
+    params?.id
+  )
+    ? params.id[0]
+    : params?.id;
 
-  // =========================================================
-  // LOAD DATA
-  // =========================================================
+  /* =======================================================
+     STATE
+  ======================================================= */
+
+  const [ujian, setUjian] =
+    useState(null);
+
+  const [savedHasil, setSavedHasil] =
+    useState(null);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [error, setError] =
+    useState("");
+
+  const [
+    isSidebarCollapsed,
+    setIsSidebarCollapsed,
+  ] = useState(false);
+
+  /* =======================================================
+     LOAD DATA
+  ======================================================= */
+
+  const loadHasil =
+    useCallback(
+      async () => {
+        if (!id) {
+          setError(
+            "ID ujian tidak ditemukan."
+          );
+          setLoading(false);
+          return;
+        }
+
+        try {
+          setLoading(true);
+          setError("");
+
+          const localHasil =
+            getSavedHasilUjian(id);
+
+          if (localHasil) {
+            setSavedHasil(
+              localHasil
+            );
+          }
+
+          const response =
+            await getUjianById(id);
+
+          const data =
+            normalizeObjectResponse(
+              response
+            );
+
+          if (!data?.id) {
+            throw new Error(
+              "Data ujian tidak ditemukan."
+            );
+          }
+
+          setUjian(data);
+
+          if (!localHasil) {
+            const percobaan =
+              getPercobaanFromUjian(
+                data
+              );
+
+            const hasilApi =
+              getResultData(
+                data,
+                percobaan
+              );
+
+            if (hasilApi) {
+              setSavedHasil({
+                ujianId: id,
+                sesiId:
+                  percobaan?.id ||
+                  percobaan?.percobaanUjianId ||
+                  percobaan?.percobaanAsesmenId ||
+                  null,
+                submittedAt:
+                  percobaan?.selesaiPada ||
+                  percobaan?.diperbaruiPada ||
+                  null,
+                hasil: hasilApi,
+                response: response,
+              });
+            }
+          }
+        } catch (err) {
+          console.error(
+            "LOAD HASIL UJIAN ERROR:",
+            err
+          );
+
+          setError(
+            err?.message ||
+              "Gagal mengambil hasil ujian."
+          );
+        } finally {
+          setLoading(false);
+        }
+      },
+      [id]
+    );
 
   useEffect(() => {
-    const data = HASIL_DATA[id];
+    loadHasil();
+  }, [loadHasil]);
 
-    if (data) {
-      setHasil(data);
-    } else {
-      router.push("/siswa/dashboard");
-    }
-  }, [id, router]);
+  /* =======================================================
+     PERCOBAAN SISWA
+  ======================================================= */
 
-  // =========================================================
-  // LOADING
-  // =========================================================
+  const percobaanSaya =
+    useMemo(() => {
+      if (
+        savedHasil?.sesiId
+      ) {
+        const dariApi =
+          getPercobaanFromUjian(
+            ujian
+          );
 
-  if (!hasil) {
+        if (
+          dariApi &&
+          String(
+            dariApi?.id
+          ) ===
+            String(
+              savedHasil.sesiId
+            )
+        ) {
+          return dariApi;
+        }
+
+        return {
+          id: savedHasil.sesiId,
+          percobaanUjianId:
+            savedHasil.sesiId,
+          status: "selesai",
+          nilai:
+            savedHasil?.hasil
+              ?.totalNilai ??
+            savedHasil?.hasil
+              ?.total_nilai ??
+            savedHasil?.hasil
+              ?.nilai ??
+            0,
+          dimulaiPada: null,
+          selesaiPada:
+            savedHasil?.submittedAt ||
+            null,
+          hasilAsesmen:
+            savedHasil?.hasil,
+          hasilUjian:
+            savedHasil?.hasil,
+        };
+      }
+
+      return getPercobaanFromUjian(
+        ujian
+      );
+    }, [
+      ujian,
+      savedHasil,
+    ]);
+
+  /* =======================================================
+     HASIL UJIAN
+  ======================================================= */
+
+  const hasilUjian =
+    useMemo(() => {
+      if (
+        savedHasil?.hasil &&
+        isValidHasilUjian(
+          savedHasil.hasil
+        )
+      ) {
+        return savedHasil.hasil;
+      }
+
+      return getResultData(
+        ujian,
+        percobaanSaya
+      );
+    }, [
+      ujian,
+      percobaanSaya,
+      savedHasil,
+    ]);
+
+  /* =======================================================
+     NILAI
+  ======================================================= */
+
+  const nilaiNumber =
+    useMemo(() => {
+      return firstValidNumber(
+        hasilUjian?.totalNilai,
+        hasilUjian?.total_nilai,
+        hasilUjian?.nilai,
+
+        savedHasil?.hasil
+          ?.totalNilai,
+        savedHasil?.hasil
+          ?.total_nilai,
+        savedHasil?.hasil
+          ?.nilai,
+
+        percobaanSaya?.nilai
+      );
+    }, [
+      hasilUjian,
+      savedHasil,
+      percobaanSaya,
+    ]);
+
+  /* =======================================================
+     JUMLAH BENAR
+  ======================================================= */
+
+  const jumlahBenar =
+    useMemo(() => {
+      return firstValidNumber(
+        hasilUjian?.jumlahBenar,
+        hasilUjian?.jumlah_benar,
+
+        savedHasil?.hasil
+          ?.jumlahBenar,
+        savedHasil?.hasil
+          ?.jumlah_benar,
+
+        percobaanSaya?.jumlahBenar,
+        percobaanSaya?.jumlah_benar
+      );
+    }, [
+      hasilUjian,
+      savedHasil,
+      percobaanSaya,
+    ]);
+
+  /* =======================================================
+     JUMLAH SALAH
+  ======================================================= */
+
+  const jumlahSalah =
+    useMemo(() => {
+      return firstValidNumber(
+        hasilUjian?.jumlahSalah,
+        hasilUjian?.jumlah_salah,
+
+        savedHasil?.hasil
+          ?.jumlahSalah,
+        savedHasil?.hasil
+          ?.jumlah_salah,
+
+        percobaanSaya?.jumlahSalah,
+        percobaanSaya?.jumlah_salah
+      );
+    }, [
+      hasilUjian,
+      savedHasil,
+      percobaanSaya,
+    ]);
+
+  /* =======================================================
+     JUMLAH LEWATI
+  ======================================================= */
+
+  const jumlahLewati =
+    useMemo(() => {
+      return firstValidNumber(
+        hasilUjian?.jumlahLewati,
+        hasilUjian?.jumlah_lewati,
+
+        savedHasil?.hasil
+          ?.jumlahLewati,
+        savedHasil?.hasil
+          ?.jumlah_lewati,
+
+        percobaanSaya?.jumlahLewati,
+        percobaanSaya?.jumlah_lewati
+      );
+    }, [
+      hasilUjian,
+      savedHasil,
+      percobaanSaya,
+    ]);
+
+  /* =======================================================
+     TOTAL SOAL
+  ======================================================= */
+
+  const totalSoal =
+    useMemo(() => {
+      const dariSoal =
+        Array.isArray(
+          ujian?.soalUjian
+        )
+          ? ujian.soalUjian.length
+          : Array.isArray(
+              ujian?.soalAsesmen
+            )
+          ? ujian.soalAsesmen.length
+          : 0;
+
+      if (dariSoal > 0) {
+        return dariSoal;
+      }
+
+      const dariBackend =
+        firstValidNumber(
+          hasilUjian?.totalSoal,
+          hasilUjian?.total_soal,
+
+          percobaanSaya?.totalSoal,
+          percobaanSaya?.total_soal
+        );
+
+      if (dariBackend > 0) {
+        return dariBackend;
+      }
+
+      return (
+        jumlahBenar +
+        jumlahSalah +
+        jumlahLewati
+      );
+    }, [
+      ujian,
+      hasilUjian,
+      percobaanSaya,
+      jumlahBenar,
+      jumlahSalah,
+      jumlahLewati,
+    ]);
+
+  /* =======================================================
+     NILAI KELULUSAN
+  ======================================================= */
+
+  const nilaiKelulusan =
+    firstValidNumber(
+      ujian?.nilaiKelulusan,
+      ujian?.nilai_kelulusan
+    );
+
+  const lulus =
+    nilaiNumber >=
+    nilaiKelulusan;
+
+  /* =======================================================
+     STATUS
+  ======================================================= */
+
+  const status =
+    getStatusLabel(
+      percobaanSaya?.status ||
+        savedHasil?.status ||
+        "selesai"
+    );
+
+  /* =======================================================
+     TANGGAL SELESAI
+  ======================================================= */
+
+  const tanggalSelesai =
+    savedHasil?.submittedAt ||
+    hasilUjian?.dibuatPada ||
+    hasilUjian?.dibuat_pada ||
+    percobaanSaya?.selesaiPada ||
+    percobaanSaya?.selesai_pada ||
+    percobaanSaya?.diperbaruiPada ||
+    null;
+
+  /* =======================================================
+     PERSENTASE NILAI
+  ======================================================= */
+
+  const progressNilai =
+    Math.min(
+      Math.max(
+        Number(nilaiNumber) || 0,
+        0
+      ),
+      100
+    );
+
+  /* =======================================================
+     LOADING
+  ======================================================= */
+
+  if (loading) {
     return (
-      <div className="flex h-screen w-full overflow-hidden bg-[#f8fafc]">
+      <div className="flex min-h-screen bg-slate-50">
         <Sidebar
           role="siswa"
-          active="hasil"
-          collapsed={isSidebarCollapsed}
-          setCollapsed={setIsSidebarCollapsed}
+          active="ujian"
+          collapsed={
+            isSidebarCollapsed
+          }
+          setCollapsed={
+            setIsSidebarCollapsed
+          }
         />
 
-        <div className="flex h-screen min-w-0 flex-1 flex-col">
+        <div className="flex min-w-0 flex-1 flex-col">
           <Header
             toggleSidebar={() =>
-              setIsSidebarCollapsed(!isSidebarCollapsed)
+              setIsSidebarCollapsed(
+                (prev) => !prev
+              )
             }
+            notifications={[]}
             user={{
-              name: "Andi Saputra",
-              avatar: "AS",
+              name: "Siswa",
+              email:
+                "siswa@smartschool.com",
+              avatar: "S",
             }}
           />
 
-          <main className="flex min-h-0 flex-1 items-center justify-center">
-            <div className="text-center">
-              <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-slate-200 border-t-indigo-600" />
+          <main className="flex flex-1 items-center justify-center p-6">
+            <div className="w-full max-w-sm rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50">
+                <Loader2
+                  size={28}
+                  className="animate-spin text-[#155DFC]"
+                />
+              </div>
 
-              <p className="mt-4 text-sm font-medium text-slate-500">
-                Memuat hasil ujian...
+              <h2 className="mt-5 text-base font-bold text-slate-800">
+                Memuat hasil ujian
+              </h2>
+
+              <p className="mt-2 text-sm leading-6 text-slate-400">
+                Sedang mengambil data hasil
+                pengerjaan kamu.
               </p>
             </div>
           </main>
@@ -227,395 +1125,281 @@ export default function HasilUjianPage() {
     );
   }
 
-  // =========================================================
-  // FILTER
-  // =========================================================
+  /* =======================================================
+     ERROR
+  ======================================================= */
 
-  const filteredSoal = hasil.detailSoal.filter((s) => {
-    if (filter === "semua") return true;
-    return s.status === filter;
-  });
+  if (error) {
+    return (
+      <div className="flex min-h-screen bg-slate-50">
+        <Sidebar
+          role="siswa"
+          active="ujian"
+          collapsed={
+            isSidebarCollapsed
+          }
+          setCollapsed={
+            setIsSidebarCollapsed
+          }
+        />
 
-  // =========================================================
-  // STATISTIK
-  // =========================================================
+        <div className="flex min-w-0 flex-1 flex-col">
+          <Header
+            toggleSidebar={() =>
+              setIsSidebarCollapsed(
+                (prev) => !prev
+              )
+            }
+            notifications={[]}
+            user={{
+              name: "Siswa",
+              email:
+                "siswa@smartschool.com",
+              avatar: "S",
+            }}
+          />
 
-  const persentase = Math.round(
-    (hasil.benar / hasil.totalSoal) * 100
-  );
+          <main className="flex flex-1 items-center justify-center p-6">
+            <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-7 text-center shadow-sm">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-rose-50 text-rose-500">
+                <AlertCircle
+                  size={28}
+                />
+              </div>
 
-  const predikat =
-    persentase >= 85
-      ? "A"
-      : persentase >= 70
-      ? "B"
-      : persentase >= 50
-      ? "C"
-      : "D";
+              <h2 className="mt-5 text-lg font-bold text-slate-800">
+                Hasil belum dapat dimuat
+              </h2>
 
-  const predikatText =
-    persentase >= 85
-      ? "Sangat Baik"
-      : persentase >= 70
-      ? "Baik"
-      : persentase >= 50
-      ? "Cukup"
-      : "Kurang";
+              <p className="mt-2 text-sm leading-6 text-slate-500">
+                {error}
+              </p>
 
-  const predikatColor =
-    persentase >= 85
-      ? "text-emerald-600"
-      : persentase >= 70
-      ? "text-blue-600"
-      : persentase >= 50
-      ? "text-amber-600"
-      : "text-rose-600";
+              <div className="mt-6 grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() =>
+                    router.push(
+                      "/siswa/ujian"
+                    )
+                  }
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+                >
+                  Kembali
+                </button>
 
-  const formatDate = (dateStr) => {
-    const d = new Date(dateStr);
-
-    return d.toLocaleDateString("id-ID", {
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    });
-  };
-
-  const toggleSoal = (nomor) => {
-    setSelectedSoal(
-      selectedSoal === nomor ? null : nomor
+                <button
+                  type="button"
+                  onClick={
+                    loadHasil
+                  }
+                  className="rounded-xl bg-[#155DFC] px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0D47C9]"
+                >
+                  Coba Lagi
+                </button>
+              </div>
+            </div>
+          </main>
+        </div>
+      </div>
     );
-  };
+  }
 
-  // =========================================================
-  // RENDER
-  // =========================================================
+  /* =======================================================
+     MAIN
+  ======================================================= */
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-[#f8fafc]">
-      {/* =====================================================
-          SIDEBAR
-      ====================================================== */}
-
+    <div className="flex min-h-screen bg-slate-50">
       <Sidebar
         role="siswa"
-        active="hasil"
-        collapsed={isSidebarCollapsed}
-        setCollapsed={setIsSidebarCollapsed}
+        active="ujian"
+        collapsed={
+          isSidebarCollapsed
+        }
+        setCollapsed={
+          setIsSidebarCollapsed
+        }
       />
 
-      {/* =====================================================
-          MAIN WRAPPER
-      ====================================================== */}
-
-      <div className="flex h-screen min-w-0 flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <Header
           toggleSidebar={() =>
-            setIsSidebarCollapsed(!isSidebarCollapsed)
+            setIsSidebarCollapsed(
+              (prev) => !prev
+            )
           }
           notifications={[]}
           user={{
-            name: "Andi Saputra",
-            email: "siswa@smartschool.com",
-            avatar: "AS",
+            name: "Siswa",
+            email:
+              "siswa@smartschool.com",
+            avatar: "S",
           }}
         />
 
-        <main className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden bg-[#f8fafc]">
-          <div className="mx-auto w-full max-w-[1700px] space-y-6 p-4 sm:p-5 lg:p-6 xl:p-8">
+        <main className="min-w-0 flex-1 overflow-y-auto">
+          <div className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-7 lg:px-8 lg:py-8">
 
             {/* =================================================
-                BREADCRUMB
-            ================================================== */}
+                BACK
+            ================================================= */}
 
-            
-
-            {/* =================================================
-                PAGE HEADER
-            ================================================== */}
-
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex min-w-0 items-center gap-3">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 via-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-200">
-                  <Award size={24} />
-                </div>
-
-                <div className="min-w-0">
-                  <p className="mb-0.5 text-xs font-semibold uppercase tracking-wider text-indigo-600">
-                    Hasil Ujian
-                  </p>
-
-                  <h1 className="truncate text-xl font-bold text-slate-800 sm:text-2xl">
-                    {hasil.judul}
-                  </h1>
-
-                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500 sm:text-sm">
-                    <span className="flex items-center gap-1">
-                      <BookOpen size={14} />
-                      {hasil.mapel}
-                    </span>
-
-                    <span className="text-slate-300">•</span>
-
-                    <span>{hasil.kelas}</span>
-                  </div>
-                </div>
-              </div>
-
-              <button
-                onClick={() =>
-                  router.push("/siswa/dashboard")
-                }
-                className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 shadow-sm transition hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600 sm:w-auto"
-              >
-                <ArrowLeft size={16} />
-                Kembali
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() =>
+                router.push(
+                  "/siswa/ujian"
+                )
+              }
+              className="mb-5 inline-flex items-center gap-2 text-sm font-semibold text-slate-500 transition hover:text-[#155DFC]"
+            >
+              <ArrowLeft size={17} />
+              Kembali ke Daftar Ujian
+            </button>
 
             {/* =================================================
-                HERO SCORE CARD
-            ================================================== */}
+                HERO RESULT
+            ================================================= */}
 
-            <section className="relative overflow-hidden rounded-3xl border border-indigo-100 bg-gradient-to-br from-white via-white to-indigo-50/60 p-5 shadow-sm sm:p-7 lg:p-8">
-              {/* Decorative */}
-              <div className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-indigo-100/40 blur-3xl" />
+            <section className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
 
-              <div className="pointer-events-none absolute -bottom-20 -left-20 h-56 w-56 rounded-full bg-purple-100/40 blur-3xl" />
+              {/* top accent */}
+              <div className="h-1.5 bg-gradient-to-r from-[#155DFC] via-[#3B82F6] to-[#60A5FA]" />
 
-              <div className="relative flex flex-col gap-8 lg:flex-row lg:items-center">
+              <div className="relative overflow-hidden px-5 py-8 sm:px-8 sm:py-10 lg:px-10">
 
-                {/* SCORE */}
+                {/* decorative background */}
+                <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-blue-50/80 blur-2xl" />
 
-                <div className="flex justify-center lg:justify-start">
-                  <div className="relative h-40 w-40 sm:h-44 sm:w-44">
-                    <svg
-                      className="h-full w-full -rotate-90"
-                      viewBox="0 0 160 160"
-                    >
-                      <circle
-                        cx="80"
-                        cy="80"
-                        r="66"
-                        stroke="#e2e8f0"
-                        strokeWidth="11"
-                        fill="none"
-                      />
+                <div className="pointer-events-none absolute -bottom-28 -left-20 h-56 w-56 rounded-full bg-indigo-50/70 blur-2xl" />
 
-                      <circle
-                        cx="80"
-                        cy="80"
-                        r="66"
-                        stroke="url(#scoreGradient)"
-                        strokeWidth="11"
-                        fill="none"
-                        strokeDasharray={`${
-                          (persentase / 100) * 414.69
-                        } 414.69`}
-                        strokeLinecap="round"
-                      />
+                <div className="relative">
 
-                      <defs>
-                        <linearGradient
-                          id="scoreGradient"
-                          x1="0%"
-                          y1="0%"
-                          x2="100%"
-                          y2="100%"
-                        >
-                          <stop
-                            offset="0%"
-                            stopColor="#6366f1"
+                  <div className="flex flex-col gap-7 lg:flex-row lg:items-center lg:justify-between">
+
+                    {/* title */}
+                    <div className="min-w-0">
+
+                      <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-[#155DFC]">
+                        <CheckCircle2
+                          size={14}
+                        />
+                        Ujian Selesai
+                      </div>
+
+                      <h1 className="max-w-2xl text-2xl font-black tracking-tight text-slate-900 sm:text-3xl lg:text-[34px]">
+                        {ujian?.judul ||
+                          "Hasil Ujian"}
+                      </h1>
+
+                      <p className="mt-2 max-w-xl text-sm leading-6 text-slate-500">
+                        Pengerjaan ujian kamu
+                        telah selesai. Berikut
+                        adalah ringkasan hasil yang
+                        berhasil diperoleh.
+                      </p>
+
+                      <div className="mt-5 flex flex-wrap items-center gap-2">
+                        <span className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600">
+                          <BookOpen
+                            size={14}
+                            className="text-[#155DFC]"
                           />
+                          {ujian
+                            ?.kelasMapel
+                            ?.mataPelajaran
+                            ?.nama ||
+                            "Mata Pelajaran"}
+                        </span>
 
-                          <stop
-                            offset="100%"
-                            stopColor="#8b5cf6"
+                        <span className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600">
+                          <FileText
+                            size={14}
+                            className="text-slate-400"
                           />
-                        </linearGradient>
-                      </defs>
-                    </svg>
-
-                    <div className="absolute inset-0 flex flex-col items-center justify-center">
-                      <span className="text-4xl font-extrabold tracking-tight text-indigo-600 sm:text-5xl">
-                        {persentase}
-                      </span>
-
-                      <span className="text-xs font-medium text-slate-400">
-                        Persentase
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* SCORE INFO */}
-
-                <div className="min-w-0 flex-1 text-center lg:text-left">
-                  <div className="flex items-center justify-center gap-2 lg:justify-start">
-                    <span className="text-4xl font-extrabold tracking-tight text-slate-800 sm:text-5xl">
-                      {hasil.skor}
-                    </span>
-
-                    <span className="mt-3 text-sm font-medium text-slate-400">
-                      / 100
-                    </span>
-                  </div>
-
-                  <p className="mt-1 text-sm font-medium text-slate-500">
-                    Nilai Akhir
-                  </p>
-
-                  <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-white px-4 py-2 shadow-sm">
-                    <Sparkles
-                      size={15}
-                      className="text-indigo-500"
-                    />
-
-                    <span className="text-sm font-semibold text-slate-700">
-                      Predikat {predikat}
-                    </span>
-
-                    <span
-                      className={`text-sm font-bold ${predikatColor}`}
-                    >
-                      {predikatText}
-                    </span>
-                  </div>
-
-                  {/* Progress */}
-
-                  <div className="mx-auto mt-5 max-w-md lg:mx-0">
-                    <div className="mb-2 flex items-center justify-between text-xs">
-                      <span className="font-medium text-slate-500">
-                        Tingkat keberhasilan
-                      </span>
-
-                      <span className="font-bold text-indigo-600">
-                        {persentase}%
-                      </span>
-                    </div>
-
-                    <div className="h-2.5 overflow-hidden rounded-full bg-slate-100">
-                      <div
-                        className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-1000"
-                        style={{
-                          width: `${persentase}%`,
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Answer badges */}
-
-                  <div className="mt-5 flex flex-wrap justify-center gap-2 lg:justify-start">
-                    <div className="flex items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2">
-                      <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
-                        <CheckCircle size={15} />
-                      </div>
-
-                      <div>
-                        <p className="text-[10px] font-medium text-emerald-600">
-                          Benar
-                        </p>
-
-                        <p className="text-sm font-bold text-emerald-700">
-                          {hasil.benar}
-                        </p>
+                          {ujian
+                            ?.kelasMapel
+                            ?.kelas
+                            ?.nama ||
+                            "Kelas"}
+                        </span>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 rounded-xl border border-rose-100 bg-rose-50 px-3 py-2">
-                      <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-rose-100 text-rose-600">
-                        <XCircle size={15} />
-                      </div>
+                    {/* score */}
+                    <div className="shrink-0 lg:w-[250px]">
 
-                      <div>
-                        <p className="text-[10px] font-medium text-rose-600">
-                          Salah
+                      <div className="rounded-3xl border border-blue-100 bg-blue-50/70 p-5 text-center">
+
+                        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-[#155DFC] shadow-sm">
+                          {lulus ? (
+                            <Trophy
+                              size={23}
+                            />
+                          ) : (
+                            <Award
+                              size={23}
+                            />
+                          )}
+                        </div>
+
+                        <p className="mt-4 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400">
+                          Nilai Akhir
                         </p>
 
-                        <p className="text-sm font-bold text-rose-700">
-                          {hasil.salah}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                        <div className="mt-1 flex items-baseline justify-center gap-1">
+                          <span className="text-5xl font-black tracking-tight text-[#155DFC]">
+                            {formatNumber(
+                              nilaiNumber
+                            )}
+                          </span>
 
-                {/* INFO UJIAN */}
+                          <span className="text-sm font-bold text-slate-400">
+                            /100
+                          </span>
+                        </div>
 
-                <div className="grid grid-cols-2 gap-3 lg:w-[310px] lg:grid-cols-1">
-                  <div className="rounded-2xl border border-slate-100 bg-white/80 p-3.5 shadow-sm">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-                        <User size={16} />
-                      </div>
+                        <div className="mx-auto mt-4 h-2 max-w-[180px] overflow-hidden rounded-full bg-white">
+                          <div
+                            className="h-full rounded-full bg-[#155DFC] transition-all duration-700"
+                            style={{
+                              width: `${progressNilai}%`,
+                            }}
+                          />
+                        </div>
 
-                      <div className="min-w-0">
-                        <p className="text-[10px] font-medium uppercase tracking-wider text-slate-400">
-                          Siswa
-                        </p>
+                        <div className="mt-4">
+                          {lulus ? (
+                            <span className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-3.5 py-1.5 text-xs font-bold text-emerald-700">
+                              <CheckCircle2
+                                size={14}
+                              />
+                              Lulus
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-2 rounded-full bg-rose-100 px-3.5 py-1.5 text-xs font-bold text-rose-700">
+                              <XCircle
+                                size={14}
+                              />
+                              Belum Lulus
+                            </span>
+                          )}
+                        </div>
 
-                        <p className="truncate text-sm font-semibold text-slate-700">
-                          Andi Saputra
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="rounded-2xl border border-slate-100 bg-white/80 p-3.5 shadow-sm">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-purple-50 text-purple-600">
-                        <Calendar size={16} />
-                      </div>
-
-                      <div className="min-w-0">
-                        <p className="text-[10px] font-medium uppercase tracking-wider text-slate-400">
-                          Tanggal
-                        </p>
-
-                        <p className="truncate text-sm font-semibold text-slate-700">
-                          {formatDate(hasil.tanggal)}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="rounded-2xl border border-slate-100 bg-white/80 p-3.5 shadow-sm">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
-                        <Clock size={16} />
-                      </div>
-
-                      <div>
-                        <p className="text-[10px] font-medium uppercase tracking-wider text-slate-400">
-                          Durasi
-                        </p>
-
-                        <p className="text-sm font-semibold text-slate-700">
-                          {hasil.durasi}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="rounded-2xl border border-slate-100 bg-white/80 p-3.5 shadow-sm">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
-                        <BookOpen size={16} />
-                      </div>
-
-                      <div>
-                        <p className="text-[10px] font-medium uppercase tracking-wider text-slate-400">
-                          Jumlah Soal
-                        </p>
-
-                        <p className="text-sm font-semibold text-slate-700">
-                          {hasil.totalSoal} soal
-                        </p>
+                        {nilaiKelulusan > 0 && (
+                          <p className="mt-3 text-[11px] text-slate-400">
+                            Minimal kelulusan{" "}
+                            <span className="font-bold text-slate-600">
+                              {formatNumber(
+                                nilaiKelulusan
+                              )}
+                            </span>
+                          </p>
+                        )}
                       </div>
                     </div>
+
                   </div>
                 </div>
               </div>
@@ -623,433 +1407,629 @@ export default function HasilUjianPage() {
 
             {/* =================================================
                 STATISTICS
-            ================================================== */}
+            ================================================= */}
+
+            <section className="mt-5 grid gap-4 sm:grid-cols-3">
+
+              <ResultStat
+                icon={
+                  <CheckCircle2
+                    size={19}
+                  />
+                }
+                label="Jawaban Benar"
+                value={jumlahBenar}
+                description={
+                  totalSoal > 0
+                    ? `${Math.round(
+                        (jumlahBenar /
+                          totalSoal) *
+                          100
+                      )}% dari total soal`
+                    : "Tidak tersedia"
+                }
+                tone="emerald"
+              />
+
+              <ResultStat
+                icon={
+                  <XCircle
+                    size={19}
+                  />
+                }
+                label="Jawaban Salah"
+                value={jumlahSalah}
+                description={
+                  totalSoal > 0
+                    ? `${Math.round(
+                        (jumlahSalah /
+                          totalSoal) *
+                          100
+                      )}% dari total soal`
+                    : "Tidak tersedia"
+                }
+                tone="rose"
+              />
+
+              <ResultStat
+                icon={
+                  <MinusCircle
+                    size={19}
+                  />
+                }
+                label="Tidak Dijawab"
+                value={jumlahLewati}
+                description={
+                  totalSoal > 0
+                    ? `${Math.round(
+                        (jumlahLewati /
+                          totalSoal) *
+                          100
+                      )}% dari total soal`
+                    : "Tidak tersedia"
+                }
+                tone="amber"
+              />
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-
-              {/* Total */}
-
-              <div className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                      Total Soal
-                    </p>
-
-                    <p className="mt-2 text-2xl font-bold text-slate-800">
-                      {hasil.totalSoal}
-                    </p>
-
-                    <p className="mt-1 text-xs text-slate-400">
-                      Soal dikerjakan
-                    </p>
-                  </div>
-
-                  <div className="rounded-xl bg-indigo-50 p-3 text-indigo-600 transition group-hover:bg-indigo-600 group-hover:text-white">
-                    <BarChart3 size={20} />
-                  </div>
-                </div>
-              </div>
-
-              {/* Benar */}
-
-              <div className="group rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                      Jawaban Benar
-                    </p>
-
-                    <p className="mt-2 text-2xl font-bold text-emerald-600">
-                      {hasil.benar}
-                    </p>
-
-                    <p className="mt-1 text-xs text-slate-400">
-                      {persentase}% dari total soal
-                    </p>
-                  </div>
-
-                  <div className="rounded-xl bg-emerald-50 p-3 text-emerald-600 transition group-hover:bg-emerald-600 group-hover:text-white">
-                    <CheckCircle size={20} />
-                  </div>
-                </div>
-              </div>
-
-              {/* Salah */}
-
-              <div className="group rounded-2xl border border-rose-100 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                      Jawaban Salah
-                    </p>
-
-                    <p className="mt-2 text-2xl font-bold text-rose-600">
-                      {hasil.salah}
-                    </p>
-
-                    <p className="mt-1 text-xs text-slate-400">
-                      Perlu dipelajari lagi
-                    </p>
-                  </div>
-
-                  <div className="rounded-xl bg-rose-50 p-3 text-rose-600 transition group-hover:bg-rose-600 group-hover:text-white">
-                    <XCircle size={20} />
-                  </div>
-                </div>
-              </div>
-
-              {/* Predikat */}
-
-              <div className="group rounded-2xl border border-purple-100 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                      Predikat
-                    </p>
-
-                    <p
-                      className={`mt-2 text-2xl font-bold ${predikatColor}`}
-                    >
-                      {predikat}
-                    </p>
-
-                    <p className="mt-1 text-xs text-slate-400">
-                      {predikatText}
-                    </p>
-                  </div>
-
-                  <div className="rounded-xl bg-purple-50 p-3 text-purple-600 transition group-hover:bg-purple-600 group-hover:text-white">
-                    <Target size={20} />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* =================================================
-                ANSWER DETAIL
-            ================================================== */}
-
-            <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-
-              {/* Header */}
-
-              <div className="border-b border-slate-100 p-5 sm:p-6">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
-                      <Activity size={19} />
-                    </div>
-
-                    <div>
-                      <h2 className="text-base font-bold text-slate-800">
-                        Rincian Jawaban
-                      </h2>
-
-                      <p className="mt-0.5 text-xs text-slate-400">
-                        Periksa jawaban dari setiap soal
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* FILTER */}
-
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      onClick={() => setFilter("semua")}
-                      className={`rounded-xl px-3 py-2 text-xs font-semibold transition ${
-                        filter === "semua"
-                          ? "bg-indigo-600 text-white shadow-sm shadow-indigo-200"
-                          : "border border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
-                      }`}
-                    >
-                      Semua ({hasil.totalSoal})
-                    </button>
-
-                    <button
-                      onClick={() => setFilter("benar")}
-                      className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition ${
-                        filter === "benar"
-                          ? "bg-emerald-600 text-white shadow-sm shadow-emerald-200"
-                          : "border border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
-                      }`}
-                    >
-                      <ThumbsUp size={12} />
-                      Benar ({hasil.benar})
-                    </button>
-
-                    <button
-                      onClick={() => setFilter("salah")}
-                      className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition ${
-                        filter === "salah"
-                          ? "bg-rose-600 text-white shadow-sm shadow-rose-200"
-                          : "border border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
-                      }`}
-                    >
-                      <ThumbsDown size={12} />
-                      Salah ({hasil.salah})
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* LIST */}
-
-              <div className="max-h-[560px] divide-y divide-slate-100 overflow-y-auto">
-                {filteredSoal.map((s) => {
-                  const isExpanded =
-                    selectedSoal === s.nomor;
-
-                  const isCorrect =
-                    s.status === "benar";
-
-                  return (
-                    <div
-                      key={s.nomor}
-                      className={`transition ${
-                        isExpanded
-                          ? "bg-indigo-50/40"
-                          : "hover:bg-slate-50/70"
-                      }`}
-                    >
-                      {/* ROW */}
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          toggleSoal(s.nomor)
-                        }
-                        className="flex w-full min-w-0 items-center gap-3 p-4 text-left sm:p-5"
-                      >
-                        {/* NUMBER */}
-
-                        <div
-                          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-bold ${
-                            isCorrect
-                              ? "bg-emerald-50 text-emerald-600"
-                              : "bg-rose-50 text-rose-600"
-                          }`}
-                        >
-                          {s.nomor}
-                        </div>
-
-                        {/* CONTENT */}
-
-                        <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span
-                              className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${
-                                isCorrect
-                                  ? "border-emerald-100 bg-emerald-50 text-emerald-700"
-                                  : "border-rose-100 bg-rose-50 text-rose-700"
-                              }`}
-                            >
-                              {isCorrect ? (
-                                <CheckCircle size={12} />
-                              ) : (
-                                <XCircle size={12} />
-                              )}
-
-                              {isCorrect
-                                ? "Benar"
-                                : "Salah"}
-                            </span>
-
-                            <span className="text-xs text-slate-400">
-                              Jawaban:{" "}
-                              <span className="font-semibold text-slate-600">
-                                {s.jawabanUser ||
-                                  "—"}
-                              </span>
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* ARROW */}
-
-                        <div className="shrink-0 rounded-lg p-1.5 text-slate-400">
-                          {isExpanded ? (
-                            <ChevronUp size={17} />
-                          ) : (
-                            <ChevronDown size={17} />
-                          )}
-                        </div>
-                      </button>
-
-                      {/* EXPANDED */}
-
-                      {isExpanded && (
-                        <div className="border-t border-slate-100 px-4 pb-5 pt-4 sm:px-5">
-                          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-
-                            {/* Correct Answer */}
-
-                            <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4">
-                              <div className="flex items-center gap-2">
-                                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white text-emerald-600 shadow-sm">
-                                  <CheckCircle size={15} />
-                                </div>
-
-                                <div>
-                                  <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600">
-                                    Jawaban Benar
-                                  </p>
-
-                                  <p className="text-xs text-slate-400">
-                                    Kunci jawaban
-                                  </p>
-                                </div>
-                              </div>
-
-                              <div className="mt-4 flex h-12 items-center justify-center rounded-xl bg-white text-xl font-bold text-emerald-600 shadow-sm">
-                                {s.jawabanBenar}
-                              </div>
-                            </div>
-
-                            {/* User Answer */}
-
-                            <div
-                              className={`rounded-2xl border p-4 ${
-                                isCorrect
-                                  ? "border-emerald-100 bg-emerald-50/70"
-                                  : "border-rose-100 bg-rose-50/70"
-                              }`}
-                            >
-                              <div className="flex items-center gap-2">
-                                <div
-                                  className={`flex h-8 w-8 items-center justify-center rounded-lg bg-white shadow-sm ${
-                                    isCorrect
-                                      ? "text-emerald-600"
-                                      : "text-rose-600"
-                                  }`}
-                                >
-                                  {isCorrect ? (
-                                    <ThumbsUp size={15} />
-                                  ) : (
-                                    <ThumbsDown size={15} />
-                                  )}
-                                </div>
-
-                                <div>
-                                  <p
-                                    className={`text-[10px] font-semibold uppercase tracking-wider ${
-                                      isCorrect
-                                        ? "text-emerald-600"
-                                        : "text-rose-600"
-                                    }`}
-                                  >
-                                    Jawaban Anda
-                                  </p>
-
-                                  <p className="text-xs text-slate-400">
-                                    Pilihan siswa
-                                  </p>
-                                </div>
-                              </div>
-
-                              <div
-                                className={`mt-4 flex h-12 items-center justify-center rounded-xl bg-white text-xl font-bold shadow-sm ${
-                                  isCorrect
-                                    ? "text-emerald-600"
-                                    : "text-rose-600"
-                                }`}
-                              >
-                                {s.jawabanUser ||
-                                  "—"}
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* FEEDBACK */}
-
-                          <div
-                            className={`mt-4 flex items-start gap-2 rounded-xl p-3 text-xs leading-5 ${
-                              isCorrect
-                                ? "bg-emerald-50 text-emerald-700"
-                                : "bg-rose-50 text-rose-700"
-                            }`}
-                          >
-                            {isCorrect ? (
-                              <CheckCircle
-                                size={15}
-                                className="mt-0.5 shrink-0"
-                              />
-                            ) : (
-                              <XCircle
-                                size={15}
-                                className="mt-0.5 shrink-0"
-                              />
-                            )}
-
-                            <span>
-                              {isCorrect ? (
-                                <>
-                                  Jawaban kamu benar.
-                                  Pertahankan hasil
-                                  belajarmu!
-                                </>
-                              ) : (
-                                <>
-                                  Jawaban kamu belum
-                                  tepat. Kunci jawaban
-                                  yang benar adalah{" "}
-                                  <strong>
-                                    {s.jawabanBenar}
-                                  </strong>
-                                  .
-                                </>
-                              )}
-                            </span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* FOOTER */}
-
-              <div className="flex flex-col gap-4 border-t border-slate-100 bg-slate-50/50 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
-                <div className="flex flex-wrap items-center gap-4 text-xs">
-                  <span className="font-medium text-slate-500">
-                    Total {hasil.totalSoal} soal
-                  </span>
-
-                  <span className="flex items-center gap-1.5 font-semibold text-emerald-600">
-                    <CheckCircle size={14} />
-                    {hasil.benar} benar
-                  </span>
-
-                  <span className="flex items-center gap-1.5 font-semibold text-rose-600">
-                    <XCircle size={14} />
-                    {hasil.salah} salah
-                  </span>
-                </div>
-
-                <button
-                  onClick={() =>
-                    router.push("/siswa/dashboard")
-                  }
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm shadow-indigo-200 transition hover:bg-indigo-700 active:scale-[0.98] sm:w-auto"
-                >
-                  <Home size={16} />
-                  Dashboard
-                </button>
-              </div>
             </section>
 
             {/* =================================================
-                FOOTER
-            ================================================== */}
+                CONTENT GRID
+            ================================================= */}
 
-            <footer className="pb-3 pt-2 text-center text-xs text-slate-400">
-              © 2026 SmartSchool • Hasil {hasil.judul}
+            <div className="mt-5 grid gap-5 lg:grid-cols-[1.35fr_0.65fr]">
+
+              {/* =================================================
+                  DETAIL UJIAN
+              ================================================= */}
+
+              <section className="rounded-3xl border border-slate-200 bg-white shadow-sm">
+
+                <SectionHeader
+                  icon={
+                    <BookOpen
+                      size={19}
+                    />
+                  }
+                  title="Detail Ujian"
+                  description="Informasi mengenai ujian yang kamu kerjakan"
+                />
+
+                <div className="grid gap-3 p-5 sm:grid-cols-2 sm:p-6">
+
+                  <InfoCard
+                    icon={
+                      <BookOpen
+                        size={17}
+                      />
+                    }
+                    label="Mata Pelajaran"
+                    value={
+                      ujian
+                        ?.kelasMapel
+                        ?.mataPelajaran
+                        ?.nama || "-"
+                    }
+                    tone="blue"
+                  />
+
+                  <InfoCard
+                    icon={
+                      <FileText
+                        size={17}
+                      />
+                    }
+                    label="Kelas"
+                    value={
+                      ujian
+                        ?.kelasMapel
+                        ?.kelas
+                        ?.nama || "-"
+                    }
+                    tone="indigo"
+                  />
+
+                  <InfoCard
+                    icon={
+                      <FileText
+                        size={17}
+                      />
+                    }
+                    label="Jumlah Soal"
+                    value={`${totalSoal} soal`}
+                    tone="emerald"
+                  />
+
+                  <InfoCard
+                    icon={
+                      <Clock3
+                        size={17}
+                      />
+                    }
+                    label="Durasi"
+                    value={`${ujian?.durasi || 0} menit`}
+                    tone="amber"
+                  />
+
+                </div>
+              </section>
+
+              {/* =================================================
+                  RINGKASAN
+              ================================================= */}
+
+              <section className="rounded-3xl border border-slate-200 bg-white shadow-sm">
+
+                <SectionHeader
+                  icon={
+                    <Award
+                      size={19}
+                    />
+                  }
+                  title="Ringkasan Nilai"
+                  description="Performa pengerjaan kamu"
+                />
+
+                <div className="p-5 sm:p-6">
+
+                  <div className="rounded-2xl bg-slate-50 p-4">
+
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-slate-500">
+                        Nilai diperoleh
+                      </span>
+
+                      <span className="text-sm font-black text-[#155DFC]">
+                        {formatNumber(
+                          nilaiNumber
+                        )}
+                      </span>
+                    </div>
+
+                    <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200">
+                      <div
+                        className="h-full rounded-full bg-[#155DFC]"
+                        style={{
+                          width: `${progressNilai}%`,
+                        }}
+                      />
+                    </div>
+
+                    {nilaiKelulusan > 0 && (
+                      <div className="mt-3 flex items-center justify-between text-[11px]">
+                        <span className="text-slate-400">
+                          Nilai kelulusan
+                        </span>
+
+                        <span className="font-bold text-slate-600">
+                          {formatNumber(
+                            nilaiKelulusan
+                          )}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="mt-4 space-y-3">
+
+                    <MiniResultRow
+                      icon={
+                        <CheckCircle2
+                          size={15}
+                        />
+                      }
+                      label="Benar"
+                      value={jumlahBenar}
+                      tone="emerald"
+                    />
+
+                    <MiniResultRow
+                      icon={
+                        <XCircle
+                          size={15}
+                        />
+                      }
+                      label="Salah"
+                      value={jumlahSalah}
+                      tone="rose"
+                    />
+
+                    <MiniResultRow
+                      icon={
+                        <MinusCircle
+                          size={15}
+                        />
+                      }
+                      label="Tidak dijawab"
+                      value={jumlahLewati}
+                      tone="amber"
+                    />
+
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            {/* =================================================
+                WAKTU PENGERJAAN
+            ================================================= */}
+
+            {percobaanSaya && (
+              <section className="mt-5 rounded-3xl border border-slate-200 bg-white shadow-sm">
+
+                <SectionHeader
+                  icon={
+                    <CalendarDays
+                      size={19}
+                    />
+                  }
+                  title="Waktu Pengerjaan"
+                  description="Informasi sesi pengerjaan ujian"
+                />
+
+                <div className="grid gap-0 divide-y divide-slate-100 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+
+                  <TimeInfo
+                    label="Mulai"
+                    value={formatDateTime(
+                      percobaanSaya?.dimulaiPada
+                    )}
+                  />
+
+                  <TimeInfo
+                    label="Selesai"
+                    value={formatDateTime(
+                      percobaanSaya?.selesaiPada ||
+                        tanggalSelesai
+                    )}
+                  />
+
+                  <div className="p-5 sm:p-6">
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                      Status
+                    </p>
+
+                    <span className="mt-2 inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                      {status}
+                    </span>
+                  </div>
+
+                </div>
+              </section>
+            )}
+
+            {/* =================================================
+                RESULT NOT FOUND
+            ================================================= */}
+
+            {!percobaanSaya &&
+              !hasilUjian && (
+                <section className="mt-5 rounded-3xl border border-amber-200 bg-amber-50/70 p-5">
+
+                  <div className="flex gap-3">
+
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-amber-600 shadow-sm">
+                      <AlertCircle
+                        size={18}
+                      />
+                    </div>
+
+                    <div>
+                      <h3 className="text-sm font-bold text-amber-800">
+                        Data hasil belum ditemukan
+                      </h3>
+
+                      <p className="mt-1 text-xs leading-5 text-amber-700">
+                        Backend belum mengirim data
+                        percobaan atau hasil ujian
+                        untuk sesi ini.
+                      </p>
+                    </div>
+
+                  </div>
+                </section>
+              )}
+
+            {/* =================================================
+                DATA STATUS
+            ================================================= */}
+
+            {percobaanSaya && (
+              <section className="mt-5 rounded-3xl border border-blue-100 bg-blue-50/60 p-4 sm:p-5">
+
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+
+                  <div className="flex items-center gap-3">
+
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-[#155DFC] shadow-sm">
+                      <CheckCircle2
+                        size={17}
+                      />
+                    </div>
+
+                    <div>
+                      <p className="text-xs font-bold text-[#155DFC]">
+                        Hasil berhasil ditemukan
+                      </p>
+
+                      <p className="mt-0.5 text-[11px] text-slate-500">
+                        Data hasil pengerjaan tersedia
+                        untuk sesi ujian ini.
+                      </p>
+                    </div>
+
+                  </div>
+
+                  <div className="rounded-xl bg-white px-3 py-2 sm:text-right">
+
+                    <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">
+                      Percobaan ID
+                    </p>
+
+                    <p className="mt-0.5 max-w-[230px] truncate text-[11px] font-bold text-slate-600">
+                      {percobaanSaya?.id ||
+                        percobaanSaya?.percobaanUjianId ||
+                        "-"}
+                    </p>
+
+                  </div>
+
+                </div>
+              </section>
+            )}
+
+            {/* =================================================
+                ACTION
+            ================================================= */}
+
+            <div className="mt-6 flex justify-center">
+
+              <button
+                type="button"
+                onClick={() =>
+                  router.push(
+                    "/siswa/ujian"
+                  )
+                }
+                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[#155DFC] px-6 py-3.5 text-sm font-bold text-white shadow-sm transition hover:bg-[#0D47C9] hover:shadow-md sm:w-auto"
+              >
+                <ArrowLeft
+                  size={17}
+                />
+                Kembali ke Daftar Ujian
+              </button>
+
+            </div>
+
+            <footer className="py-7 text-center text-[11px] text-slate-400">
+              © 2026 SmartSchool
+              <span className="mx-1.5">
+                •
+              </span>
+              Hasil Ujian
             </footer>
+
           </div>
         </main>
       </div>
+    </div>
+  );
+}
+
+/* =========================================================
+   RESULT STAT
+========================================================= */
+
+function ResultStat({
+  icon,
+  label,
+  value,
+  description,
+  tone,
+}) {
+  const styles = {
+    emerald: {
+      icon: "bg-emerald-50 text-emerald-600",
+      value: "text-emerald-700",
+    },
+    rose: {
+      icon: "bg-rose-50 text-rose-600",
+      value: "text-rose-700",
+    },
+    amber: {
+      icon: "bg-amber-50 text-amber-600",
+      value: "text-amber-700",
+    },
+  };
+
+  const current =
+    styles[tone] ||
+    styles.emerald;
+
+  return (
+    <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+
+      <div className="flex items-start justify-between gap-4">
+
+        <div>
+          <p className="text-xs font-semibold text-slate-400">
+            {label}
+          </p>
+
+          <p
+            className={`mt-2 text-3xl font-black ${current.value}`}
+          >
+            {formatNumber(value)}
+          </p>
+
+          <p className="mt-1 text-[11px] text-slate-400">
+            {description}
+          </p>
+        </div>
+
+        <div
+          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${current.icon}`}
+        >
+          {icon}
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================
+   SECTION HEADER
+========================================================= */
+
+function SectionHeader({
+  icon,
+  title,
+  description,
+}) {
+  return (
+    <div className="flex items-center gap-3 border-b border-slate-100 px-5 py-4 sm:px-6">
+
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#155DFC]">
+        {icon}
+      </div>
+
+      <div className="min-w-0">
+        <h2 className="text-sm font-bold text-slate-800">
+          {title}
+        </h2>
+
+        <p className="mt-0.5 text-[11px] text-slate-400">
+          {description}
+        </p>
+      </div>
+
+    </div>
+  );
+}
+
+/* =========================================================
+   INFO CARD
+========================================================= */
+
+function InfoCard({
+  icon,
+  label,
+  value,
+  tone = "blue",
+}) {
+  const tones = {
+    blue: {
+      icon: "bg-blue-50 text-[#155DFC]",
+    },
+    indigo: {
+      icon: "bg-indigo-50 text-indigo-600",
+    },
+    emerald: {
+      icon: "bg-emerald-50 text-emerald-600",
+    },
+    amber: {
+      icon: "bg-amber-50 text-amber-600",
+    },
+  };
+
+  const current =
+    tones[tone] ||
+    tones.blue;
+
+  return (
+    <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4 transition hover:border-blue-100 hover:bg-blue-50/30">
+
+      <div className="flex items-center gap-2.5">
+
+        <div
+          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${current.icon}`}
+        >
+          {icon}
+        </div>
+
+        <div className="min-w-0">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+            {label}
+          </p>
+
+          <p className="mt-1 truncate text-sm font-bold text-slate-700">
+            {value}
+          </p>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================
+   MINI RESULT ROW
+========================================================= */
+
+function MiniResultRow({
+  icon,
+  label,
+  value,
+  tone,
+}) {
+  const styles = {
+    emerald:
+      "bg-emerald-50 text-emerald-600",
+    rose:
+      "bg-rose-50 text-rose-600",
+    amber:
+      "bg-amber-50 text-amber-600",
+  };
+
+  return (
+    <div className="flex items-center justify-between rounded-xl border border-slate-100 bg-white px-3 py-2.5">
+
+      <div className="flex items-center gap-2">
+
+        <div
+          className={`flex h-7 w-7 items-center justify-center rounded-lg ${
+            styles[tone] ||
+            styles.emerald
+          }`}
+        >
+          {icon}
+        </div>
+
+        <span className="text-xs font-semibold text-slate-600">
+          {label}
+        </span>
+
+      </div>
+
+      <span className="text-sm font-black text-slate-800">
+        {formatNumber(value)}
+      </span>
+
+    </div>
+  );
+}
+
+/* =========================================================
+   TIME INFO
+========================================================= */
+
+function TimeInfo({
+  label,
+  value,
+}) {
+  return (
+    <div className="p-5 sm:p-6">
+
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+        {label}
+      </p>
+
+      <p className="mt-2 text-sm font-bold leading-6 text-slate-700">
+        {value}
+      </p>
+
     </div>
   );
 }

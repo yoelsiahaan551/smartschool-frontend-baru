@@ -1,1171 +1,1098 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+
 import Header from "../../../components/Header";
 import Sidebar from "../../../components/Sidebar";
+
+import { createUser, getUsers } from "../../../../services/user.service";
+
 import {
   ArrowLeft,
-  Upload,
-  FileSpreadsheet,
-  CheckCircle,
-  XCircle,
   UserPlus,
+  User,
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  Phone,
+  MapPin,
+  BriefcaseBusiness,
+  CalendarDays,
+  Save,
+  X,
+  CheckCircle2,
+  AlertCircle,
+  Loader2,
+  BookOpen,
+  GraduationCap,
+  Hash,
+  ShieldCheck,
 } from "lucide-react";
 
-const STORAGE_KEY = "guru_data";
+function generateUsername(nama) {
+  const cleaned = String(nama || "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s]/g, "")
+    .replace(/\s+/g, ".");
 
-const loadGuru = () => {
-  if (typeof window === "undefined") return [];
-  const stored = localStorage.getItem(STORAGE_KEY);
-  return stored ? JSON.parse(stored) : [];
-};
+  if (!cleaned) {
+    return "";
+  }
 
-const saveGuru = (data) => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-};
+  return cleaned;
+}
 
-const MAPEL_LIST = [
-  "Matematika",
-  "Bahasa Indonesia",
-  "Fisika",
-  "Biologi",
-  "Kimia",
-  "Bahasa Inggris",
-  "Sejarah",
-  "PKN",
-  "Agama",
-  "Seni Budaya",
-  "PJOK",
-  "TIK",
-  "Prakarya",
-];
+function generatePassword() {
+  const chars =
+    "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+
+  let password = "";
+
+  for (let i = 0; i < 10; i++) {
+    password += chars.charAt(
+      Math.floor(Math.random() * chars.length)
+    );
+  }
+
+  return password;
+}
 
 export default function TambahGuruPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
 
-  const mode = searchParams.get("mode") || "form";
+  const [loading, setLoading] = useState(false);
+  const [loadingRole, setLoadingRole] = useState(true);
 
-  const [isCollapsed, setIsCollapsed] = useState(false);
-  const [activeTab, setActiveTab] = useState(
-    mode === "import" ? "import" : "form"
-  );
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
-  // =========================
-  // FORM STATE
-  // =========================
-  const [formData, setFormData] = useState({
-    nama: "",
-    nip: "",
-    mapel: "",
+  const [guruRoleId, setGuruRoleId] = useState("");
+
+  const [showPassword, setShowPassword] = useState(false);
+
+  const [form, setForm] = useState({
+    namaLengkap: "",
+    namaPengguna: "",
     email: "",
-    phone: "",
-    status: "Aktif",
+    kataSandi: "",
+
+    nip: "",
+    nuptk: "",
+
+    jenisKelamin: "L",
+    tempatLahir: "",
+    tanggalLahir: "",
+
+    noTelepon: "",
     alamat: "",
-    tglLahir: "",
-    gender: "L",
-    joinDate: new Date().toISOString().slice(0, 10),
+
+    jabatan: "Guru",
+    golongan: "",
+
+    nik: "",
+    alamatKtp: "",
+    alamatDomisili: "",
+    kecamatan: "",
+    kelurahan: "",
+    kota: "",
   });
 
-  // =========================
-  // SEARCHABLE SELECT STATE
-  // =========================
-  const [mapelSearch, setMapelSearch] = useState("");
-  const [isMapelOpen, setIsMapelOpen] = useState(false);
-  const mapelRef = useRef(null);
+  const [touched, setTouched] = useState({});
 
-  const filteredMapel = MAPEL_LIST.filter((m) =>
-    m.toLowerCase().includes(mapelSearch.toLowerCase())
-  );
+  const namaInputRef = useRef(null);
 
-  // =========================
-  // IMPORT STATE
-  // =========================
-  const [file, setFile] = useState(null);
-  const [importStatus, setImportStatus] = useState(null);
-  const [importMessage, setImportMessage] = useState("");
-
-  // =========================
-  // CLOSE DROPDOWN ON OUTSIDE CLICK
-  // =========================
   useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (mapelRef.current && !mapelRef.current.contains(e.target)) {
-        setIsMapelOpen(false);
+    let mounted = true;
+
+    async function loadGuruRole() {
+      try {
+        setLoadingRole(true);
+        setError("");
+
+        const response = await getUsers({
+          page: 1,
+          limit: 1,
+          role: "guru",
+        });
+
+        if (!mounted) return;
+
+        const guru = Array.isArray(response?.data)
+          ? response.data[0]
+          : null;
+
+        const roleId =
+          guru?.peran?.id ||
+          guru?.peranId ||
+          "";
+
+        if (roleId) {
+          setGuruRoleId(roleId);
+        } else {
+          setError(
+            "Role Guru belum dapat ditemukan. Pastikan sudah ada minimal satu pengguna dengan role guru di database."
+          );
+        }
+      } catch (err) {
+        if (!mounted) return;
+
+        console.error(
+          "Gagal mengambil role guru:",
+          err
+        );
+
+        setError(
+          err?.message ||
+            "Gagal mengambil data role guru."
+        );
+      } finally {
+        if (mounted) {
+          setLoadingRole(false);
+        }
       }
+    }
+
+    loadGuruRole();
+
+    return () => {
+      mounted = false;
     };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // =========================
-  // FORM CHANGE
-  // =========================
-  const handleFormChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      namaInputRef.current?.focus();
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  function handleChange(event) {
+    const { name, value } = event.target;
+
+    setForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+
+    setTouched((prev) => ({
+      ...prev,
+      [name]: true,
+    }));
+
+    if (error) {
+      setError("");
+    }
+
+    if (success) {
+      setSuccess("");
+    }
+  }
+
+  function handleNamaChange(event) {
+    const value = event.target.value;
+
+    setForm((prev) => ({
+      ...prev,
+      namaLengkap: value,
+      namaPengguna:
+        prev.namaPengguna ||
+        generateUsername(value),
+    }));
+
+    setTouched((prev) => ({
+      ...prev,
+      namaLengkap: true,
+    }));
+
+    if (error) {
+      setError("");
+    }
+  }
+
+  function handleUsernameChange(event) {
+    const value = event.target.value
+      .toLowerCase()
+      .replace(/\s+/g, ".")
+      .replace(/[^a-z0-9._-]/g, "");
+
+    setForm((prev) => ({
+      ...prev,
+      namaPengguna: value,
+    }));
+
+    setTouched((prev) => ({
+      ...prev,
+      namaPengguna: true,
+    }));
+
+    if (error) {
+      setError("");
+    }
+  }
+
+  function handleGeneratePassword() {
+    const password = generatePassword();
+
+    setForm((prev) => ({
+      ...prev,
+      kataSandi: password,
+    }));
+
+    setTouched((prev) => ({
+      ...prev,
+      kataSandi: true,
+    }));
+
+    setShowPassword(true);
+
+    if (error) {
+      setError("");
+    }
+  }
+
+  const validation = useMemo(() => {
+    const result = {};
+
+    if (!form.namaLengkap.trim()) {
+      result.namaLengkap = "Nama lengkap wajib diisi.";
+    }
+
+    if (!form.namaPengguna.trim()) {
+      result.namaPengguna = "Username wajib diisi.";
+    }
+
+    if (!form.email.trim()) {
+      result.email = "Email wajib diisi.";
+    } else if (
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())
+    ) {
+      result.email = "Format email tidak valid.";
+    }
+
+    if (!form.kataSandi.trim()) {
+      result.kataSandi = "Kata sandi wajib diisi.";
+    } else if (form.kataSandi.length < 6) {
+      result.kataSandi = "Kata sandi minimal 6 karakter.";
+    }
+
+    if (!guruRoleId) {
+      result.role = "Role Guru belum tersedia.";
+    }
+
+    return result;
+  }, [form, guruRoleId]);
+
+  const isValid = Object.keys(validation).length === 0;
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+
+    setError("");
+    setSuccess("");
+
+    setTouched({
+      namaLengkap: true,
+      namaPengguna: true,
+      email: true,
+      kataSandi: true,
     });
-  };
 
-  // =========================
-  // SUBMIT FORM
-  // =========================
-  const handleSubmitForm = (e) => {
-    e.preventDefault();
+    if (!isValid) {
+      const firstError = Object.values(validation)[0];
 
-    if (!formData.nama || !formData.nip || !formData.mapel) {
-      alert("Nama, NIP, dan Mapel wajib diisi!");
+      setError(firstError);
       return;
     }
 
-    const list = loadGuru();
+    try {
+      setLoading(true);
 
-    const newId =
-      list.length > 0
-        ? Math.max(...list.map((g) => g.id)) + 1
-        : 1;
+      const payload = {
+        namaPengguna: form.namaPengguna.trim(),
+        email: form.email.trim(),
+        namaLengkap: form.namaLengkap.trim(),
+        kataSandi: form.kataSandi,
+        peranId: guruRoleId,
 
-    list.push({
-      ...formData,
-      id: newId,
+        nip: form.nip.trim() || null,
+        nuptk: form.nuptk.trim() || null,
+        jenisKelamin: form.jenisKelamin || null,
+        tempatLahir: form.tempatLahir.trim() || null,
+        tanggalLahir: form.tanggalLahir || null,
+        noTelepon: form.noTelepon.trim() || null,
+        alamat: form.alamat.trim() || null,
+        jabatan: form.jabatan.trim() || null,
+        golongan: form.golongan.trim() || null,
+        nik: form.nik.trim() || null,
+        alamatKtp: form.alamatKtp.trim() || null,
+        alamatDomisili: form.alamatDomisili.trim() || null,
+        kecamatan: form.kecamatan.trim() || null,
+        kelurahan: form.kelurahan.trim() || null,
+        kota: form.kota.trim() || null,
+      };
+
+      const response = await createUser(payload);
+
+      if (!response?.success) {
+        throw new Error(
+          response?.message || "Gagal menambahkan guru."
+        );
+      }
+
+      setSuccess(
+        response?.message || "Guru berhasil ditambahkan."
+      );
+
+      setTimeout(() => {
+        router.push("/admin/guru");
+      }, 1000);
+    } catch (err) {
+      console.error("ERROR TAMBAH GURU:", err);
+
+      setError(
+        err?.message ||
+          "Terjadi kesalahan saat menambahkan guru."
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function handleReset() {
+    setForm({
+      namaLengkap: "",
+      namaPengguna: "",
+      email: "",
+      kataSandi: "",
+
+      nip: "",
+      nuptk: "",
+
+      jenisKelamin: "L",
+      tempatLahir: "",
+      tanggalLahir: "",
+
+      noTelepon: "",
+      alamat: "",
+
+      jabatan: "Guru",
+      golongan: "",
+
+      nik: "",
+      alamatKtp: "",
+      alamatDomisili: "",
+      kecamatan: "",
+      kelurahan: "",
+      kota: "",
     });
 
-    saveGuru(list);
-
-    alert("Guru berhasil ditambahkan!");
-
-    router.push("/admin/guru");
-  };
-
-  // =========================
-  // FILE CHANGE
-  // =========================
-  const handleFileChange = (e) => {
-    const selected = e.target.files[0];
-
-    if (selected) {
-      setFile(selected);
-      setImportStatus(null);
-      setImportMessage("");
-    }
-  };
-
-  // =========================
-  // IMPORT DATA
-  // =========================
-  const handleImport = () => {
-    if (!file) {
-      setImportStatus("error");
-      setImportMessage("Silakan pilih file terlebih dahulu.");
-      return;
-    }
-
-    // Simulasi import
-    const list = loadGuru();
-
-    const baseId =
-      list.length > 0
-        ? Math.max(...list.map((g) => g.id))
-        : 0;
-
-    const newGuru = [
-      {
-        id: baseId + 1,
-        nama: "Imported Guru 1",
-        nip: "199001012010011001",
-        mapel: "Matematika",
-        email: "import1@sekolah.com",
-        phone: "081234567800",
-        status: "Aktif",
-        alamat: "Jl. Import No. 1",
-        tglLahir: "1990-01-01",
-        gender: "L",
-        joinDate: "2010-01-01",
-      },
-      {
-        id: baseId + 2,
-        nama: "Imported Guru 2",
-        nip: "199002012010011002",
-        mapel: "Bahasa Indonesia",
-        email: "import2@sekolah.com",
-        phone: "081234567801",
-        status: "Aktif",
-        alamat: "Jl. Import No. 2",
-        tglLahir: "1990-02-01",
-        gender: "P",
-        joinDate: "2010-01-01",
-      },
-    ];
-
-    const updated = [...list, ...newGuru];
-
-    saveGuru(updated);
-
-    setImportStatus("success");
-    setImportMessage(
-      `Berhasil mengimport ${newGuru.length} guru!`
-    );
+    setTouched({});
+    setError("");
+    setSuccess("");
+    setShowPassword(false);
 
     setTimeout(() => {
-      router.push("/admin/guru");
-    }, 2000);
-  };
+      namaInputRef.current?.focus();
+    }, 100);
+  }
 
-  // =========================
-  // DROP FILE
-  // =========================
-  const handleDrop = (e) => {
-    e.preventDefault();
-
-    const dropped = e.dataTransfer.files[0];
-
-    if (dropped) {
-      setFile(dropped);
-      setImportStatus(null);
-      setImportMessage("");
+  function FieldError({ name }) {
+    if (!touched[name] || !validation[name]) {
+      return null;
     }
-  };
+
+    return (
+      <p className="mt-1.5 flex items-center gap-1 text-xs text-red-600">
+        <AlertCircle size={13} />
+        {validation[name]}
+      </p>
+    );
+  }
+
+  function SectionTitle({ icon: Icon, title, description }) {
+    return (
+      <div className="mb-6 flex items-start gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+          <Icon size={20} />
+        </div>
+
+        <div>
+          <h2 className="text-base font-bold text-slate-900">
+            {title}
+          </h2>
+
+          {description && (
+            <p className="mt-0.5 text-sm text-slate-500">
+              {description}
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-slate-50">
-      {/* SIDEBAR */}
-      <Sidebar
-        active="guru"
-        setActive={() => {}}
-        collapsed={isCollapsed}
-        setCollapsed={setIsCollapsed}
-      />
+    <div className="flex h-screen overflow-hidden bg-[#F8FAFC]">
+      <Sidebar role="admin" />
 
-      {/* CONTENT AREA */}
-      <div className="flex min-w-0 flex-1 flex-col h-full overflow-hidden">
-        {/* HEADER */}
-        <Header
-          toggleSidebar={() => setIsCollapsed(!isCollapsed)}
-          notifications={[]}
-          user={{
-            name: "Admin Sekolah",
-            email: "admin@smartschool.com",
-            avatar: "AD",
-          }}
-        />
+      <div className="flex h-screen flex-1 flex-col overflow-hidden">
+        <Header />
 
-        {/* MAIN */}
-        <main className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden">
-          <div className="w-full px-3 py-4 sm:px-4 md:px-6 lg:px-8 xl:px-10">
-            <div className="w-full space-y-5 sm:space-y-6">
+        <main className="flex-1 overflow-y-auto px-6 py-6 lg:px-8">
+          <div className="mx-auto max-w-7xl">
+            <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <button
+                  type="button"
+                  onClick={() => router.push("/admin/guru")}
+                  className="mb-3 inline-flex items-center gap-2 text-sm font-medium text-slate-500 transition hover:text-blue-600"
+                >
+                  <ArrowLeft size={17} />
+                  Kembali ke Data Guru
+                </button>
 
-              {/* BACK BUTTON */}
-              <button
-                onClick={() => router.back()}
-                className="
-                  inline-flex
-                  items-center
-                  gap-2
-                  text-sm
-                  text-slate-500
-                  transition
-                  hover:text-slate-700
-                "
-              >
-                <ArrowLeft size={16} />
-                <span>Kembali</span>
-              </button>
+                <div className="flex items-center gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-200">
+                    <UserPlus size={24} />
+                  </div>
 
-              {/* TITLE */}
-              <div className="flex items-center gap-2 sm:gap-3">
-                <div className="
-                  flex
-                  h-9
-                  w-9
-                  shrink-0
-                  items-center
-                  justify-center
-                  rounded-xl
-                  bg-indigo-50
-                  text-indigo-600
-                  sm:h-10
-                  sm:w-10
-                ">
-                  <UserPlus size={20} />
+                  <div>
+                    <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+                      Tambah Guru
+                    </h1>
+
+                    <p className="mt-1 text-sm text-slate-500">
+                      Tambahkan data guru baru ke sistem SmartSchool.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleReset}
+                  disabled={loading}
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <X size={17} />
+                  Reset
+                </button>
+
+                <button
+                  type="submit"
+                  form="form-tambah-guru"
+                  disabled={
+                    loading || loadingRole || !guruRoleId
+                  }
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-semibold text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 size={17} className="animate-spin" />
+                      Menyimpan...
+                    </>
+                  ) : (
+                    <>
+                      <Save size={17} />
+                      Simpan Guru
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {error && (
+              <div className="mb-5 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3.5 text-red-700">
+                <AlertCircle size={20} className="mt-0.5 shrink-0" />
+
+                <div>
+                  <p className="text-sm font-semibold">
+                    Terjadi kesalahan
+                  </p>
+
+                  <p className="mt-0.5 text-sm">{error}</p>
+                </div>
+              </div>
+            )}
+
+            {success && (
+              <div className="mb-5 flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3.5 text-emerald-700">
+                <CheckCircle2 size={20} className="mt-0.5 shrink-0" />
+
+                <div>
+                  <p className="text-sm font-semibold">Berhasil</p>
+
+                  <p className="mt-0.5 text-sm">{success}</p>
+                </div>
+              </div>
+            )}
+
+            <div className="mb-5 rounded-2xl border border-blue-100 bg-blue-50/70 p-4">
+              <div className="flex items-start gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white">
+                  {loadingRole ? (
+                    <Loader2 size={18} className="animate-spin" />
+                  ) : (
+                    <ShieldCheck size={18} />
+                  )}
                 </div>
 
-                <div className="min-w-0">
-                  <h1 className="
-                    text-xl
-                    font-bold
-                    text-slate-800
-                    sm:text-2xl
-                  ">
-                    Tambah Guru
-                  </h1>
+                <div>
+                  <p className="text-sm font-semibold text-blue-900">
+                    Role pengguna
+                  </p>
 
-                  <p className="
-                    mt-0.5
-                    text-xs
-                    text-slate-500
-                    sm:text-sm
-                  ">
-                    Tambahkan data guru baru ke sistem
+                  <p className="mt-0.5 text-xs leading-5 text-blue-700">
+                    {loadingRole
+                      ? "Sedang mengambil role Guru dari backend..."
+                      : guruRoleId
+                      ? "Guru akan dibuat menggunakan role Guru yang tersimpan di database."
+                      : "Role Guru belum ditemukan di database."}
                   </p>
                 </div>
               </div>
+            </div>
 
-              {/* =========================
-                  TABS
-              ========================= */}
-              <div className="
-                flex
-                w-full
-                gap-1
-                overflow-x-auto
-                border-b
-                border-slate-200
-                pb-1
-                sm:gap-2
-              ">
-                <button
-                  onClick={() => setActiveTab("form")}
-                  className={`
-                    shrink-0
-                    rounded-t-xl
-                    px-3
-                    py-2.5
-                    text-xs
-                    font-medium
-                    transition-all
-                    sm:px-5
-                    sm:text-sm
-                    ${
-                      activeTab === "form"
-                        ? "border-b-2 border-indigo-500 bg-white text-indigo-600 shadow-sm"
-                        : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
-                    }
-                  `}
-                >
-                  Form Biasa
-                </button>
+            <form
+              id="form-tambah-guru"
+              onSubmit={handleSubmit}
+              className="space-y-5"
+            >
+              <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <SectionTitle
+                  icon={Lock}
+                  title="Akun Pengguna"
+                  description="Data ini digunakan guru untuk login ke SmartSchool."
+                />
 
-                <button
-                  onClick={() => setActiveTab("import")}
-                  className={`
-                    shrink-0
-                    rounded-t-xl
-                    px-3
-                    py-2.5
-                    text-xs
-                    font-medium
-                    transition-all
-                    sm:px-5
-                    sm:text-sm
-                    ${
-                      activeTab === "import"
-                        ? "border-b-2 border-indigo-500 bg-white text-indigo-600 shadow-sm"
-                        : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
-                    }
-                  `}
-                >
-                  Import Data
-                </button>
-              </div>
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-slate-700">
+                      Nama Lengkap{" "}
+                      <span className="text-red-500">*</span>
+                    </label>
 
-              {/* =========================
-                  FORM BIASA
-              ========================= */}
-              {activeTab === "form" && (
-                <div className="
-                  w-full
-                  rounded-xl
-                  border
-                  border-slate-200/80
-                  bg-white
-                  p-4
-                  shadow-sm
-                  sm:p-5
-                  md:p-6
-                  lg:p-7
-                ">
-                  <form
-                    onSubmit={handleSubmitForm}
-                    className="space-y-5"
-                  >
-                    {/* FORM GRID */}
-                    <div className="
-                      grid
-                      grid-cols-1
-                      gap-4
-                      sm:grid-cols-2
-                      lg:gap-5
-                      xl:gap-6
-                    ">
-
-                      {/* NAMA */}
-                      <div className="min-w-0">
-                        <label className="
-                          mb-1.5
-                          block
-                          text-sm
-                          font-medium
-                          text-slate-700
-                        ">
-                          Nama Lengkap *
-                        </label>
-
-                        <input
-                          type="text"
-                          name="nama"
-                          value={formData.nama}
-                          onChange={handleFormChange}
-                          placeholder="Contoh: Dr. Ahmad Fauzi, M.Pd."
-                          required
-                          className="
-                            w-full
-                            min-w-0
-                            rounded-xl
-                            border
-                            border-slate-200
-                            bg-slate-50
-                            px-4
-                            py-2.5
-                            text-sm
-                            text-slate-700
-                            outline-none
-                            transition
-                            placeholder:text-slate-400
-                            focus:border-indigo-400
-                            focus:ring-2
-                            focus:ring-indigo-500/20
-                          "
-                        />
-                      </div>
-
-                      {/* NIP */}
-                      <div className="min-w-0">
-                        <label className="
-                          mb-1.5
-                          block
-                          text-sm
-                          font-medium
-                          text-slate-700
-                        ">
-                          NIP *
-                        </label>
-
-                        <input
-                          type="text"
-                          name="nip"
-                          value={formData.nip}
-                          onChange={handleFormChange}
-                          placeholder="198501012010011001"
-                          required
-                          className="
-                            w-full
-                            min-w-0
-                            rounded-xl
-                            border
-                            border-slate-200
-                            bg-slate-50
-                            px-4
-                            py-2.5
-                            text-sm
-                            text-slate-700
-                            outline-none
-                            transition
-                            placeholder:text-slate-400
-                            focus:border-indigo-400
-                            focus:ring-2
-                            focus:ring-indigo-500/20
-                          "
-                        />
-                      </div>
-
-                      {/* MAPEL — SEARCHABLE SELECT */}
-                      <div ref={mapelRef} className="min-w-0 relative">
-                        <label className="
-                          mb-1.5
-                          block
-                          text-sm
-                          font-medium
-                          text-slate-700
-                        ">
-                          Mata Pelajaran *
-                        </label>
-                        <div
-                          className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-700 outline-none transition focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-500/20"
-                          onClick={() => setIsMapelOpen((prev) => !prev)}
-                        >
-                          <input
-                            type="text"
-                            placeholder={formData.mapel || "Cari mata pelajaran..."}
-                            value={mapelSearch}
-                            onChange={(e) => {
-                              setMapelSearch(e.target.value);
-                              setIsMapelOpen(true);
-                            }}
-                            onFocus={() => setIsMapelOpen(true)}
-                            className="w-full bg-transparent outline-none placeholder:text-slate-400"
-                            autoComplete="off"
-                          />
-                        </div>
-
-                        {isMapelOpen && (
-                          <ul className="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg">
-                            {filteredMapel.length === 0 ? (
-                              <li className="px-4 py-2 text-sm text-slate-500">
-                                Tidak ada mata pelajaran
-                              </li>
-                            ) : (
-                              filteredMapel.map((m) => (
-                                <li
-                                  key={m}
-                                  className={`cursor-pointer px-4 py-2 text-sm transition hover:bg-indigo-50 ${
-                                    formData.mapel === m ? "bg-indigo-100 font-semibold text-indigo-700" : ""
-                                  }`}
-                                  onClick={() => {
-                                    setFormData({ ...formData, mapel: m });
-                                    setMapelSearch("");
-                                    setIsMapelOpen(false);
-                                  }}
-                                >
-                                  {m}
-                                </li>
-                              ))
-                            )}
-                          </ul>
-                        )}
-                      </div>
-
-                      {/* EMAIL */}
-                      <div className="min-w-0">
-                        <label className="
-                          mb-1.5
-                          block
-                          text-sm
-                          font-medium
-                          text-slate-700
-                        ">
-                          Email
-                        </label>
-
-                        <input
-                          type="email"
-                          name="email"
-                          value={formData.email}
-                          onChange={handleFormChange}
-                          placeholder="guru@sekolah.com"
-                          className="
-                            w-full
-                            min-w-0
-                            rounded-xl
-                            border
-                            border-slate-200
-                            bg-slate-50
-                            px-4
-                            py-2.5
-                            text-sm
-                            text-slate-700
-                            outline-none
-                            transition
-                            placeholder:text-slate-400
-                            focus:border-indigo-400
-                            focus:ring-2
-                            focus:ring-indigo-500/20
-                          "
-                        />
-                      </div>
-
-                      {/* TELEPON */}
-                      <div className="min-w-0">
-                        <label className="
-                          mb-1.5
-                          block
-                          text-sm
-                          font-medium
-                          text-slate-700
-                        ">
-                          Telepon
-                        </label>
-
-                        <input
-                          type="text"
-                          name="phone"
-                          value={formData.phone}
-                          onChange={handleFormChange}
-                          placeholder="081234567890"
-                          className="
-                            w-full
-                            min-w-0
-                            rounded-xl
-                            border
-                            border-slate-200
-                            bg-slate-50
-                            px-4
-                            py-2.5
-                            text-sm
-                            text-slate-700
-                            outline-none
-                            transition
-                            placeholder:text-slate-400
-                            focus:border-indigo-400
-                            focus:ring-2
-                            focus:ring-indigo-500/20
-                          "
-                        />
-                      </div>
-
-                      {/* STATUS — dropdown biasa */}
-                      <div className="min-w-0">
-                        <label className="
-                          mb-1.5
-                          block
-                          text-sm
-                          font-medium
-                          text-slate-700
-                        ">
-                          Status
-                        </label>
-
-                        <select
-                          name="status"
-                          value={formData.status}
-                          onChange={handleFormChange}
-                          className="
-                            w-full
-                            min-w-0
-                            rounded-xl
-                            border
-                            border-slate-200
-                            bg-slate-50
-                            px-4
-                            py-2.5
-                            text-sm
-                            text-slate-700
-                            outline-none
-                            transition
-                            focus:border-indigo-400
-                            focus:ring-2
-                            focus:ring-indigo-500/20
-                          "
-                        >
-                          <option value="Aktif">Aktif</option>
-                          <option value="Nonaktif">Nonaktif</option>
-                        </select>
-                      </div>
-
-                      {/* ALAMAT */}
-                      <div className="
-                        min-w-0
-                        sm:col-span-2
-                      ">
-                        <label className="
-                          mb-1.5
-                          block
-                          text-sm
-                          font-medium
-                          text-slate-700
-                        ">
-                          Alamat
-                        </label>
-
-                        <input
-                          type="text"
-                          name="alamat"
-                          value={formData.alamat}
-                          onChange={handleFormChange}
-                          placeholder="Jl. Contoh No. 1, Kota"
-                          className="
-                            w-full
-                            min-w-0
-                            rounded-xl
-                            border
-                            border-slate-200
-                            bg-slate-50
-                            px-4
-                            py-2.5
-                            text-sm
-                            text-slate-700
-                            outline-none
-                            transition
-                            placeholder:text-slate-400
-                            focus:border-indigo-400
-                            focus:ring-2
-                            focus:ring-indigo-500/20
-                          "
-                        />
-                      </div>
-
-                      {/* TANGGAL LAHIR */}
-                      <div className="min-w-0">
-                        <label className="
-                          mb-1.5
-                          block
-                          text-sm
-                          font-medium
-                          text-slate-700
-                        ">
-                          Tanggal Lahir
-                        </label>
-
-                        <input
-                          type="date"
-                          name="tglLahir"
-                          value={formData.tglLahir}
-                          onChange={handleFormChange}
-                          className="
-                            w-full
-                            min-w-0
-                            rounded-xl
-                            border
-                            border-slate-200
-                            bg-slate-50
-                            px-4
-                            py-2.5
-                            text-sm
-                            text-slate-700
-                            outline-none
-                            transition
-                            focus:border-indigo-400
-                            focus:ring-2
-                            focus:ring-indigo-500/20
-                          "
-                        />
-                      </div>
-
-                      {/* GENDER — dropdown biasa */}
-                      <div className="min-w-0">
-                        <label className="
-                          mb-1.5
-                          block
-                          text-sm
-                          font-medium
-                          text-slate-700
-                        ">
-                          Jenis Kelamin
-                        </label>
-
-                        <select
-                          name="gender"
-                          value={formData.gender}
-                          onChange={handleFormChange}
-                          className="
-                            w-full
-                            min-w-0
-                            rounded-xl
-                            border
-                            border-slate-200
-                            bg-slate-50
-                            px-4
-                            py-2.5
-                            text-sm
-                            text-slate-700
-                            outline-none
-                            transition
-                            focus:border-indigo-400
-                            focus:ring-2
-                            focus:ring-indigo-500/20
-                          "
-                        >
-                          <option value="L">Laki-laki</option>
-                          <option value="P">Perempuan</option>
-                        </select>
-                      </div>
-
-                      {/* TANGGAL BERGABUNG */}
-                      <div className="
-                        min-w-0
-                        sm:col-span-2
-                        lg:col-span-1
-                      ">
-                        <label className="
-                          mb-1.5
-                          block
-                          text-sm
-                          font-medium
-                          text-slate-700
-                        ">
-                          Tanggal Bergabung
-                        </label>
-
-                        <input
-                          type="date"
-                          name="joinDate"
-                          value={formData.joinDate}
-                          onChange={handleFormChange}
-                          className="
-                            w-full
-                            min-w-0
-                            rounded-xl
-                            border
-                            border-slate-200
-                            bg-slate-50
-                            px-4
-                            py-2.5
-                            text-sm
-                            text-slate-700
-                            outline-none
-                            transition
-                            focus:border-indigo-400
-                            focus:ring-2
-                            focus:ring-indigo-500/20
-                          "
-                        />
-                      </div>
-                    </div>
-
-                    {/* ACTION BUTTON */}
-                    <div className="
-                      flex
-                      flex-col-reverse
-                      gap-2
-                      border-t
-                      border-slate-100
-                      pt-4
-                      sm:flex-row
-                      sm:justify-end
-                      sm:gap-3
-                    ">
-                      <button
-                        type="button"
-                        onClick={() => router.back()}
-                        className="
-                          w-full
-                          rounded-xl
-                          border
-                          border-slate-200
-                          px-5
-                          py-2.5
-                          text-sm
-                          font-medium
-                          text-slate-600
-                          transition
-                          hover:bg-slate-50
-                          sm:w-auto
-                          sm:px-6
-                        "
-                      >
-                        Batal
-                      </button>
-
-                      <button
-                        type="submit"
-                        className="
-                          w-full
-                          rounded-xl
-                          bg-indigo-600
-                          px-5
-                          py-2.5
-                          text-sm
-                          font-medium
-                          text-white
-                          shadow-sm
-                          transition
-                          hover:bg-indigo-700
-                          hover:shadow-md
-                          sm:w-auto
-                          sm:px-6
-                        "
-                      >
-                        Simpan Guru
-                      </button>
-                    </div>
-                  </form>
-                </div>
-              )}
-
-              {/* =========================
-                  IMPORT DATA
-              ========================= */}
-              {activeTab === "import" && (
-                <div className="
-                  w-full
-                  rounded-xl
-                  border
-                  border-slate-200/80
-                  bg-white
-                  p-4
-                  shadow-sm
-                  sm:p-5
-                  md:p-6
-                  lg:p-7
-                ">
-                  {/* TITLE IMPORT */}
-                  <div className="
-                    mb-5
-                    text-center
-                    sm:mb-6
-                  ">
-                    <FileSpreadsheet
-                      size={48}
-                      className="
-                        mx-auto
-                        mb-2
-                        text-indigo-500
-                      "
-                    />
-
-                    <h3 className="
-                      text-lg
-                      font-semibold
-                      text-slate-800
-                    ">
-                      Import Data Guru
-                    </h3>
-
-                    <p className="
-                      mx-auto
-                      mt-1
-                      max-w-xl
-                      text-xs
-                      leading-5
-                      text-slate-500
-                      sm:text-sm
-                    ">
-                      Upload file Excel/CSV.
-                      Kolom wajib: Nama, NIP, Mapel.
-                    </p>
-                  </div>
-
-                  {/* DROP ZONE */}
-                  <div
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={handleDrop}
-                    className="
-                      cursor-pointer
-                      rounded-xl
-                      border-2
-                      border-dashed
-                      border-slate-300
-                      bg-slate-50/50
-                      p-5
-                      text-center
-                      transition-all
-                      hover:border-indigo-400
-                      sm:p-8
-                    "
-                  >
-                    <input
-                      type="file"
-                      accept=".xlsx,.xls,.csv"
-                      onChange={handleFileChange}
-                      className="hidden"
-                      id="fileInput"
-                    />
-
-                    <label
-                      htmlFor="fileInput"
-                      className="
-                        block
-                        cursor-pointer
-                      "
-                    >
-                      <Upload
-                        size={32}
-                        className="
-                          mx-auto
-                          mb-3
-                          text-slate-400
-                        "
+                    <div className="relative">
+                      <User
+                        size={18}
+                        className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
                       />
 
-                      <p className="
-                        break-words
-                        text-sm
-                        text-slate-600
-                      ">
-                        {file
-                          ? file.name
-                          : "Seret file ke sini atau klik untuk memilih"}
-                      </p>
+                      <input
+                        ref={namaInputRef}
+                        type="text"
+                        name="namaLengkap"
+                        value={form.namaLengkap}
+                        onChange={handleNamaChange}
+                        placeholder="Contoh: Budi Santoso"
+                        className={`h-11 w-full rounded-xl border bg-white pl-10 pr-4 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:ring-4 ${
+                          touched.namaLengkap &&
+                          validation.namaLengkap
+                            ? "border-red-300 focus:border-red-400 focus:ring-red-50"
+                            : "border-slate-200 focus:border-blue-500 focus:ring-blue-50"
+                        }`}
+                      />
+                    </div>
 
-                      <p className="
-                        mt-1
-                        text-xs
-                        text-slate-400
-                      ">
-                        Format: .xlsx, .xls, .csv
-                      </p>
-                    </label>
+                    <FieldError name="namaLengkap" />
                   </div>
 
-                  {/* SELECTED FILE */}
-                  {file && (
-                    <div className="
-                      mt-4
-                      flex
-                      flex-col
-                      gap-3
-                      rounded-xl
-                      border
-                      border-slate-200
-                      bg-slate-50
-                      p-3
-                      sm:flex-row
-                      sm:items-center
-                      sm:justify-between
-                    ">
-                      <div className="
-                        flex
-                        min-w-0
-                        items-center
-                        gap-3
-                      ">
-                        <FileSpreadsheet
-                          size={20}
-                          className="
-                            shrink-0
-                            text-indigo-500
-                          "
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-slate-700">
+                      Username{" "}
+                      <span className="text-red-500">*</span>
+                    </label>
+
+                    <div className="relative">
+                      <User
+                        size={18}
+                        className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                      />
+
+                      <input
+                        type="text"
+                        name="namaPengguna"
+                        value={form.namaPengguna}
+                        onChange={handleUsernameChange}
+                        placeholder="Contoh: budi.santoso"
+                        className={`h-11 w-full rounded-xl border bg-white pl-10 pr-4 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:ring-4 ${
+                          touched.namaPengguna &&
+                          validation.namaPengguna
+                            ? "border-red-300 focus:border-red-400 focus:ring-red-50"
+                            : "border-slate-200 focus:border-blue-500 focus:ring-blue-50"
+                        }`}
+                      />
+                    </div>
+
+                    <p className="mt-1.5 text-xs text-slate-400">
+                      Username digunakan saat login.
+                    </p>
+
+                    <FieldError name="namaPengguna" />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-slate-700">
+                      Email{" "}
+                      <span className="text-red-500">*</span>
+                    </label>
+
+                    <div className="relative">
+                      <Mail
+                        size={18}
+                        className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                      />
+
+                      <input
+                        type="email"
+                        name="email"
+                        value={form.email}
+                        onChange={handleChange}
+                        placeholder="guru@smartschool.com"
+                        className={`h-11 w-full rounded-xl border bg-white pl-10 pr-4 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:ring-4 ${
+                          touched.email && validation.email
+                            ? "border-red-300 focus:border-red-400 focus:ring-red-50"
+                            : "border-slate-200 focus:border-blue-500 focus:ring-blue-50"
+                        }`}
+                      />
+                    </div>
+
+                    <FieldError name="email" />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-slate-700">
+                      Kata Sandi{" "}
+                      <span className="text-red-500">*</span>
+                    </label>
+
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <Lock
+                          size={18}
+                          className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
                         />
 
-                        <div className="min-w-0">
-                          <p
-                            title={file.name}
-                            className="
-                              truncate
-                              text-sm
-                              font-medium
-                              text-slate-700
-                            "
-                          >
-                            {file.name}
-                          </p>
+                        <input
+                          type={showPassword ? "text" : "password"}
+                          name="kataSandi"
+                          value={form.kataSandi}
+                          onChange={handleChange}
+                          placeholder="Minimal 6 karakter"
+                          className={`h-11 w-full rounded-xl border bg-white pl-10 pr-11 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:ring-4 ${
+                            touched.kataSandi &&
+                            validation.kataSandi
+                              ? "border-red-300 focus:border-red-400 focus:ring-red-50"
+                              : "border-slate-200 focus:border-blue-500 focus:ring-blue-50"
+                          }`}
+                        />
 
-                          <p className="
-                            text-xs
-                            text-slate-400
-                          ">
-                            {(file.size / 1024).toFixed(1)} KB
-                          </p>
-                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setShowPassword((prev) => !prev)
+                          }
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-700"
+                        >
+                          {showPassword ? (
+                            <EyeOff size={18} />
+                          ) : (
+                            <Eye size={18} />
+                          )}
+                        </button>
                       </div>
 
                       <button
                         type="button"
-                        onClick={() => setFile(null)}
-                        className="
-                          self-end
-                          rounded-lg
-                          p-1.5
-                          text-slate-400
-                          transition
-                          hover:bg-rose-50
-                          hover:text-rose-600
-                          sm:self-auto
-                        "
+                        onClick={handleGeneratePassword}
+                        className="h-11 shrink-0 rounded-xl border border-blue-200 bg-blue-50 px-3 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
                       >
-                        <XCircle size={18} />
+                        Generate
                       </button>
                     </div>
-                  )}
 
-                  {/* IMPORT STATUS */}
-                  {importStatus && (
-                    <div
-                      className={`
-                        mt-4
-                        flex
-                        items-start
-                        gap-3
-                        rounded-xl
-                        border
-                        p-3
-                        ${
-                          importStatus === "success"
-                            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                            : "border-rose-200 bg-rose-50 text-rose-700"
-                        }
-                      `}
-                    >
-                      {importStatus === "success" ? (
-                        <CheckCircle
-                          size={18}
-                          className="mt-0.5 shrink-0"
-                        />
-                      ) : (
-                        <XCircle
-                          size={18}
-                          className="mt-0.5 shrink-0"
-                        />
-                      )}
-
-                      <span className="
-                        text-sm
-                        font-medium
-                        leading-5
-                      ">
-                        {importMessage}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* IMPORT BUTTON */}
-                  <div className="
-                    mt-6
-                    flex
-                    flex-col-reverse
-                    gap-2
-                    border-t
-                    border-slate-100
-                    pt-4
-                    sm:flex-row
-                    sm:justify-end
-                    sm:gap-3
-                  ">
-                    <button
-                      type="button"
-                      onClick={() => router.back()}
-                      className="
-                        w-full
-                        rounded-xl
-                        border
-                        border-slate-200
-                        px-5
-                        py-2.5
-                        text-sm
-                        font-medium
-                        text-slate-600
-                        transition
-                        hover:bg-slate-50
-                        sm:w-auto
-                        sm:px-6
-                      "
-                    >
-                      Batal
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={handleImport}
-                      className="
-                        flex
-                        w-full
-                        items-center
-                        justify-center
-                        gap-2
-                        rounded-xl
-                        bg-indigo-600
-                        px-5
-                        py-2.5
-                        text-sm
-                        font-medium
-                        text-white
-                        shadow-sm
-                        transition
-                        hover:bg-indigo-700
-                        hover:shadow-md
-                        sm:w-auto
-                        sm:px-6
-                      "
-                    >
-                      <Upload size={17} />
-                      Import
-                    </button>
+                    <FieldError name="kataSandi" />
                   </div>
                 </div>
-              )}
+              </section>
 
-            </div>
+              <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <SectionTitle
+                  icon={BriefcaseBusiness}
+                  title="Data Kepegawaian"
+                  description="Informasi identitas dan data kepegawaian guru."
+                />
+
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-slate-700">
+                      NIP
+                    </label>
+
+                    <div className="relative">
+                      <Hash
+                        size={18}
+                        className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                      />
+
+                      <input
+                        type="text"
+                        name="nip"
+                        value={form.nip}
+                        onChange={handleChange}
+                        placeholder="Contoh: 198501012010011001"
+                        className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-50"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-slate-700">
+                      NUPTK
+                    </label>
+
+                    <div className="relative">
+                      <Hash
+                        size={18}
+                        className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                      />
+
+                      <input
+                        type="text"
+                        name="nuptk"
+                        value={form.nuptk}
+                        onChange={handleChange}
+                        placeholder="Masukkan NUPTK"
+                        className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-50"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-slate-700">
+                      Jabatan
+                    </label>
+
+                    <input
+                      type="text"
+                      name="jabatan"
+                      value={form.jabatan}
+                      onChange={handleChange}
+                      placeholder="Guru"
+                      className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-50"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-slate-700">
+                      Golongan
+                    </label>
+
+                    <select
+                      name="golongan"
+                      value={form.golongan}
+                      onChange={handleChange}
+                      className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-50"
+                    >
+                      <option value="">Pilih golongan</option>
+                      <option value="III/a">III/a</option>
+                      <option value="III/b">III/b</option>
+                      <option value="III/c">III/c</option>
+                      <option value="III/d">III/d</option>
+                      <option value="IV/a">IV/a</option>
+                      <option value="IV/b">IV/b</option>
+                      <option value="IV/c">IV/c</option>
+                      <option value="IV/d">IV/d</option>
+                      <option value="IV/e">IV/e</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-slate-700">
+                      Jenis Kelamin
+                    </label>
+
+                    <select
+                      name="jenisKelamin"
+                      value={form.jenisKelamin}
+                      onChange={handleChange}
+                      className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-50"
+                    >
+                      <option value="L">Laki-laki</option>
+                      <option value="P">Perempuan</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-slate-700">
+                      NIK
+                    </label>
+
+                    <div className="relative">
+                      <Hash
+                        size={18}
+                        className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                      />
+
+                      <input
+                        type="text"
+                        name="nik"
+                        value={form.nik}
+                        onChange={handleChange}
+                        placeholder="16 digit NIK"
+                        maxLength={16}
+                        className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-50"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <SectionTitle
+                  icon={User}
+                  title="Data Pribadi"
+                  description="Informasi pribadi guru."
+                />
+
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-slate-700">
+                      Tempat Lahir
+                    </label>
+
+                    <input
+                      type="text"
+                      name="tempatLahir"
+                      value={form.tempatLahir}
+                      onChange={handleChange}
+                      placeholder="Contoh: Jakarta"
+                      className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-50"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-slate-700">
+                      Tanggal Lahir
+                    </label>
+
+                    <div className="relative">
+                      <CalendarDays
+                        size={18}
+                        className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                      />
+
+                      <input
+                        type="date"
+                        name="tanggalLahir"
+                        value={form.tanggalLahir}
+                        onChange={handleChange}
+                        className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-50"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-slate-700">
+                      No. Telepon
+                    </label>
+
+                    <div className="relative">
+                      <Phone
+                        size={18}
+                        className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                      />
+
+                      <input
+                        type="tel"
+                        name="noTelepon"
+                        value={form.noTelepon}
+                        onChange={handleChange}
+                        placeholder="08xxxxxxxxxx"
+                        className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-50"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <SectionTitle
+                  icon={MapPin}
+                  title="Alamat"
+                  description="Informasi alamat tempat tinggal guru."
+                />
+
+                <div className="space-y-5">
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-slate-700">
+                      Alamat
+                    </label>
+
+                    <textarea
+                      name="alamat"
+                      value={form.alamat}
+                      onChange={handleChange}
+                      rows={3}
+                      placeholder="Masukkan alamat lengkap..."
+                      className="w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-50"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold text-slate-700">
+                        Alamat KTP
+                      </label>
+
+                      <textarea
+                        name="alamatKtp"
+                        value={form.alamatKtp}
+                        onChange={handleChange}
+                        rows={3}
+                        placeholder="Alamat sesuai KTP..."
+                        className="w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-50"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold text-slate-700">
+                        Alamat Domisili
+                      </label>
+
+                      <textarea
+                        name="alamatDomisili"
+                        value={form.alamatDomisili}
+                        onChange={handleChange}
+                        rows={3}
+                        placeholder="Alamat tempat tinggal saat ini..."
+                        className="w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-50"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-4">
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold text-slate-700">
+                        Kecamatan
+                      </label>
+
+                      <input
+                        type="text"
+                        name="kecamatan"
+                        value={form.kecamatan}
+                        onChange={handleChange}
+                        placeholder="Kecamatan"
+                        className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-50"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold text-slate-700">
+                        Kelurahan
+                      </label>
+
+                      <input
+                        type="text"
+                        name="kelurahan"
+                        value={form.kelurahan}
+                        onChange={handleChange}
+                        placeholder="Kelurahan"
+                        className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-50"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold text-slate-700">
+                        Kota / Kabupaten
+                      </label>
+
+                      <input
+                        type="text"
+                        name="kota"
+                        value={form.kota}
+                        onChange={handleChange}
+                        placeholder="Kota / Kabupaten"
+                        className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-50"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold text-slate-700">
+                        Status
+                      </label>
+
+                      <div className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4">
+                        <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+
+                        <span className="text-sm font-medium text-slate-700">
+                          Aktif
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section className="rounded-2xl border border-amber-200 bg-amber-50/60 p-5">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
+                    <BookOpen size={20} />
+                  </div>
+
+                  <div>
+                    <h3 className="text-sm font-bold text-amber-900">
+                      Penugasan Mata Pelajaran
+                    </h3>
+
+                    <p className="mt-1 text-sm leading-6 text-amber-800">
+                      Data guru pada halaman ini disimpan melalui endpoint
+                      pengguna. Berdasarkan schema backend kamu, mata
+                      pelajaran tidak disimpan langsung pada tabel Pengguna.
+                      Penugasan guru ke mata pelajaran dilakukan melalui
+                      relasi <b>KelasMapel</b>.
+                    </p>
+                  </div>
+                </div>
+              </section>
+
+              <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={() => router.push("/admin/guru")}
+                  disabled={loading}
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <X size={17} />
+                  Batal
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={
+                    loading || loadingRole || !guruRoleId
+                  }
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 text-sm font-semibold text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 size={17} className="animate-spin" />
+                      Menyimpan...
+                    </>
+                  ) : (
+                    <>
+                      <GraduationCap size={17} />
+                      Simpan Guru
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </main>
       </div>

@@ -1,30 +1,35 @@
 "use client";
 
 import {
-  useState,
-  useRef,
   useCallback,
   useEffect,
-  useMemo,
+  useRef,
+  useState,
 } from "react";
-import { useSearchParams } from "next/navigation";
 
-import Sidebar from "../../components/Sidebar";
-import Header from "../../components/Header";
+import { useSearchParams } from "next/navigation";
 
 import {
   Camera,
-  RotateCcw,
-  Check,
-  X,
-  ClipboardCheck,
-  CalendarDays,
-  ChevronLeft,
-  ChevronRight as ChevronRightIcon,
-  FileText,
-  Loader2,
+  MapPin,
+  CheckCircle2,
   AlertCircle,
+  RefreshCw,
+  CalendarDays,
+  Clock3,
+  UserCheck,
+  X,
+  Loader2,
+  FileText,
+  HeartPulse,
+  UserX,
+  ScanFace,
+  Video,
+  ChevronDown,
 } from "lucide-react";
+
+import Header from "../../components/Header";
+import Sidebar from "../../components/Sidebar";
 
 import {
   getAbsensiSaya,
@@ -32,1443 +37,1821 @@ import {
   absenManual,
 } from "../../../services/absensi.service";
 
-const STATUS_STYLE = {
-  hadir: {
-    label: "Hadir",
-    dot: "bg-emerald-500",
-    bg: "bg-emerald-50",
-    text: "text-emerald-700",
-  },
+/* =========================================================
+   GPS
+========================================================= */
 
-  izin: {
-    label: "Izin",
-    dot: "bg-blue-500",
-    bg: "bg-blue-50",
-    text: "text-blue-700",
-  },
+function getCurrentLocation() {
+  return new Promise((resolve, reject) => {
+    if (
+      typeof navigator === "undefined" ||
+      !navigator.geolocation
+    ) {
+      reject(
+        new Error(
+          "Browser kamu tidak mendukung fitur lokasi."
+        )
+      );
 
-  sakit: {
-    label: "Sakit",
-    dot: "bg-amber-500",
-    bg: "bg-amber-50",
-    text: "text-amber-700",
-  },
+      return;
+    }
 
-  alpha: {
-    label: "Alpha",
-    dot: "bg-red-500",
-    bg: "bg-red-50",
-    text: "text-red-700",
-  },
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        resolve(position);
+      },
+      (error) => {
+        let message =
+          "Gagal mendapatkan lokasi.";
 
-  alpa: {
-    label: "Alpha",
-    dot: "bg-red-500",
-    bg: "bg-red-50",
-    text: "text-red-700",
-  },
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            message =
+              "Izin lokasi ditolak. Aktifkan lokasi dan izinkan website ini mengakses GPS.";
+            break;
 
-  libur: {
-    label: "Libur",
-    dot: "bg-slate-300",
-    bg: "bg-slate-50",
-    text: "text-slate-400",
-  },
-};
+          case error.POSITION_UNAVAILABLE:
+            message =
+              "Lokasi tidak tersedia. Pastikan GPS perangkat aktif.";
+            break;
 
-const HARI = [
-  "Min",
-  "Sen",
-  "Sel",
-  "Rab",
-  "Kam",
-  "Jum",
-  "Sab",
-];
+          case error.TIMEOUT:
+            message =
+              "Waktu mengambil lokasi habis. Silakan coba lagi.";
+            break;
+
+          default:
+            message =
+              "Gagal mendapatkan lokasi GPS.";
+        }
+
+        reject(
+          new Error(message)
+        );
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 0,
+      }
+    );
+  });
+}
+
+/* =========================================================
+   FORMAT TANGGAL
+========================================================= */
+
+function formatTanggal(tanggal) {
+  if (!tanggal) {
+    return "-";
+  }
+
+  const date = new Date(tanggal);
+
+  if (
+    Number.isNaN(date.getTime())
+  ) {
+    return "-";
+  }
+
+  return date.toLocaleDateString(
+    "id-ID",
+    {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    }
+  );
+}
+
+/* =========================================================
+   FORMAT JAM
+========================================================= */
+
+function formatJam(tanggal) {
+  if (!tanggal) {
+    return "-";
+  }
+
+  const date = new Date(tanggal);
+
+  if (
+    Number.isNaN(date.getTime())
+  ) {
+    return "-";
+  }
+
+  return date.toLocaleTimeString(
+    "id-ID",
+    {
+      hour: "2-digit",
+      minute: "2-digit",
+    }
+  );
+}
+
+/* =========================================================
+   STATUS LABEL
+========================================================= */
+
+function getStatusLabel(status) {
+  switch (
+    String(status || "").toLowerCase()
+  ) {
+    case "hadir":
+      return "Hadir";
+
+    case "izin":
+      return "Izin";
+
+    case "sakit":
+      return "Sakit";
+
+    case "alpha":
+      return "Alpha";
+
+    case "alpa":
+      return "Alpha";
+
+    default:
+      return status || "-";
+  }
+}
+
+/* =========================================================
+   FORMAT NAMA KAMERA
+========================================================= */
+
+function getCameraName(device, index) {
+  if (!device) {
+    return `Kamera ${index + 1}`;
+  }
+
+  if (device.label) {
+    return device.label;
+  }
+
+  return `Kamera ${index + 1}`;
+}
+
+/* =========================================================
+   CEK KAMERA VIRTUAL
+========================================================= */
+
+function isVirtualCamera(device) {
+  const label =
+    String(device?.label || "")
+      .toLowerCase();
+
+  return (
+    label.includes("snap") ||
+    label.includes("virtual") ||
+    label.includes("obs") ||
+    label.includes("droidcam") ||
+    label.includes("manycam") ||
+    label.includes("xsplit") ||
+    label.includes("ndi")
+  );
+}
+
+/* =========================================================
+   PAGE
+========================================================= */
 
 export default function AbsensiSiswaPage() {
   const searchParams = useSearchParams();
 
-  // =========================
-  // KELAS ID DARI URL
-  // =========================
-  const kelasId = searchParams.get("kelasId");
+  const kelasIdFromUrl = searchParams.get("kelasId");
 
-  // =========================
-  // SIDEBAR
-  // =========================
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const kelasId =
+    kelasIdFromUrl || "d4221aad-78b1-4d14-ab87-97ae3a3f05ac";
 
-  // =========================
-  // DATA ABSENSI DARI BE
-  // =========================
-  const [absensiData, setAbsensiData] = useState([]);
-  const [loadingAbsensi, setLoadingAbsensi] = useState(true);
-  const [absensiError, setAbsensiError] = useState(null);
+  /* =======================================================
+     STATE ABSENSI
+  ======================================================= */
 
-  // =========================
-  // KAMERA
-  // =========================
-  const [cameraActive, setCameraActive] = useState(false);
-  const [capturedPhoto, setCapturedPhoto] = useState(null);
-  const [sudahAbsen, setSudahAbsen] = useState(false);
-  const [jamAbsen, setJamAbsen] = useState(null);
+  const [
+    absensiData,
+    setAbsensiData,
+  ] = useState([]);
 
-  const [loadingCamera, setLoadingCamera] = useState(false);
-  const [submittingAbsensi, setSubmittingAbsensi] = useState(false);
+  const [
+    loadingData,
+    setLoadingData,
+  ] = useState(true);
 
-  const [cameraError, setCameraError] = useState(null);
+  const [
+    loadingAbsen,
+    setLoadingAbsen,
+  ] = useState(false);
 
-  const [showIzinForm, setShowIzinForm] = useState(false);
+  /* =======================================================
+     STATE CAMERA
+  ======================================================= */
 
-  const videoRef = useRef(null);
-  const canvasRef = useRef(null);
-  const streamRef = useRef(null);
+  const [
+    cameraOpen,
+    setCameraOpen,
+  ] = useState(false);
 
-  // =========================
-  // TANGGAL SEKARANG
-  // =========================
-  const sekarang = new Date();
+  const [
+    cameraLoading,
+    setCameraLoading,
+  ] = useState(false);
 
-  const bulanSekarang = sekarang.getMonth();
-  const tahunSekarang = sekarang.getFullYear();
+  const [
+    cameraError,
+    setCameraError,
+  ] = useState("");
 
-  const namaBulan = sekarang.toLocaleDateString(
-    "id-ID",
-    {
-      month: "long",
-      year: "numeric",
-    },
-  );
+  const [
+    cameras,
+    setCameras,
+  ] = useState([]);
 
-  const tanggalHariIni = sekarang.getDate();
+  const [
+    selectedCameraId,
+    setSelectedCameraId,
+  ] = useState("");
 
-  // =========================
-  // LOAD DATA ABSENSI
-  // =========================
-  const fetchAbsensi = useCallback(async () => {
-    try {
-      setLoadingAbsensi(true);
-      setAbsensiError(null);
+  const [
+    capturedImage,
+    setCapturedImage,
+  ] = useState(null);
 
-      const data = await getAbsensiSaya();
+  /* =======================================================
+     STATE UMUM
+  ======================================================= */
 
-      const dataArray = Array.isArray(data)
-        ? data
-        : [];
+  const [
+    error,
+    setError,
+  ] = useState("");
 
-      setAbsensiData(dataArray);
+  const [
+    success,
+    setSuccess,
+  ] = useState("");
 
-      // =========================
-      // CEK SUDAH ABSEN HARI INI
-      // =========================
-      const today = new Date();
+  const [
+    showIzinForm,
+    setShowIzinForm,
+  ] = useState(false);
 
-      const sudahAdaHariIni = dataArray.find(
-        (item) => {
-          if (!item?.tanggal) return false;
+  const [
+    jenisIzin,
+    setJenisIzin,
+  ] = useState("izin");
 
-          const tanggal = new Date(item.tanggal);
+  const [
+    keterangan,
+    setKeterangan,
+  ] = useState("");
 
-          return (
-            tanggal.getFullYear() ===
-              today.getFullYear() &&
-            tanggal.getMonth() ===
-              today.getMonth() &&
-            tanggal.getDate() ===
-              today.getDate()
-          );
-        },
-      );
+  const [
+    locationStatus,
+    setLocationStatus,
+  ] = useState("idle");
 
-      if (sudahAdaHariIni) {
-        setSudahAbsen(true);
+  const [
+    locationText,
+    setLocationText,
+  ] = useState("");
 
-        if (sudahAdaHariIni.dibuatPada) {
-          setJamAbsen(
-            new Date(
-              sudahAdaHariIni.dibuatPada,
-            ).toLocaleTimeString("id-ID", {
-              hour: "2-digit",
-              minute: "2-digit",
-            }),
-          );
+  /* =======================================================
+     REFS
+  ======================================================= */
+
+  const videoRef =
+    useRef(null);
+
+  const canvasRef =
+    useRef(null);
+
+  const streamRef =
+    useRef(null);
+
+  /* =======================================================
+     LOAD ABSENSI
+  ======================================================= */
+
+  const loadAbsensi =
+    useCallback(async () => {
+      try {
+        setLoadingData(true);
+        setError("");
+
+        const response =
+          await getAbsensiSaya();
+
+        let data = [];
+
+        if (
+          Array.isArray(response)
+        ) {
+          data = response;
+        } else if (
+          Array.isArray(
+            response?.data
+          )
+        ) {
+          data =
+            response.data;
+        } else if (
+          Array.isArray(
+            response?.data?.data
+          )
+        ) {
+          data =
+            response.data.data;
+        } else if (
+          Array.isArray(
+            response?.items
+          )
+        ) {
+          data =
+            response.items;
         }
-      } else {
-        setSudahAbsen(false);
-        setJamAbsen(null);
-      }
-    } catch (error) {
-      console.error(
-        "Error fetch absensi:",
-        error,
-      );
 
-      setAbsensiError(
-        error?.message ||
-          "Gagal mengambil data absensi.",
-      );
-    } finally {
-      setLoadingAbsensi(false);
-    }
-  }, []);
+        setAbsensiData(data);
+      } catch (err) {
+        console.error(
+          "Gagal mengambil absensi:",
+          err
+        );
+
+        setAbsensiData([]);
+
+        setError(
+          err?.message ||
+            "Gagal mengambil data absensi."
+        );
+      } finally {
+        setLoadingData(false);
+      }
+    }, []);
+
+  /* =======================================================
+     LOAD SAAT PAGE
+  ======================================================= */
 
   useEffect(() => {
-    fetchAbsensi();
-  }, [fetchAbsensi]);
+    loadAbsensi();
+  }, [loadAbsensi]);
 
-  // =========================
-  // START CAMERA
-  // =========================
-  const startCamera = useCallback(async () => {
-    setCameraError(null);
-    setLoadingCamera(true);
+  /* =======================================================
+     TANGGAL HARI INI
+  ======================================================= */
 
-    try {
-      if (
-        !navigator.mediaDevices ||
-        !navigator.mediaDevices.getUserMedia
-      ) {
-        throw new Error(
-          "Browser tidak mendukung kamera.",
+  const today =
+    new Date();
+
+  const todayString =
+    today
+      .toISOString()
+      .split("T")[0];
+
+  /* =======================================================
+     ABSENSI HARI INI
+  ======================================================= */
+
+  const absensiHariIni =
+    absensiData.find(
+      (item) => {
+        if (!item?.tanggal) {
+          return false;
+        }
+
+        const itemDate =
+          new Date(
+            item.tanggal
+          )
+            .toISOString()
+            .split("T")[0];
+
+        const tanggalSama =
+          itemDate ===
+          todayString;
+
+        const kelasSama =
+          !kelasId ||
+          item.kelasId ===
+            kelasId;
+
+        return (
+          tanggalSama &&
+          kelasSama
         );
       }
-
-      const stream =
-        await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: "user",
-          },
-          audio: false,
-        });
-
-      streamRef.current = stream;
-
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
-
-      setCameraActive(true);
-    } catch (error) {
-      console.error(
-        "Camera error:",
-        error,
-      );
-
-      setCameraError(
-        error?.message ||
-          "Kamera tidak bisa diakses. Pastikan izin kamera sudah diaktifkan.",
-      );
-    } finally {
-      setLoadingCamera(false);
-    }
-  }, []);
-
-  // =========================
-  // STOP CAMERA
-  // =========================
-  const stopCamera = useCallback(() => {
-    if (streamRef.current) {
-      streamRef.current
-        .getTracks()
-        .forEach((track) => {
-          track.stop();
-        });
-
-      streamRef.current = null;
-    }
-
-    setCameraActive(false);
-  }, []);
-
-  // =========================
-  // CLEANUP CAMERA
-  // =========================
-  useEffect(() => {
-    return () => {
-      if (streamRef.current) {
-        streamRef.current
-          .getTracks()
-          .forEach((track) => {
-            track.stop();
-          });
-      }
-    };
-  }, []);
-
-  // =========================
-  // CAPTURE FOTO
-  // =========================
-  const handleCapture = () => {
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-
-    if (!video || !canvas) return;
-
-    if (
-      !video.videoWidth ||
-      !video.videoHeight
-    ) {
-      setCameraError(
-        "Kamera belum siap. Tunggu sebentar lalu coba lagi.",
-      );
-
-      return;
-    }
-
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-
-    const ctx = canvas.getContext("2d");
-
-    if (!ctx) {
-      setCameraError(
-        "Gagal mengambil gambar dari kamera.",
-      );
-
-      return;
-    }
-
-    // Mirror seperti preview selfie
-    ctx.translate(canvas.width, 0);
-    ctx.scale(-1, 1);
-
-    ctx.drawImage(
-      video,
-      0,
-      0,
-      canvas.width,
-      canvas.height,
     );
 
-    const dataUrl = canvas.toDataURL(
-      "image/jpeg",
-      0.9,
+  const sudahAbsen =
+    Boolean(
+      absensiHariIni
     );
 
-    setCapturedPhoto(dataUrl);
+  /* =======================================================
+     ENUMERATE CAMERA
+  ======================================================= */
 
-    stopCamera();
-  };
-
-  // =========================
-  // RETAKE
-  // =========================
-  const handleRetake = () => {
-    setCapturedPhoto(null);
-    setCameraError(null);
-    startCamera();
-  };
-
-  // =========================
-  // AMBIL GPS
-  // =========================
-  const getCurrentLocation = () => {
-    return new Promise(
-      (resolve, reject) => {
+  const loadCameras =
+    useCallback(async () => {
+      try {
         if (
           typeof navigator ===
             "undefined" ||
-          !navigator.geolocation
+          !navigator.mediaDevices ||
+          !navigator.mediaDevices.enumerateDevices
         ) {
-          reject(
-            new Error(
-              "Browser tidak mendukung akses lokasi.",
-            ),
+          throw new Error(
+            "Browser tidak mendukung daftar kamera."
+          );
+        }
+
+        const devices =
+          await navigator.mediaDevices.enumerateDevices();
+
+        const videoDevices =
+          devices.filter(
+            (device) =>
+              device.kind ===
+              "videoinput"
+          );
+
+        setCameras(
+          videoDevices
+        );
+
+        if (
+          videoDevices.length ===
+          0
+        ) {
+          setSelectedCameraId(
+            ""
           );
 
           return;
         }
 
-        navigator.geolocation.getCurrentPosition(
-          resolve,
-          (error) => {
-            switch (error.code) {
-              case error.PERMISSION_DENIED:
-                reject(
-                  new Error(
-                    "Akses lokasi ditolak. Silakan izinkan lokasi pada browser.",
-                  ),
-                );
-                break;
+        /*
+         * Kalau sebelumnya sudah
+         * memilih kamera dan masih
+         * tersedia, pertahankan.
+         */
 
-              case error.POSITION_UNAVAILABLE:
-                reject(
-                  new Error(
-                    "Lokasi tidak tersedia.",
-                  ),
-                );
-                break;
+        const selectedStillExists =
+          videoDevices.some(
+            (device) =>
+              device.deviceId ===
+              selectedCameraId
+          );
 
-              case error.TIMEOUT:
-                reject(
-                  new Error(
-                    "Waktu mengambil lokasi habis.",
-                  ),
-                );
-                break;
+        if (
+          selectedStillExists
+        ) {
+          return;
+        }
 
-              default:
-                reject(
-                  new Error(
-                    "Gagal mendapatkan lokasi.",
-                  ),
-                );
-            }
-          },
-          {
-            enableHighAccuracy: true,
-            timeout: 10000,
-            maximumAge: 0,
-          },
+        /*
+         * Prioritaskan kamera
+         * non-virtual.
+         */
+
+        const realCamera =
+          videoDevices.find(
+            (device) =>
+              !isVirtualCamera(
+                device
+              )
+          );
+
+        const firstCamera =
+          realCamera ||
+          videoDevices[0];
+
+        setSelectedCameraId(
+          firstCamera.deviceId
         );
-      },
-    );
-  };
+      } catch (err) {
+        console.error(
+          "Gagal membaca kamera:",
+          err
+        );
 
-  // =========================
-  // KIRIM ABSEN FOTO
-  // =========================
-  const handleSubmitAbsen = async () => {
-    if (!capturedPhoto) {
+        setCameraError(
+          err?.message ||
+            "Tidak dapat membaca daftar kamera."
+        );
+      }
+    }, [selectedCameraId]);
+
+  /* =======================================================
+     STOP CAMERA
+  ======================================================= */
+
+  const stopCamera =
+    useCallback(() => {
+      if (
+        streamRef.current
+      ) {
+        streamRef.current
+          .getTracks()
+          .forEach(
+            (track) => {
+              track.stop();
+            }
+          );
+
+        streamRef.current =
+          null;
+      }
+
+      if (
+        videoRef.current
+      ) {
+        videoRef.current.srcObject =
+          null;
+      }
+    }, []);
+
+  /* =======================================================
+     START CAMERA
+  ======================================================= */
+
+  const startCamera =
+    useCallback(
+      async (
+        deviceId = null
+      ) => {
+        try {
+          setCameraError("");
+          setError("");
+          setCameraLoading(true);
+          setCameraOpen(true);
+
+          if (
+            typeof navigator ===
+              "undefined" ||
+            !navigator.mediaDevices ||
+            !navigator.mediaDevices.getUserMedia
+          ) {
+            throw new Error(
+              "Browser tidak mendukung kamera."
+            );
+          }
+
+          /*
+           * Stop kamera sebelumnya
+           * sebelum membuka kamera baru.
+           */
+
+          stopCamera();
+
+          /*
+           * Kalau belum ada daftar
+           * kamera, ambil dulu.
+           */
+
+          let cameraId =
+            deviceId ||
+            selectedCameraId;
+
+          if (!cameraId) {
+            const devices =
+              await navigator.mediaDevices.enumerateDevices();
+
+            const videoDevices =
+              devices.filter(
+                (device) =>
+                  device.kind ===
+                  "videoinput"
+              );
+
+            if (
+              videoDevices.length ===
+              0
+            ) {
+              throw new Error(
+                "Kamera tidak ditemukan. Pastikan webcam terhubung."
+              );
+            }
+
+            const realCamera =
+              videoDevices.find(
+                (device) =>
+                  !isVirtualCamera(
+                    device
+                  )
+              );
+
+            cameraId =
+              (
+                realCamera ||
+                videoDevices[0]
+              ).deviceId;
+
+            setCameras(
+              videoDevices
+            );
+
+            setSelectedCameraId(
+              cameraId
+            );
+          }
+
+          /*
+           * Buka kamera berdasarkan
+           * deviceId pilihan user.
+           */
+
+          const stream =
+            await navigator.mediaDevices.getUserMedia(
+              {
+                video: {
+                  deviceId: {
+                    exact: cameraId,
+                  },
+
+                  width: {
+                    ideal: 1280,
+                  },
+
+                  height: {
+                    ideal: 720,
+                  },
+                },
+
+                audio: false,
+              }
+            );
+
+          streamRef.current =
+            stream;
+
+          /*
+           * Pasang stream ke video.
+           */
+
+          if (
+            videoRef.current
+          ) {
+            videoRef.current.srcObject =
+              stream;
+
+            await videoRef.current.play();
+          }
+
+          /*
+           * Setelah permission kamera
+           * diberikan, label kamera
+           * biasanya sudah muncul.
+           */
+
+          await loadCameras();
+        } catch (err) {
+          console.error(
+            "Camera error:",
+            err
+          );
+
+          setCameraError(
+            err?.message ||
+              "Kamera tidak dapat dibuka."
+          );
+        } finally {
+          setCameraLoading(
+            false
+          );
+        }
+      },
+      [
+        loadCameras,
+        selectedCameraId,
+        stopCamera,
+      ]
+    );
+
+  /* =======================================================
+     LOAD CAMERA SAAT PAGE
+  ======================================================= */
+
+  useEffect(() => {
+    loadCameras();
+  }, [loadCameras]);
+
+  /* =======================================================
+     CAMERA DEVICE CHANGE
+  ======================================================= */
+
+  useEffect(() => {
+    if (
+      typeof navigator ===
+        "undefined" ||
+      !navigator.mediaDevices
+    ) {
+      return;
+    }
+
+    const handleDeviceChange =
+      () => {
+        loadCameras();
+      };
+
+    navigator.mediaDevices.addEventListener(
+      "devicechange",
+      handleDeviceChange
+    );
+
+    return () => {
+      navigator.mediaDevices.removeEventListener(
+        "devicechange",
+        handleDeviceChange
+      );
+    };
+  }, [loadCameras]);
+
+  /* =======================================================
+     CHANGE CAMERA
+  ======================================================= */
+
+  async function handleCameraChange(
+    event
+  ) {
+    const deviceId =
+      event.target.value;
+
+    setSelectedCameraId(
+      deviceId
+    );
+
+    if (
+      cameraOpen &&
+      deviceId
+    ) {
+      await startCamera(
+        deviceId
+      );
+    }
+  }
+
+  /* =======================================================
+     CLOSE CAMERA
+  ======================================================= */
+
+  function closeCamera() {
+    stopCamera();
+
+    setCameraOpen(
+      false
+    );
+
+    setCameraError("");
+  }
+
+  /* =======================================================
+     TAKE PHOTO
+  ======================================================= */
+
+  function takePhoto() {
+    const video =
+      videoRef.current;
+
+    const canvas =
+      canvasRef.current;
+
+    if (
+      !video ||
+      !canvas
+    ) {
       setCameraError(
-        "Silakan ambil foto terlebih dahulu.",
+        "Kamera belum siap."
       );
 
       return;
     }
 
-    if (!kelasId) {
+    if (
+      video.videoWidth === 0 ||
+      video.videoHeight === 0
+    ) {
       setCameraError(
-        "Kelas ID tidak ditemukan. Buka halaman absensi dengan kelasId yang valid.",
+        "Kamera belum siap. Tunggu sebentar lalu coba lagi."
+      );
+
+      return;
+    }
+
+    canvas.width =
+      video.videoWidth;
+
+    canvas.height =
+      video.videoHeight;
+
+    const context =
+      canvas.getContext(
+        "2d"
+      );
+
+    if (!context) {
+      setCameraError(
+        "Gagal memproses foto."
+      );
+
+      return;
+    }
+
+    context.drawImage(
+      video,
+      0,
+      0,
+      canvas.width,
+      canvas.height
+    );
+
+    const image =
+      canvas.toDataURL(
+        "image/jpeg",
+        0.9
+      );
+
+    setCapturedImage(
+      image
+    );
+
+    stopCamera();
+
+    setCameraOpen(
+      false
+    );
+
+    setCameraError("");
+  }
+
+  /* =======================================================
+     GET LOCATION
+  ======================================================= */
+
+  async function getLocation() {
+    try {
+      setLocationStatus(
+        "loading"
+      );
+
+      setLocationText(
+        "Mengambil lokasi GPS..."
+      );
+
+      const position =
+        await getCurrentLocation();
+
+      const latitude =
+        position.coords
+          .latitude;
+
+      const longitude =
+        position.coords
+          .longitude;
+
+      const accuracy =
+        position.coords
+          .accuracy;
+
+      setLocationStatus(
+        "success"
+      );
+
+      setLocationText(
+        `GPS aktif • Akurasi ±${Math.round(
+          accuracy || 0
+        )} meter`
+      );
+
+      return {
+        latitude,
+        longitude,
+      };
+    } catch (err) {
+      setLocationStatus(
+        "error"
+      );
+
+      setLocationText(
+        err?.message ||
+          "Lokasi tidak tersedia."
+      );
+
+      throw err;
+    }
+  }
+
+  /* =======================================================
+     SUBMIT FACE
+  ======================================================= */
+
+  async function handleSubmitAbsen() {
+    if (!kelasId) {
+      setError(
+        "Kelas siswa belum tersedia. Halaman ini harus dibuka dengan kelasId."
+      );
+
+      return;
+    }
+
+    if (sudahAbsen) {
+      setError(
+        "Kamu sudah melakukan absensi hari ini."
+      );
+
+      return;
+    }
+
+    if (!capturedImage) {
+      setError(
+        "Silakan ambil foto terlebih dahulu."
       );
 
       return;
     }
 
     try {
-      setSubmittingAbsensi(true);
-      setCameraError(null);
-
-      // =========================
-      // 1. GPS
-      // =========================
-      const position =
-        await getCurrentLocation();
-
-      // =========================
-      // 2. DATA URL -> BLOB
-      // =========================
-      const response = await fetch(
-        capturedPhoto,
+      setLoadingAbsen(
+        true
       );
 
-      const blob = await response.blob();
+      setError("");
+      setSuccess("");
 
-      // =========================
-      // 3. KIRIM KE BE
-      // =========================
+      /* =========================
+         GPS
+      ========================= */
+
+      const position =
+        await getLocation();
+
+      /* =========================
+         DATA URL -> BLOB
+      ========================= */
+
+      const response =
+        await fetch(
+          capturedImage
+        );
+
+      if (!response.ok) {
+        throw new Error(
+          "Gagal memproses foto."
+        );
+      }
+
+      const blob =
+        await response.blob();
+
+      /* =========================
+         KIRIM KE BACKEND
+      ========================= */
+
       await absenDenganFace({
         kelasId,
         snapshot: blob,
         status: "hadir",
         keterangan:
-          "Absen masuk melalui foto",
+          "Absen masuk melalui verifikasi wajah",
+        lintang:
+          position.latitude,
+        bujur:
+          position.longitude,
       });
 
-      // =========================
-      // 4. UI
-      // =========================
-      const now = new Date();
+      /* =========================
+         BERHASIL
+      ========================= */
 
-      setJamAbsen(
-        now.toLocaleTimeString("id-ID", {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
+      setSuccess(
+        "Absensi berhasil dicatat!"
       );
 
-      setSudahAbsen(true);
+      setCapturedImage(
+        null
+      );
 
-      // =========================
-      // 5. REFRESH DATA BE
-      // =========================
-      await fetchAbsensi();
-    } catch (error) {
+      setLocationStatus(
+        "idle"
+      );
+
+      setLocationText("");
+
+      await loadAbsensi();
+    } catch (err) {
       console.error(
-        "Error submit absensi:",
-        error,
+        "Gagal melakukan absensi:",
+        err
       );
 
-      setCameraError(
-        error?.message ||
-          "Gagal mengirim absensi.",
+      setError(
+        err?.message ||
+          "Gagal melakukan absensi."
       );
     } finally {
-      setSubmittingAbsensi(false);
+      setLoadingAbsen(
+        false
+      );
     }
-  };
+  }
 
-  // =========================
-  // RESET DEMO
-  // =========================
-  const handleReset = () => {
-    setSudahAbsen(false);
-    setCapturedPhoto(null);
-    setJamAbsen(null);
-  };
+  /* =======================================================
+     SUBMIT MANUAL
+  ======================================================= */
 
-  // =========================
-  // DATA KALENDER DARI BE
-  // =========================
-  const attendanceLog = useMemo(() => {
-    const result = {};
-
-    absensiData.forEach((item) => {
-      if (!item?.tanggal) return;
-
-      const tanggal = new Date(
-        item.tanggal,
-      );
-
-      // Hanya bulan & tahun sekarang
-      if (
-        tanggal.getMonth() !==
-          bulanSekarang ||
-        tanggal.getFullYear() !==
-          tahunSekarang
-      ) {
-        return;
-      }
-
-      result[tanggal.getDate()] =
-        item.status;
-    });
-
-    return result;
-  }, [
-    absensiData,
-    bulanSekarang,
-    tahunSekarang,
-  ]);
-
-  // =========================
-  // JUMLAH HARI DALAM BULAN
-  // =========================
-  const jumlahHari =
-    new Date(
-      tahunSekarang,
-      bulanSekarang + 1,
-      0,
-    ).getDate();
-
-  // =========================
-  // HARI PERTAMA BULAN
-  // =========================
-  const hariPertama =
-    new Date(
-      tahunSekarang,
-      bulanSekarang,
-      1,
-    ).getDay();
-
-  // =========================
-  // GRID KALENDER
-  // =========================
-  const calendarCells = [
-    ...Array(hariPertama).fill(null),
-    ...Array.from(
-      {
-        length: jumlahHari,
-      },
-      (_, i) => i + 1,
-    ),
-  ];
-
-  // =========================
-  // REKAP
-  // =========================
-  const rekap = useMemo(() => {
-    const result = {
-      hadir: 0,
-      izin: 0,
-      sakit: 0,
-      alpha: 0,
-    };
-
-    absensiData.forEach((item) => {
-      if (!item?.tanggal) return;
-
-      const tanggal = new Date(
-        item.tanggal,
-      );
-
-      if (
-        tanggal.getMonth() !==
-          bulanSekarang ||
-        tanggal.getFullYear() !==
-          tahunSekarang
-      ) {
-        return;
-      }
-
-      const status =
-        item.status === "alpa"
-          ? "alpha"
-          : item.status;
-
-      if (
-        Object.prototype.hasOwnProperty.call(
-          result,
-          status,
-        )
-      ) {
-        result[status] += 1;
-      }
-    });
-
-    return result;
-  }, [
-    absensiData,
-    bulanSekarang,
-    tahunSekarang,
-  ]);
-
-  // =========================
-  // RIWAYAT TERBARU
-  // =========================
-  const riwayatTerbaru = useMemo(() => {
-    return [...absensiData]
-      .sort(
-        (a, b) =>
-          new Date(b.dibuatPada || b.tanggal) -
-          new Date(a.dibuatPada || a.tanggal),
-      )
-      .slice(0, 5)
-      .map((item) => {
-        const status =
-          item.status === "alpa"
-            ? "alpha"
-            : item.status;
-
-        return {
-          tanggal: item.tanggal
-            ? new Date(
-                item.tanggal,
-              ).toLocaleDateString(
-                "id-ID",
-                {
-                  day: "2-digit",
-                  month: "short",
-                  year: "numeric",
-                },
-              )
-            : "-",
-
-          status,
-
-          jam: item.dibuatPada
-            ? new Date(
-                item.dibuatPada,
-              ).toLocaleTimeString(
-                "id-ID",
-                {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                },
-              )
-            : "-",
-
-          keterangan:
-            item.keterangan ||
-            `Absensi melalui ${
-              item.metode || "-"
-            }`,
-        };
-      });
-  }, [absensiData]);
-
-  const notifications = [
-    {
-      id: 1,
-      title: "Jangan lupa absen hari ini",
-      desc: "Pastikan absensi kamu sudah tercatat.",
-      read: false,
-    },
-  ];
-
-  return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden">
-      {/* =========================
-          SIDEBAR
-      ========================= */}
-      <Sidebar
-        role="siswa"
-        active="absensi"
-        setActive={() => {}}
-        collapsed={!sidebarOpen}
-        setCollapsed={() =>
-          setSidebarOpen(!sidebarOpen)
-        }
-      />
-
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* =========================
-            HEADER
-        ========================= */}
-        <Header
-          toggleSidebar={() =>
-            setSidebarOpen(!sidebarOpen)
-          }
-          notifications={notifications}
-          user={{
-            name: "Andi Saputra",
-            email: "siswa@smartschool.com",
-            avatar: "AS",
-          }}
-        />
-
-        {/* =========================
-            MAIN
-        ========================= */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-          <div className="w-full max-w-7xl mx-auto space-y-6">
-            {/* =========================
-                PAGE HEADER
-            ========================= */}
-            <div>
-              <p className="text-xs font-medium text-blue-600 uppercase tracking-wide">
-                {sekarang.toLocaleDateString(
-                  "id-ID",
-                  {
-                    weekday: "long",
-                    day: "2-digit",
-                    month: "long",
-                    year: "numeric",
-                  },
-                )}
-              </p>
-
-              <h1 className="text-2xl sm:text-[28px] font-bold text-slate-900 mt-1 tracking-tight">
-                Absensi
-              </h1>
-
-              <p className="text-sm text-slate-500 mt-1">
-                Absen masuk pakai foto, atau
-                ajukan izin/sakit kalau tidak
-                masuk hari ini.
-              </p>
-            </div>
-
-            {/* =========================
-                ERROR DATA
-            ========================= */}
-            {absensiError && (
-              <div className="flex items-start gap-3 bg-red-50 border border-red-100 text-red-700 rounded-xl p-4">
-                <AlertCircle
-                  size={18}
-                  className="mt-0.5 flex-shrink-0"
-                />
-
-                <div>
-                  <p className="text-sm font-medium">
-                    Gagal mengambil data
-                    absensi
-                  </p>
-
-                  <p className="text-xs mt-1">
-                    {absensiError}
-                  </p>
-
-                  <button
-                    onClick={fetchAbsensi}
-                    className="text-xs font-medium underline mt-2"
-                  >
-                    Coba lagi
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* =========================
-                GRID
-            ========================= */}
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-              {/* =========================
-                  KARTU ABSEN HARI INI
-              ========================= */}
-              <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200/70 shadow-sm p-5 flex flex-col">
-                <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-                  <ClipboardCheck
-                    size={16}
-                    className="text-blue-600"
-                  />
-
-                  Absen Masuk
-                </h2>
-
-                {/* =========================
-                    LOADING
-                ========================= */}
-                {loadingAbsensi ? (
-                  <div className="flex-1 flex flex-col items-center justify-center py-10">
-                    <Loader2
-                      size={28}
-                      className="animate-spin text-blue-600"
-                    />
-
-                    <p className="text-xs text-slate-500 mt-3">
-                      Memuat data absensi...
-                    </p>
-                  </div>
-                ) : sudahAbsen ? (
-                  /* =========================
-                     SUDAH ABSEN
-                  ========================= */
-                  <div className="flex-1 flex flex-col items-center justify-center text-center py-6">
-                    <div className="w-16 h-16 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mb-3">
-                      <Check
-                        size={28}
-                        strokeWidth={2.5}
-                      />
-                    </div>
-
-                    <p className="text-sm font-semibold text-slate-800">
-                      Kamu sudah absen hari ini
-                    </p>
-
-                    <p className="text-xs text-slate-500 mt-1">
-                      Tercatat pukul{" "}
-                      {jamAbsen || "-"} · Hadir
-                    </p>
-
-                    {capturedPhoto && (
-                      <img
-                        src={capturedPhoto}
-                        alt="Foto absen"
-                        className="mt-4 w-32 h-32 object-cover rounded-xl border border-slate-200"
-                      />
-                    )}
-
-                    <button
-                      onClick={handleReset}
-                      className="mt-4 text-xs font-medium text-slate-400 hover:text-slate-600"
-                    >
-                      Reset (khusus demo)
-                    </button>
-                  </div>
-                ) : showIzinForm ? (
-                  /* =========================
-                     FORM IZIN / SAKIT
-                  ========================= */
-                  <IzinForm
-                    kelasId={kelasId}
-                    onCancel={() =>
-                      setShowIzinForm(false)
-                    }
-                    onSuccess={async () => {
-                      setShowIzinForm(false);
-                      await fetchAbsensi();
-                    }}
-                  />
-                ) : (
-                  /* =========================
-                     KAMERA
-                  ========================= */
-                  <div className="flex-1 flex flex-col mt-4">
-                    <div className="relative w-full aspect-[4/3] bg-slate-900 rounded-xl overflow-hidden flex items-center justify-center">
-                      {capturedPhoto ? (
-                        <img
-                          src={capturedPhoto}
-                          alt="Preview foto absen"
-                          className="w-full h-full object-cover"
-                        />
-                      ) : cameraActive ? (
-                        <video
-                          ref={videoRef}
-                          autoPlay
-                          playsInline
-                          muted
-                          className="w-full h-full object-cover scale-x-[-1]"
-                        />
-                      ) : (
-                        <div className="flex flex-col items-center gap-2 text-slate-400 px-4 text-center">
-                          <Camera size={28} />
-
-                          <span className="text-xs">
-                            {loadingCamera
-                              ? "Membuka kamera..."
-                              : "Kamera belum aktif"}
-                          </span>
-                        </div>
-                      )}
-
-                      <canvas
-                        ref={canvasRef}
-                        className="hidden"
-                      />
-                    </div>
-
-                    {cameraError && (
-                      <div className="flex items-start gap-2 mt-2 text-red-500">
-                        <AlertCircle
-                          size={14}
-                          className="mt-0.5 flex-shrink-0"
-                        />
-
-                        <p className="text-xs">
-                          {cameraError}
-                        </p>
-                      </div>
-                    )}
-
-                    {!kelasId && (
-                      <div className="mt-2 p-3 rounded-xl bg-amber-50 border border-amber-100">
-                        <p className="text-xs text-amber-700">
-                          Kelas ID belum tersedia.
-                          Halaman harus dibuka
-                          dengan parameter{" "}
-                          <b>kelasId</b>.
-                        </p>
-                      </div>
-                    )}
-
-                    <div className="mt-4 space-y-2">
-                      {capturedPhoto ? (
-                        <div className="flex gap-2">
-                          <button
-                            onClick={handleRetake}
-                            disabled={
-                              submittingAbsensi
-                            }
-                            className="flex-1 inline-flex items-center justify-center gap-1.5 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 transition-colors rounded-xl py-2.5"
-                          >
-                            <RotateCcw
-                              size={15}
-                            />
-
-                            Ambil Ulang
-                          </button>
-
-                          <button
-                            onClick={
-                              handleSubmitAbsen
-                            }
-                            disabled={
-                              submittingAbsensi ||
-                              !kelasId
-                            }
-                            className="flex-1 inline-flex items-center justify-center gap-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors rounded-xl py-2.5"
-                          >
-                            {submittingAbsensi ? (
-                              <>
-                                <Loader2
-                                  size={15}
-                                  className="animate-spin"
-                                />
-
-                                Mengirim...
-                              </>
-                            ) : (
-                              <>
-                                <Check
-                                  size={15}
-                                />
-
-                                Kirim Absen
-                              </>
-                            )}
-                          </button>
-                        </div>
-                      ) : cameraActive ? (
-                        <button
-                          onClick={handleCapture}
-                          className="w-full inline-flex items-center justify-center gap-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors rounded-xl py-2.5"
-                        >
-                          <Camera
-                            size={15}
-                          />
-
-                          Ambil Foto
-                        </button>
-                      ) : (
-                        <button
-                          onClick={startCamera}
-                          disabled={loadingCamera}
-                          className="w-full inline-flex items-center justify-center gap-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60 transition-colors rounded-xl py-2.5"
-                        >
-                          {loadingCamera ? (
-                            <Loader2
-                              size={15}
-                              className="animate-spin"
-                            />
-                          ) : (
-                            <Camera
-                              size={15}
-                            />
-                          )}
-
-                          {loadingCamera
-                            ? "Membuka Kamera..."
-                            : "Nyalakan Kamera"}
-                        </button>
-                      )}
-
-                      <button
-                        onClick={() =>
-                          setShowIzinForm(true)
-                        }
-                        disabled={
-                          submittingAbsensi
-                        }
-                        className="w-full inline-flex items-center justify-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-700 disabled:opacity-50 transition-colors py-2"
-                      >
-                        <FileText
-                          size={14}
-                        />
-
-                        Tidak masuk? Ajukan
-                        Izin/Sakit
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* =========================
-                  KALENDER + REKAP
-              ========================= */}
-              <div className="lg:col-span-3 space-y-6">
-                <div className="bg-white rounded-2xl border border-slate-200/70 shadow-sm p-5">
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-                      <CalendarDays
-                        size={16}
-                        className="text-blue-600"
-                      />
-
-                      Kalender Absensi
-                    </h2>
-
-                    <div className="flex items-center gap-3">
-                      <button
-                        type="button"
-                        className="p-1 rounded-lg hover:bg-slate-100 text-slate-400"
-                      >
-                        <ChevronLeft
-                          size={16}
-                        />
-                      </button>
-
-                      <span className="text-xs font-medium text-slate-600 w-24 text-center">
-                        {namaBulan}
-                      </span>
-
-                      <button
-                        type="button"
-                        className="p-1 rounded-lg hover:bg-slate-100 text-slate-400"
-                      >
-                        <ChevronRightIcon
-                          size={16}
-                        />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-7 gap-1.5">
-                    {HARI.map((h) => (
-                      <div
-                        key={h}
-                        className="text-center text-[11px] font-medium text-slate-400 pb-1"
-                      >
-                        {h}
-                      </div>
-                    ))}
-
-                    {calendarCells.map(
-                      (day, i) => {
-                        if (!day) {
-                          return (
-                            <div
-                              key={`pad-${i}`}
-                            />
-                          );
-                        }
-
-                        const status =
-                          attendanceLog[
-                            day
-                          ] || null;
-
-                        const style = status
-                          ? STATUS_STYLE[
-                              status
-                            ]
-                          : null;
-
-                        const isToday =
-                          day ===
-                            tanggalHariIni;
-
-                        return (
-                          <div
-                            key={day}
-                            className={`aspect-square rounded-lg flex flex-col items-center justify-center gap-0.5 text-xs
-                              ${
-                                style
-                                  ? style.bg
-                                  : "bg-white"
-                              }
-                              ${
-                                isToday
-                                  ? "ring-2 ring-blue-500"
-                                  : "border border-slate-100"
-                              }
-                            `}
-                          >
-                            <span
-                              className={`font-medium ${
-                                style
-                                  ? style.text
-                                  : "text-slate-400"
-                              }`}
-                            >
-                              {day}
-                            </span>
-
-                            {style &&
-                              status !==
-                                "libur" && (
-                                <span
-                                  className={`w-1.5 h-1.5 rounded-full ${style.dot}`}
-                                />
-                              )}
-                          </div>
-                        );
-                      },
-                    )}
-                  </div>
-
-                  {/* =========================
-                      LEGENDA
-                  ========================= */}
-                  <div className="flex flex-wrap gap-3 mt-4 pt-4 border-t border-slate-100">
-                    {Object.entries(
-                      STATUS_STYLE,
-                    )
-                      .filter(
-                        ([key]) =>
-                          key !== "alpa",
-                      )
-                      .map(
-                        ([key, s]) => (
-                          <div
-                            key={key}
-                            className="flex items-center gap-1.5"
-                          >
-                            <span
-                              className={`w-2 h-2 rounded-full ${s.dot}`}
-                            />
-
-                            <span className="text-[11px] text-slate-500">
-                              {s.label}
-                            </span>
-                          </div>
-                        ),
-                      )}
-                  </div>
-                </div>
-
-                {/* =========================
-                    REKAP
-                ========================= */}
-                <div className="grid grid-cols-3 gap-3">
-                  {[
-                    "hadir",
-                    "izin",
-                    "sakit",
-                  ].map((key) => {
-                    const s =
-                      STATUS_STYLE[key];
-
-                    return (
-                      <div
-                        key={key}
-                        className="bg-white rounded-2xl border border-slate-200/70 shadow-sm p-4 text-center"
-                      >
-                        <p className="text-2xl font-bold text-slate-900">
-                          {rekap[key] || 0}
-                        </p>
-
-                        <div className="flex items-center justify-center gap-1.5 mt-1">
-                          <span
-                            className={`w-1.5 h-1.5 rounded-full ${s.dot}`}
-                          />
-
-                          <span className="text-xs text-slate-500">
-                            {s.label}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-
-            {/* =========================
-                RIWAYAT TERBARU
-            ========================= */}
-            <div className="bg-white rounded-2xl border border-slate-200/70 shadow-sm overflow-hidden">
-              <div className="px-5 py-4 border-b border-slate-100">
-                <h3 className="text-sm font-semibold text-slate-800">
-                  Riwayat Terbaru
-                </h3>
-              </div>
-
-              {loadingAbsensi ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2
-                    size={22}
-                    className="animate-spin text-blue-600"
-                  />
-                </div>
-              ) : riwayatTerbaru.length ===
-                0 ? (
-                <div className="py-10 text-center">
-                  <ClipboardCheck
-                    size={28}
-                    className="mx-auto text-slate-300"
-                  />
-
-                  <p className="text-sm text-slate-500 mt-2">
-                    Belum ada riwayat
-                    absensi.
-                  </p>
-                </div>
-              ) : (
-                <div className="divide-y divide-slate-50">
-                  {riwayatTerbaru.map(
-                    (item, i) => {
-                      const s =
-                        STATUS_STYLE[
-                          item.status
-                        ] ||
-                        STATUS_STYLE.alpha;
-
-                      return (
-                        <div
-                          key={i}
-                          className="flex items-center justify-between gap-3 px-5 py-3"
-                        >
-                          <div className="flex items-center gap-3 min-w-0">
-                            <span
-                              className={`text-xs font-medium px-2.5 py-1 rounded-lg flex-shrink-0 ${s.bg} ${s.text}`}
-                            >
-                              {s.label}
-                            </span>
-
-                            <div className="min-w-0">
-                              <p className="text-sm text-slate-700 truncate">
-                                {
-                                  item.keterangan
-                                }
-                              </p>
-
-                              <p className="text-xs text-slate-400">
-                                {
-                                  item.tanggal
-                                }
-
-                                {item.jam !==
-                                  "-" &&
-                                  ` · ${item.jam}`}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    },
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        </main>
-      </div>
-    </div>
-  );
-}
-
-// =====================================================
-// FORM IZIN / SAKIT
-// =====================================================
-
-function IzinForm({
-  kelasId,
-  onCancel,
-  onSuccess,
-}) {
-  const [jenis, setJenis] =
-    useState("izin");
-
-  const [keterangan, setKeterangan] =
-    useState("");
-
-  const [loading, setLoading] =
-    useState(false);
-
-  const [error, setError] =
-    useState(null);
-
-  const handleSubmit = async () => {
+  async function handleSubmitManual() {
     if (!kelasId) {
       setError(
-        "Kelas ID tidak ditemukan.",
+        "Kelas siswa belum tersedia."
       );
 
       return;
     }
 
-    if (!keterangan.trim()) {
+    if (sudahAbsen) {
       setError(
-        "Keterangan wajib diisi.",
+        "Kamu sudah melakukan absensi hari ini."
+      );
+
+      return;
+    }
+
+    if (
+      !keterangan.trim()
+    ) {
+      setError(
+        "Keterangan wajib diisi."
       );
 
       return;
     }
 
     try {
-      setLoading(true);
-      setError(null);
+      setLoadingAbsen(
+        true
+      );
+
+      setError("");
+      setSuccess("");
 
       await absenManual({
         kelasId,
-        status: jenis,
+        status: jenisIzin,
         keterangan:
           keterangan.trim(),
       });
 
-      onSuccess();
+      setSuccess(
+        `Pengajuan ${getStatusLabel(
+          jenisIzin
+        ).toLowerCase()} berhasil dikirim.`
+      );
+
+      setKeterangan("");
+
+      setShowIzinForm(
+        false
+      );
+
+      await loadAbsensi();
     } catch (err) {
       console.error(
-        "Error submit izin/sakit:",
-        err,
+        "Gagal mengirim keterangan:",
+        err
       );
 
       setError(
         err?.message ||
-          "Gagal mengirim pengajuan.",
+          "Gagal mengirim absensi."
       );
     } finally {
-      setLoading(false);
+      setLoadingAbsen(
+        false
+      );
     }
-  };
+  }
+
+  /* =======================================================
+     RESET FOTO
+  ======================================================= */
+
+  function resetPhoto() {
+    setCapturedImage(
+      null
+    );
+
+    setError("");
+    setSuccess("");
+
+    setLocationStatus(
+      "idle"
+    );
+
+    setLocationText("");
+  }
+
+  /* =======================================================
+     CLEANUP
+  ======================================================= */
+
+  useEffect(() => {
+    return () => {
+      if (
+        streamRef.current
+      ) {
+        streamRef.current
+          .getTracks()
+          .forEach(
+            (track) => {
+              track.stop();
+            }
+          );
+      }
+    };
+  }, []);
+
+  /* =======================================================
+     SIDEBAR & HEADER STATE
+  ======================================================= */
+
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
+
+  /* =======================================================
+     RENDER
+  ======================================================= */
 
   return (
-    <div className="flex-1 flex flex-col mt-4">
-      {/* =========================
-          PILIH JENIS
-      ========================= */}
-      <div className="flex gap-2">
-        {["izin", "sakit"].map(
-          (j) => (
-            <button
-              key={j}
-              type="button"
-              onClick={() =>
-                setJenis(j)
-              }
-              disabled={loading}
-              className={`flex-1 text-sm font-medium py-2 rounded-xl border transition-colors ${
-                jenis === j
-                  ? "bg-blue-600 border-blue-600 text-white"
-                  : "bg-white border-slate-200 text-slate-500 hover:border-slate-300"
-              }`}
-            >
-              {j === "izin"
-                ? "Izin"
-                : "Sakit"}
-            </button>
-          ),
-        )}
-      </div>
+    <div className="flex h-screen w-full overflow-hidden bg-slate-50">
 
-      {/* =========================
-          KETERANGAN
-      ========================= */}
-      <textarea
-        value={keterangan}
-        onChange={(e) =>
-          setKeterangan(
-            e.target.value,
-          )
-        }
-        disabled={loading}
-        placeholder="Tulis alasan singkat..."
-        rows={4}
-        className="mt-3 w-full text-sm border border-slate-200 rounded-xl p-3 resize-none focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 disabled:bg-slate-50"
+      {/* SIDEBAR */}
+      <Sidebar
+        active="absensi"
+        setActive={() => {}}
+        collapsed={!sidebarOpen}
+        setCollapsed={toggleSidebar}
       />
 
-      {/* =========================
-          ERROR
-      ========================= */}
-      {error && (
-        <div className="flex items-start gap-2 mt-2 text-red-500">
-          <AlertCircle
-            size={14}
-            className="mt-0.5 flex-shrink-0"
-          />
+      {/* MAIN CONTENT */}
+      <div className="flex h-full min-w-0 flex-1 flex-col overflow-hidden">
 
-          <p className="text-xs">
-            {error}
-          </p>
-        </div>
-      )}
+        {/* HEADER - FIXED AT TOP */}
+        <Header
+          toggleSidebar={toggleSidebar}
+          notifications={[]}
+          user={{
+            name: "Siswa",
+            email: "siswa@smartschool.com",
+            avatar: "SW",
+          }}
+        />
 
-      {/* =========================
-          BUTTON
-      ========================= */}
-      <div className="flex gap-2 mt-3">
-        <button
-          type="button"
-          onClick={onCancel}
-          disabled={loading}
-          className="flex-1 inline-flex items-center justify-center gap-1.5 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 transition-colors rounded-xl py-2.5"
-        >
-          <X size={15} />
+        {/* SCROLLABLE CONTENT */}
+        <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
 
-          Batal
-        </button>
+          <div className="mx-auto w-full max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8">
 
-        <button
-          type="button"
-          onClick={handleSubmit}
-          disabled={
-            loading ||
-            !keterangan.trim() ||
-            !kelasId
-          }
-          className="flex-1 inline-flex items-center justify-center gap-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors rounded-xl py-2.5"
-        >
-          {loading ? (
-            <>
-              <Loader2
-                size={15}
-                className="animate-spin"
-              />
+            {/* =================================================
+                PAGE HEADER
+            ================================================= */}
 
-              Mengirim...
-            </>
-          ) : (
-            <>
-              <Check size={15} />
+            <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
+              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <div className="mb-2 flex items-center gap-3 text-sm text-slate-500">
+                    <CalendarDays size={16} />
+                    <span>{formatTanggal(new Date())}</span>
+                    <span className="h-1 w-1 rounded-full bg-slate-300" />
+                    <Clock3 size={16} />
+                    <span>{formatJam(new Date())}</span>
+                  </div>
+                  <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">
+                    Absensi Siswa
+                  </h1>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Lakukan absensi menggunakan verifikasi wajah dan lokasi GPS.
+                  </p>
+                </div>
 
-              Kirim
-            </>
-          )}
-        </button>
+                <button
+                  type="button"
+                  onClick={loadAbsensi}
+                  disabled={loadingData}
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-600 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <RefreshCw size={17} className={loadingData ? "animate-spin" : ""} />
+                  Refresh
+                </button>
+              </div>
+            </div>
+
+            {/* =================================================
+                KELAS BELUM TERSEDIA
+            ================================================= */}
+
+            {!kelasId && (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
+                <div className="flex items-start gap-3">
+                  <AlertCircle size={21} className="mt-0.5 shrink-0 text-amber-600" />
+                  <div>
+                    <h3 className="font-semibold text-amber-800">Kelas belum tersedia</h3>
+                    <p className="mt-1 text-sm leading-6 text-amber-700">
+                      Halaman absensi membutuhkan <b>kelasId</b> untuk menentukan kelas siswa.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* =================================================
+                ERROR & SUCCESS
+            ================================================= */}
+
+            {error && (
+              <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">
+                <AlertCircle size={20} className="mt-0.5 shrink-0" />
+                <div className="flex-1">
+                  <p className="text-sm font-semibold">Terjadi kesalahan</p>
+                  <p className="mt-1 whitespace-pre-line text-sm">{error}</p>
+                </div>
+                <button type="button" onClick={() => setError("")} className="rounded-lg p-1 hover:bg-red-100">
+                  <X size={17} />
+                </button>
+              </div>
+            )}
+
+            {success && (
+              <div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-700">
+                <CheckCircle2 size={20} className="mt-0.5 shrink-0" />
+                <div className="flex-1">
+                  <p className="text-sm font-semibold">Berhasil</p>
+                  <p className="mt-1 text-sm">{success}</p>
+                </div>
+                <button type="button" onClick={() => setSuccess("")} className="rounded-lg p-1 hover:bg-emerald-100">
+                  <X size={17} />
+                </button>
+              </div>
+            )}
+
+            {/* =================================================
+                STATUS ABSENSI HARI INI
+            ================================================= */}
+
+            {sudahAbsen && absensiHariIni && (
+              <div className="overflow-hidden rounded-2xl border border-emerald-200 bg-white shadow-sm">
+                <div className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600">
+                      <CheckCircle2 size={28} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-slate-500">Absensi hari ini</p>
+                      <h2 className="text-xl font-bold text-slate-900">{getStatusLabel(absensiHariIni.status)}</h2>
+                      <p className="mt-1 text-sm text-slate-500">
+                        {formatJam(absensiHariIni.tanggal)} • {absensiHariIni.metode || "manual"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="rounded-xl bg-emerald-50 px-5 py-3 text-sm font-semibold text-emerald-700">
+                    <div className="flex items-center gap-2">
+                      <Clock3 size={16} />
+                      Sudah melakukan absensi
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* =================================================
+                MAIN GRID
+            ================================================= */}
+
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
+
+              {/* =================================================
+                  LEFT: CAMERA
+              ================================================= */}
+
+              <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
+                <div className="border-b border-slate-100 bg-gradient-to-r from-blue-50 to-white px-6 py-5">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-md shadow-blue-200">
+                      <ScanFace size={24} />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-bold text-slate-900">Verifikasi Wajah</h2>
+                      <p className="text-sm text-slate-500">Foto wajah dan GPS diperlukan</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-6">
+
+                  {/* CAMERA SELECTOR */}
+                  <div className="mb-5 rounded-xl border border-blue-100 bg-blue-50 p-4">
+                    <div className="mb-3 flex items-start gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-blue-600 shadow-sm">
+                        <Video size={20} />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-slate-800">Pilih Kamera</p>
+                        <p className="mt-1 text-xs leading-5 text-slate-500">Pilih webcam yang ingin digunakan untuk absensi.</p>
+                      </div>
+                    </div>
+                    <div className="relative">
+                      <select
+                        value={selectedCameraId}
+                        onChange={handleCameraChange}
+                        disabled={cameraLoading || sudahAbsen}
+                        className="w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 py-3 pr-10 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100"
+                      >
+                        {cameras.length === 0 ? (
+                          <option value="">Kamera belum terdeteksi</option>
+                        ) : (
+                          cameras.map((camera, index) => (
+                            <option key={camera.deviceId || index} value={camera.deviceId}>
+                              {getCameraName(camera, index)}
+                              {isVirtualCamera(camera) ? " (Virtual)" : ""}
+                            </option>
+                          ))
+                        )}
+                      </select>
+                      <ChevronDown size={18} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    </div>
+                    <div className="mt-3 flex items-start gap-2 text-xs text-slate-500">
+                      <AlertCircle size={15} className="mt-0.5 shrink-0" />
+                      <p>
+                        Jika muncul Snap Camera, OBS Virtual Camera, atau kamera virtual lainnya,
+                        pilih kamera fisik seperti Integrated Camera atau HD Webcam.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* CAMERA PREVIEW */}
+                  {cameraOpen ? (
+                    <div className="space-y-4">
+                      <div className="relative overflow-hidden rounded-xl bg-slate-900">
+                        <video ref={videoRef} autoPlay muted playsInline className="aspect-video w-full object-cover" />
+                        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                          <div className="h-64 w-48 rounded-[45%] border-2 border-white/80 shadow-[0_0_0_999px_rgba(0,0,0,0.35)]" />
+                        </div>
+                        {cameraLoading && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-slate-900/70">
+                            <div className="flex flex-col items-center gap-3 text-white">
+                              <Loader2 size={32} className="animate-spin" />
+                              <span className="text-sm">Membuka kamera...</span>
+                            </div>
+                          </div>
+                        )}
+                        {!cameraLoading && selectedCameraId && (
+                          <div className="absolute bottom-3 left-3 right-3">
+                            <div className="rounded-xl bg-black/60 px-3 py-2 text-xs text-white backdrop-blur-sm">
+                              <div className="flex items-center gap-2">
+                                <Video size={14} />
+                                <span className="truncate">
+                                  {cameras.find((c) => c.deviceId === selectedCameraId)?.label || "Kamera terpilih"}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {cameraError && (
+                        <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                          {cameraError}
+                        </div>
+                      )}
+
+                      <div className="flex flex-col gap-3 sm:flex-row">
+                        <button
+                          type="button"
+                          onClick={takePhoto}
+                          disabled={cameraLoading}
+                          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          <Camera size={19} />
+                          Ambil Foto
+                        </button>
+                        <button
+                          type="button"
+                          onClick={closeCamera}
+                          className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 font-semibold text-slate-700 transition hover:bg-slate-50"
+                        >
+                          <X size={18} />
+                          Batal
+                        </button>
+                      </div>
+                    </div>
+                  ) : capturedImage ? (
+                    /* PREVIEW PHOTO */
+                    <div className="space-y-4">
+                      <div className="relative overflow-hidden rounded-xl bg-slate-100">
+                        <img src={capturedImage} alt="Preview foto" className="aspect-video w-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={resetPhoto}
+                          className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/95 text-slate-700 shadow-md hover:bg-white"
+                        >
+                          <X size={18} />
+                        </button>
+                      </div>
+
+                      <div
+                        className={`rounded-xl border p-4 ${
+                          locationStatus === "success"
+                            ? "border-emerald-200 bg-emerald-50"
+                            : locationStatus === "error"
+                            ? "border-red-200 bg-red-50"
+                            : locationStatus === "loading"
+                            ? "border-blue-200 bg-blue-50"
+                            : "border-slate-200 bg-slate-50"
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <MapPin
+                            size={20}
+                            className={
+                              locationStatus === "success"
+                                ? "text-emerald-600"
+                                : locationStatus === "error"
+                                ? "text-red-600"
+                                : locationStatus === "loading"
+                                ? "text-blue-600"
+                                : "text-slate-500"
+                            }
+                          />
+                          <div>
+                            <p className="text-sm font-semibold text-slate-800">Lokasi GPS</p>
+                            <p className="mt-1 text-sm text-slate-600">
+                              {locationText || "Lokasi akan diperiksa saat absensi dikirim."}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col gap-3 sm:flex-row">
+                        <button
+                          type="button"
+                          onClick={handleSubmitAbsen}
+                          disabled={loadingAbsen || !kelasId || sudahAbsen}
+                          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {loadingAbsen ? (
+                            <>
+                              <Loader2 size={19} className="animate-spin" />
+                              Memproses...
+                            </>
+                          ) : sudahAbsen ? (
+                            <>
+                              <CheckCircle2 size={19} />
+                              Sudah Absen
+                            </>
+                          ) : (
+                            <>
+                              <UserCheck size={19} />
+                              Kirim Absensi
+                            </>
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => startCamera(selectedCameraId)}
+                          disabled={loadingAbsen || sudahAbsen}
+                          className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <Camera size={18} />
+                          Foto Ulang
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    /* EMPTY STATE */
+                    <div className="flex min-h-[320px] flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 px-6 py-12 text-center">
+                      <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-2xl bg-blue-100 text-blue-600">
+                        <Camera size={36} />
+                      </div>
+                      <h3 className="text-lg font-bold text-slate-900">Siap melakukan absensi?</h3>
+                      <p className="mt-2 max-w-md text-sm leading-6 text-slate-500">
+                        Pilih kamera terlebih dahulu, kemudian pastikan wajah terlihat jelas
+                        dan izin lokasi GPS sudah diberikan.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => startCamera(selectedCameraId)}
+                        disabled={!kelasId || sudahAbsen || cameras.length === 0}
+                        className="mt-6 inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <Camera size={19} />
+                        {sudahAbsen ? "Sudah Absen" : "Buka Kamera"}
+                      </button>
+                    </div>
+                  )}
+
+                  {/* INFO */}
+                  <div className="mt-5 grid grid-cols-3 gap-3">
+                    <div className="rounded-xl bg-slate-50 p-4 text-center">
+                      <Camera size={18} className="mx-auto mb-2 text-blue-600" />
+                      <p className="text-xs font-semibold text-slate-800">Foto Wajah</p>
+                      <p className="mt-1 text-xs leading-5 text-slate-500">Pastikan wajah terlihat jelas</p>
+                    </div>
+                    <div className="rounded-xl bg-slate-50 p-4 text-center">
+                      <MapPin size={18} className="mx-auto mb-2 text-emerald-600" />
+                      <p className="text-xs font-semibold text-slate-800">Lokasi GPS</p>
+                      <p className="mt-1 text-xs leading-5 text-slate-500">Untuk validasi lokasi</p>
+                    </div>
+                    <div className="rounded-xl bg-slate-50 p-4 text-center">
+                      <Clock3 size={18} className="mx-auto mb-2 text-orange-500" />
+                      <p className="text-xs font-semibold text-slate-800">Real Time</p>
+                      <p className="mt-1 text-xs leading-5 text-slate-500">Absensi tercatat langsung</p>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              {/* =================================================
+                  RIGHT: STATUS, MANUAL, RIWAYAT
+              ================================================= */}
+
+              <div className="space-y-6">
+
+                {/* STATUS HARI INI */}
+                <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
+                  <h2 className="font-bold text-slate-900">Status Hari Ini</h2>
+                  <div className="mt-4">
+                    {loadingData ? (
+                      <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-4">
+                        <Loader2 size={20} className="animate-spin text-blue-600" />
+                        <span className="text-sm text-slate-500">Memuat data...</span>
+                      </div>
+                    ) : sudahAbsen ? (
+                      <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
+                            <CheckCircle2 size={21} />
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-emerald-800">
+                              {getStatusLabel(absensiHariIni?.status)}
+                            </p>
+                            <p className="mt-0.5 text-xs text-emerald-700">
+                              {formatJam(absensiHariIni?.tanggal)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="rounded-xl border border-orange-200 bg-orange-50 p-4">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-100 text-orange-600">
+                            <Clock3 size={21} />
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-orange-800">Belum Absen</p>
+                            <p className="mt-0.5 text-xs text-orange-700">Silakan lakukan absensi.</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </section>
+
+                {/* MANUAL */}
+                <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-50 text-orange-600">
+                      <FileText size={20} />
+                    </div>
+                    <div>
+                      <h2 className="font-bold text-slate-900">Tidak Bisa Hadir?</h2>
+                      <p className="mt-1 text-xs leading-5 text-slate-500">Kirim keterangan izin, sakit, atau alpha.</p>
+                    </div>
+                  </div>
+
+                  {!showIzinForm ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowIzinForm(true)}
+                      disabled={!kelasId || sudahAbsen}
+                      className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <FileText size={17} />
+                      Ajukan Keterangan
+                    </button>
+                  ) : (
+                    <div className="mt-4 space-y-4">
+                      <div>
+                        <label className="mb-2 block text-xs font-semibold text-slate-700">Jenis</label>
+                        <div className="grid grid-cols-3 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setJenisIzin("izin")}
+                            className={`rounded-xl border px-3 py-2.5 text-xs font-semibold transition ${
+                              jenisIzin === "izin"
+                                ? "border-blue-600 bg-blue-50 text-blue-700"
+                                : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                            }`}
+                          >
+                            Izin
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setJenisIzin("sakit")}
+                            className={`rounded-xl border px-3 py-2.5 text-xs font-semibold transition ${
+                              jenisIzin === "sakit"
+                                ? "border-red-500 bg-red-50 text-red-700"
+                                : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                            }`}
+                          >
+                            Sakit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setJenisIzin("alpha")}
+                            className={`rounded-xl border px-3 py-2.5 text-xs font-semibold transition ${
+                              jenisIzin === "alpha"
+                                ? "border-slate-600 bg-slate-100 text-slate-800"
+                                : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                            }`}
+                          >
+                            Alpha
+                          </button>
+                        </div>
+                      </div>
+                      <div>
+                        <label htmlFor="keterangan" className="mb-2 block text-xs font-semibold text-slate-700">
+                          Keterangan
+                        </label>
+                        <textarea
+                          id="keterangan"
+                          value={keterangan}
+                          onChange={(e) => setKeterangan(e.target.value)}
+                          rows={4}
+                          placeholder="Tuliskan alasan atau keterangan..."
+                          className="w-full resize-none rounded-xl border border-slate-200 px-3 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowIzinForm(false);
+                            setKeterangan("");
+                            setError("");
+                          }}
+                          className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                        >
+                          Batal
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleSubmitManual}
+                          disabled={loadingAbsen || !kelasId || sudahAbsen}
+                          className="flex-1 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {loadingAbsen ? "Mengirim..." : "Kirim"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </section>
+
+                {/* CALENDAR / RIWAYAT */}
+                <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <h2 className="font-bold text-slate-900">Riwayat Absensi</h2>
+                    <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-600">
+                      {absensiData.length}
+                    </span>
+                  </div>
+
+                  {/* CALENDAR MINI */}
+                  <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50 p-3">
+                    <div className="flex items-center justify-between text-sm font-semibold text-slate-700">
+                      <span>{today.toLocaleDateString("id-ID", { month: "long", year: "numeric" })}</span>
+                      <div className="flex gap-1">
+                        <button className="rounded-lg p-1 hover:bg-slate-200">
+                          <ChevronDown size={16} className="rotate-90" />
+                        </button>
+                        <button className="rounded-lg p-1 hover:bg-slate-200">
+                          <ChevronDown size={16} className="-rotate-90" />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="mt-3 grid grid-cols-7 gap-1 text-center text-xs">
+                      {["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"].map((d, i) => (
+                        <div key={i} className="font-medium text-slate-400">{d}</div>
+                      ))}
+                      {Array.from({ length: 31 }, (_, i) => i + 1).map((date) => {
+                        const isToday = date === today.getDate();
+                        const hasAbsen = absensiData.some((a) => {
+                          const d = new Date(a.tanggal);
+                          return d.getDate() === date && d.getMonth() === today.getMonth();
+                        });
+                        return (
+                          <div
+                            key={date}
+                            className={`rounded-lg p-1.5 text-xs ${
+                              isToday
+                                ? "bg-blue-600 text-white font-bold"
+                                : hasAbsen
+                                ? "bg-emerald-100 text-emerald-700 font-semibold"
+                                : "text-slate-600"
+                            }`}
+                          >
+                            {date}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="mt-3 flex justify-center gap-4 text-[10px] text-slate-500">
+                      <span className="flex items-center gap-1">
+                        <span className="inline-block h-2.5 w-2.5 rounded-full bg-blue-600" /> Hari ini
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-400" /> Hadir
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* LIST RIWAYAT */}
+                  <div className="mt-4 max-h-[280px] space-y-3 overflow-y-auto pr-1">
+                    {loadingData ? (
+                      <div className="py-6 text-center">
+                        <Loader2 size={22} className="mx-auto animate-spin text-blue-600" />
+                        <p className="mt-2 text-xs text-slate-500">Memuat riwayat...</p>
+                      </div>
+                    ) : absensiData.length === 0 ? (
+                      <div className="rounded-xl bg-slate-50 p-5 text-center">
+                        <CalendarDays size={28} className="mx-auto text-slate-400" />
+                        <p className="mt-2 text-sm font-medium text-slate-700">Belum ada riwayat</p>
+                        <p className="mt-1 text-xs text-slate-500">Data absensi akan muncul di sini.</p>
+                      </div>
+                    ) : (
+                      absensiData
+                        .slice()
+                        .sort((a, b) => new Date(b?.tanggal || b?.dibuatPada || 0).getTime() - new Date(a?.tanggal || a?.dibuatPada || 0).getTime())
+                        .map((item) => (
+                          <div key={item?.id} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex items-center gap-3">
+                                <div
+                                  className={`flex h-9 w-9 items-center justify-center rounded-lg ${
+                                    item?.status === "hadir"
+                                      ? "bg-emerald-100 text-emerald-600"
+                                      : item?.status === "sakit"
+                                      ? "bg-red-100 text-red-600"
+                                      : item?.status === "izin"
+                                      ? "bg-blue-100 text-blue-600"
+                                      : "bg-slate-200 text-slate-600"
+                                  }`}
+                                >
+                                  {item?.status === "hadir" ? (
+                                    <UserCheck size={17} />
+                                  ) : item?.status === "sakit" ? (
+                                    <HeartPulse size={17} />
+                                  ) : item?.status === "alpha" || item?.status === "alpa" ? (
+                                    <UserX size={17} />
+                                  ) : (
+                                    <FileText size={17} />
+                                  )}
+                                </div>
+                                <div>
+                                  <p className="text-sm font-semibold text-slate-800">{getStatusLabel(item?.status)}</p>
+                                  <p className="mt-0.5 text-xs text-slate-500">{formatTanggal(item?.tanggal)}</p>
+                                </div>
+                              </div>
+                              <span className="text-xs font-medium text-slate-500">{formatJam(item?.tanggal)}</span>
+                            </div>
+                            {item?.keterangan && (
+                              <p className="mt-3 border-t border-slate-200 pt-3 text-xs leading-5 text-slate-500">
+                                {item.keterangan}
+                              </p>
+                            )}
+                            {item?.metode && (
+                              <div className="mt-2 text-[11px] text-slate-400">Metode: {item.metode}</div>
+                            )}
+                          </div>
+                        ))
+                    )}
+                  </div>
+                </section>
+
+              </div>
+            </div>
+
+            <div className="h-4" />
+
+          </div>
+        </main>
       </div>
+
+      <canvas ref={canvasRef} className="hidden" />
     </div>
   );
 }

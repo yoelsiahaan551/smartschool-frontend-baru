@@ -1,40 +1,41 @@
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+import { apiFetch } from "../lib/api";
 
-type AbsensiStatus =
+export type AbsensiStatus =
   | "hadir"
   | "izin"
   | "sakit"
   | "alpha";
 
-type AbsensiMetode =
+export type AbsensiMetode =
   | "lokasi"
   | "barcode"
   | "face"
   | "manual";
 
+export interface AbsensiPengguna {
+  id?: string;
+  namaLengkap?: string;
+  nisn?: string;
+}
+
 export interface Absensi {
   id: string;
-  penggunaId: string;
-  kelasId: string;
-  tanggal: string;
-  status: AbsensiStatus;
-  keterangan?: string | null;
-  metode: AbsensiMetode;
+  penggunaId?: string;
+  kelasId?: string;
+  tanggal?: string;
+  status?: AbsensiStatus;
+  keterangan?: string;
+  metode?: AbsensiMetode;
   lintang?: number | null;
   bujur?: number | null;
   urlFoto?: string | null;
-  dibuatOleh?: string;
+  dibuatOleh?: string | null;
   dibuatPada?: string;
   diperbaruiPada?: string;
-  pengguna?: {
-    id: string;
-    namaLengkap: string;
-    nisn?: string | null;
-  };
+  pengguna?: AbsensiPengguna | null;
 }
 
-interface CreateAbsensiData {
+export interface CreateAbsensiData {
   kelasId: string;
   status: AbsensiStatus;
   metode?: AbsensiMetode;
@@ -42,203 +43,159 @@ interface CreateAbsensiData {
   lintang?: number;
   bujur?: number;
   barcodeData?: string;
-  snapshot?: File | Blob;
+  snapshot?: Blob | File | null;
 }
 
-interface AbsensiResponse<T = any> {
-  success: boolean;
-  message: string;
-  data: T;
-}
+const RAW_API_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  "http://localhost:5000";
 
-/**
- * Mengambil token login dari localStorage.
- *
- * Disamakan dengan user.service.ts
- * supaya semua service menggunakan mekanisme auth
- * yang sama.
- */
+const API_URL = (() => {
+  const base = RAW_API_URL.replace(/\/+$/, "");
+
+  if (/\/api\/v1$/i.test(base)) {
+    return base;
+  }
+
+  if (/\/api$/i.test(base)) {
+    return `${base}/v1`;
+  }
+
+  return `${base}/api/v1`;
+})();
+
 function getToken(): string | null {
   if (typeof window === "undefined") {
     return null;
   }
 
-  const keys = [
-    "token",
-    "accessToken",
-    "access_token",
-    "authToken",
-    "jwt",
-  ];
-
-  for (const key of keys) {
-    const value = localStorage.getItem(key);
-
-    if (value && value.trim()) {
-      return value
-        .trim()
-        .replace(/^Bearer\s+/i, "");
-    }
-  }
-
-  return null;
+  return (
+    localStorage.getItem("token") ||
+    localStorage.getItem("accessToken") ||
+    localStorage.getItem("access_token") ||
+    localStorage.getItem("authToken") ||
+    localStorage.getItem("jwt")
+  );
 }
 
-/**
- * Request utama ke backend.
- */
 async function request<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
   const token = getToken();
 
-  if (!token) {
-    throw new Error(
-      "Token login tidak ditemukan. Silakan login kembali."
-    );
-  }
+  const cleanEndpoint = endpoint.startsWith("/")
+    ? endpoint
+    : `/${endpoint}`;
+
+  const url = `${API_URL}${cleanEndpoint}`;
 
   const headers = new Headers(options.headers);
 
-  /**
-   * Jangan set Content-Type secara manual
-   * ketika body berupa FormData.
-   *
-   * Browser akan otomatis membuat:
-   * multipart/form-data; boundary=...
-   */
   const isFormData =
     options.body instanceof FormData;
 
-  if (!isFormData && !headers.has("Content-Type")) {
+  if (!isFormData) {
     headers.set(
       "Content-Type",
       "application/json"
     );
   }
 
-  headers.set(
-    "Authorization",
-    `Bearer ${token}`
-  );
-
-  const url = `${API_URL}${endpoint}`;
-
-  let response: Response;
-
-  try {
-    response = await fetch(url, {
-      ...options,
-      headers,
-      cache: "no-store",
-    });
-  } catch (error) {
-    console.error(
-      "Network error absensi:",
-      error
-    );
-
-    throw new Error(
-      "Tidak dapat terhubung ke server. Pastikan backend berjalan."
+  if (token) {
+    headers.set(
+      "Authorization",
+      `Bearer ${token}`
     );
   }
 
-  const contentType =
-    response.headers.get("content-type") || "";
+  const response = await fetch(url, {
+    ...options,
+    headers,
+    cache: "no-store",
+  });
 
-  const rawText = await response.text();
+  const text = await response.text();
 
   let result: any = null;
 
-  if (rawText.trim()) {
+  if (text) {
     try {
-      result = JSON.parse(rawText);
+      result = JSON.parse(text);
     } catch {
-      console.error(
-        "Response absensi bukan JSON:",
-        {
-          url,
-          status: response.status,
-          contentType,
-          body: rawText,
-        }
-      );
-
-      throw new Error(
-        `Server mengembalikan response tidak valid (${response.status}).`
-      );
+      result = null;
     }
   }
 
-  /**
-   * Unauthorized
-   */
-  if (response.status === 401) {
-    throw new Error(
-      result?.message ||
-        "Sesi login sudah tidak valid. Silakan login kembali."
-    );
-  }
-
-  /**
-   * Forbidden
-   */
-  if (response.status === 403) {
-    throw new Error(
-      result?.message ||
-        "Anda tidak memiliki akses untuk melakukan absensi."
-    );
-  }
-
-  /**
-   * Error lainnya
-   */
   if (!response.ok) {
-    throw new Error(
-      result?.message ||
-        `Request gagal (${response.status})`
-    );
+    let message =
+      "Terjadi kesalahan pada server.";
+
+    if (result?.message) {
+      message = result.message;
+    } else if (text) {
+      message = text;
+    }
+
+    if (response.status === 401) {
+      throw new Error(
+        "Sesi login sudah habis. Silakan login kembali."
+      );
+    }
+
+    if (response.status === 403) {
+      throw new Error(
+        message ||
+          "Kamu tidak memiliki akses."
+      );
+    }
+
+    if (response.status === 404) {
+      throw new Error(
+        `Endpoint tidak ditemukan.\nURL: ${url}`
+      );
+    }
+
+    throw new Error(message);
+  }
+
+  if (
+    result &&
+    typeof result === "object" &&
+    "data" in result
+  ) {
+    return result.data as T;
   }
 
   return result as T;
 }
 
-/**
- * =========================================================
- * GET ABSENSI SAYA
- * GET /api/v1/absensi/saya
- * =========================================================
- */
+/* =========================================================
+   GET ABSENSI SAYA
+========================================================= */
+
 export async function getAbsensiSaya(): Promise<
   Absensi[]
 > {
-  const result =
-    await request<AbsensiResponse<Absensi[]>>(
-      "/absensi/saya",
-      {
-        method: "GET",
-      }
-    );
-
-  return Array.isArray(result?.data)
-    ? result.data
-    : [];
+  return request<Absensi[]>(
+    "/absensi/saya",
+    {
+      method: "GET",
+    }
+  );
 }
 
-/**
- * =========================================================
- * GET ABSENSI KELAS
- * GET /api/v1/absensi/kelas/:kelasId
- * =========================================================
- */
+/* =========================================================
+   GET ABSENSI KELAS
+========================================================= */
+
 export async function getAbsensiKelas(
   kelasId: string,
-  tanggal?: string | null
+  tanggal?: string
 ): Promise<Absensi[]> {
   if (!kelasId) {
     throw new Error(
-      "kelasId wajib diisi."
+      "Kelas ID wajib diisi."
     );
   }
 
@@ -248,239 +205,191 @@ export async function getAbsensiKelas(
     )}`;
 
   if (tanggal) {
-    endpoint +=
-      `?tanggal=${encodeURIComponent(
-        tanggal
-      )}`;
+    endpoint += `?tanggal=${encodeURIComponent(
+      tanggal
+    )}`;
   }
 
-  const result =
-    await request<AbsensiResponse<Absensi[]>>(
-      endpoint,
-      {
-        method: "GET",
-      }
-    );
-
-  return Array.isArray(result?.data)
-    ? result.data
-    : [];
+  return request<Absensi[]>(
+    endpoint,
+    {
+      method: "GET",
+    }
+  );
 }
 
-/**
- * =========================================================
- * CREATE ABSENSI
- * POST /api/v1/absensi
- * =========================================================
- */
+/* =========================================================
+   CREATE ABSENSI
+========================================================= */
+
 export async function createAbsensi(
   data: CreateAbsensiData
 ): Promise<Absensi> {
-  const {
-    kelasId,
-    status,
-    metode = "lokasi",
-    keterangan,
-    lintang,
-    bujur,
-    barcodeData,
-    snapshot,
-  } = data;
-
-  if (!kelasId) {
+  if (!data.kelasId) {
     throw new Error(
-      "kelasId wajib diisi."
+      "Kelas ID wajib diisi."
     );
   }
 
-  if (!status) {
+  if (!data.status) {
     throw new Error(
       "Status absensi wajib diisi."
     );
   }
 
-  /**
-   * =======================================================
-   * FACE
-   *
-   * Backend menggunakan:
-   * upload.single("snapshot")
-   *
-   * Jadi nama field HARUS:
-   * snapshot
-   * =======================================================
-   */
-  if (metode === "face") {
-    if (!snapshot) {
+  /* =========================
+     FACE
+  ========================= */
+
+  if (data.metode === "face") {
+    if (!data.snapshot) {
       throw new Error(
-        "Foto wajah wajib disertakan."
+        "Foto wajah wajib diisi."
       );
     }
 
-    const formData = new FormData();
+    if (
+      data.lintang === undefined ||
+      data.bujur === undefined
+    ) {
+      throw new Error(
+        "Lokasi GPS wajib diaktifkan."
+      );
+    }
+
+    const formData =
+      new FormData();
 
     formData.append(
       "kelasId",
-      kelasId
+      data.kelasId
     );
 
     formData.append(
       "status",
-      status
+      data.status
     );
 
     formData.append(
       "metode",
-      metode
+      "face"
     );
 
-    if (keterangan) {
+    if (data.keterangan) {
       formData.append(
         "keterangan",
-        keterangan
-      );
-    }
-
-    if (
-      lintang !== undefined &&
-      lintang !== null
-    ) {
-      formData.append(
-        "lintang",
-        String(lintang)
-      );
-    }
-
-    if (
-      bujur !== undefined &&
-      bujur !== null
-    ) {
-      formData.append(
-        "bujur",
-        String(bujur)
-      );
-    }
-
-    /**
-     * Jika Blob biasa, ubah menjadi File
-     * supaya multipart memiliki filename.
-     */
-    let snapshotFile: File | Blob =
-      snapshot;
-
-    if (
-      typeof File !== "undefined" &&
-      snapshot instanceof Blob &&
-      !(snapshot instanceof File)
-    ) {
-      snapshotFile = new File(
-        [snapshot],
-        `absen-${Date.now()}.jpg`,
-        {
-          type:
-            snapshot.type ||
-            "image/jpeg",
-        }
+        data.keterangan
       );
     }
 
     formData.append(
-      "snapshot",
-      snapshotFile
+      "lintang",
+      String(data.lintang)
     );
 
-    const result =
-      await request<
-        AbsensiResponse<Absensi>
-      >("/absensi", {
+    formData.append(
+      "bujur",
+      String(data.bujur)
+    );
+
+    if (data.snapshot instanceof File) {
+      formData.append(
+        "snapshot",
+        data.snapshot,
+        data.snapshot.name ||
+          "snapshot.jpg"
+      );
+    } else {
+      const file = new File(
+        [data.snapshot],
+        "snapshot.jpg",
+        {
+          type:
+            data.snapshot.type ||
+            "image/jpeg",
+        }
+      );
+
+      formData.append(
+        "snapshot",
+        file
+      );
+    }
+
+    return request<Absensi>(
+      "/absensi",
+      {
         method: "POST",
         body: formData,
-      });
-
-    return result.data;
-  }
-
-  /**
-   * =======================================================
-   * LOKASI / BARCODE / MANUAL
-   *
-   * Backend menerima req.body biasa.
-   * =======================================================
-   */
-  const body: {
-    kelasId: string;
-    status: AbsensiStatus;
-    metode: AbsensiMetode;
-    keterangan?: string;
-    lintang?: number;
-    bujur?: number;
-    barcodeData?: string;
-  } = {
-    kelasId,
-    status,
-    metode,
-  };
-
-  if (keterangan) {
-    body.keterangan =
-      keterangan;
-  }
-
-  if (
-    lintang !== undefined &&
-    lintang !== null
-  ) {
-    body.lintang = lintang;
-  }
-
-  if (
-    bujur !== undefined &&
-    bujur !== null
-  ) {
-    body.bujur = bujur;
-  }
-
-  if (barcodeData) {
-    body.barcodeData =
-      barcodeData;
-  }
-
-  const result =
-    await request<
-      AbsensiResponse<Absensi>
-    >("/absensi", {
-      method: "POST",
-      body: JSON.stringify(body),
-    });
-
-  return result.data;
-}
-
-/**
- * =========================================================
- * ABSEN DENGAN LOKASI
- * =========================================================
- */
-export async function absenDenganLokasi({
-  kelasId,
-  status = "hadir",
-  keterangan = "",
-}: {
-  kelasId: string;
-  status?: AbsensiStatus;
-  keterangan?: string;
-}): Promise<Absensi> {
-  if (
-    typeof navigator === "undefined"
-  ) {
-    throw new Error(
-      "Geolocation hanya dapat digunakan di browser."
+      }
     );
   }
 
-  if (!navigator.geolocation) {
+  /* =========================
+     NON FACE
+  ========================= */
+
+  const body: Record<
+    string,
+    unknown
+  > = {
+    kelasId: data.kelasId,
+    status: data.status,
+    metode:
+      data.metode || "manual",
+  };
+
+  if (data.keterangan) {
+    body.keterangan =
+      data.keterangan;
+  }
+
+  if (
+    data.lintang !== undefined
+  ) {
+    body.lintang =
+      data.lintang;
+  }
+
+  if (
+    data.bujur !== undefined
+  ) {
+    body.bujur =
+      data.bujur;
+  }
+
+  if (data.barcodeData) {
+    body.barcodeData =
+      data.barcodeData;
+  }
+
+  return request<Absensi>(
+    "/absensi",
+    {
+      method: "POST",
+      body: JSON.stringify(body),
+    }
+  );
+}
+
+/* =========================================================
+   ABSEN LOKASI
+========================================================= */
+
+export async function absenDenganLokasi(
+  data: {
+    kelasId: string;
+    status?: AbsensiStatus;
+    keterangan?: string;
+  }
+): Promise<Absensi> {
+  if (
+    typeof navigator ===
+      "undefined" ||
+    !navigator.geolocation
+  ) {
     throw new Error(
-      "Browser tidak mendukung akses lokasi."
+      "Browser tidak mendukung GPS."
     );
   }
 
@@ -489,43 +398,10 @@ export async function absenDenganLokasi({
       (resolve, reject) => {
         navigator.geolocation.getCurrentPosition(
           resolve,
-          (error) => {
-            switch (error.code) {
-              case error.PERMISSION_DENIED:
-                reject(
-                  new Error(
-                    "Akses lokasi ditolak. Silakan izinkan lokasi pada browser."
-                  )
-                );
-                break;
-
-              case error.POSITION_UNAVAILABLE:
-                reject(
-                  new Error(
-                    "Lokasi tidak tersedia."
-                  )
-                );
-                break;
-
-              case error.TIMEOUT:
-                reject(
-                  new Error(
-                    "Waktu mengambil lokasi habis."
-                  )
-                );
-                break;
-
-              default:
-                reject(
-                  new Error(
-                    "Gagal mendapatkan lokasi."
-                  )
-                );
-            }
-          },
+          reject,
           {
             enableHighAccuracy: true,
-            timeout: 10000,
+            timeout: 15000,
             maximumAge: 0,
           }
         );
@@ -533,10 +409,12 @@ export async function absenDenganLokasi({
     );
 
   return createAbsensi({
-    kelasId,
-    status,
+    kelasId: data.kelasId,
+    status:
+      data.status || "hadir",
     metode: "lokasi",
-    keterangan,
+    keterangan:
+      data.keterangan,
     lintang:
       position.coords.latitude,
     bujur:
@@ -544,101 +422,137 @@ export async function absenDenganLokasi({
   });
 }
 
-/**
- * =========================================================
- * ABSEN DENGAN BARCODE / QR
- * =========================================================
- */
-export async function absenDenganBarcode({
-  kelasId,
-  barcodeData,
-  status = "hadir",
-  keterangan = "",
-}: {
-  kelasId: string;
-  barcodeData: string;
-  status?: AbsensiStatus;
-  keterangan?: string;
-}): Promise<Absensi> {
-  if (!barcodeData) {
+/* =========================================================
+   ABSEN BARCODE
+========================================================= */
+
+export async function absenDenganBarcode(
+  data: {
+    kelasId: string;
+    barcodeData: string;
+    status?: AbsensiStatus;
+    keterangan?: string;
+  }
+): Promise<Absensi> {
+  if (!data.kelasId) {
     throw new Error(
-      "Data barcode/QR wajib diisi."
+      "Kelas ID wajib diisi."
+    );
+  }
+
+  if (!data.barcodeData) {
+    throw new Error(
+      "Data barcode wajib diisi."
     );
   }
 
   return createAbsensi({
-    kelasId,
-    status,
+    kelasId: data.kelasId,
+    status:
+      data.status || "hadir",
     metode: "barcode",
-    barcodeData,
-    keterangan,
+    barcodeData:
+      data.barcodeData,
+    keterangan:
+      data.keterangan,
   });
 }
 
-/**
- * =========================================================
- * ABSEN DENGAN FACE
- * =========================================================
- */
-export async function absenDenganFace({
-  kelasId,
-  snapshot,
-  status = "hadir",
-  keterangan = "",
-}: {
-  kelasId: string;
-  snapshot: File | Blob;
-  status?: AbsensiStatus;
-  keterangan?: string;
-}): Promise<Absensi> {
-  if (!snapshot) {
+/* =========================================================
+   ABSEN FACE
+========================================================= */
+
+export async function absenDenganFace(
+  data: {
+    kelasId: string;
+    snapshot: Blob | File;
+    status?: AbsensiStatus;
+    keterangan?: string;
+    lintang: number;
+    bujur: number;
+  }
+): Promise<Absensi> {
+  if (!data.kelasId) {
     throw new Error(
-      "Foto wajah wajib disertakan."
+      "Kelas ID wajib diisi."
+    );
+  }
+
+  if (!data.snapshot) {
+    throw new Error(
+      "Foto wajah wajib diisi."
     );
   }
 
   if (
-    typeof Blob !== "undefined" &&
-    !(snapshot instanceof Blob)
+    data.lintang === undefined ||
+    data.bujur === undefined
   ) {
     throw new Error(
-      "Snapshot harus berupa File atau Blob."
+      "Lokasi GPS wajib diaktifkan."
     );
   }
 
   return createAbsensi({
-    kelasId,
-    status,
+    kelasId: data.kelasId,
+    status:
+      data.status || "hadir",
     metode: "face",
-    snapshot,
-    keterangan,
+    keterangan:
+      data.keterangan,
+    lintang:
+      data.lintang,
+    bujur:
+      data.bujur,
+    snapshot:
+      data.snapshot,
   });
 }
 
-/**
- * =========================================================
- * ABSEN MANUAL
- *
- * Dipakai untuk:
- * - izin
- * - sakit
- * - manual hadir
- * - alpha
- * =========================================================
- */
-export async function absenManual({
-  kelasId,
-  status,
-  keterangan = "",
-}: {
-  kelasId: string;
-  status: AbsensiStatus;
-  keterangan?: string;
-}): Promise<Absensi> {
+/* =========================================================
+   ABSEN MANUAL
+========================================================= */
+
+export async function absenManual(
+  data: {
+    kelasId: string;
+    status:
+      | "izin"
+      | "sakit"
+      | "alpha"
+      | "hadir";
+    keterangan?: string;
+  }
+): Promise<Absensi> {
+  if (!data.kelasId) {
+    throw new Error(
+      "Kelas ID wajib diisi."
+    );
+  }
+
+  if (!data.status) {
+    throw new Error(
+      "Status wajib diisi."
+    );
+  }
+
   return createAbsensi({
-    kelasId,
-    status,
+    kelasId: data.kelasId,
+    status: data.status,
     metode: "manual",
-    keterangan,
+    keterangan:
+      data.keterangan,
   });
 }
+
+const absensiService = {
+  getAbsensiSaya,
+  getAbsensiKelas,
+  createAbsensi,
+  absenDenganLokasi,
+  absenDenganBarcode,
+  absenDenganFace,
+  absenManual,
+};
+
+export default absensiService;

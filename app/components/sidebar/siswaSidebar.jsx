@@ -84,12 +84,7 @@ export const siswaSidebarConfig = {
           label: "Tugas",
           path: "/siswa/mataPelajaran/tugas",
         },
-        {
-          key: "ujian",
-          icon: GraduationCap,
-          label: "Ujian",
-          path: "/siswa/mataPelajaran/ujian",
-        },
+        
       ],
     },
 

@@ -1,5 +1,5 @@
 const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
 export interface MataPelajaran {
   id: string;
@@ -71,9 +71,10 @@ async function request<T>(
     headers.set("Content-Type", "application/json");
   }
 
+  headers.set("Accept", "application/json");
   headers.set("Authorization", `Bearer ${token}`);
 
-  const url = `${API_URL}${endpoint}`;
+  const url = `${API_URL}/api${endpoint}`;
 
   let response: Response;
 
@@ -87,7 +88,7 @@ async function request<T>(
     console.error("Network error:", error);
 
     throw new Error(
-      "Tidak dapat terhubung ke server. Pastikan backend berjalan."
+      "Tidak dapat terhubung ke server. Pastikan backend berjalan di http://localhost:5000."
     );
   }
 
@@ -125,6 +126,13 @@ async function request<T>(
     );
   }
 
+  if (response.status === 404) {
+    throw new Error(
+      result?.message ||
+        "Endpoint mata pelajaran tidak ditemukan."
+    );
+  }
+
   if (response.status === 409) {
     throw new Error(
       result?.message ||
@@ -142,14 +150,10 @@ async function request<T>(
   return result as T;
 }
 
-/**
- * Ambil semua mata pelajaran milik sekolah (dari token login).
- * Catatan: backend saat ini belum mendukung pagination/search/sort
- * di endpoint ini — semua data langsung dikembalikan sekaligus,
- * diurutkan berdasarkan nama (A-Z).
- */
 export async function getMataPelajaran(): Promise<GetMataPelajaranResponse> {
-  return request<GetMataPelajaranResponse>("/mata-pelajaran");
+  return request<GetMataPelajaranResponse>(
+    "/mata-pelajaran"
+  );
 }
 
 export async function createMataPelajaran(
@@ -170,7 +174,9 @@ export async function updateMataPelajaran(
   payload: UpdateMataPelajaranPayload
 ) {
   if (!id) {
-    throw new Error("ID mata pelajaran tidak ditemukan.");
+    throw new Error(
+      "ID mata pelajaran tidak ditemukan."
+    );
   }
 
   return request<{
@@ -185,7 +191,9 @@ export async function updateMataPelajaran(
 
 export async function deleteMataPelajaran(id: string) {
   if (!id) {
-    throw new Error("ID mata pelajaran tidak ditemukan.");
+    throw new Error(
+      "ID mata pelajaran tidak ditemukan."
+    );
   }
 
   return request<{

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter, useParams } from "next/navigation";
+
 import Header from "../../../../../components/Header";
 import Sidebar from "../../../../../components/Sidebar";
 
@@ -18,6 +19,13 @@ import {
   DoorOpen,
   GraduationCap,
   CalendarDays,
+  ChevronRight,
+  MapPin,
+  School,
+  Clock3,
+  Image as ImageIcon,
+  CheckCircle2,
+  AlertCircle,
 } from "lucide-react";
 
 import {
@@ -43,6 +51,7 @@ export default function DetailGedungPage() {
   /* =========================================================
      FORMAT TANGGAL
   ========================================================= */
+
   const formatDate = (date) => {
     if (!date) return "-";
 
@@ -62,8 +71,24 @@ export default function DetailGedungPage() {
   };
 
   /* =========================================================
-     FETCH DETAIL GEDUNG
+     TOTAL KELAS
   ========================================================= */
+
+  const totalKelas = useMemo(() => {
+    return lantai.reduce((total, item) => {
+      return (
+        total +
+        (Array.isArray(item?.kelas)
+          ? item.kelas.length
+          : 0)
+      );
+    }, 0);
+  }, [lantai]);
+
+  /* =========================================================
+     FETCH DETAIL
+  ========================================================= */
+
   useEffect(() => {
     if (!id) return;
 
@@ -74,13 +99,6 @@ export default function DetailGedungPage() {
         setIsLoading(true);
         setError("");
 
-        /*
-         * Endpoint BE belum memiliki:
-         * GET /gedung/:id
-         *
-         * Jadi kita mengambil seluruh gedung,
-         * lalu mencari berdasarkan ID.
-         */
         const gedungResponse = await getGedung();
 
         const gedungList =
@@ -90,17 +108,21 @@ export default function DetailGedungPage() {
           [];
 
         if (!Array.isArray(gedungList)) {
-          throw new Error("Format data gedung tidak valid.");
+          throw new Error(
+            "Format data gedung tidak valid."
+          );
         }
 
         const found = gedungList.find(
-          (item) => String(item.id) === String(id)
+          (item) =>
+            String(item.id) === String(id)
         );
 
         if (!found) {
           if (mounted) {
             setData(null);
           }
+
           return;
         }
 
@@ -108,11 +130,9 @@ export default function DetailGedungPage() {
           setData(found);
         }
 
-        /*
-         * Ambil lantai + kelas berdasarkan gedung.
-         */
         try {
-          const lantaiResponse = await getLantaiByGedung(id);
+          const lantaiResponse =
+            await getLantaiByGedung(id);
 
           const lantaiData =
             lantaiResponse?.data ??
@@ -121,26 +141,34 @@ export default function DetailGedungPage() {
             [];
 
           if (mounted) {
-            setLantai(Array.isArray(lantaiData) ? lantaiData : []);
+            setLantai(
+              Array.isArray(lantaiData)
+                ? lantaiData
+                : []
+            );
           }
         } catch (lantaiError) {
-          console.error("Error fetch lantai:", lantaiError);
+          console.error(
+            "Error fetch lantai:",
+            lantaiError
+          );
 
-          /*
-           * Kalau request lantai gagal, detail gedung
-           * tetap bisa ditampilkan.
-           */
           if (mounted) {
             setLantai([]);
           }
         }
       } catch (err) {
-        console.error("Error fetch detail gedung:", err);
+        console.error(
+          "Error fetch detail gedung:",
+          err
+        );
 
         if (mounted) {
           setError(
-            err?.message || "Gagal mengambil detail gedung."
+            err?.message ||
+              "Gagal mengambil detail gedung."
           );
+
           setData(null);
         }
       } finally {
@@ -158,8 +186,9 @@ export default function DetailGedungPage() {
   }, [id]);
 
   /* =========================================================
-     DELETE GEDUNG
+     DELETE
   ========================================================= */
+
   const handleDelete = async () => {
     if (!data) return;
 
@@ -178,7 +207,10 @@ export default function DetailGedungPage() {
 
       router.push("/admin/sarpras/gedung");
     } catch (err) {
-      console.error("Error hapus gedung:", err);
+      console.error(
+        "Error hapus gedung:",
+        err
+      );
 
       alert(
         err?.message ||
@@ -192,36 +224,56 @@ export default function DetailGedungPage() {
   /* =========================================================
      LOADING
   ========================================================= */
+
   if (isLoading) {
     return (
-      <div className="flex min-h-screen bg-[#f8fafc]">
-        <Sidebar
-          active="sarpras"
-          setActive={() => {}}
-          collapsed={isCollapsed}
-          setCollapsed={setIsCollapsed}
-        />
-
-        <div className="flex min-w-0 flex-1 flex-col">
-          <Header
-            toggleSidebar={() =>
-              setIsCollapsed(!isCollapsed)
-            }
-            notifications={[]}
-            user={{
-              name: "Admin Sekolah",
-              email: "admin@smartschool.com",
-              avatar: "AD",
-            }}
+      <div className="flex h-screen overflow-hidden bg-[#f8fafc]">
+        <div className="fixed inset-y-0 left-0 z-50">
+          <Sidebar
+            active="sarpras"
+            setActive={() => {}}
+            collapsed={isCollapsed}
+            setCollapsed={setIsCollapsed}
           />
+        </div>
 
-          <main className="flex-1 p-8">
-            <div className="flex h-full items-center justify-center">
+        <div
+          className={`flex min-w-0 flex-1 flex-col overflow-hidden transition-[margin] duration-300 ${
+            isCollapsed
+              ? "lg:ml-[88px]"
+              : "lg:ml-[260px]"
+          }`}
+        >
+          <div className="shrink-0">
+            <Header
+              toggleSidebar={() =>
+                setIsCollapsed(
+                  (value) => !value
+                )
+              }
+              notifications={[]}
+              user={{
+                name: "Admin Sekolah",
+                email:
+                  "admin@smartschool.com",
+                avatar: "AD",
+              }}
+            />
+          </div>
+
+          <main className="min-h-0 flex-1 overflow-hidden">
+            <div className="flex h-full items-center justify-center p-6">
               <div className="text-center">
-                <div className="mx-auto h-12 w-12 animate-spin rounded-full border-b-2 border-blue-600" />
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
+                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-slate-200 border-t-blue-600" />
+                </div>
 
-                <p className="mt-4 text-sm text-slate-500">
-                  Memuat detail gedung...
+                <p className="mt-4 text-sm font-semibold text-slate-700">
+                  Memuat detail gedung
+                </p>
+
+                <p className="mt-1 text-xs text-slate-400">
+                  Mohon tunggu sebentar...
                 </p>
               </div>
             </div>
@@ -232,55 +284,72 @@ export default function DetailGedungPage() {
   }
 
   /* =========================================================
-     DATA TIDAK DITEMUKAN / ERROR
+     NOT FOUND
   ========================================================= */
+
   if (!data) {
     return (
-      <div className="flex min-h-screen bg-[#f8fafc]">
-        <Sidebar
-          active="sarpras"
-          setActive={() => {}}
-          collapsed={isCollapsed}
-          setCollapsed={setIsCollapsed}
-        />
-
-        <div className="flex min-w-0 flex-1 flex-col">
-          <Header
-            toggleSidebar={() =>
-              setIsCollapsed(!isCollapsed)
-            }
-            notifications={[]}
-            user={{
-              name: "Admin Sekolah",
-              email: "admin@smartschool.com",
-              avatar: "AD",
-            }}
+      <div className="flex h-screen overflow-hidden bg-[#f8fafc]">
+        <div className="fixed inset-y-0 left-0 z-50">
+          <Sidebar
+            active="sarpras"
+            setActive={() => {}}
+            collapsed={isCollapsed}
+            setCollapsed={setIsCollapsed}
           />
+        </div>
 
-          <main className="flex-1 p-8">
-            <div className="flex h-full items-center justify-center">
-              <div className="text-center">
+        <div
+          className={`flex min-w-0 flex-1 flex-col overflow-hidden transition-[margin] duration-300 ${
+            isCollapsed
+              ? "lg:ml-[88px]"
+              : "lg:ml-[260px]"
+          }`}
+        >
+          <div className="shrink-0">
+            <Header
+              toggleSidebar={() =>
+                setIsCollapsed(
+                  (value) => !value
+                )
+              }
+              notifications={[]}
+              user={{
+                name: "Admin Sekolah",
+                email:
+                  "admin@smartschool.com",
+                avatar: "AD",
+              }}
+            />
+          </div>
+
+          <main className="min-h-0 flex-1 overflow-auto">
+            <div className="flex min-h-full items-center justify-center p-6">
+              <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-[0_8px_30px_rgba(15,23,42,0.05)]">
                 <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
-                  <Building size={32} />
+                  <Building size={28} />
                 </div>
 
-                <h3 className="mt-4 text-lg font-semibold text-slate-700">
+                <h3 className="mt-5 text-lg font-bold text-slate-800">
                   Gedung tidak ditemukan
                 </h3>
 
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-2 text-sm leading-6 text-slate-400">
                   {error ||
                     `Data gedung dengan ID #${id} tidak tersedia.`}
                 </p>
 
                 <button
+                  type="button"
                   onClick={() =>
-                    router.push("/admin/sarpras/gedung")
+                    router.push(
+                      "/admin/sarpras/gedung"
+                    )
                   }
-                  className="mt-4 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
+                  className="mt-6 inline-flex h-10 items-center gap-2 rounded-xl bg-slate-900 px-4 text-sm font-semibold text-white transition hover:bg-slate-800"
                 >
                   <ArrowLeft size={16} />
-                  Kembali ke Daftar Gedung
+                  Kembali ke Daftar
                 </button>
               </div>
             </div>
@@ -293,653 +362,1055 @@ export default function DetailGedungPage() {
   /* =========================================================
      NORMAL PAGE
   ========================================================= */
+
   return (
-    <div className="flex min-h-screen bg-[#f8fafc]">
-      {/* SIDEBAR */}
-      <Sidebar
-        active="sarpras"
-        setActive={() => {}}
-        collapsed={isCollapsed}
-        setCollapsed={setIsCollapsed}
-      />
+    <div className="flex h-screen overflow-hidden bg-[#f8fafc]">
+      {/* =====================================================
+          SIDEBAR
+      ===================================================== */}
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        {/* HEADER */}
-        <Header
-          toggleSidebar={() =>
-            setIsCollapsed(!isCollapsed)
-          }
-          notifications={[]}
-          user={{
-            name: "Admin Sekolah",
-            email: "admin@smartschool.com",
-            avatar: "AD",
-          }}
+      <div className="fixed inset-y-0 left-0 z-50">
+        <Sidebar
+          active="sarpras"
+          setActive={() => {}}
+          collapsed={isCollapsed}
+          setCollapsed={setIsCollapsed}
         />
+      </div>
 
-        <main className="flex-1 p-3 sm:p-5 lg:p-7 xl:p-8">
-          <div className="mx-auto w-full max-w-[1200px] space-y-4 sm:space-y-5 lg:space-y-6">
+      {/* =====================================================
+          MAIN
+      ===================================================== */}
+
+      <div
+        className={`flex min-w-0 flex-1 flex-col overflow-hidden transition-[margin] duration-300 ${
+          isCollapsed
+            ? "lg:ml-[88px]"
+            : "lg:ml-[260px]"
+        }`}
+      >
+        {/* ===================================================
+            HEADER
+        =================================================== */}
+
+        <div className="shrink-0">
+          <Header
+            toggleSidebar={() =>
+              setIsCollapsed(
+                (value) => !value
+              )
+            }
+            notifications={[]}
+            user={{
+              name: "Admin Sekolah",
+              email:
+                "admin@smartschool.com",
+              avatar: "AD",
+            }}
+          />
+        </div>
+
+        {/* ===================================================
+            CONTENT
+        =================================================== */}
+
+        <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
+          <div className="mx-auto w-full max-w-[1450px] p-4 sm:p-5 lg:p-6 xl:p-7">
 
             {/* =================================================
-                BACK BUTTON
+                BREADCRUMB
             ================================================= */}
-            <button
-              onClick={() =>
-                router.push("/admin/sarpras/gedung")
-              }
-              className="group inline-flex items-center gap-2 text-sm font-medium text-slate-600 transition-colors hover:text-blue-600"
-            >
-              <ArrowLeft
-                size={18}
-                className="transition-transform group-hover:-translate-x-0.5"
-              />
 
-              Kembali ke Daftar Gedung
-            </button>
+            <div className="mb-4 flex items-center gap-2 text-xs text-slate-400">
+
+              <button
+                type="button"
+                onClick={() =>
+                  router.push(
+                    "/admin/sarpras/gedung"
+                  )
+                }
+                className="font-medium transition hover:text-blue-600"
+              >
+                Gedung
+              </button>
+
+              <ChevronRight size={13} />
+
+              <span className="truncate font-medium text-slate-600">
+                Detail
+              </span>
+
+            </div>
 
             {/* =================================================
-                PAGE HEADER
+                HERO
             ================================================= */}
-            <section className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_2px_10px_rgba(15,23,42,0.05)]">
-              <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-blue-50/70 blur-3xl" />
 
-              <div className="relative flex flex-col gap-4 p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between lg:px-8 lg:py-6">
+            <section className="relative overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_4px_20px_rgba(15,23,42,0.045)]">
 
-                {/* TITLE */}
-                <div className="flex min-w-0 items-start gap-3 sm:gap-4">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-[0_8px_20px_rgba(37,99,235,0.25)] sm:h-14 sm:w-14">
-                    <Building
-                      size={22}
-                      strokeWidth={1.9}
-                      className="sm:h-[25px] sm:w-[25px]"
-                    />
-                  </div>
+              {/* DECORATION */}
 
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
+              <div className="pointer-events-none absolute -right-24 -top-32 h-72 w-72 rounded-full bg-blue-50 blur-3xl" />
 
-                      <h1 className="text-xl font-semibold tracking-[-0.025em] text-slate-900 sm:text-2xl lg:text-[26px]">
-                        {data.nama || "Detail Gedung"}
-                      </h1>
+              <div className="pointer-events-none absolute -bottom-32 -left-24 h-64 w-64 rounded-full bg-indigo-50/50 blur-3xl" />
 
-                      <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-100 bg-blue-50 px-2.5 py-0.5 text-[10px] font-semibold text-blue-600 sm:px-3 sm:py-1 sm:text-[11px]">
-                        <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
-                        ID: #{data.id}
-                      </span>
+              <div className="relative p-5 sm:p-6 lg:p-7">
+
+                <div className="flex flex-col gap-6 xl:flex-row xl:items-center xl:justify-between">
+
+                  {/* INFO */}
+
+                  <div className="flex min-w-0 items-start gap-4">
+
+                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-[0_8px_22px_rgba(37,99,235,0.22)] sm:h-16 sm:w-16">
+
+                      <Building
+                        size={27}
+                        strokeWidth={1.7}
+                      />
 
                     </div>
 
-                    {/* KODE */}
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                      <span className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600">
-                        <Hash size={13} />
-                        Kode: {data.kode || "-"}
-                      </span>
+                    <div className="min-w-0">
 
-                      <span className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-100 bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-600">
-                        <Layers size={13} />
-                        {lantai.length} Lantai
-                      </span>
+                      <div className="flex flex-wrap items-center gap-2">
+
+                        <h1 className="truncate text-xl font-bold tracking-tight text-slate-900 sm:text-2xl lg:text-[27px]">
+                          {data.nama ||
+                            "Detail Gedung"}
+                        </h1>
+
+                        <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-600">
+                          <CheckCircle2
+                            size={11}
+                          />
+                          Aktif
+                        </span>
+
+                      </div>
+
+                      <p className="mt-1.5 max-w-2xl text-sm text-slate-400">
+                        Informasi lengkap mengenai
+                        gedung, lantai, dan kelas
+                        yang terdaftar.
+                      </p>
+
+                      <div className="mt-3 flex flex-wrap gap-2">
+
+                        <span className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-[11px] font-semibold text-slate-600">
+                          <Hash size={12} />
+                          {data.kode || "-"}
+                        </span>
+
+                        <span className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-100 bg-indigo-50 px-2.5 py-1.5 text-[11px] font-semibold text-indigo-600">
+                          <Layers size={12} />
+                          {lantai.length} Lantai
+                        </span>
+
+                        <span className="inline-flex items-center gap-1.5 rounded-lg border border-blue-100 bg-blue-50 px-2.5 py-1.5 text-[11px] font-semibold text-blue-600">
+                          <GraduationCap
+                            size={12}
+                          />
+                          {totalKelas} Kelas
+                        </span>
+
+                      </div>
+
                     </div>
+
                   </div>
+
+                  {/* ACTION */}
+
+                  <div className="flex flex-wrap items-center gap-2 xl:shrink-0">
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        router.push(
+                          "/admin/sarpras/gedung"
+                        )
+                      }
+                      className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-semibold text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-slate-800 sm:text-sm"
+                    >
+                      <ArrowLeft
+                        size={15}
+                      />
+                      Kembali
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        router.push(
+                          `/admin/sarpras/gedung/edit/${data.id}`
+                        )
+                      }
+                      className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-semibold text-slate-600 shadow-sm transition hover:border-amber-200 hover:bg-amber-50 hover:text-amber-700 sm:text-sm"
+                    >
+                      <Edit size={15} />
+                      Edit
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleDelete}
+                      disabled={isDeleting}
+                      className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-semibold text-slate-600 shadow-sm transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm"
+                    >
+                      <Trash2 size={15} />
+                      {isDeleting
+                        ? "Menghapus..."
+                        : "Hapus"}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        window.print()
+                      }
+                      className="inline-flex h-10 items-center gap-2 rounded-xl bg-slate-900 px-4 text-xs font-bold text-white shadow-[0_7px_18px_rgba(15,23,42,0.14)] transition hover:bg-slate-800 sm:text-sm"
+                    >
+                      <Printer size={15} />
+                      Cetak
+                    </button>
+
+                  </div>
+
                 </div>
 
-                {/* ACTIONS */}
-                <div className="flex w-full flex-wrap gap-2 sm:flex-row lg:w-auto">
-
-                  {/* EDIT */}
-                  <button
-                    type="button"
-                    onClick={() =>
-                      router.push(
-                        `/admin/sarpras/gedung/edit/${data.id}`
-                      )
-                    }
-                    className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-600 shadow-[0_2px_5px_rgba(15,23,42,0.05)] transition-all hover:border-amber-300 hover:bg-amber-50 hover:text-amber-700 active:scale-[0.98] sm:h-11 sm:px-5"
-                  >
-                    <Edit
-                      size={16}
-                      className="sm:h-[17px] sm:w-[17px]"
-                    />
-
-                    Edit
-                  </button>
-
-                  {/* DELETE */}
-                  <button
-                    type="button"
-                    onClick={handleDelete}
-                    disabled={isDeleting}
-                    className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-600 shadow-[0_2px_5px_rgba(15,23,42,0.05)] transition-all hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 sm:h-11 sm:px-5"
-                  >
-                    <Trash2
-                      size={16}
-                      className="sm:h-[17px] sm:w-[17px]"
-                    />
-
-                    {isDeleting ? "Menghapus..." : "Hapus"}
-                  </button>
-
-                  {/* PRINT */}
-                  <button
-                    type="button"
-                    onClick={() => window.print()}
-                    className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 text-sm font-semibold text-white shadow-[0_7px_18px_rgba(15,23,42,0.16)] transition-all hover:bg-slate-800 hover:shadow-[0_9px_22px_rgba(15,23,42,0.20)] active:scale-[0.98] sm:h-11 sm:px-5"
-                  >
-                    <Printer
-                      size={16}
-                      strokeWidth={2.3}
-                      className="sm:h-[17px] sm:w-[17px]"
-                    />
-
-                    Cetak
-                  </button>
-                </div>
               </div>
+
             </section>
 
             {/* =================================================
-                CONTENT
+                SUMMARY
             ================================================= */}
-            <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+
+            <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+
+              {/* GEDUNG */}
+
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_2px_10px_rgba(15,23,42,0.035)]">
+
+                <div className="flex items-center justify-between">
+
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                    <Building size={17} />
+                  </div>
+
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-300">
+                    Gedung
+                  </span>
+
+                </div>
+
+                <p className="mt-3 text-xl font-bold text-slate-800">
+                  1
+                </p>
+
+                <p className="mt-0.5 text-[11px] text-slate-400">
+                  Gedung terdaftar
+                </p>
+
+              </div>
+
+              {/* LANTAI */}
+
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_2px_10px_rgba(15,23,42,0.035)]">
+
+                <div className="flex items-center justify-between">
+
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                    <Layers size={17} />
+                  </div>
+
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-300">
+                    Lantai
+                  </span>
+
+                </div>
+
+                <p className="mt-3 text-xl font-bold text-slate-800">
+                  {lantai.length}
+                </p>
+
+                <p className="mt-0.5 text-[11px] text-slate-400">
+                  Total lantai
+                </p>
+
+              </div>
+
+              {/* KELAS */}
+
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_2px_10px_rgba(15,23,42,0.035)]">
+
+                <div className="flex items-center justify-between">
+
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                    <GraduationCap
+                      size={17}
+                    />
+                  </div>
+
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-300">
+                    Kelas
+                  </span>
+
+                </div>
+
+                <p className="mt-3 text-xl font-bold text-slate-800">
+                  {totalKelas}
+                </p>
+
+                <p className="mt-0.5 text-[11px] text-slate-400">
+                  Total kelas
+                </p>
+
+              </div>
+
+              {/* STATUS */}
+
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_2px_10px_rgba(15,23,42,0.035)]">
+
+                <div className="flex items-center justify-between">
+
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+                    <CheckCircle2
+                      size={17}
+                    />
+                  </div>
+
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-300">
+                    Status
+                  </span>
+
+                </div>
+
+                <p className="mt-3 text-base font-bold text-emerald-600">
+                  Aktif
+                </p>
+
+                <p className="mt-1 text-[11px] text-slate-400">
+                  Data gedung aktif
+                </p>
+
+              </div>
+
+            </div>
+
+            {/* =================================================
+                MAIN GRID
+            ================================================= */}
+
+            <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_350px]">
 
               {/* =================================================
-                  LEFT COLUMN
+                  LEFT
               ================================================= */}
-              <div className="space-y-5 lg:col-span-2">
+
+              <div className="min-w-0 space-y-4">
 
                 {/* =================================================
-                    INFORMASI DASAR
+                    INFORMATION
                 ================================================= */}
-                <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_2px_10px_rgba(15,23,42,0.04)] sm:p-6">
 
-                  <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
-                      <FileText size={16} />
-                    </div>
+                <section className="rounded-2xl border border-slate-200 bg-white shadow-[0_3px_14px_rgba(15,23,42,0.04)]">
 
-                    <div>
-                      <p className="text-sm font-semibold text-slate-800">
-                        Informasi Gedung
-                      </p>
+                  <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
 
-                      <p className="text-xs text-slate-400">
-                        Informasi gedung berdasarkan data sistem
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
-
-                    {/* NAMA */}
-                    <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
-                      <div className="flex items-center gap-2">
-                        <Building
-                          size={16}
-                          className="text-blue-500"
-                        />
-
-                        <p className="text-xs font-medium text-slate-500">
-                          Nama Gedung
-                        </p>
-                      </div>
-
-                      <p className="mt-2 text-sm font-semibold text-slate-800">
-                        {data.nama || "-"}
-                      </p>
-                    </div>
-
-                    {/* KODE */}
-                    <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
-                      <div className="flex items-center gap-2">
-                        <Hash
-                          size={16}
-                          className="text-blue-500"
-                        />
-
-                        <p className="text-xs font-medium text-slate-500">
-                          Kode Gedung
-                        </p>
-                      </div>
-
-                      <p className="mt-2 text-sm font-semibold text-slate-800">
-                        {data.kode || "-"}
-                      </p>
-                    </div>
-
-                    {/* LANTAI */}
-                    <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
-                      <div className="flex items-center gap-2">
-                        <Layers
-                          size={16}
-                          className="text-indigo-500"
-                        />
-
-                        <p className="text-xs font-medium text-slate-500">
-                          Jumlah Lantai
-                        </p>
-                      </div>
-
-                      <p className="mt-2 text-sm font-semibold text-slate-800">
-                        {lantai.length} Lantai
-                      </p>
-                    </div>
-
-                    {/* ID */}
-                    <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
-                      <div className="flex items-center gap-2">
-                        <Info
-                          size={16}
-                          className="text-slate-400"
-                        />
-
-                        <p className="text-xs font-medium text-slate-500">
-                          ID Gedung
-                        </p>
-                      </div>
-
-                      <p className="mt-2 break-all text-sm font-semibold text-slate-800">
-                        {data.id}
-                      </p>
-                    </div>
-                  </div>
-                </section>
-
-                {/* =================================================
-                    DAFTAR LANTAI & KELAS
-                ================================================= */}
-                <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_2px_10px_rgba(15,23,42,0.04)]">
-
-                  <div className="border-b border-slate-100 px-5 py-4 sm:px-6 sm:py-5">
                     <div className="flex items-center gap-3">
 
-                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600">
-                        <DoorOpen size={16} />
+                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                        <FileText
+                          size={16}
+                        />
                       </div>
 
                       <div>
-                        <p className="text-sm font-semibold text-slate-800">
-                          Daftar Lantai & Kelas
-                        </p>
+                        <h2 className="text-sm font-bold text-slate-800">
+                          Informasi Dasar
+                        </h2>
 
-                        <p className="text-xs text-slate-400">
-                          Total {lantai.length} lantai
+                        <p className="mt-0.5 text-[11px] text-slate-400">
+                          Detail identitas gedung
                         </p>
                       </div>
 
                     </div>
+
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-px bg-slate-100 sm:grid-cols-2">
+
+                    {/* NAMA */}
+
+                    <div className="bg-white p-5">
+
+                      <div className="flex items-center gap-2 text-slate-400">
+                        <Building
+                          size={15}
+                        />
+
+                        <span className="text-[11px] font-semibold uppercase tracking-wide">
+                          Nama Gedung
+                        </span>
+                      </div>
+
+                      <p className="mt-2 text-sm font-bold text-slate-800">
+                        {data.nama || "-"}
+                      </p>
+
+                    </div>
+
+                    {/* KODE */}
+
+                    <div className="bg-white p-5">
+
+                      <div className="flex items-center gap-2 text-slate-400">
+                        <Hash size={15} />
+
+                        <span className="text-[11px] font-semibold uppercase tracking-wide">
+                          Kode Gedung
+                        </span>
+                      </div>
+
+                      <p className="mt-2 font-mono text-sm font-bold text-slate-800">
+                        {data.kode || "-"}
+                      </p>
+
+                    </div>
+
+                    {/* ID */}
+
+                    <div className="bg-white p-5">
+
+                      <div className="flex items-center gap-2 text-slate-400">
+                        <Info size={15} />
+
+                        <span className="text-[11px] font-semibold uppercase tracking-wide">
+                          ID Gedung
+                        </span>
+                      </div>
+
+                      <p className="mt-2 break-all font-mono text-xs font-semibold text-slate-700">
+                        {data.id}
+                      </p>
+
+                    </div>
+
+                    {/* LANTAI */}
+
+                    <div className="bg-white p-5">
+
+                      <div className="flex items-center gap-2 text-slate-400">
+                        <Layers size={15} />
+
+                        <span className="text-[11px] font-semibold uppercase tracking-wide">
+                          Jumlah Lantai
+                        </span>
+                      </div>
+
+                      <p className="mt-2 text-sm font-bold text-slate-800">
+                        {lantai.length} Lantai
+                      </p>
+
+                    </div>
+
+                  </div>
+
+                </section>
+
+                {/* =================================================
+                    LANTAI
+                ================================================= */}
+
+                <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_3px_14px_rgba(15,23,42,0.04)]">
+
+                  <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+
+                    <div className="flex items-center gap-3">
+
+                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                        <Layers size={16} />
+                      </div>
+
+                      <div>
+
+                        <h2 className="text-sm font-bold text-slate-800">
+                          Struktur Lantai
+                        </h2>
+
+                        <p className="mt-0.5 text-[11px] text-slate-400">
+                          Lantai dan kelas dalam gedung
+                        </p>
+
+                      </div>
+
+                    </div>
+
+                    <span className="rounded-lg bg-slate-50 px-2.5 py-1 text-[10px] font-bold text-slate-500">
+                      {lantai.length} Lantai
+                    </span>
+
                   </div>
 
                   {lantai.length === 0 ? (
-                    <div className="px-6 py-12 text-center">
+
+                    <div className="px-6 py-14 text-center">
+
                       <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
-                        <Layers size={25} />
+                        <Layers size={24} />
                       </div>
 
-                      <p className="mt-4 text-sm font-medium text-slate-600">
+                      <p className="mt-4 text-sm font-semibold text-slate-700">
                         Belum ada lantai
                       </p>
 
-                      <p className="mt-1 text-xs text-slate-400">
-                        Gedung ini belum memiliki data lantai.
+                      <p className="mx-auto mt-1 max-w-sm text-xs leading-5 text-slate-400">
+                        Gedung ini belum memiliki
+                        data lantai yang terdaftar.
                       </p>
+
                     </div>
+
                   ) : (
+
                     <div className="divide-y divide-slate-100">
 
-                      {lantai.map((item, index) => {
-                        const kelas = Array.isArray(item.kelas)
-                          ? item.kelas
-                          : [];
+                      {lantai.map(
+                        (
+                          item,
+                          index
+                        ) => {
 
-                        return (
-                          <div
-                            key={item.id || index}
-                            className="p-5 sm:p-6"
-                          >
+                          const kelas =
+                            Array.isArray(
+                              item?.kelas
+                            )
+                              ? item.kelas
+                              : [];
 
-                            {/* LANTAI HEADER */}
-                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          return (
 
-                              <div className="flex items-center gap-3">
+                            <div
+                              key={
+                                item.id ||
+                                index
+                              }
+                              className="p-5 transition hover:bg-slate-50/40 sm:p-6"
+                            >
 
-                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
-                                  <Layers size={18} />
+                              {/* FLOOR HEADER */}
+
+                              <div className="flex items-center justify-between gap-4">
+
+                                <div className="flex min-w-0 items-center gap-3">
+
+                                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                                    <Layers
+                                      size={18}
+                                    />
+                                  </div>
+
+                                  <div className="min-w-0">
+
+                                    <h3 className="truncate text-sm font-bold text-slate-800">
+                                      {item.nama ||
+                                        `Lantai ${
+                                          index +
+                                          1
+                                        }`}
+                                    </h3>
+
+                                    <p className="mt-0.5 text-[11px] text-slate-400">
+                                      Lantai{" "}
+                                      {index +
+                                        1}{" "}
+                                      •{" "}
+                                      {kelas.length}{" "}
+                                      kelas
+                                    </p>
+
+                                  </div>
+
                                 </div>
 
-                                <div>
-                                  <p className="text-sm font-semibold text-slate-800">
-                                    {item.nama ||
-                                      `Lantai ${index + 1}`}
-                                  </p>
+                                <div className="hidden items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-slate-500 sm:flex">
 
-                                  <p className="text-xs text-slate-400">
-                                    {kelas.length} kelas
-                                  </p>
+                                  <GraduationCap
+                                    size={12}
+                                  />
+
+                                  {kelas.length}{" "}
+                                  Kelas
+
                                 </div>
 
                               </div>
 
-                              <span className="inline-flex w-fit items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600">
-                                <GraduationCap size={13} />
-                                {kelas.length} Kelas
-                              </span>
+                              {/* KELAS */}
 
-                            </div>
+                              {kelas.length > 0 ? (
 
-                            {/* KELAS */}
-                            {kelas.length > 0 ? (
-                              <div className="mt-4 overflow-x-auto rounded-xl border border-slate-200">
-                                <table className="w-full border-collapse text-sm">
+                                <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
 
-                                  <thead>
-                                    <tr className="border-b border-slate-200 bg-slate-50/80">
+                                  {kelas.map(
+                                    (
+                                      kelasItem,
+                                      kelasIndex
+                                    ) => (
 
-                                      <th className="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">
-                                        Nama Kelas
-                                      </th>
-
-                                      <th className="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">
-                                        Tingkat
-                                      </th>
-
-                                    </tr>
-                                  </thead>
-
-                                  <tbody className="divide-y divide-slate-100">
-
-                                    {kelas.map((kelasItem, kelasIndex) => (
-                                      <tr
+                                      <div
                                         key={
                                           kelasItem.id ||
                                           kelasIndex
                                         }
-                                        className="transition-colors hover:bg-slate-50/70"
+                                        className="group flex items-center justify-between rounded-xl border border-slate-200 bg-white p-3 transition-all hover:border-blue-200 hover:bg-blue-50/30"
                                       >
 
-                                        <td className="px-4 py-3">
-                                          <div className="flex items-center gap-2">
+                                        <div className="flex min-w-0 items-center gap-3">
 
-                                            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
-                                              <GraduationCap
-                                                size={14}
-                                              />
-                                            </div>
+                                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-50 text-slate-500 transition group-hover:bg-blue-50 group-hover:text-blue-600">
+                                            <GraduationCap
+                                              size={
+                                                15
+                                              }
+                                            />
+                                          </div>
 
-                                            <span className="text-sm font-medium text-slate-800">
+                                          <div className="min-w-0">
+
+                                            <p className="truncate text-xs font-bold text-slate-700">
                                               {kelasItem.nama ||
                                                 "-"}
-                                            </span>
+                                            </p>
+
+                                            <p className="mt-0.5 text-[10px] text-slate-400">
+                                              Kelas
+                                            </p>
 
                                           </div>
-                                        </td>
 
-                                        <td className="px-4 py-3">
-                                          <span className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600">
-                                            {kelasItem.tingkat ||
-                                              "-"}
+                                        </div>
+
+                                        {kelasItem.tingkat && (
+                                          <span className="ml-2 shrink-0 rounded-md bg-slate-50 px-2 py-1 text-[9px] font-bold text-slate-500">
+                                            {
+                                              kelasItem.tingkat
+                                            }
                                           </span>
-                                        </td>
+                                        )}
 
-                                      </tr>
-                                    ))}
+                                      </div>
 
-                                  </tbody>
-                                </table>
-                              </div>
-                            ) : (
-                              <div className="mt-4 rounded-xl border border-dashed border-slate-200 bg-slate-50/50 px-4 py-5 text-center">
-                                <p className="text-xs text-slate-400">
-                                  Belum ada kelas pada lantai ini.
-                                </p>
-                              </div>
-                            )}
+                                    )
+                                  )}
 
-                          </div>
-                        );
-                      })}
+                                </div>
+
+                              ) : (
+
+                                <div className="mt-4 flex items-center gap-2 rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-4 py-3">
+
+                                  <AlertCircle
+                                    size={14}
+                                    className="text-slate-400"
+                                  />
+
+                                  <p className="text-[11px] text-slate-400">
+                                    Belum ada kelas pada
+                                    lantai ini.
+                                  </p>
+
+                                </div>
+
+                              )}
+
+                            </div>
+
+                          );
+                        }
+                      )}
 
                     </div>
+
                   )}
+
                 </section>
+
               </div>
 
               {/* =================================================
-                  RIGHT COLUMN
+                  RIGHT
               ================================================= */}
-              <div className="space-y-5">
+
+              <aside className="space-y-4">
 
                 {/* =================================================
-                    INFO CARD
+                    FOTO
                 ================================================= */}
-                <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_2px_10px_rgba(15,23,42,0.04)] sm:p-6">
+
+                <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_3px_14px_rgba(15,23,42,0.04)]">
+
+                  <div className="flex items-center gap-3 border-b border-slate-100 px-5 py-4">
+
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                      <ImageIcon
+                        size={16}
+                      />
+                    </div>
+
+                    <div>
+                      <h2 className="text-sm font-bold text-slate-800">
+                        Foto Gedung
+                      </h2>
+
+                      <p className="mt-0.5 text-[11px] text-slate-400">
+                        Dokumentasi gedung
+                      </p>
+                    </div>
+
+                  </div>
+
+                  {data.fotoUrl ? (
+
+                    <div className="p-3">
+
+                      <div className="group relative overflow-hidden rounded-xl bg-slate-100">
+
+                        <img
+                          src={data.fotoUrl}
+                          alt={
+                            data.nama ||
+                            "Foto Gedung"
+                          }
+                          className="h-[220px] w-full object-cover transition duration-500 group-hover:scale-[1.025]"
+                          onError={(
+                            event
+                          ) => {
+                            event.currentTarget.style.display =
+                              "none";
+                          }}
+                        />
+
+                        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/35 to-transparent" />
+
+                        <div className="absolute bottom-3 left-3 right-3">
+
+                          <p className="truncate text-xs font-semibold text-white">
+                            {data.nama}
+                          </p>
+
+                        </div>
+
+                      </div>
+
+                    </div>
+
+                  ) : (
+
+                    <div className="p-4">
+
+                      <div className="flex h-[180px] flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50">
+
+                        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white text-slate-300 shadow-sm">
+                          <ImageIcon
+                            size={22}
+                          />
+                        </div>
+
+                        <p className="mt-3 text-xs font-semibold text-slate-500">
+                          Belum ada foto
+                        </p>
+
+                        <p className="mt-1 text-[10px] text-slate-400">
+                          Foto gedung belum tersedia
+                        </p>
+
+                      </div>
+
+                    </div>
+
+                  )}
+
+                </section>
+
+                {/* =================================================
+                    QUICK INFORMATION
+                ================================================= */}
+
+                <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_3px_14px_rgba(15,23,42,0.04)]">
 
                   <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
 
-                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
                       <Info size={16} />
                     </div>
 
                     <div>
-                      <p className="text-sm font-semibold text-slate-800">
-                        Informasi Gedung
+
+                      <h2 className="text-sm font-bold text-slate-800">
+                        Ringkasan
+                      </h2>
+
+                      <p className="mt-0.5 text-[11px] text-slate-400">
+                        Informasi singkat
                       </p>
+
                     </div>
 
                   </div>
 
                   <div className="mt-4 space-y-4">
 
-                    {/* ID */}
-                    <div className="flex items-start gap-3">
-                      <Hash
-                        size={16}
-                        className="mt-0.5 shrink-0 text-slate-400"
-                      />
+                    {/* STATUS */}
 
-                      <div className="min-w-0">
-                        <p className="text-xs font-medium text-slate-500">
-                          ID Gedung
-                        </p>
+                    <div className="flex items-center justify-between">
 
-                        <p className="mt-0.5 break-all text-sm font-semibold text-slate-800">
-                          {data.id}
-                        </p>
+                      <div className="flex items-center gap-3">
+
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+                          <CheckCircle2
+                            size={14}
+                          />
+                        </div>
+
+                        <span className="text-xs font-medium text-slate-500">
+                          Status
+                        </span>
+
                       </div>
+
+                      <span className="rounded-lg bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-600">
+                        Aktif
+                      </span>
+
                     </div>
 
                     {/* KODE */}
-                    <div className="flex items-start gap-3">
-                      <Building
-                        size={16}
-                        className="mt-0.5 shrink-0 text-slate-400"
-                      />
 
-                      <div className="min-w-0">
-                        <p className="text-xs font-medium text-slate-500">
-                          Kode Gedung
-                        </p>
+                    <div className="flex items-center justify-between gap-3">
 
-                        <p className="text-sm font-semibold text-slate-800">
-                          {data.kode || "-"}
-                        </p>
+                      <div className="flex items-center gap-3">
+
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                          <Hash size={14} />
+                        </div>
+
+                        <span className="text-xs font-medium text-slate-500">
+                          Kode
+                        </span>
+
                       </div>
+
+                      <span className="max-w-[150px] truncate font-mono text-xs font-bold text-slate-700">
+                        {data.kode || "-"}
+                      </span>
+
                     </div>
 
-                    {/* JUMLAH LANTAI */}
-                    <div className="flex items-start gap-3">
-                      <Layers
-                        size={16}
-                        className="mt-0.5 shrink-0 text-slate-400"
-                      />
+                    {/* LANTAI */}
 
-                      <div className="min-w-0">
-                        <p className="text-xs font-medium text-slate-500">
-                          Jumlah Lantai
-                        </p>
+                    <div className="flex items-center justify-between">
 
-                        <p className="text-sm font-semibold text-slate-800">
-                          {lantai.length} Lantai
-                        </p>
+                      <div className="flex items-center gap-3">
+
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
+                          <Layers
+                            size={14}
+                          />
+                        </div>
+
+                        <span className="text-xs font-medium text-slate-500">
+                          Lantai
+                        </span>
+
                       </div>
+
+                      <span className="text-xs font-bold text-slate-700">
+                        {lantai.length}
+                      </span>
+
                     </div>
 
-                    {/* JUMLAH KELAS */}
-                    <div className="flex items-start gap-3">
-                      <GraduationCap
-                        size={16}
-                        className="mt-0.5 shrink-0 text-slate-400"
-                      />
+                    {/* KELAS */}
 
-                      <div className="min-w-0">
-                        <p className="text-xs font-medium text-slate-500">
-                          Total Kelas
-                        </p>
+                    <div className="flex items-center justify-between">
 
-                        <p className="text-sm font-semibold text-slate-800">
-                          {lantai.reduce(
-                            (total, item) =>
-                              total +
-                              (Array.isArray(item.kelas)
-                                ? item.kelas.length
-                                : 0),
-                            0
-                          )}{" "}
+                      <div className="flex items-center gap-3">
+
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                          <GraduationCap
+                            size={14}
+                          />
+                        </div>
+
+                        <span className="text-xs font-medium text-slate-500">
                           Kelas
-                        </p>
+                        </span>
+
                       </div>
+
+                      <span className="text-xs font-bold text-slate-700">
+                        {totalKelas}
+                      </span>
+
                     </div>
 
                   </div>
+
                 </section>
 
                 {/* =================================================
                     TIMESTAMP
                 ================================================= */}
-                <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_2px_10px_rgba(15,23,42,0.04)] sm:p-6">
+
+                <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_3px_14px_rgba(15,23,42,0.04)]">
 
                   <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
 
                     <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
-                      <CalendarDays size={16} />
+                      <Clock3 size={16} />
                     </div>
 
                     <div>
-                      <p className="text-sm font-semibold text-slate-800">
+
+                      <h2 className="text-sm font-bold text-slate-800">
                         Informasi Waktu
+                      </h2>
+
+                      <p className="mt-0.5 text-[11px] text-slate-400">
+                        Riwayat data
                       </p>
+
                     </div>
 
                   </div>
 
-                  <div className="mt-4 space-y-3">
+                  <div className="mt-4 space-y-4">
 
-                    <div className="flex flex-col gap-1">
-                      <span className="text-xs text-slate-500">
+                    <div>
+
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
                         Dibuat
-                      </span>
+                      </p>
 
-                      <span className="text-sm font-medium text-slate-700">
-                        {formatDate(data.createdAt)}
-                      </span>
+                      <p className="mt-1 text-xs font-semibold leading-5 text-slate-700">
+                        {formatDate(
+                          data.createdAt
+                        )}
+                      </p>
+
                     </div>
 
-                    <div className="border-t border-slate-100 pt-3">
-                      <div className="flex flex-col gap-1">
-                        <span className="text-xs text-slate-500">
-                          Terakhir Diperbarui
-                        </span>
+                    <div className="border-t border-slate-100 pt-4">
 
-                        <span className="text-sm font-medium text-slate-700">
-                          {formatDate(data.updatedAt)}
-                        </span>
-                      </div>
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                        Terakhir Diperbarui
+                      </p>
+
+                      <p className="mt-1 text-xs font-semibold leading-5 text-slate-700">
+                        {formatDate(
+                          data.updatedAt
+                        )}
+                      </p>
+
                     </div>
 
                   </div>
+
                 </section>
 
                 {/* =================================================
-                    FOTO GEDUNG
+                    ACTION
                 ================================================= */}
-                {data.fotoUrl && (
-                  <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_2px_10px_rgba(15,23,42,0.04)]">
 
-                    <div className="border-b border-slate-100 p-5 sm:p-6">
-                      <div className="flex items-center gap-3">
+                <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_3px_14px_rgba(15,23,42,0.04)]">
 
-                        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
-                          <Building size={16} />
-                        </div>
+                  <p className="px-1 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">
+                    Aksi Gedung
+                  </p>
 
-                        <div>
-                          <p className="text-sm font-semibold text-slate-800">
-                            Foto Gedung
-                          </p>
-                        </div>
+                  <div className="mt-3 grid grid-cols-2 gap-2">
 
-                      </div>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        router.push(
+                          `/admin/sarpras/gedung/edit/${data.id}`
+                        )
+                      }
+                      className="flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-600 transition hover:border-amber-200 hover:bg-amber-50 hover:text-amber-700"
+                    >
+                      <Edit size={14} />
+                      Edit
+                    </button>
 
-                    <div className="p-4">
-                      <img
-                        src={data.fotoUrl}
-                        alt={data.nama || "Foto Gedung"}
-                        className="h-auto max-h-[280px] w-full rounded-xl object-cover"
-                        onError={(event) => {
-                          event.currentTarget.style.display =
-                            "none";
-                        }}
-                      />
-                    </div>
+                    <button
+                      type="button"
+                      onClick={handleDelete}
+                      disabled={isDeleting}
+                      className="flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-600 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <Trash2 size={14} />
+                      {isDeleting
+                        ? "..."
+                        : "Hapus"}
+                    </button>
 
-                  </section>
-                )}
+                  </div>
 
-                {/* =================================================
-                    ACTION BUTTONS
-                ================================================= */}
-                <div className="grid grid-cols-2 gap-3">
+                </section>
 
-                  <button
-                    onClick={() =>
-                      router.push(
-                        `/admin/sarpras/gedung/edit/${data.id}`
-                      )
-                    }
-                    className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-3 text-sm font-medium text-slate-600 transition-all hover:border-amber-300 hover:bg-amber-50 hover:text-amber-700"
-                  >
-                    <Edit size={16} />
-                    Edit
-                  </button>
+              </aside>
 
-                  <button
-                    onClick={handleDelete}
-                    disabled={isDeleting}
-                    className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-3 text-sm font-medium text-slate-600 transition-all hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    <Trash2 size={16} />
-
-                    {isDeleting ? "Menghapus..." : "Hapus"}
-                  </button>
-
-                </div>
-              </div>
             </div>
 
             {/* =================================================
                 FOOTER
             ================================================= */}
-            <div className="border-t border-slate-200/70 pt-4 text-center sm:pt-5">
-              <p className="text-xs text-slate-400">
-                © 2026 SmartSchool • Detail Gedung -
-                Sarana & Prasarana
+
+            <div className="mt-5 border-t border-slate-200/70 py-4 text-center">
+
+              <p className="text-[10px] font-medium text-slate-400">
+                © 2026 SmartSchool • Sarana &
+                Prasarana
               </p>
+
             </div>
 
           </div>
         </main>
       </div>
+
+      {/* =====================================================
+          PRINT STYLE
+      ===================================================== */}
+
+      <style jsx global>{`
+        @media print {
+          aside,
+          button,
+          header,
+          nav {
+            display: none !important;
+          }
+
+          body {
+            background: white !important;
+          }
+
+          main {
+            overflow: visible !important;
+          }
+
+          * {
+            box-shadow: none !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }

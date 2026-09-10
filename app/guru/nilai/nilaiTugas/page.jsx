@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
+
 import Sidebar from "../../../components/Sidebar";
 import Header from "../../../components/Header";
+
 import {
   GraduationCap,
   ChevronDown,
@@ -15,286 +17,612 @@ import {
   History,
   Pencil,
   Save,
-  PlusCircle,
   BarChart3,
+  RefreshCw,
+  CheckCircle2,
+  Clock,
+  FileText,
+  XCircle,
 } from "lucide-react";
 
-// ===== DUMMY DATA =====
-// Catatan: ganti dengan data asli dari API/DB begitu tersedia.
-// Guru ini mengampu 1 mata pelajaran (mis. Matematika) di beberapa kelas.
-const MATA_PELAJARAN = "Matematika";
-const KELAS_OPTIONS = ["9A", "9B", "8A", "8B"];
-const JENIS_OPTIONS = ["Tugas Harian", "Ulangan Harian", "UTS", "UAS"];
-const KKM = 75; // Kriteria Ketuntasan Minimal
+import {
+  getTugasGuru,
+  getPengumpulanByTugas,
+  beriNilaiTugas,
+} from "../../../../services/tugas.service";
 
-const siswaPerKelas = {
-  "9A": [
-    { id: "9a-01", nis: "2409001", nama: "Ahmad Fauzi" },
-    { id: "9a-02", nis: "2409002", nama: "Bunga Citra Lestari" },
-    { id: "9a-03", nis: "2409003", nama: "Dewi Anggraini" },
-    { id: "9a-04", nis: "2409004", nama: "Farhan Maulana" },
-    { id: "9a-05", nis: "2409005", nama: "Gita Permatasari" },
-    { id: "9a-06", nis: "2409006", nama: "Hendra Saputra" },
-    { id: "9a-07", nis: "2409007", nama: "Indah Wulandari" },
-    { id: "9a-08", nis: "2409008", nama: "Joko Prasetyo" },
-    { id: "9a-09", nis: "2409009", nama: "Kirana Salsabila" },
-    { id: "9a-10", nis: "2409010", nama: "Lukman Hakim" },
-  ],
-  "9B": [
-    { id: "9b-01", nis: "2409011", nama: "Muhammad Rizki" },
-    { id: "9b-02", nis: "2409012", nama: "Nadia Ramadhani" },
-    { id: "9b-03", nis: "2409013", nama: "Oscar Pratama" },
-    { id: "9b-04", nis: "2409014", nama: "Putri Ayu Ningsih" },
-    { id: "9b-05", nis: "2409015", nama: "Qori Ramadhan" },
-    { id: "9b-06", nis: "2409016", nama: "Rina Amelia" },
-    { id: "9b-07", nis: "2409017", nama: "Satria Nugraha" },
-    { id: "9b-08", nis: "2409018", nama: "Tania Putri" },
-  ],
-  "8A": [
-    { id: "8a-01", nis: "2408001", nama: "Umar Abdullah" },
-    { id: "8a-02", nis: "2408002", nama: "Vina Anggreini" },
-    { id: "8a-03", nis: "2408003", nama: "Wahyu Setiawan" },
-    { id: "8a-04", nis: "2408004", nama: "Xena Meilani" },
-    { id: "8a-05", nis: "2408005", nama: "Yusuf Ibrahim" },
-    { id: "8a-06", nis: "2408006", nama: "Zahra Amalia" },
-    { id: "8a-07", nis: "2408007", nama: "Agus Setiadi" },
-    { id: "8a-08", nis: "2408008", nama: "Bella Safitri" },
-  ],
-  "8B": [
-    { id: "8b-01", nis: "2408011", nama: "Chandra Wijaya" },
-    { id: "8b-02", nis: "2408012", nama: "Dinda Puspita" },
-    { id: "8b-03", nis: "2408013", nama: "Eko Firmansyah" },
-    { id: "8b-04", nis: "2408014", nama: "Fitri Handayani" },
-    { id: "8b-05", nis: "2408015", nama: "Galih Pratama" },
-    { id: "8b-06", nis: "2408016", nama: "Hana Nuraini" },
-  ],
-};
-
-// Riwayat penilaian yang sudah pernah diisi guru sebelumnya (dummy)
-const initialRiwayat = [
-  {
-    id: "n1",
-    kelas: "9A",
-    jenis: "Ulangan Harian",
-    judul: "Bab 3 - Persamaan Linear",
-    tanggal: "12 Agustus 2026",
-    nilai: {
-      "9a-01": 88, "9a-02": 92, "9a-03": 65, "9a-04": 78,
-      "9a-05": 95, "9a-06": 70, "9a-07": 82, "9a-08": 58,
-      "9a-09": 90, "9a-10": 74,
-    },
-    catatan: { "9a-03": "Belum menguasai eliminasi", "9a-08": "Perlu remedial" },
-  },
-  {
-    id: "n2",
-    kelas: "9A",
-    jenis: "Tugas Harian",
-    judul: "Latihan Soal Bab 2",
-    tanggal: "5 Agustus 2026",
-    nilai: {
-      "9a-01": 85, "9a-02": 90, "9a-03": 72, "9a-04": 80,
-      "9a-05": 88, "9a-06": 75, "9a-07": 79, "9a-08": 68,
-      "9a-09": 91, "9a-10": 77,
-    },
-    catatan: {},
-  },
-  {
-    id: "n3",
-    kelas: "9B",
-    jenis: "Ulangan Harian",
-    judul: "Bab 3 - Persamaan Linear",
-    tanggal: "13 Agustus 2026",
-    nilai: {
-      "9b-01": 80, "9b-02": 76, "9b-03": 60, "9b-04": 84,
-      "9b-05": 91, "9b-06": 73, "9b-07": 66, "9b-08": 88,
-    },
-    catatan: { "9b-03": "Sering absen saat materi ini" },
-  },
-];
-
-function getPredikat(nilai) {
-  if (nilai === null || nilai === undefined || nilai === "") return null;
-  const n = Number(nilai);
-  if (n >= 90) return { label: "A", color: "emerald" };
-  if (n >= KKM) return { label: "B", color: "blue" };
-  if (n >= 60) return { label: "C", color: "amber" };
-  return { label: "D", color: "rose" };
-}
+const KKM = 75;
 
 const colorClasses = {
   emerald: {
-    badge: "bg-emerald-50 text-emerald-600 border-emerald-200",
+    badge:
+      "bg-emerald-50 text-emerald-600 border-emerald-200",
     bar: "bg-emerald-500",
     text: "text-emerald-600",
   },
+
   blue: {
-    badge: "bg-blue-50 text-blue-600 border-blue-200",
+    badge:
+      "bg-blue-50 text-blue-600 border-blue-200",
     bar: "bg-blue-500",
     text: "text-blue-600",
   },
+
   amber: {
-    badge: "bg-amber-50 text-amber-600 border-amber-200",
+    badge:
+      "bg-amber-50 text-amber-600 border-amber-200",
     bar: "bg-amber-500",
     text: "text-amber-600",
   },
+
   rose: {
-    badge: "bg-rose-50 text-rose-600 border-rose-200",
+    badge:
+      "bg-rose-50 text-rose-600 border-rose-200",
     bar: "bg-rose-500",
     text: "text-rose-600",
   },
+
   slate: {
-    badge: "bg-slate-100 text-slate-500 border-slate-200",
+    badge:
+      "bg-slate-100 text-slate-500 border-slate-200",
     bar: "bg-slate-300",
     text: "text-slate-500",
   },
 };
 
-const TANGGAL_HARI_INI = "17 Agustus 2026";
+function getPredikat(nilai) {
+  if (
+    nilai === null ||
+    nilai === undefined ||
+    nilai === ""
+  ) {
+    return null;
+  }
+
+  const n = Number(nilai);
+
+  if (n >= 90) {
+    return {
+      label: "A",
+      color: "emerald",
+    };
+  }
+
+  if (n >= KKM) {
+    return {
+      label: "B",
+      color: "blue",
+    };
+  }
+
+  if (n >= 60) {
+    return {
+      label: "C",
+      color: "amber",
+    };
+  }
+
+  return {
+    label: "D",
+    color: "rose",
+  };
+}
+
+function getTanggal(value) {
+  if (!value) return "-";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleDateString("id-ID", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+function getJam(value) {
+  if (!value) return "";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return date.toLocaleTimeString("id-ID", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
 export default function GuruNilaiTugasPage() {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [kelas, setKelas] = useState(KELAS_OPTIONS[0]);
-  const [jenis, setJenis] = useState(JENIS_OPTIONS[0]);
-  const [judul, setJudul] = useState("");
-  const [tanggal, setTanggal] = useState(TANGGAL_HARI_INI);
-  const [selectedId, setSelectedId] = useState(null); // id riwayat yang sedang dibuka, null = penilaian baru
-  const [riwayat, setRiwayat] = useState(initialRiwayat);
-  const [form, setForm] = useState({});
-  const [catatanForm, setCatatanForm] = useState({});
-  const [savedFlash, setSavedFlash] = useState(false);
+  const [sidebarOpen, setSidebarOpen] =
+    useState(true);
 
-  const notifications = [
-    { id: 1, title: "Rapat Wali Kelas", desc: "Dikirim 2 jam lalu", read: false },
-    { id: 2, title: "Batas Input Nilai Rapor", desc: "Dikirim 5 jam lalu", read: false },
-  ];
+  const [loading, setLoading] =
+    useState(true);
 
-  const daftarSiswa = siswaPerKelas[kelas] || [];
+  const [loadingPengumpulan, setLoadingPengumpulan] =
+    useState(false);
 
-  // Saat kelas berganti, reset ke mode "penilaian baru" dan siapkan form kosong.
+  const [saving, setSaving] =
+    useState(false);
+
+  const [error, setError] =
+    useState("");
+
+  const [success, setSuccess] =
+    useState("");
+
+  const [tugasList, setTugasList] =
+    useState([]);
+
+  const [selectedKelasMapelId, setSelectedKelasMapelId] =
+    useState("");
+
+  const [selectedTugasId, setSelectedTugasId] =
+    useState("");
+
+  const [pengumpulanList, setPengumpulanList] =
+    useState([]);
+
+  const [nilaiForm, setNilaiForm] =
+    useState({});
+
+  const [catatanForm, setCatatanForm] =
+    useState({});
+
+  const [sidebarNotifications] = useState([
+    {
+      id: 1,
+      title: "Rapat Wali Kelas",
+      desc: "Dikirim 2 jam lalu",
+      read: false,
+    },
+    {
+      id: 2,
+      title: "Batas Input Nilai Rapor",
+      desc: "Dikirim 5 jam lalu",
+      read: false,
+    },
+  ]);
+
+  /*
+   * ==========================================
+   * AMBIL SEMUA TUGAS GURU
+   * ==========================================
+   */
+  const loadTugas = async () => {
+    try {
+      setLoading(true);
+      setError("");
+
+      const data = await getTugasGuru();
+
+      setTugasList(
+        Array.isArray(data) ? data : []
+      );
+
+      if (Array.isArray(data) && data.length > 0) {
+        setSelectedKelasMapelId(
+          data[0].kelasMapelId
+        );
+
+        setSelectedTugasId(
+          data[0].id
+        );
+      } else {
+        setSelectedKelasMapelId("");
+        setSelectedTugasId("");
+      }
+    } catch (err) {
+      console.error(err);
+
+      setError(
+        err?.message ||
+          "Gagal mengambil data tugas."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    setSelectedId(null);
-    setJenis(JENIS_OPTIONS[0]);
-    setJudul("");
-    setTanggal(TANGGAL_HARI_INI);
-    const kosong = {};
-    (siswaPerKelas[kelas] || []).forEach((s) => {
-      kosong[s.id] = "";
+    loadTugas();
+  }, []);
+
+  /*
+   * ==========================================
+   * FILTER KELAS-MAPEL
+   * ==========================================
+   */
+  const kelasMapelOptions = useMemo(() => {
+    const map = new Map();
+
+    tugasList.forEach((tugas) => {
+      if (!tugas.kelasMapelId) return;
+
+      if (!map.has(tugas.kelasMapelId)) {
+        map.set(tugas.kelasMapelId, {
+          id: tugas.kelasMapelId,
+          kelasNama:
+            tugas.kelasNama || "-",
+          mapelNama:
+            tugas.mapelNama || "-",
+          guruNama:
+            tugas.guruNama || "-",
+        });
+      }
     });
-    setForm(kosong);
-    setCatatanForm({});
-    setSavedFlash(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kelas]);
 
-  const bukaRiwayat = (r) => {
-    setSelectedId(r.id);
-    setJenis(r.jenis);
-    setJudul(r.judul);
-    setTanggal(r.tanggal);
-    const isi = {};
-    daftarSiswa.forEach((s) => {
-      isi[s.id] = r.nilai[s.id] ?? "";
-    });
-    setForm(isi);
-    setCatatanForm(r.catatan || {});
-    setSavedFlash(false);
+    return Array.from(map.values());
+  }, [tugasList]);
+
+  /*
+   * ==========================================
+   * TUGAS UNTUK KELAS-MAPEL TERPILIH
+   * ==========================================
+   */
+  const tugasKelasIni = useMemo(() => {
+    return tugasList
+      .filter(
+        (tugas) =>
+          tugas.kelasMapelId ===
+          selectedKelasMapelId
+      )
+      .sort((a, b) => {
+        const dateA =
+          new Date(
+            a.dibuatPada ||
+              a.batasWaktu ||
+              0
+          ).getTime();
+
+        const dateB =
+          new Date(
+            b.dibuatPada ||
+              b.batasWaktu ||
+              0
+          ).getTime();
+
+        return dateB - dateA;
+      });
+  }, [
+    tugasList,
+    selectedKelasMapelId,
+  ]);
+
+  /*
+   * ==========================================
+   * TUGAS YANG SEDANG DIPILIH
+   * ==========================================
+   */
+  const selectedTugas = useMemo(() => {
+    return (
+      tugasList.find(
+        (tugas) =>
+          tugas.id === selectedTugasId
+      ) || null
+    );
+  }, [
+    tugasList,
+    selectedTugasId,
+  ]);
+
+  /*
+   * ==========================================
+   * AMBIL PENGUMPULAN
+   * ==========================================
+   */
+  const loadPengumpulan = async (
+    tugasId
+  ) => {
+    if (!tugasId) {
+      setPengumpulanList([]);
+      setNilaiForm({});
+      setCatatanForm({});
+      return;
+    }
+
+    try {
+      setLoadingPengumpulan(true);
+      setError("");
+      setSuccess("");
+
+      const response =
+        await getPengumpulanByTugas(
+          tugasId
+        );
+
+      const data =
+        response?.data?.data ??
+        response?.data ??
+        response ??
+        [];
+
+      const list =
+        Array.isArray(data)
+          ? data
+          : [];
+
+      setPengumpulanList(list);
+
+      const nilai = {};
+      const catatan = {};
+
+      list.forEach((item) => {
+        nilai[item.id] =
+          item.nilai ?? "";
+
+        catatan[item.id] =
+          item.keterangan ?? "";
+      });
+
+      setNilaiForm(nilai);
+      setCatatanForm(catatan);
+    } catch (err) {
+      console.error(err);
+
+      setPengumpulanList([]);
+      setNilaiForm({});
+      setCatatanForm({});
+
+      setError(
+        err?.message ||
+          "Gagal mengambil pengumpulan siswa."
+      );
+    } finally {
+      setLoadingPengumpulan(false);
+    }
   };
 
-  const penilaianBaru = () => {
-    setSelectedId(null);
-    setJenis(JENIS_OPTIONS[0]);
-    setJudul("");
-    setTanggal(TANGGAL_HARI_INI);
-    const kosong = {};
-    daftarSiswa.forEach((s) => {
-      kosong[s.id] = "";
-    });
-    setForm(kosong);
-    setCatatanForm({});
-    setSavedFlash(false);
+  useEffect(() => {
+    if (selectedTugasId) {
+      loadPengumpulan(
+        selectedTugasId
+      );
+    }
+  }, [selectedTugasId]);
+
+  /*
+   * ==========================================
+   * KETIKA KELAS-MAPEL BERUBAH
+   * ==========================================
+   */
+  const handleKelasMapelChange = (
+    value
+  ) => {
+    setSelectedKelasMapelId(value);
+
+    const tugasPertama =
+      tugasList.find(
+        (tugas) =>
+          tugas.kelasMapelId === value
+      );
+
+    setSelectedTugasId(
+      tugasPertama?.id || ""
+    );
+
+    setSuccess("");
+    setError("");
   };
 
-  const setNilaiSiswa = (siswaId, value) => {
-    if (value !== "" && (Number.isNaN(Number(value)) || Number(value) < 0 || Number(value) > 100)) return;
-    setForm((prev) => ({ ...prev, [siswaId]: value }));
+  /*
+   * ==========================================
+   * KETIKA TUGAS BERUBAH
+   * ==========================================
+   */
+  const handleTugasChange = (
+    value
+  ) => {
+    setSelectedTugasId(value);
+    setSuccess("");
+    setError("");
   };
 
-  const setCatatanSiswa = (siswaId, value) => {
-    setCatatanForm((prev) => ({ ...prev, [siswaId]: value }));
+  /*
+   * ==========================================
+   * INPUT NILAI
+   * ==========================================
+   */
+  const setNilaiSiswa = (
+    pengumpulanId,
+    value
+  ) => {
+    if (value !== "") {
+      const number = Number(value);
+
+      if (
+        Number.isNaN(number) ||
+        number < 0 ||
+        number > 100
+      ) {
+        return;
+      }
+    }
+
+    setNilaiForm((prev) => ({
+      ...prev,
+      [pengumpulanId]: value,
+    }));
   };
 
-  const nilaiTerisi = Object.values(form).filter((v) => v !== "" && v !== null && v !== undefined);
-  const totalSiswa = daftarSiswa.length;
+  /*
+   * ==========================================
+   * INPUT CATATAN
+   * ==========================================
+   */
+  const setCatatanSiswa = (
+    pengumpulanId,
+    value
+  ) => {
+    setCatatanForm((prev) => ({
+      ...prev,
+      [pengumpulanId]: value,
+    }));
+  };
+
+  /*
+   * ==========================================
+   * REKAP
+   * ==========================================
+   */
+  const nilaiTerisi = useMemo(() => {
+    return Object.values(
+      nilaiForm
+    ).filter(
+      (value) =>
+        value !== "" &&
+        value !== null &&
+        value !== undefined
+    );
+  }, [nilaiForm]);
 
   const rekap = useMemo(() => {
-    const angka = nilaiTerisi.map(Number);
-    if (angka.length === 0) return { rataRata: 0, tertinggi: 0, terendah: 0, belumTuntas: 0, belumDinilai: totalSiswa };
-    const rataRata = Math.round((angka.reduce((a, b) => a + b, 0) / angka.length) * 10) / 10;
-    const tertinggi = Math.max(...angka);
-    const terendah = Math.min(...angka);
-    const belumTuntas = angka.filter((n) => n < KKM).length;
-    return { rataRata, tertinggi, terendah, belumTuntas, belumDinilai: totalSiswa - angka.length };
-  }, [form, totalSiswa]); // eslint-disable-line react-hooks/exhaustive-deps
+    const angka =
+      nilaiTerisi
+        .map(Number)
+        .filter(
+          (value) =>
+            !Number.isNaN(value)
+        );
 
-  const riwayatKelasIni = useMemo(() => {
-    return riwayat
-      .filter((r) => r.kelas === kelas)
-      .sort((a, b) => (a.tanggal < b.tanggal ? 1 : -1));
-  }, [riwayat, kelas]);
-
-  // Statistik ringkas kelas ini, dihitung dari seluruh riwayat penilaian.
-  const statistikKelas = useMemo(() => {
-    if (riwayatKelasIni.length === 0) return { rataRata: null, perluPerhatian: [] };
-    let totalRata = 0;
-    const rekapSiswa = {};
-    riwayatKelasIni.forEach((r) => {
-      const angka = Object.values(r.nilai).map(Number).filter((n) => !Number.isNaN(n));
-      const rataItem = angka.length ? angka.reduce((a, b) => a + b, 0) / angka.length : 0;
-      totalRata += rataItem;
-      Object.entries(r.nilai).forEach(([sid, n]) => {
-        if (!rekapSiswa[sid]) rekapSiswa[sid] = [];
-        rekapSiswa[sid].push(Number(n));
-      });
-    });
-    const rataRata = Math.round((totalRata / riwayatKelasIni.length) * 10) / 10;
-    const perluPerhatian = Object.entries(rekapSiswa)
-      .map(([sid, arr]) => ({
-        sid,
-        rata: arr.reduce((a, b) => a + b, 0) / arr.length,
-      }))
-      .filter((x) => x.rata < KKM)
-      .sort((a, b) => a.rata - b.rata)
-      .slice(0, 3)
-      .map((x) => {
-        const siswa = daftarSiswa.find((s) => s.id === x.sid);
-        return { nama: siswa ? siswa.nama : x.sid, rata: Math.round(x.rata * 10) / 10 };
-      });
-    return { rataRata, perluPerhatian };
-  }, [riwayatKelasIni, daftarSiswa]);
-
-  const simpanNilai = () => {
-    setRiwayat((prev) => {
-      const idx = selectedId ? prev.findIndex((r) => r.id === selectedId) : -1;
-      const entry = {
-        id: selectedId || `n-${Date.now()}`,
-        kelas,
-        jenis,
-        judul: judul.trim() || jenis,
-        tanggal,
-        nilai: form,
-        catatan: catatanForm,
+    if (angka.length === 0) {
+      return {
+        rataRata: 0,
+        tertinggi: 0,
+        terendah: 0,
+        belumTuntas: 0,
+        sudahDinilai: 0,
       };
-      if (idx >= 0) {
-        const copy = [...prev];
-        copy[idx] = entry;
-        return copy;
+    }
+
+    const rataRata =
+      Math.round(
+        (angka.reduce(
+          (a, b) => a + b,
+          0
+        ) /
+          angka.length) *
+          10
+      ) / 10;
+
+    return {
+      rataRata,
+      tertinggi:
+        Math.max(...angka),
+      terendah:
+        Math.min(...angka),
+      belumTuntas:
+        angka.filter(
+          (n) => n < KKM
+        ).length,
+      sudahDinilai:
+        angka.length,
+    };
+  }, [nilaiTerisi]);
+
+  /*
+   * ==========================================
+   * SIMPAN SEMUA NILAI
+   * ==========================================
+   */
+  const simpanSemuaNilai =
+    async () => {
+      const dataYangDinilai =
+        pengumpulanList.filter(
+          (item) => {
+            const value =
+              nilaiForm[item.id];
+
+            return (
+              value !== "" &&
+              value !== null &&
+              value !== undefined
+            );
+          }
+        );
+
+      if (
+        dataYangDinilai.length === 0
+      ) {
+        setError(
+          "Belum ada nilai yang diisi."
+        );
+        return;
       }
-      setSelectedId(entry.id);
-      return [entry, ...prev];
-    });
-    setSavedFlash(true);
-    setTimeout(() => setSavedFlash(false), 2500);
+
+      try {
+        setSaving(true);
+        setError("");
+        setSuccess("");
+
+        await Promise.all(
+          dataYangDinilai.map(
+            (item) =>
+              beriNilaiTugas(
+                item.id,
+                {
+                  nilai: Number(
+                    nilaiForm[item.id]
+                  ),
+                  keterangan:
+                    catatanForm[
+                      item.id
+                    ] || null,
+                }
+              )
+          )
+        );
+
+        setSuccess(
+          "Semua nilai berhasil disimpan."
+        );
+
+        await loadPengumpulan(
+          selectedTugasId
+        );
+      } catch (err) {
+        console.error(err);
+
+        setError(
+          err?.message ||
+            "Gagal menyimpan nilai."
+        );
+      } finally {
+        setSaving(false);
+      }
+    };
+
+  /*
+   * ==========================================
+   * REFRESH
+   * ==========================================
+   */
+  const refreshData = async () => {
+    setSuccess("");
+    setError("");
+
+    await loadTugas();
+
+    if (selectedTugasId) {
+      await loadPengumpulan(
+        selectedTugasId
+      );
+    }
   };
+
+  const kelasTerpilih =
+    kelasMapelOptions.find(
+      (item) =>
+        item.id ===
+        selectedKelasMapelId
+    );
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
@@ -302,320 +630,872 @@ export default function GuruNilaiTugasPage() {
         active="nilaiTugas"
         setActive={() => {}}
         collapsed={!sidebarOpen}
-        setCollapsed={() => setSidebarOpen(!sidebarOpen)}
+        setCollapsed={() =>
+          setSidebarOpen(
+            !sidebarOpen
+          )
+        }
       />
+
       <div className="flex-1 flex flex-col min-w-0">
         <Header
-          toggleSidebar={() => setSidebarOpen(!sidebarOpen)}
-          notifications={notifications}
-          user={{ name: "Bu Sari", email: "guru@smartschool.com", avatar: "AS" }}
+          toggleSidebar={() =>
+            setSidebarOpen(
+              !sidebarOpen
+            )
+          }
+          notifications={
+            sidebarNotifications
+          }
+          user={{
+            name: "Guru",
+            email:
+              "guru@smartschool.com",
+            avatar: "GU",
+          }}
         />
+
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
           <div className="w-full space-y-6">
 
-            {/* PAGE HEADER */}
+            {/* HEADER */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div className="min-w-0">
                 <div className="flex items-center gap-2.5">
-                  <div className="p-2 rounded-lg bg-blue-600 text-white shadow-sm flex-shrink-0">
-                    <GraduationCap size={18} />
+                  <div className="p-2 rounded-lg bg-blue-600 text-white shadow-sm">
+                    <GraduationCap
+                      size={18}
+                    />
                   </div>
-                  <h1 className="text-xl sm:text-2xl font-semibold text-slate-800 truncate">
+
+                  <h1 className="text-xl sm:text-2xl font-semibold text-slate-800">
                     Nilai Tugas
                   </h1>
                 </div>
+
                 <p className="text-sm text-slate-500 mt-1 ml-[42px] flex items-center gap-1.5">
-                  <Sparkles size={14} className="text-slate-400 flex-shrink-0" />
-                  <span className="truncate">Input dan rekap nilai siswa mata pelajaran {MATA_PELAJARAN}.</span>
+                  <Sparkles
+                    size={14}
+                    className="text-slate-400"
+                  />
+
+                  <span>
+                    Input dan rekap nilai
+                    tugas siswa dari
+                    tugas yang telah
+                    diberikan.
+                  </span>
                 </p>
               </div>
+
+              <button
+                onClick={refreshData}
+                disabled={loading}
+                className="flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
+              >
+                <RefreshCw
+                  size={15}
+                  className={
+                    loading
+                      ? "animate-spin"
+                      : ""
+                  }
+                />
+
+                Refresh
+              </button>
             </div>
 
-            {/* KELAS, JENIS & JUDUL SELECTOR */}
+            {/* ERROR */}
+            {error && (
+              <div className="flex items-start gap-3 p-4 rounded-xl border border-rose-200 bg-rose-50 text-rose-700">
+                <XCircle
+                  size={18}
+                  className="flex-shrink-0 mt-0.5"
+                />
+
+                <div>
+                  <p className="text-sm font-semibold">
+                    Terjadi kesalahan
+                  </p>
+
+                  <p className="text-xs mt-1">
+                    {error}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* SUCCESS */}
+            {success && (
+              <div className="flex items-center gap-3 p-4 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700">
+                <CheckCircle2
+                  size={18}
+                />
+
+                <p className="text-sm font-medium">
+                  {success}
+                </p>
+              </div>
+            )}
+
+            {/* SELECTOR */}
             <div className="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm">
-              <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3">
-                <div className="relative w-full sm:w-40">
-                  <select
-                    value={kelas}
-                    onChange={(e) => setKelas(e.target.value)}
-                    className="w-full appearance-none pl-3 pr-9 py-2.5 text-sm font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-lg hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-colors cursor-pointer"
-                  >
-                    {KELAS_OPTIONS.map((k) => (
-                      <option key={k} value={k}>Kelas {k}</option>
-                    ))}
-                  </select>
-                  <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+                {/* KELAS MAPEL */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 mb-2">
+                    Kelas & Mata Pelajaran
+                  </label>
+
+                  <div className="relative">
+                    <select
+                      value={
+                        selectedKelasMapelId
+                      }
+                      onChange={(e) =>
+                        handleKelasMapelChange(
+                          e.target.value
+                        )
+                      }
+                      disabled={
+                        loading ||
+                        kelasMapelOptions.length ===
+                          0
+                      }
+                      className="w-full appearance-none pl-3 pr-9 py-2.5 text-sm font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-lg hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 disabled:opacity-50"
+                    >
+                      {kelasMapelOptions.length ===
+                      0 ? (
+                        <option value="">
+                          Belum ada kelas-mapel
+                        </option>
+                      ) : (
+                        kelasMapelOptions.map(
+                          (item) => (
+                            <option
+                              key={item.id}
+                              value={item.id}
+                            >
+                              Kelas{" "}
+                              {
+                                item.kelasNama
+                              }{" "}
+                              ·{" "}
+                              {
+                                item.mapelNama
+                              }
+                            </option>
+                          )
+                        )
+                      )}
+                    </select>
+
+                    <ChevronDown
+                      size={14}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+                    />
+                  </div>
                 </div>
 
-                <div className="relative w-full sm:w-44">
-                  <select
-                    value={jenis}
-                    onChange={(e) => setJenis(e.target.value)}
-                    className="w-full appearance-none pl-3 pr-9 py-2.5 text-sm font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-lg hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-colors cursor-pointer"
-                  >
-                    {JENIS_OPTIONS.map((j) => (
-                      <option key={j} value={j}>{j}</option>
-                    ))}
-                  </select>
-                  <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                {/* TUGAS */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 mb-2">
+                    Tugas / Penilaian
+                  </label>
+
+                  <div className="relative">
+                    <select
+                      value={
+                        selectedTugasId
+                      }
+                      onChange={(e) =>
+                        handleTugasChange(
+                          e.target.value
+                        )
+                      }
+                      disabled={
+                        tugasKelasIni.length ===
+                        0
+                      }
+                      className="w-full appearance-none pl-3 pr-9 py-2.5 text-sm font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-lg hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 disabled:opacity-50"
+                    >
+                      {tugasKelasIni.length ===
+                      0 ? (
+                        <option value="">
+                          Belum ada tugas
+                        </option>
+                      ) : (
+                        tugasKelasIni.map(
+                          (tugas) => (
+                            <option
+                              key={tugas.id}
+                              value={tugas.id}
+                            >
+                              {tugas.judul}
+                            </option>
+                          )
+                        )
+                      )}
+                    </select>
+
+                    <ChevronDown
+                      size={14}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+                    />
+                  </div>
                 </div>
-
-                <input
-                  type="text"
-                  value={judul}
-                  onChange={(e) => setJudul(e.target.value)}
-                  placeholder="Judul / materi penilaian (mis. Bab 3 - Aljabar)"
-                  className="flex-1 min-w-[200px] px-3 py-2.5 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-colors"
-                />
-
-                <input
-                  type="text"
-                  value={tanggal}
-                  onChange={(e) => setTanggal(e.target.value)}
-                  className="w-full sm:w-40 px-3 py-2.5 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-colors"
-                />
-
-                <button
-                  onClick={penilaianBaru}
-                  className="flex items-center justify-center gap-1.5 px-3 py-2.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors whitespace-nowrap flex-shrink-0"
-                >
-                  <PlusCircle size={14} />
-                  Penilaian Baru
-                </button>
-
-                <span className={`text-[11px] font-medium px-2.5 py-1.5 rounded-full border flex-shrink-0 ${
-                  selectedId ? "bg-emerald-50 text-emerald-600 border-emerald-200" : "bg-slate-100 text-slate-500 border-slate-200"
-                }`}>
-                  {selectedId ? "Sudah tersimpan · bisa diedit" : "Belum disimpan"}
-                </span>
               </div>
             </div>
 
-            {/* SUMMARY CARDS - live sesuai nilai yang diinput guru */}
+            {/* DETAIL TUGAS */}
+            {selectedTugas && (
+              <div className="bg-white rounded-xl border border-slate-200/80 p-4 sm:p-5 shadow-sm">
+                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <FileText
+                        size={17}
+                        className="text-blue-500"
+                      />
+
+                      <h2 className="text-sm font-semibold text-slate-800 truncate">
+                        {selectedTugas.judul}
+                      </h2>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-xs text-slate-400">
+                      <span>
+                        Kelas{" "}
+                        {selectedTugas.kelasNama}
+                      </span>
+
+                      <span>
+                        Mapel{" "}
+                        {selectedTugas.mapelNama}
+                      </span>
+
+                      <span>
+                        Dibuat{" "}
+                        {getTanggal(
+                          selectedTugas.dibuatPada
+                        )}
+                      </span>
+
+                      <span className="flex items-center gap-1">
+                        <Clock
+                          size={12}
+                        />
+
+                        Batas{" "}
+                        {getTanggal(
+                          selectedTugas.batasWaktu
+                        )}
+
+                        {getJam(
+                          selectedTugas.batasWaktu
+                        ) &&
+                          ` · ${getJam(
+                            selectedTugas.batasWaktu
+                          )}`}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="px-2.5 py-1.5 rounded-full border border-blue-200 bg-blue-50 text-blue-600 text-xs font-medium">
+                      {pengumpulanList.length}{" "}
+                      pengumpulan
+                    </span>
+
+                    {kelasTerpilih && (
+                      <span className="px-2.5 py-1.5 rounded-full border border-slate-200 bg-slate-50 text-slate-500 text-xs font-medium">
+                        Kelas{" "}
+                        {kelasTerpilih.kelasNama}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* SUMMARY */}
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-              <div className="bg-white rounded-xl border border-slate-200/80 p-3.5 shadow-sm flex items-center gap-3 min-w-0">
-                <div className="p-2 rounded-lg border bg-slate-100 text-slate-500 border-slate-200 flex-shrink-0">
+
+              <div className="bg-white rounded-xl border border-slate-200/80 p-3.5 shadow-sm flex items-center gap-3">
+                <div className="p-2 rounded-lg border bg-slate-100 text-slate-500 border-slate-200">
                   <Users size={16} />
                 </div>
-                <div className="min-w-0">
-                  <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider truncate">Total Siswa</p>
-                  <p className="text-lg font-bold text-slate-800">{totalSiswa}</p>
+
+                <div>
+                  <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">
+                    Pengumpulan
+                  </p>
+
+                  <p className="text-lg font-bold text-slate-800">
+                    {pengumpulanList.length}
+                  </p>
                 </div>
               </div>
-              <div className="bg-white rounded-xl border border-slate-200/80 p-3.5 shadow-sm flex items-center gap-3 min-w-0">
-                <div className="p-2 rounded-lg border bg-blue-50 text-blue-600 border-blue-200 flex-shrink-0">
-                  <BarChart3 size={16} />
+
+              <div className="bg-white rounded-xl border border-slate-200/80 p-3.5 shadow-sm flex items-center gap-3">
+                <div className="p-2 rounded-lg border bg-blue-50 text-blue-600 border-blue-200">
+                  <BarChart3
+                    size={16}
+                  />
                 </div>
-                <div className="min-w-0">
-                  <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider truncate">Rata-rata</p>
-                  <p className="text-lg font-bold text-slate-800">{rekap.rataRata || "-"}</p>
-                </div>
-              </div>
-              <div className="bg-white rounded-xl border border-slate-200/80 p-3.5 shadow-sm flex items-center gap-3 min-w-0">
-                <div className="p-2 rounded-lg border bg-emerald-50 text-emerald-600 border-emerald-200 flex-shrink-0">
-                  <TrendingUp size={16} />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider truncate">Tertinggi</p>
-                  <p className="text-lg font-bold text-slate-800">{rekap.tertinggi || "-"}</p>
-                </div>
-              </div>
-              <div className="bg-white rounded-xl border border-slate-200/80 p-3.5 shadow-sm flex items-center gap-3 min-w-0">
-                <div className="p-2 rounded-lg border bg-rose-50 text-rose-600 border-rose-200 flex-shrink-0">
-                  <TrendingDown size={16} />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider truncate">Terendah</p>
-                  <p className="text-lg font-bold text-slate-800">{rekap.terendah || "-"}</p>
+
+                <div>
+                  <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">
+                    Rata-rata
+                  </p>
+
+                  <p className="text-lg font-bold text-slate-800">
+                    {rekap.rataRata ||
+                      "-"}
+                  </p>
                 </div>
               </div>
-              <div className="bg-white rounded-xl border border-slate-200/80 p-3.5 shadow-sm flex items-center gap-3 min-w-0">
-                <div className="p-2 rounded-lg border bg-amber-50 text-amber-600 border-amber-200 flex-shrink-0">
-                  <AlertTriangle size={16} />
+
+              <div className="bg-white rounded-xl border border-slate-200/80 p-3.5 shadow-sm flex items-center gap-3">
+                <div className="p-2 rounded-lg border bg-emerald-50 text-emerald-600 border-emerald-200">
+                  <TrendingUp
+                    size={16}
+                  />
                 </div>
-                <div className="min-w-0">
-                  <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider truncate">Belum Tuntas</p>
-                  <p className="text-lg font-bold text-slate-800">{rekap.belumTuntas}</p>
+
+                <div>
+                  <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">
+                    Tertinggi
+                  </p>
+
+                  <p className="text-lg font-bold text-slate-800">
+                    {rekap.tertinggi ||
+                      "-"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-xl border border-slate-200/80 p-3.5 shadow-sm flex items-center gap-3">
+                <div className="p-2 rounded-lg border bg-rose-50 text-rose-600 border-rose-200">
+                  <TrendingDown
+                    size={16}
+                  />
+                </div>
+
+                <div>
+                  <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">
+                    Terendah
+                  </p>
+
+                  <p className="text-lg font-bold text-slate-800">
+                    {rekap.terendah ||
+                      "-"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-xl border border-slate-200/80 p-3.5 shadow-sm flex items-center gap-3">
+                <div className="p-2 rounded-lg border bg-amber-50 text-amber-600 border-amber-200">
+                  <AlertTriangle
+                    size={16}
+                  />
+                </div>
+
+                <div>
+                  <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">
+                    Belum Tuntas
+                  </p>
+
+                  <p className="text-lg font-bold text-slate-800">
+                    {rekap.belumTuntas}
+                  </p>
                 </div>
               </div>
             </div>
 
-            {/* KONTEN UTAMA: form nilai (kiri, lebih lebar) + panel statistik & riwayat (kanan) */}
+            {/* CONTENT */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
 
               {/* FORM NILAI */}
               <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-hidden">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 sm:p-5 border-b border-slate-100">
-                  <div className="min-w-0">
-                    <h2 className="text-sm font-semibold text-slate-800 truncate">
-                      {judul.trim() || jenis} · Kelas {kelas}
-                    </h2>
-                    <p className="text-xs text-slate-400 mt-0.5">
-                      {nilaiTerisi.length} dari {totalSiswa} siswa sudah dinilai · KKM {KKM}
+
+                <div className="p-4 sm:p-5 border-b border-slate-100">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div>
+                      <h2 className="text-sm font-semibold text-slate-800">
+                        Daftar Nilai Siswa
+                      </h2>
+
+                      <p className="text-xs text-slate-400 mt-1">
+                        Nilai 0–100 · KKM{" "}
+                        {KKM}
+                      </p>
+                    </div>
+
+                    {pengumpulanList.length >
+                      0 && (
+                      <button
+                        onClick={
+                          simpanSemuaNilai
+                        }
+                        disabled={saving}
+                        className="flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-blue-500 rounded-lg hover:bg-blue-600 disabled:opacity-50 transition-colors"
+                      >
+                        {saving ? (
+                          <RefreshCw
+                            size={15}
+                            className="animate-spin"
+                          />
+                        ) : (
+                          <Save
+                            size={15}
+                          />
+                        )}
+
+                        {saving
+                          ? "Menyimpan..."
+                          : "Simpan Semua Nilai"}
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {loadingPengumpulan ? (
+                  <div className="p-10 flex flex-col items-center justify-center text-center">
+                    <RefreshCw
+                      size={24}
+                      className="text-blue-500 animate-spin"
+                    />
+
+                    <p className="text-sm text-slate-500 mt-3">
+                      Mengambil data
+                      pengumpulan siswa...
                     </p>
                   </div>
-                </div>
-
-                <div className="divide-y divide-slate-100">
-                  {daftarSiswa.map((siswa, idx) => {
-                    const nilaiSiswa = form[siswa.id] ?? "";
-                    const predikat = getPredikat(nilaiSiswa);
-                    return (
-                      <div
-                        key={siswa.id}
-                        className="flex flex-col gap-3 p-4 sm:px-5 sm:py-3.5 hover:bg-slate-50/60 transition-colors"
-                      >
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                          <div className="flex items-center gap-3 min-w-0 sm:w-56 flex-shrink-0">
-                            <span className="w-6 text-xs font-medium text-slate-400 flex-shrink-0">{idx + 1}.</span>
-                            <div className="min-w-0">
-                              <p className="text-sm font-medium text-slate-800 truncate">{siswa.nama}</p>
-                              <p className="text-[11px] text-slate-400">NIS {siswa.nis}</p>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-2 flex-shrink-0">
-                            <input
-                              type="number"
-                              min={0}
-                              max={100}
-                              value={nilaiSiswa}
-                              onChange={(e) => setNilaiSiswa(siswa.id, e.target.value)}
-                              placeholder="0-100"
-                              className="w-20 px-3 py-1.5 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-colors"
-                            />
-                            <span className={`inline-flex items-center justify-center w-8 h-8 text-xs font-semibold rounded-lg border flex-shrink-0 ${
-                              predikat ? colorClasses[predikat.color].badge : colorClasses.slate.badge
-                            }`}>
-                              {predikat ? predikat.label : "-"}
-                            </span>
-                          </div>
-
-                          <input
-                            type="text"
-                            value={catatanForm[siswa.id] || ""}
-                            onChange={(e) => setCatatanSiswa(siswa.id, e.target.value)}
-                            placeholder="Catatan (opsional)"
-                            className="flex-1 min-w-[160px] px-3 py-1.5 text-xs text-slate-700 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-colors"
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <div className="flex flex-col sm:flex-row items-center justify-end gap-3 p-4 sm:p-5 border-t border-slate-100 bg-slate-50/60">
-                  {savedFlash && (
-                    <span className="text-xs font-medium text-emerald-600">Nilai tersimpan.</span>
-                  )}
-                  <button
-                    onClick={simpanNilai}
-                    className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-blue-500 rounded-lg hover:bg-blue-600 transition-colors shadow-sm"
-                  >
-                    <Save size={15} />
-                    {selectedId ? "Simpan Perubahan" : "Simpan Nilai"}
-                  </button>
-                </div>
-              </div>
-
-              {/* PANEL KANAN: statistik + riwayat penilaian */}
-              <div className="lg:col-span-1 space-y-6">
-
-                {/* STATISTIK KELAS */}
-                <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm p-4 sm:p-5">
-                  <div className="flex items-center gap-2 mb-4">
-                    <Award size={16} className="text-slate-400" />
-                    <h2 className="text-sm font-semibold text-slate-800">Statistik Kelas {kelas}</h2>
-                  </div>
-
-                  {statistikKelas.rataRata === null ? (
-                    <p className="text-xs text-slate-400">Belum ada data cukup untuk statistik.</p>
-                  ) : (
-                    <>
-                      <div className="mb-4">
-                        <div className="flex items-baseline justify-between mb-1.5">
-                          <span className="text-xs text-slate-400">Rata-rata seluruh penilaian</span>
-                          <span className="text-lg font-bold text-slate-800">{statistikKelas.rataRata}</span>
-                        </div>
-                        <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
-                          <div
-                            className="h-full rounded-full bg-blue-500"
-                            style={{ width: `${Math.min(statistikKelas.rataRata, 100)}%` }}
-                          />
-                        </div>
-                        <p className="text-[11px] text-slate-400 mt-1.5">
-                          dari {riwayatKelasIni.length} penilaian tercatat
-                        </p>
-                      </div>
-
-                      {statistikKelas.perluPerhatian.length > 0 && (
-                        <div>
-                          <div className="flex items-center gap-1.5 mb-2">
-                            <AlertTriangle size={13} className="text-amber-500" />
-                            <span className="text-xs font-medium text-slate-600">Perlu perhatian (di bawah KKM)</span>
-                          </div>
-                          <div className="space-y-1.5">
-                            {statistikKelas.perluPerhatian.map((p) => (
-                              <div key={p.nama} className="flex items-center justify-between text-xs">
-                                <span className="text-slate-600 truncate pr-2">{p.nama}</span>
-                                <span className="text-amber-600 font-medium flex-shrink-0">rata-rata {p.rata}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-
-                {/* RIWAYAT PENILAIAN KELAS INI */}
-                <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-hidden">
-                  <div className="flex items-center gap-2 p-4 sm:p-5 border-b border-slate-100">
-                    <History size={16} className="text-slate-400" />
-                    <h2 className="text-sm font-semibold text-slate-800">Riwayat Penilaian</h2>
-                  </div>
-
-                  {riwayatKelasIni.length === 0 ? (
-                    <div className="p-6 text-center">
-                      <p className="text-xs text-slate-400">Belum ada riwayat penilaian untuk kelas ini.</p>
+                ) : pengumpulanList.length ===
+                  0 ? (
+                  <div className="p-10 text-center">
+                    <div className="mx-auto w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center">
+                      <Users
+                        size={20}
+                        className="text-slate-400"
+                      />
                     </div>
-                  ) : (
-                    <div className="divide-y divide-slate-100">
-                      {riwayatKelasIni.map((r) => {
-                        const angka = Object.values(r.nilai).map(Number).filter((n) => !Number.isNaN(n));
-                        const rataItem = angka.length ? Math.round((angka.reduce((a, b) => a + b, 0) / angka.length) * 10) / 10 : 0;
+
+                    <h3 className="text-sm font-semibold text-slate-700 mt-4">
+                      Belum ada pengumpulan
+                    </h3>
+
+                    <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+                      Belum ada siswa yang
+                      mengumpulkan tugas
+                      ini.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-slate-100">
+                    {pengumpulanList.map(
+                      (
+                        item,
+                        index
+                      ) => {
+                        const siswa =
+                          item.pengguna ||
+                          {};
+
+                        const nilai =
+                          nilaiForm[
+                            item.id
+                          ] ?? "";
+
+                        const predikat =
+                          getPredikat(
+                            nilai
+                          );
+
                         return (
-                          <div key={r.id} className="p-4 sm:p-5">
-                            <div className="flex items-start justify-between gap-2 mb-1.5">
-                              <div className="min-w-0">
-                                <p className="text-xs font-medium text-slate-700 truncate">{r.judul}</p>
-                                <p className="text-[11px] text-slate-400 mt-0.5">{r.jenis} · {r.tanggal}</p>
+                          <div
+                            key={item.id}
+                            className="p-4 sm:px-5 sm:py-4 hover:bg-slate-50/60 transition-colors"
+                          >
+                            <div className="flex flex-col gap-3">
+
+                              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+
+                                <div className="flex items-center gap-3 min-w-0 flex-1">
+                                  <span className="w-6 text-xs font-medium text-slate-400">
+                                    {index +
+                                      1}
+                                    .
+                                  </span>
+
+                                  <div className="min-w-0">
+                                    <p className="text-sm font-medium text-slate-800 truncate">
+                                      {siswa.namaLengkap ||
+                                        "Nama siswa"}
+                                    </p>
+
+                                    <p className="text-[11px] text-slate-400">
+                                      NISN{" "}
+                                      {siswa.nisn ||
+                                        "-"}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    value={
+                                      nilai
+                                    }
+                                    onChange={(
+                                      e
+                                    ) =>
+                                      setNilaiSiswa(
+                                        item.id,
+                                        e
+                                          .target
+                                          .value
+                                      )
+                                    }
+                                    placeholder="0-100"
+                                    className="w-20 px-3 py-1.5 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+                                  />
+
+                                  <span
+                                    className={`inline-flex items-center justify-center w-8 h-8 text-xs font-semibold rounded-lg border ${
+                                      predikat
+                                        ? colorClasses[
+                                            predikat
+                                              .color
+                                          ].badge
+                                        : colorClasses
+                                            .slate
+                                            .badge
+                                    }`}
+                                  >
+                                    {predikat
+                                      ? predikat.label
+                                      : "-"}
+                                  </span>
+                                </div>
                               </div>
-                              {r.id === selectedId && (
-                                <span className="text-[10px] font-semibold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full flex-shrink-0">
-                                  Dibuka
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-1.5 flex-wrap mt-2">
-                              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full border bg-blue-50 text-blue-600 border-blue-200">
-                                Rata-rata {rataItem}
-                              </span>
-                              <button
-                                onClick={() => bukaRiwayat(r)}
-                                className="ml-auto flex items-center justify-center gap-1 px-2.5 py-1 text-[11px] font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
-                              >
-                                <Pencil size={11} />
-                                Edit
-                              </button>
+
+                              <input
+                                type="text"
+                                value={
+                                  catatanForm[
+                                    item.id
+                                  ] || ""
+                                }
+                                onChange={(
+                                  e
+                                ) =>
+                                  setCatatanSiswa(
+                                    item.id,
+                                    e
+                                      .target
+                                      .value
+                                  )
+                                }
+                                placeholder="Catatan / feedback untuk siswa (opsional)"
+                                className="w-full px-3 py-2 text-xs text-slate-700 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+                              />
+
+                              <div className="flex flex-wrap items-center gap-2">
+                                {item.status ===
+                                  "dinilai" ? (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200">
+                                    <CheckCircle2
+                                      size={11}
+                                    />
+                                    Sudah dinilai
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-full bg-amber-50 text-amber-600 border border-amber-200">
+                                    <Clock
+                                      size={11}
+                                    />
+                                    Belum dinilai
+                                  </span>
+                                )}
+
+                                {item.urlFile && (
+                                  <a
+                                    href={
+                                      item.urlFile
+                                    }
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-[10px] font-medium px-2 py-1 rounded-full bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100"
+                                  >
+                                    Lihat pengumpulan
+                                  </a>
+                                )}
+                              </div>
                             </div>
                           </div>
                         );
-                      })}
+                      }
+                    )}
+                  </div>
+                )}
+
+                {pengumpulanList.length >
+                  0 && (
+                  <div className="p-4 sm:p-5 border-t border-slate-100 bg-slate-50/60 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div>
+                      <p className="text-xs text-slate-500">
+                        {rekap.sudahDinilai} dari{" "}
+                        {
+                          pengumpulanList.length
+                        }{" "}
+                        pengumpulan sudah
+                        memiliki nilai.
+                      </p>
+
+                      <p className="text-[11px] text-slate-400 mt-1">
+                        Perubahan akan
+                        disimpan ke database
+                        SmartSchool.
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={
+                        simpanSemuaNilai
+                      }
+                      disabled={saving}
+                      className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-blue-500 rounded-lg hover:bg-blue-600 disabled:opacity-50 transition-colors"
+                    >
+                      {saving ? (
+                        <RefreshCw
+                          size={15}
+                          className="animate-spin"
+                        />
+                      ) : (
+                        <Save
+                          size={15}
+                        />
+                      )}
+
+                      {saving
+                        ? "Menyimpan..."
+                        : "Simpan Nilai"}
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* SIDEBAR KANAN */}
+              <div className="space-y-6">
+
+                {/* STATISTIK */}
+                <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm p-4 sm:p-5">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Award
+                      size={16}
+                      className="text-slate-400"
+                    />
+
+                    <h2 className="text-sm font-semibold text-slate-800">
+                      Statistik
+                    </h2>
+                  </div>
+
+                  {nilaiTerisi.length ===
+                  0 ? (
+                    <p className="text-xs text-slate-400">
+                      Belum ada nilai yang
+                      diinput.
+                    </p>
+                  ) : (
+                    <div className="space-y-4">
+
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-xs text-slate-400">
+                            Rata-rata
+                          </span>
+
+                          <span className="text-lg font-bold text-slate-800">
+                            {
+                              rekap.rataRata
+                            }
+                          </span>
+                        </div>
+
+                        <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-blue-500 transition-all"
+                            style={{
+                              width: `${Math.min(
+                                rekap.rataRata,
+                                100
+                              )}%`,
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-100">
+                          <p className="text-[11px] text-emerald-600">
+                            Tertinggi
+                          </p>
+
+                          <p className="text-lg font-bold text-emerald-700 mt-1">
+                            {
+                              rekap.tertinggi
+                            }
+                          </p>
+                        </div>
+
+                        <div className="p-3 rounded-lg bg-rose-50 border border-rose-100">
+                          <p className="text-[11px] text-rose-600">
+                            Terendah
+                          </p>
+
+                          <p className="text-lg font-bold text-rose-700 mt-1">
+                            {
+                              rekap.terendah
+                            }
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="p-3 rounded-lg bg-amber-50 border border-amber-100">
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle
+                            size={14}
+                            className="text-amber-500"
+                          />
+
+                          <span className="text-xs font-medium text-amber-700">
+                            Di bawah KKM
+                          </span>
+                        </div>
+
+                        <p className="text-lg font-bold text-amber-700 mt-1">
+                          {
+                            rekap.belumTuntas
+                          }{" "}
+                          siswa
+                        </p>
+                      </div>
                     </div>
                   )}
                 </div>
 
+                {/* DAFTAR TUGAS */}
+                <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-hidden">
+                  <div className="flex items-center gap-2 p-4 sm:p-5 border-b border-slate-100">
+                    <History
+                      size={16}
+                      className="text-slate-400"
+                    />
+
+                    <h2 className="text-sm font-semibold text-slate-800">
+                      Riwayat Tugas
+                    </h2>
+                  </div>
+
+                  {tugasKelasIni.length ===
+                  0 ? (
+                    <div className="p-6 text-center">
+                      <p className="text-xs text-slate-400">
+                        Belum ada tugas pada
+                        kelas ini.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-slate-100 max-h-[500px] overflow-y-auto">
+                      {tugasKelasIni.map(
+                        (tugas) => {
+                          const aktif =
+                            tugas.id ===
+                            selectedTugasId;
+
+                          return (
+                            <button
+                              key={
+                                tugas.id
+                              }
+                              onClick={() =>
+                                setSelectedTugasId(
+                                  tugas.id
+                                )
+                              }
+                              className={`w-full text-left p-4 hover:bg-slate-50 transition-colors ${
+                                aktif
+                                  ? "bg-blue-50/60"
+                                  : ""
+                              }`}
+                            >
+                              <div className="flex items-start gap-3">
+                                <div
+                                  className={`p-2 rounded-lg flex-shrink-0 ${
+                                    aktif
+                                      ? "bg-blue-100 text-blue-600"
+                                      : "bg-slate-100 text-slate-500"
+                                  }`}
+                                >
+                                  <FileText
+                                    size={
+                                      15
+                                    }
+                                  />
+                                </div>
+
+                                <div className="min-w-0 flex-1">
+                                  <p
+                                    className={`text-xs font-medium truncate ${
+                                      aktif
+                                        ? "text-blue-700"
+                                        : "text-slate-700"
+                                    }`}
+                                  >
+                                    {
+                                      tugas.judul
+                                    }
+                                  </p>
+
+                                  <p className="text-[11px] text-slate-400 mt-1">
+                                    {getTanggal(
+                                      tugas.batasWaktu
+                                    )}
+                                  </p>
+
+                                  <div className="flex items-center gap-2 mt-2">
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded-full border bg-slate-50 text-slate-500 border-slate-200">
+                                      {
+                                        tugas.jumlahPengumpulan ??
+                                        0
+                                      }{" "}
+                                      dikumpulkan
+                                    </span>
+
+                                    {aktif && (
+                                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-600">
+                                        Dibuka
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </button>
+                          );
+                        }
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
