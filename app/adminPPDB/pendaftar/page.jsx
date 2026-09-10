@@ -1,108 +1,717 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import Header from "../../components/Header";
-import Sidebar from "../../components/Sidebar";
+import { useMemo, useRef, useState } from "react";
 import {
-  ChevronRight,
   Search,
-  X,
+  ChevronRight,
   Eye,
+  CheckCircle2,
+  XCircle,
+  FileText,
+  Upload,
+  X,
   User,
-  School,
-  BookOpen,
-  Layers,
   Phone,
   Mail,
+  MapPin,
   CalendarDays,
+  GraduationCap,
+  RefreshCw,
+  AlertCircle,
 } from "lucide-react";
 
+import Header from "../../components/Header";
+import Sidebar from "../../components/Sidebar";
+
+import {
+  verifikasiPpdb,
+  uploadBerkasPpdb,
+} from "../../../services/ppdb.service";
+
+// =========================================================
+// DATA SEMENTARA UNTUK UI
+// =========================================================
+// BE saat ini belum menyediakan GET daftar pendaftar.
+// Karena itu data list tetap dari data yang sudah ada.
+// Aksi verifikasi & upload sudah terhubung ke BE.
+// =========================================================
 
 const initialPendaftar = [
-  { id: 1, noPendaftaran: "PPDB001", nama: "Andi Saputra", asalSekolah: "SMP Negeri 1", jurusan: "RPL", gelombang: "1", status: "Menunggu", jalur: "Reguler", tanggalDaftar: "2026-01-08", telepon: "0812-3456-7801", email: "andi.saputra@mail.com" },
-  { id: 2, noPendaftaran: "PPDB002", nama: "Budi Hartono", asalSekolah: "SMP Negeri 2", jurusan: "TKJ", gelombang: "1", status: "Terverifikasi", jalur: "Reguler", tanggalDaftar: "2026-01-08", telepon: "0812-3456-7802", email: "budi.hartono@mail.com" },
-  { id: 3, noPendaftaran: "PPDB003", nama: "Citra Ayu Lestari", asalSekolah: "SMP Negeri 3", jurusan: "Multimedia", gelombang: "1", status: "Lulus", jalur: "Prestasi", tanggalDaftar: "2026-01-09", telepon: "0812-3456-7803", email: "citra.ayu@mail.com" },
-  { id: 4, noPendaftaran: "PPDB004", nama: "Deni Firmansyah", asalSekolah: "SMP Islam Al-Amin", jurusan: "Akuntansi", gelombang: "2", status: "Daftar Ulang", jalur: "Reguler", tanggalDaftar: "2026-02-02", telepon: "0812-3456-7804", email: "deni.firmansyah@mail.com" },
-  { id: 5, noPendaftaran: "PPDB005", nama: "Eka Putri Wulandari", asalSekolah: "SMP Negeri 4", jurusan: "RPL", gelombang: "2", status: "Tidak Lulus", jalur: "Reguler", tanggalDaftar: "2026-02-03", telepon: "0812-3456-7805", email: "eka.putri@mail.com" },
-  { id: 6, noPendaftaran: "PPDB006", nama: "Fajar Nugroho", asalSekolah: "SMP Negeri 1", jurusan: "TKJ", gelombang: "1", status: "Terverifikasi", jalur: "Afirmasi", tanggalDaftar: "2026-01-10", telepon: "0812-3456-7806", email: "fajar.nugroho@mail.com" },
-  { id: 7, noPendaftaran: "PPDB007", nama: "Gita Lestari", asalSekolah: "SMP Kristen Harapan", jurusan: "Multimedia", gelombang: "1", status: "Menunggu", jalur: "Reguler", tanggalDaftar: "2026-01-11", telepon: "0812-3456-7807", email: "gita.lestari@mail.com" },
-  { id: 8, noPendaftaran: "PPDB008", nama: "Hendra Wijaya", asalSekolah: "SMP Negeri 5", jurusan: "Akuntansi", gelombang: "2", status: "Lulus", jalur: "Prestasi", tanggalDaftar: "2026-02-04", telepon: "0812-3456-7808", email: "hendra.wijaya@mail.com" },
-  { id: 9, noPendaftaran: "PPDB009", nama: "Indah Permatasari", asalSekolah: "SMP Negeri 2", jurusan: "RPL", gelombang: "3", status: "Menunggu", jalur: "Reguler", tanggalDaftar: "2026-03-01", telepon: "0812-3456-7809", email: "indah.permata@mail.com" },
-  { id: 10, noPendaftaran: "PPDB010", nama: "Joko Prasetyo", asalSekolah: "SMP Negeri 3", jurusan: "TKJ", gelombang: "2", status: "Terverifikasi", jalur: "Mutasi", tanggalDaftar: "2026-02-05", telepon: "0812-3456-7810", email: "joko.prasetyo@mail.com" },
-  { id: 11, noPendaftaran: "PPDB011", nama: "Kartika Sari", asalSekolah: "SMP Negeri 4", jurusan: "Multimedia", gelombang: "1", status: "Daftar Ulang", jalur: "Reguler", tanggalDaftar: "2026-01-12", telepon: "0812-3456-7811", email: "kartika.sari@mail.com" },
-  { id: 12, noPendaftaran: "PPDB012", nama: "Luthfi Rahman", asalSekolah: "SMP Islam Al-Amin", jurusan: "Akuntansi", gelombang: "1", status: "Tidak Lulus", jalur: "Reguler", tanggalDaftar: "2026-01-13", telepon: "0812-3456-7812", email: "luthfi.rahman@mail.com" },
-  { id: 13, noPendaftaran: "PPDB013", nama: "Maya Anggraini", asalSekolah: "SMP Negeri 1", jurusan: "RPL", gelombang: "2", status: "Lulus", jalur: "Afirmasi", tanggalDaftar: "2026-02-06", telepon: "0812-3456-7813", email: "maya.anggraini@mail.com" },
-  { id: 14, noPendaftaran: "PPDB014", nama: "Naufal Ardiansyah", asalSekolah: "SMP Negeri 5", jurusan: "TKJ", gelombang: "3", status: "Menunggu", jalur: "Reguler", tanggalDaftar: "2026-03-02", telepon: "0812-3456-7814", email: "naufal.ardiansyah@mail.com" },
-  { id: 15, noPendaftaran: "PPDB015", nama: "Olivia Zahra", asalSekolah: "SMP Kristen Harapan", jurusan: "Multimedia", gelombang: "2", status: "Terverifikasi", jalur: "Prestasi", tanggalDaftar: "2026-02-07", telepon: "0812-3456-7815", email: "olivia.zahra@mail.com" },
-  { id: 16, noPendaftaran: "PPDB016", nama: "Putra Wibowo", asalSekolah: "SMP Negeri 2", jurusan: "Akuntansi", gelombang: "1", status: "Daftar Ulang", jalur: "Reguler", tanggalDaftar: "2026-01-14", telepon: "0812-3456-7816", email: "putra.wibowo@mail.com" },
+  {
+    id: "demo-1",
+    nomorPendaftaran: "PPDB-2026-0001",
+    namaLengkap: "Ahmad Fauzan",
+    nisn: "0087654321",
+    asalSekolah: "SMP Negeri 1 Tasikmalaya",
+    jalur: "Jalur Reguler",
+    tanggalDaftar: "2026-08-20",
+    status: "menunggu",
+    tempatLahir: "Tasikmalaya",
+    tanggalLahir: "2010-05-12",
+    jenisKelamin: "L",
+    alamat: "Jl. Merdeka No. 10, Tasikmalaya",
+    telepon: "081234567890",
+    email: "ahmad@example.com",
+    namaAyah: "Budi Fauzan",
+    namaIbu: "Siti Aminah",
+    nilaiRapor: 88.5,
+    kelasId: "",
+    berkas: {
+      KK: null,
+      AKTE: null,
+      IJAZAH: null,
+    },
+  },
+  {
+    id: "demo-2",
+    nomorPendaftaran: "PPDB-2026-0002",
+    namaLengkap: "Siti Aulia",
+    nisn: "0087654322",
+    asalSekolah: "SMP Negeri 2 Tasikmalaya",
+    jalur: "Jalur Prestasi",
+    tanggalDaftar: "2026-08-21",
+    status: "menunggu",
+    tempatLahir: "Tasikmalaya",
+    tanggalLahir: "2010-03-21",
+    jenisKelamin: "P",
+    alamat: "Jl. HZ Mustofa No. 20, Tasikmalaya",
+    telepon: "081298765432",
+    email: "sitiaulia@example.com",
+    namaAyah: "Andi",
+    namaIbu: "Rina",
+    nilaiRapor: 92.3,
+    kelasId: "",
+    berkas: {
+      KK: null,
+      AKTE: null,
+      IJAZAH: null,
+    },
+  },
+  {
+    id: "demo-3",
+    nomorPendaftaran: "PPDB-2026-0003",
+    namaLengkap: "Rizky Ramadhan",
+    nisn: "0087654323",
+    asalSekolah: "SMP Negeri 3 Tasikmalaya",
+    jalur: "Jalur Afirmasi",
+    tanggalDaftar: "2026-08-22",
+    status: "lulus",
+    tempatLahir: "Garut",
+    tanggalLahir: "2010-01-10",
+    jenisKelamin: "L",
+    alamat: "Jl. Cihideung No. 15",
+    telepon: "081377889900",
+    email: "rizky@example.com",
+    namaAyah: "Dedi",
+    namaIbu: "Yuni",
+    nilaiRapor: 86.7,
+    kelasId: "kelas-demo",
+    berkas: {
+      KK: null,
+      AKTE: null,
+      IJAZAH: null,
+    },
+  },
+  {
+    id: "demo-4",
+    nomorPendaftaran: "PPDB-2026-0004",
+    namaLengkap: "Nabila Putri",
+    nisn: "0087654324",
+    asalSekolah: "SMP Negeri 4 Tasikmalaya",
+    jalur: "Jalur Mutasi",
+    tanggalDaftar: "2026-08-23",
+    status: "ditolak",
+    tempatLahir: "Bandung",
+    tanggalLahir: "2010-06-17",
+    jenisKelamin: "P",
+    alamat: "Jl. Siliwangi No. 8",
+    telepon: "081234567899",
+    email: "nabila@example.com",
+    namaAyah: "Agus",
+    namaIbu: "Dewi",
+    nilaiRapor: 78.4,
+    kelasId: "",
+    berkas: {
+      KK: null,
+      AKTE: null,
+      IJAZAH: null,
+    },
+  },
 ];
 
-const JURUSAN_OPTIONS = ["Semua Jurusan", "RPL", "TKJ", "Multimedia", "Akuntansi"];
-const GELOMBANG_OPTIONS = ["Semua Gelombang", "1", "2", "3"];
-const STATUS_OPTIONS = ["Semua Status", "Menunggu", "Terverifikasi", "Lulus", "Tidak Lulus", "Daftar Ulang"];
+const STATUS_FILTERS = [
+  {
+    key: "semua",
+    label: "Semua",
+  },
+  {
+    key: "menunggu",
+    label: "Menunggu",
+  },
+  {
+    key: "lulus",
+    label: "Lulus",
+  },
+  {
+    key: "ditolak",
+    label: "Ditolak",
+  },
+];
 
 const STATUS_STYLES = {
-  Menunggu: "bg-amber-50 text-amber-600 border-amber-100",
-  Terverifikasi: "bg-blue-50 text-blue-600 border-blue-100",
-  Lulus: "bg-emerald-50 text-emerald-600 border-emerald-100",
-  "Tidak Lulus": "bg-rose-50 text-rose-600 border-rose-100",
-  "Daftar Ulang": "bg-violet-50 text-violet-600 border-violet-100",
+  menunggu:
+    "bg-amber-50 text-amber-600 border-amber-100",
+  lulus:
+    "bg-emerald-50 text-emerald-600 border-emerald-100",
+  ditolak:
+    "bg-rose-50 text-rose-600 border-rose-100",
 };
 
-const ROWS_PER_PAGE = 10;
+const STATUS_LABELS = {
+  menunggu: "Menunggu",
+  lulus: "Lulus",
+  ditolak: "Ditolak",
+};
 
-function formatTanggal(iso) {
-  const d = new Date(iso);
-  return d.toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" });
+const BERKAS_LIST = [
+  {
+    key: "KK",
+    label: "Kartu Keluarga",
+  },
+  {
+    key: "AKTE",
+    label: "Akta Kelahiran",
+  },
+  {
+    key: "IJAZAH",
+    label: "Ijazah / SKL",
+  },
+];
+
+// =========================================================
+// HELPERS
+// =========================================================
+
+function formatTanggal(value) {
+  if (!value) return "-";
+
+  try {
+    return new Date(value).toLocaleDateString(
+      "id-ID",
+      {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      }
+    );
+  } catch {
+    return "-";
+  }
 }
 
-export default function DataPendaftarPPDBPage() {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+function formatTanggalPanjang(value) {
+  if (!value) return "-";
+
+  try {
+    return new Date(value).toLocaleDateString(
+      "id-ID",
+      {
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
+      }
+    );
+  } catch {
+    return "-";
+  }
+}
+
+function formatJenisKelamin(value) {
+  if (value === "L") return "Laki-laki";
+  if (value === "P") return "Perempuan";
+
+  if (
+    String(value).toLowerCase() ===
+    "laki-laki"
+  ) {
+    return "Laki-laki";
+  }
+
+  if (
+    String(value).toLowerCase() ===
+    "perempuan"
+  ) {
+    return "Perempuan";
+  }
+
+  return value || "-";
+}
+
+function getInitials(name = "") {
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((item) => item[0])
+    .join("")
+    .toUpperCase();
+}
+
+// =========================================================
+// PAGE
+// =========================================================
+
+export default function PendaftarPPDBPage() {
+  const [isCollapsed, setIsCollapsed] =
+    useState(false);
+
+  const [pendaftarList, setPendaftarList] =
+    useState(initialPendaftar);
+
+  const [activeStatus, setActiveStatus] =
+    useState("semua");
+
   const [search, setSearch] = useState("");
-  const [filterJurusan, setFilterJurusan] = useState("Semua Jurusan");
-  const [filterGelombang, setFilterGelombang] = useState("Semua Gelombang");
-  const [filterStatus, setFilterStatus] = useState("Semua Status");
-  const [page, setPage] = useState(1);
-  const [detailTarget, setDetailTarget] = useState(null);
 
-  const toggleSidebar = () => setIsCollapsed(!isCollapsed);
+  const [selectedPendaftar, setSelectedPendaftar] =
+    useState(null);
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return initialPendaftar.filter((p) => {
+  const [showDetail, setShowDetail] =
+    useState(false);
+
+  const [showLulusModal, setShowLulusModal] =
+    useState(false);
+
+  const [showUploadModal, setShowUploadModal] =
+    useState(false);
+
+  const [selectedBerkas, setSelectedBerkas] =
+    useState(null);
+
+  const [kelasId, setKelasId] = useState("");
+
+  const [actionLoading, setActionLoading] =
+    useState(false);
+
+  const [actionError, setActionError] =
+    useState("");
+
+  const [successMessage, setSuccessMessage] =
+    useState("");
+
+  const fileInputRef = useRef(null);
+
+  // =========================================================
+  // FILTER
+  // =========================================================
+
+  const filteredPendaftar = useMemo(() => {
+    const keyword = search
+      .toLowerCase()
+      .trim();
+
+    return pendaftarList.filter((item) => {
+      const matchStatus =
+        activeStatus === "semua" ||
+        item.status === activeStatus;
+
       const matchSearch =
-        !q ||
-        p.nama.toLowerCase().includes(q) ||
-        p.noPendaftaran.toLowerCase().includes(q);
-      const matchJurusan = filterJurusan === "Semua Jurusan" || p.jurusan === filterJurusan;
-      const matchGelombang = filterGelombang === "Semua Gelombang" || p.gelombang === filterGelombang;
-      const matchStatus = filterStatus === "Semua Status" || p.status === filterStatus;
-      return matchSearch && matchJurusan && matchGelombang && matchStatus;
+        !keyword ||
+        item.namaLengkap
+          ?.toLowerCase()
+          .includes(keyword) ||
+        item.nisn
+          ?.toLowerCase()
+          .includes(keyword) ||
+        item.nomorPendaftaran
+          ?.toLowerCase()
+          .includes(keyword) ||
+        item.asalSekolah
+          ?.toLowerCase()
+          .includes(keyword);
+
+      return matchStatus && matchSearch;
     });
-  }, [search, filterJurusan, filterGelombang, filterStatus]);
+  }, [
+    pendaftarList,
+    activeStatus,
+    search,
+  ]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / ROWS_PER_PAGE));
-  const currentPage = Math.min(page, totalPages);
-  const paged = filtered.slice((currentPage - 1) * ROWS_PER_PAGE, currentPage * ROWS_PER_PAGE);
+  // =========================================================
+  // SUMMARY
+  // =========================================================
 
-  const updateFilter = (setter) => (val) => {
-    setter(val);
-    setPage(1);
+  const totalPendaftar =
+    pendaftarList.length;
+
+  const totalMenunggu =
+    pendaftarList.filter(
+      (item) => item.status === "menunggu"
+    ).length;
+
+  const totalLulus =
+    pendaftarList.filter(
+      (item) => item.status === "lulus"
+    ).length;
+
+  const totalDitolak =
+    pendaftarList.filter(
+      (item) => item.status === "ditolak"
+    ).length;
+
+  // =========================================================
+  // SIDEBAR
+  // =========================================================
+
+  const toggleSidebar = () => {
+    setIsCollapsed((prev) => !prev);
   };
 
-  const resetFilters = () => {
-    setSearch("");
-    setFilterJurusan("Semua Jurusan");
-    setFilterGelombang("Semua Gelombang");
-    setFilterStatus("Semua Status");
-    setPage(1);
+  // =========================================================
+  // DETAIL
+  // =========================================================
+
+  const openDetail = (pendaftar) => {
+    setSelectedPendaftar(pendaftar);
+    setActionError("");
+    setSuccessMessage("");
+    setShowDetail(true);
   };
 
-  const activeFilterCount =
-    (filterJurusan !== "Semua Jurusan" ? 1 : 0) +
-    (filterGelombang !== "Semua Gelombang" ? 1 : 0) +
-    (filterStatus !== "Semua Status" ? 1 : 0) +
-    (search ? 1 : 0);
+  const closeDetail = () => {
+    if (actionLoading) return;
+
+    setShowDetail(false);
+    setSelectedPendaftar(null);
+    setActionError("");
+  };
+
+  // =========================================================
+  // OPEN LULUS
+  // =========================================================
+
+  const openLulusModal = (pendaftar) => {
+    setSelectedPendaftar(pendaftar);
+    setKelasId(
+      pendaftar?.kelasId || ""
+    );
+    setActionError("");
+    setSuccessMessage("");
+    setShowLulusModal(true);
+  };
+
+  const closeLulusModal = () => {
+    if (actionLoading) return;
+
+    setShowLulusModal(false);
+    setKelasId("");
+    setActionError("");
+  };
+
+  // =========================================================
+  // VERIFIKASI LULUS
+  // =========================================================
+
+  const handleLulus = async () => {
+    if (!selectedPendaftar?.id) {
+      setActionError(
+        "ID pendaftar tidak ditemukan."
+      );
+      return;
+    }
+
+    if (!kelasId.trim()) {
+      setActionError(
+        "Kelas wajib dipilih untuk pendaftar yang lulus."
+      );
+      return;
+    }
+
+    try {
+      setActionLoading(true);
+      setActionError("");
+      setSuccessMessage("");
+
+      const response =
+        await verifikasiPpdb(
+          selectedPendaftar.id,
+          {
+            status: "lulus",
+            kelasId: kelasId.trim(),
+          }
+        );
+
+      console.log(
+        "Response verifikasi lulus:",
+        response
+      );
+
+      setPendaftarList((prev) =>
+        prev.map((item) =>
+          item.id === selectedPendaftar.id
+            ? {
+                ...item,
+                status: "lulus",
+                kelasId: kelasId.trim(),
+              }
+            : item
+        )
+      );
+
+      setSelectedPendaftar((prev) =>
+        prev
+          ? {
+              ...prev,
+              status: "lulus",
+              kelasId: kelasId.trim(),
+            }
+          : prev
+      );
+
+      setSuccessMessage(
+        response?.message ||
+          "Pendaftar berhasil dinyatakan lulus."
+      );
+
+      setShowLulusModal(false);
+      setKelasId("");
+    } catch (error) {
+      console.error(
+        "Gagal verifikasi lulus:",
+        error
+      );
+
+      setActionError(
+        error?.message ||
+          "Gagal memproses kelulusan."
+      );
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // =========================================================
+  // VERIFIKASI DITOLAK
+  // =========================================================
+
+  const handleTolak = async (pendaftar) => {
+    if (!pendaftar?.id) {
+      alert("ID pendaftar tidak ditemukan.");
+      return;
+    }
+
+    const yakin = window.confirm(
+      `Yakin ingin menolak pendaftaran ${pendaftar.namaLengkap}?`
+    );
+
+    if (!yakin) return;
+
+    try {
+      setActionLoading(true);
+      setActionError("");
+      setSuccessMessage("");
+
+      const response =
+        await verifikasiPpdb(
+          pendaftar.id,
+          {
+            status: "ditolak",
+          }
+        );
+
+      console.log(
+        "Response verifikasi ditolak:",
+        response
+      );
+
+      setPendaftarList((prev) =>
+        prev.map((item) =>
+          item.id === pendaftar.id
+            ? {
+                ...item,
+                status: "ditolak",
+              }
+            : item
+        )
+      );
+
+      setSelectedPendaftar((prev) =>
+        prev?.id === pendaftar.id
+          ? {
+              ...prev,
+              status: "ditolak",
+            }
+          : prev
+      );
+
+      setSuccessMessage(
+        response?.message ||
+          "Pendaftaran berhasil ditolak."
+      );
+    } catch (error) {
+      console.error(
+        "Gagal menolak pendaftar:",
+        error
+      );
+
+      setActionError(
+        error?.message ||
+          "Gagal menolak pendaftaran."
+      );
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // =========================================================
+  // UPLOAD BERKAS
+  // =========================================================
+
+  const openUploadModal = (
+    pendaftar,
+    berkas
+  ) => {
+    setSelectedPendaftar(pendaftar);
+    setSelectedBerkas(berkas);
+    setActionError("");
+    setSuccessMessage("");
+    setShowUploadModal(true);
+  };
+
+  const closeUploadModal = () => {
+    if (actionLoading) return;
+
+    setShowUploadModal(false);
+    setSelectedBerkas(null);
+    setActionError("");
+  };
+
+  const handleFileChange = async (
+    event
+  ) => {
+    const file =
+      event.target.files?.[0];
+
+    if (!file) return;
+
+    if (
+      !selectedPendaftar?.id ||
+      !selectedBerkas
+    ) {
+      setActionError(
+        "Data upload tidak lengkap."
+      );
+      return;
+    }
+
+    try {
+      setActionLoading(true);
+      setActionError("");
+      setSuccessMessage("");
+
+      const response =
+        await uploadBerkasPpdb(
+          selectedPendaftar.id,
+          file,
+          selectedBerkas.key
+        );
+
+      console.log(
+        "Response upload berkas:",
+        response
+      );
+
+      setPendaftarList((prev) =>
+        prev.map((item) => {
+          if (
+            item.id !==
+            selectedPendaftar.id
+          ) {
+            return item;
+          }
+
+          return {
+            ...item,
+            berkas: {
+              ...(item.berkas || {}),
+              [selectedBerkas.key]:
+                response?.data || {
+                  namaBerkas:
+                    selectedBerkas.key,
+                  namaFile: file.name,
+                  status: "menunggu",
+                },
+            },
+          };
+        })
+      );
+
+      setSelectedPendaftar((prev) =>
+        prev
+          ? {
+              ...prev,
+              berkas: {
+                ...(prev.berkas || {}),
+                [selectedBerkas.key]:
+                  response?.data || {
+                    namaBerkas:
+                      selectedBerkas.key,
+                    namaFile: file.name,
+                    status: "menunggu",
+                  },
+              },
+            }
+          : prev
+      );
+
+      setSuccessMessage(
+        response?.message ||
+          `${selectedBerkas.label} berhasil diupload.`
+      );
+
+      setShowUploadModal(false);
+      setSelectedBerkas(null);
+    } catch (error) {
+      console.error(
+        "Gagal upload berkas:",
+        error
+      );
+
+      setActionError(
+        error?.message ||
+          "Gagal mengupload berkas."
+      );
+    } finally {
+      setActionLoading(false);
+
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
+  // =========================================================
+  // REFRESH UI
+  // =========================================================
+  // Belum melakukan GET karena BE belum menyediakan endpoint
+  // list pendaftar.
+  // =========================================================
+
+  const handleRefresh = () => {
+    setActionError("");
+    setSuccessMessage(
+      "Data tampilan diperbarui."
+    );
+
+    setTimeout(() => {
+      setSuccessMessage("");
+    }, 2500);
+  };
+
+  // =========================================================
+  // RENDER
+  // =========================================================
 
   return (
     <div className="flex h-screen w-full bg-[#EEF0F2] overflow-hidden">
@@ -118,285 +727,1129 @@ export default function DataPendaftarPPDBPage() {
         <Header
           toggleSidebar={toggleSidebar}
           notifications={[]}
-          user={{ name: "Admin PPDB", email: "adminppdb@smartschool.com", avatar: "PP" }}
+          user={{
+            name: "Admin PPDB",
+            email:
+              "adminppdb@smartschool.com",
+            avatar: "PP",
+          }}
         />
 
         <main className="flex-1 overflow-y-auto">
           <div className="w-full p-4 md:p-6 lg:p-8">
-            <div className="w-full space-y-5 max-w-[1320px] mx-auto">
+            <div className="w-full max-w-[1320px] mx-auto space-y-5">
+
+              {/* ================================================= */}
+              {/* BREADCRUMB */}
+              {/* ================================================= */}
+
               <div className="flex items-center gap-1.5 text-xs text-slate-400">
                 <span>PPDB</span>
+
                 <ChevronRight size={12} />
-                <span className="text-slate-600 font-medium">Data Pendaftar</span>
+
+                <span className="text-slate-600 font-medium">
+                  Pendaftar
+                </span>
               </div>
 
-              {/* ===== KARTU RINGKASAN ===== */}
+              {/* ================================================= */}
+              {/* SUCCESS */}
+              {/* ================================================= */}
+
+              {successMessage && (
+                <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-100 text-emerald-700 rounded-xl px-4 py-3 text-sm">
+                  <CheckCircle2
+                    size={17}
+                  />
+
+                  <span>
+                    {successMessage}
+                  </span>
+
+                  <button
+                    onClick={() =>
+                      setSuccessMessage("")
+                    }
+                    className="ml-auto"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              )}
+
+              {/* ================================================= */}
+              {/* ERROR */}
+              {/* ================================================= */}
+
+              {actionError && (
+                <div className="flex items-center gap-2 bg-rose-50 border border-rose-100 text-rose-700 rounded-xl px-4 py-3 text-sm">
+                  <AlertCircle
+                    size={17}
+                  />
+
+                  <span>
+                    {actionError}
+                  </span>
+
+                  <button
+                    onClick={() =>
+                      setActionError("")
+                    }
+                    className="ml-auto"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              )}
+
+              {/* ================================================= */}
+              {/* SUMMARY */}
+              {/* ================================================= */}
+
               <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+
                 <div className="bg-white rounded-xl p-5">
-                  <p className="text-xs text-slate-400">Total Pendaftar</p>
-                  <p className="text-2xl font-bold text-slate-800 mt-2">{initialPendaftar.length}</p>
+                  <p className="text-xs text-slate-400">
+                    Total Pendaftar
+                  </p>
+
+                  <p className="text-2xl font-bold text-slate-800 mt-2">
+                    {totalPendaftar}
+                  </p>
                 </div>
+
                 <div className="bg-white rounded-xl p-5">
-                  <p className="text-xs text-slate-400">Hasil Filter Saat Ini</p>
-                  <p className="text-2xl font-bold text-blue-600 mt-2">{filtered.length}</p>
-                </div>
-                <div className="bg-white rounded-xl p-5">
-                  <p className="text-xs text-slate-400">Menunggu Verifikasi</p>
+                  <p className="text-xs text-slate-400">
+                    Menunggu Verifikasi
+                  </p>
+
                   <p className="text-2xl font-bold text-amber-500 mt-2">
-                    {initialPendaftar.filter((p) => p.status === "Menunggu").length}
+                    {totalMenunggu}
                   </p>
                 </div>
-                <div className="bg-[#F6F7F8] rounded-xl p-5 flex flex-col items-center justify-center text-center">
-                  <p className="text-xs text-slate-400">Sudah Lulus</p>
-                  <p className="text-3xl font-bold text-slate-500 mt-3">
-                    {initialPendaftar.filter((p) => p.status === "Lulus" || p.status === "Daftar Ulang").length}
+
+                <div className="bg-white rounded-xl p-5">
+                  <p className="text-xs text-slate-400">
+                    Lulus
+                  </p>
+
+                  <p className="text-2xl font-bold text-emerald-500 mt-2">
+                    {totalLulus}
                   </p>
                 </div>
+
+                <div className="bg-white rounded-xl p-5">
+                  <p className="text-xs text-slate-400">
+                    Ditolak
+                  </p>
+
+                  <p className="text-2xl font-bold text-rose-500 mt-2">
+                    {totalDitolak}
+                  </p>
+                </div>
+
               </section>
 
-              {/* ===== PANEL UTAMA ===== */}
+              {/* ================================================= */}
+              {/* MAIN PANEL */}
+              {/* ================================================= */}
+
               <section className="bg-white rounded-xl overflow-hidden">
-                {/* Search & Filter */}
-                <div className="flex flex-wrap items-center gap-3 px-5 pt-4 pb-4 border-b border-slate-100">
-                  <div className="flex items-center gap-2 text-xs text-slate-500 border border-slate-200 rounded-md px-3 py-2 flex-1 min-w-[200px]">
-                    <Search size={13} className="text-slate-400 flex-shrink-0" />
-                    <input
-                      value={search}
-                      onChange={(e) => updateFilter(setSearch)(e.target.value)}
-                      placeholder="Cari nama atau no. pendaftaran..."
-                      className="outline-none bg-transparent placeholder:text-slate-400 w-full"
-                    />
+
+                {/* HEADER */}
+                <div className="flex flex-wrap items-center justify-between gap-3 px-5 pt-4 pb-4 border-b border-slate-100">
+
+                  <div className="flex items-center gap-5 overflow-x-auto">
+
+                    {STATUS_FILTERS.map(
+                      (filter) => (
+                        <button
+                          key={filter.key}
+                          onClick={() =>
+                            setActiveStatus(
+                              filter.key
+                            )
+                          }
+                          className={`relative pb-2.5 text-sm font-medium whitespace-nowrap transition-colors ${
+                            activeStatus ===
+                            filter.key
+                              ? "text-blue-600"
+                              : "text-slate-400 hover:text-slate-600"
+                          }`}
+                        >
+                          {filter.label}
+
+                          {activeStatus ===
+                            filter.key && (
+                            <span className="absolute left-0 right-0 -bottom-px h-0.5 bg-blue-600 rounded-full" />
+                          )}
+                        </button>
+                      )
+                    )}
+
                   </div>
 
-                  <select
-                    value={filterJurusan}
-                    onChange={(e) => updateFilter(setFilterJurusan)(e.target.value)}
-                    className="text-xs text-slate-600 border border-slate-200 rounded-md px-3 py-2 outline-none focus:border-blue-400 bg-white"
-                  >
-                    {JURUSAN_OPTIONS.map((j) => (
-                      <option key={j} value={j}>{j}</option>
-                    ))}
-                  </select>
+                  <div className="flex items-center gap-2">
 
-                  <select
-                    value={filterGelombang}
-                    onChange={(e) => updateFilter(setFilterGelombang)(e.target.value)}
-                    className="text-xs text-slate-600 border border-slate-200 rounded-md px-3 py-2 outline-none focus:border-blue-400 bg-white"
-                  >
-                    {GELOMBANG_OPTIONS.map((g) => (
-                      <option key={g} value={g}>{g === "Semua Gelombang" ? g : `Gelombang ${g}`}</option>
-                    ))}
-                  </select>
+                    <div className="flex items-center gap-2 text-xs text-slate-500 border border-slate-200 rounded-md px-3 py-2">
 
-                  <select
-                    value={filterStatus}
-                    onChange={(e) => updateFilter(setFilterStatus)(e.target.value)}
-                    className="text-xs text-slate-600 border border-slate-200 rounded-md px-3 py-2 outline-none focus:border-blue-400 bg-white"
-                  >
-                    {STATUS_OPTIONS.map((s) => (
-                      <option key={s} value={s}>{s}</option>
-                    ))}
-                  </select>
+                      <Search
+                        size={14}
+                        className="text-slate-400"
+                      />
 
-                  {activeFilterCount > 0 && (
+                      <input
+                        value={search}
+                        onChange={(e) =>
+                          setSearch(
+                            e.target.value
+                          )
+                        }
+                        placeholder="Cari pendaftar..."
+                        className="outline-none bg-transparent placeholder:text-slate-400 w-44"
+                      />
+                    </div>
+
                     <button
-                      onClick={resetFilters}
-                      className="flex items-center gap-1 text-xs text-slate-400 hover:text-rose-500 transition-colors"
+                      onClick={handleRefresh}
+                      className="flex items-center justify-center border border-slate-200 hover:bg-slate-50 text-slate-500 rounded-md w-9 h-9 transition-colors"
+                      title="Refresh"
                     >
-                      <X size={12} />
-                      Reset ({activeFilterCount})
+                      <RefreshCw
+                        size={15}
+                      />
                     </button>
-                  )}
+
+                  </div>
                 </div>
 
-                {/* Tabel */}
+                {/* ================================================= */}
+                {/* TABLE */}
+                {/* ================================================= */}
+
                 <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
+
+                  <table className="w-full min-w-[1050px]">
+
                     <thead>
-                      <tr className="text-left text-xs text-slate-400 border-b border-slate-100">
-                        <th className="px-5 py-3 font-medium">No</th>
-                        <th className="px-5 py-3 font-medium">No. Pendaftaran</th>
-                        <th className="px-5 py-3 font-medium">Nama</th>
-                        <th className="px-5 py-3 font-medium">Asal Sekolah</th>
-                        <th className="px-5 py-3 font-medium">Jurusan</th>
-                        <th className="px-5 py-3 font-medium">Gelombang</th>
-                        <th className="px-5 py-3 font-medium">Status</th>
-                        <th className="px-5 py-3 font-medium text-right">Aksi</th>
+                      <tr className="border-b border-slate-100 bg-slate-50/60">
+
+                        <th className="text-left px-5 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wide">
+                          Pendaftar
+                        </th>
+
+                        <th className="text-left px-4 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wide">
+                          NISN
+                        </th>
+
+                        <th className="text-left px-4 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wide">
+                          Asal Sekolah
+                        </th>
+
+                        <th className="text-left px-4 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wide">
+                          Jalur
+                        </th>
+
+                        <th className="text-left px-4 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wide">
+                          Tanggal
+                        </th>
+
+                        <th className="text-left px-4 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wide">
+                          Status
+                        </th>
+
+                        <th className="text-right px-5 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wide">
+                          Aksi
+                        </th>
+
                       </tr>
                     </thead>
+
                     <tbody>
-                      {paged.length === 0 && (
+
+                      {filteredPendaftar.length ===
+                        0 && (
                         <tr>
-                          <td colSpan={8} className="px-5 py-10 text-center text-slate-400 text-sm">
-                            Tidak ada pendaftar yang cocok dengan pencarian/filter.
+                          <td
+                            colSpan={7}
+                            className="text-center py-14 text-sm text-slate-400"
+                          >
+                            Tidak ada pendaftar
+                            ditemukan.
                           </td>
                         </tr>
                       )}
-                      {paged.map((p, idx) => (
-                        <tr key={p.id} className="border-b border-slate-50 hover:bg-slate-50/60 transition-colors">
-                          <td className="px-5 py-3.5 text-slate-500">
-                            {(currentPage - 1) * ROWS_PER_PAGE + idx + 1}
-                          </td>
-                          <td className="px-5 py-3.5 font-mono text-slate-600">{p.noPendaftaran}</td>
-                          <td className="px-5 py-3.5 font-medium text-slate-700">{p.nama}</td>
-                          <td className="px-5 py-3.5 text-slate-500">{p.asalSekolah}</td>
-                          <td className="px-5 py-3.5 text-slate-500">{p.jurusan}</td>
-                          <td className="px-5 py-3.5 text-slate-500">{p.gelombang}</td>
-                          <td className="px-5 py-3.5">
-                            <span className={`text-[11px] font-medium px-2.5 py-1 rounded-full border ${STATUS_STYLES[p.status]}`}>
-                              {p.status}
-                            </span>
-                          </td>
-                          <td className="px-5 py-3.5">
-                            <div className="flex items-center justify-end">
-                              <button
-                                onClick={() => setDetailTarget(p)}
-                                className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:bg-blue-50 px-2.5 py-1.5 rounded-md transition-colors"
+
+                      {filteredPendaftar.map(
+                        (pendaftar) => (
+                          <tr
+                            key={
+                              pendaftar.id
+                            }
+                            className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors"
+                          >
+
+                            {/* Pendaftar */}
+                            <td className="px-5 py-4">
+
+                              <div className="flex items-center gap-3">
+
+                                <div className="w-9 h-9 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-xs font-semibold flex-shrink-0">
+                                  {getInitials(
+                                    pendaftar.namaLengkap
+                                  )}
+                                </div>
+
+                                <div className="min-w-0">
+
+                                  <p className="text-sm font-semibold text-slate-700 truncate">
+                                    {
+                                      pendaftar.namaLengkap
+                                    }
+                                  </p>
+
+                                  <p className="text-[11px] text-slate-400 mt-0.5">
+                                    {
+                                      pendaftar.nomorPendaftaran
+                                    }
+                                  </p>
+
+                                </div>
+
+                              </div>
+
+                            </td>
+
+                            {/* NISN */}
+                            <td className="px-4 py-4">
+                              <span className="text-xs text-slate-600 font-mono">
+                                {
+                                  pendaftar.nisn
+                                }
+                              </span>
+                            </td>
+
+                            {/* Sekolah */}
+                            <td className="px-4 py-4">
+                              <span className="text-xs text-slate-600">
+                                {
+                                  pendaftar.asalSekolah ||
+                                  "-"
+                                }
+                              </span>
+                            </td>
+
+                            {/* Jalur */}
+                            <td className="px-4 py-4">
+                              <span className="text-xs text-slate-600">
+                                {
+                                  pendaftar.jalur ||
+                                  "-"
+                                }
+                              </span>
+                            </td>
+
+                            {/* Tanggal */}
+                            <td className="px-4 py-4">
+                              <span className="text-xs text-slate-500">
+                                {formatTanggal(
+                                  pendaftar.tanggalDaftar
+                                )}
+                              </span>
+                            </td>
+
+                            {/* Status */}
+                            <td className="px-4 py-4">
+
+                              <span
+                                className={`inline-flex items-center text-[11px] font-medium px-2.5 py-1 rounded-full border ${
+                                  STATUS_STYLES[
+                                    pendaftar.status
+                                  ] ||
+                                  "bg-slate-50 text-slate-500 border-slate-100"
+                                }`}
                               >
-                                <Eye size={13} />
-                                Detail
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
+                                {
+                                  STATUS_LABELS[
+                                    pendaftar.status
+                                  ] ||
+                                  pendaftar.status
+                                }
+                              </span>
+
+                            </td>
+
+                            {/* Aksi */}
+                            <td className="px-5 py-4">
+
+                              <div className="flex items-center justify-end gap-1.5">
+
+                                <button
+                                  onClick={() =>
+                                    openDetail(
+                                      pendaftar
+                                    )
+                                  }
+                                  className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-blue-600 hover:bg-blue-50 px-2.5 py-1.5 rounded-md transition-colors"
+                                >
+                                  <Eye
+                                    size={14}
+                                  />
+                                  Detail
+                                </button>
+
+                                {pendaftar.status ===
+                                  "menunggu" && (
+                                  <>
+                                    <button
+                                      onClick={() =>
+                                        openLulusModal(
+                                          pendaftar
+                                        )
+                                      }
+                                      disabled={
+                                        actionLoading
+                                      }
+                                      className="flex items-center gap-1.5 text-xs text-emerald-600 hover:bg-emerald-50 px-2.5 py-1.5 rounded-md transition-colors disabled:opacity-50"
+                                    >
+                                      <CheckCircle2
+                                        size={14}
+                                      />
+                                      Lulus
+                                    </button>
+
+                                    <button
+                                      onClick={() =>
+                                        handleTolak(
+                                          pendaftar
+                                        )
+                                      }
+                                      disabled={
+                                        actionLoading
+                                      }
+                                      className="flex items-center gap-1.5 text-xs text-rose-500 hover:bg-rose-50 px-2.5 py-1.5 rounded-md transition-colors disabled:opacity-50"
+                                    >
+                                      <XCircle
+                                        size={14}
+                                      />
+                                      Tolak
+                                    </button>
+                                  </>
+                                )}
+
+                              </div>
+
+                            </td>
+
+                          </tr>
+                        )
+                      )}
+
                     </tbody>
+
                   </table>
+
                 </div>
 
-                {/* Pagination */}
-                {filtered.length > 0 && (
-                  <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-t border-slate-100">
-                    <p className="text-xs text-slate-400">
-                      Menampilkan {(currentPage - 1) * ROWS_PER_PAGE + 1}
-                      –{Math.min(currentPage * ROWS_PER_PAGE, filtered.length)} dari {filtered.length} pendaftar
-                    </p>
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        disabled={currentPage === 1}
-                        onClick={() => setPage((p) => Math.max(1, p - 1))}
-                        className="text-xs px-3 py-1.5 rounded-md border border-slate-200 text-slate-500 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
-                      >
-                        Sebelumnya
-                      </button>
-                      <span className="text-xs text-slate-500 px-2">
-                        Hal. {currentPage} / {totalPages}
-                      </span>
-                      <button
-                        disabled={currentPage === totalPages}
-                        onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                        className="text-xs px-3 py-1.5 rounded-md border border-slate-200 text-slate-500 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
-                      >
-                        Selanjutnya
-                      </button>
-                    </div>
-                  </div>
-                )}
               </section>
 
-              <footer className="text-center text-[11px] text-slate-400 py-3">
-                © 2026 SmartSchool &middot; Dashboard Admin PPDB &middot; All rights reserved
-              </footer>
             </div>
           </div>
         </main>
       </div>
 
-      {/* ===== MODAL DETAIL PENDAFTAR ===== */}
-      {detailTarget && (
-        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-5">
-              <div>
-                <h3 className="text-sm font-semibold text-slate-800">Detail Pendaftar</h3>
-                <p className="text-xs text-slate-400 mt-0.5 font-mono">{detailTarget.noPendaftaran}</p>
-              </div>
-              <button
-                onClick={() => setDetailTarget(null)}
-                className="text-slate-400 hover:text-slate-600"
-              >
-                <X size={18} />
-              </button>
-            </div>
+      {/* ===================================================== */}
+      {/* DETAIL MODAL */}
+      {/* ===================================================== */}
 
-            <div className="flex items-center gap-3 mb-5 pb-5 border-b border-slate-100">
-              <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0">
-                <User size={20} className="text-blue-500" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-slate-800">{detailTarget.nama}</p>
-                <span className={`inline-block mt-1 text-[11px] font-medium px-2.5 py-1 rounded-full border ${STATUS_STYLES[detailTarget.status]}`}>
-                  {detailTarget.status}
-                </span>
-              </div>
-            </div>
+      {showDetail &&
+        selectedPendaftar && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex items-start gap-2.5">
-                <School size={14} className="text-slate-300 mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="text-[11px] text-slate-400">Asal Sekolah</p>
-                  <p className="text-sm text-slate-700 mt-0.5">{detailTarget.asalSekolah}</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-2.5">
-                <BookOpen size={14} className="text-slate-300 mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="text-[11px] text-slate-400">Jurusan Pilihan</p>
-                  <p className="text-sm text-slate-700 mt-0.5">{detailTarget.jurusan}</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-2.5">
-                <Layers size={14} className="text-slate-300 mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="text-[11px] text-slate-400">Gelombang</p>
-                  <p className="text-sm text-slate-700 mt-0.5">Gelombang {detailTarget.gelombang}</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-2.5">
-                <Layers size={14} className="text-slate-300 mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="text-[11px] text-slate-400">Jalur Pendaftaran</p>
-                  <p className="text-sm text-slate-700 mt-0.5">{detailTarget.jalur}</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-2.5">
-                <CalendarDays size={14} className="text-slate-300 mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="text-[11px] text-slate-400">Tanggal Daftar</p>
-                  <p className="text-sm text-slate-700 mt-0.5">{formatTanggal(detailTarget.tanggalDaftar)}</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-2.5">
-                <Phone size={14} className="text-slate-300 mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="text-[11px] text-slate-400">No. Telepon</p>
-                  <p className="text-sm text-slate-700 mt-0.5">{detailTarget.telepon}</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-2.5 col-span-2">
-                <Mail size={14} className="text-slate-300 mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="text-[11px] text-slate-400">Email</p>
-                  <p className="text-sm text-slate-700 mt-0.5">{detailTarget.email}</p>
-                </div>
-              </div>
-            </div>
+            <div
+              className="absolute inset-0 bg-slate-900/40 backdrop-blur-[1px]"
+              onClick={closeDetail}
+            />
 
-            <div className="flex items-center justify-end gap-2 pt-5 mt-5 border-t border-slate-100">
-              <button
-                onClick={() => setDetailTarget(null)}
-                className="text-xs font-medium text-slate-500 hover:text-slate-700 px-4 py-2"
-              >
-                Tutup
-              </button>
-              <button className="text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-colors">
-                Lihat Berkas
-              </button>
+            <div className="relative bg-white w-full max-w-3xl max-h-[90vh] rounded-2xl shadow-xl overflow-hidden">
+
+              {/* HEADER */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+
+                <div>
+                  <h3 className="text-base font-semibold text-slate-800">
+                    Detail Pendaftar
+                  </h3>
+
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {
+                      selectedPendaftar.nomorPendaftaran
+                    }
+                  </p>
+                </div>
+
+                <button
+                  onClick={closeDetail}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400"
+                >
+                  <X size={18} />
+                </button>
+
+              </div>
+
+              {/* BODY */}
+              <div className="overflow-y-auto max-h-[calc(90vh-130px)] p-6 space-y-6">
+
+                {/* PROFILE */}
+                <div className="flex items-center gap-4">
+
+                  <div className="w-14 h-14 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+                    {getInitials(
+                      selectedPendaftar.namaLengkap
+                    )}
+                  </div>
+
+                  <div className="flex-1">
+
+                    <h4 className="text-lg font-semibold text-slate-800">
+                      {
+                        selectedPendaftar.namaLengkap
+                      }
+                    </h4>
+
+                    <p className="text-xs text-slate-400 mt-1">
+                      NISN{" "}
+                      {selectedPendaftar.nisn}
+                    </p>
+
+                  </div>
+
+                  <span
+                    className={`text-[11px] font-medium px-2.5 py-1 rounded-full border ${
+                      STATUS_STYLES[
+                        selectedPendaftar.status
+                      ]
+                    }`}
+                  >
+                    {
+                      STATUS_LABELS[
+                        selectedPendaftar.status
+                      ]
+                    }
+                  </span>
+
+                </div>
+
+                {/* DATA PRIBADI */}
+                <div>
+
+                  <div className="flex items-center gap-2 mb-3">
+                    <User
+                      size={15}
+                      className="text-blue-600"
+                    />
+
+                    <h4 className="text-sm font-semibold text-slate-700">
+                      Data Pribadi
+                    </h4>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+
+                    <InfoItem
+                      label="Tempat, Tanggal Lahir"
+                      value={`${selectedPendaftar.tempatLahir || "-"}, ${formatTanggalPanjang(
+                        selectedPendaftar.tanggalLahir
+                      )}`}
+                    />
+
+                    <InfoItem
+                      label="Jenis Kelamin"
+                      value={formatJenisKelamin(
+                        selectedPendaftar.jenisKelamin
+                      )}
+                    />
+
+                    <InfoItem
+                      label="NISN"
+                      value={
+                        selectedPendaftar.nisn
+                      }
+                    />
+
+                    <InfoItem
+                      label="Tanggal Daftar"
+                      value={formatTanggalPanjang(
+                        selectedPendaftar.tanggalDaftar
+                      )}
+                    />
+
+                    <InfoItem
+                      label="Asal Sekolah"
+                      value={
+                        selectedPendaftar.asalSekolah
+                      }
+                    />
+
+                    <InfoItem
+                      label="Jalur PPDB"
+                      value={
+                        selectedPendaftar.jalur
+                      }
+                    />
+
+                  </div>
+
+                </div>
+
+                {/* KONTAK */}
+                <div>
+
+                  <div className="flex items-center gap-2 mb-3">
+                    <Phone
+                      size={15}
+                      className="text-blue-600"
+                    />
+
+                    <h4 className="text-sm font-semibold text-slate-700">
+                      Kontak
+                    </h4>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+
+                    <InfoItem
+                      label="Telepon"
+                      value={
+                        selectedPendaftar.telepon
+                      }
+                    />
+
+                    <InfoItem
+                      label="Email"
+                      value={
+                        selectedPendaftar.email
+                      }
+                    />
+
+                    <InfoItem
+                      label="Alamat"
+                      value={
+                        selectedPendaftar.alamat
+                      }
+                      full
+                    />
+
+                  </div>
+
+                </div>
+
+                {/* ORANG TUA */}
+                <div>
+
+                  <div className="flex items-center gap-2 mb-3">
+                    <User
+                      size={15}
+                      className="text-blue-600"
+                    />
+
+                    <h4 className="text-sm font-semibold text-slate-700">
+                      Data Orang Tua
+                    </h4>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+
+                    <InfoItem
+                      label="Nama Ayah"
+                      value={
+                        selectedPendaftar.namaAyah
+                      }
+                    />
+
+                    <InfoItem
+                      label="Nama Ibu"
+                      value={
+                        selectedPendaftar.namaIbu
+                      }
+                    />
+
+                  </div>
+
+                </div>
+
+                {/* NILAI */}
+                <div>
+
+                  <div className="flex items-center gap-2 mb-3">
+                    <GraduationCap
+                      size={15}
+                      className="text-blue-600"
+                    />
+
+                    <h4 className="text-sm font-semibold text-slate-700">
+                      Data Akademik
+                    </h4>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+
+                    <InfoItem
+                      label="Nilai Rapor"
+                      value={
+                        selectedPendaftar.nilaiRapor ??
+                        "-"
+                      }
+                    />
+
+                    <InfoItem
+                      label="Kelas"
+                      value={
+                        selectedPendaftar.kelasId ||
+                        "Belum ditentukan"
+                      }
+                    />
+
+                  </div>
+
+                </div>
+
+                {/* BERKAS */}
+                <div>
+
+                  <div className="flex items-center gap-2 mb-3">
+                    <FileText
+                      size={15}
+                      className="text-blue-600"
+                    />
+
+                    <h4 className="text-sm font-semibold text-slate-700">
+                      Berkas Pendaftaran
+                    </h4>
+                  </div>
+
+                  <div className="space-y-2">
+
+                    {BERKAS_LIST.map(
+                      (berkas) => {
+                        const file =
+                          selectedPendaftar
+                            .berkas?.[
+                            berkas.key
+                          ];
+
+                        return (
+                          <div
+                            key={
+                              berkas.key
+                            }
+                            className="flex items-center justify-between gap-3 border border-slate-100 rounded-xl p-3"
+                          >
+
+                            <div className="flex items-center gap-3">
+
+                              <div className="w-9 h-9 rounded-lg bg-slate-50 flex items-center justify-center">
+                                <FileText
+                                  size={16}
+                                  className="text-slate-400"
+                                />
+                              </div>
+
+                              <div>
+
+                                <p className="text-xs font-medium text-slate-700">
+                                  {
+                                    berkas.label
+                                  }
+                                </p>
+
+                                <p className="text-[10px] text-slate-400 mt-0.5">
+                                  {file
+                                    ? file.namaFile ||
+                                      file.urlFile ||
+                                      "Sudah tersedia"
+                                    : "Belum diupload"}
+                                </p>
+
+                              </div>
+
+                            </div>
+
+                            <div className="flex items-center gap-2">
+
+                              {file && (
+                                <span className="text-[10px] text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-1 rounded-full">
+                                  Tersedia
+                                </span>
+                              )}
+
+                              <button
+                                onClick={() =>
+                                  openUploadModal(
+                                    selectedPendaftar,
+                                    berkas
+                                  )
+                                }
+                                disabled={
+                                  actionLoading
+                                }
+                                className="flex items-center gap-1.5 text-xs text-blue-600 hover:bg-blue-50 px-2.5 py-1.5 rounded-md disabled:opacity-50"
+                              >
+                                <Upload
+                                  size={13}
+                                />
+                                Upload
+                              </button>
+
+                            </div>
+
+                          </div>
+                        );
+                      }
+                    )}
+
+                  </div>
+
+                </div>
+
+              </div>
+
+              {/* FOOTER */}
+              <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100">
+
+                <button
+                  onClick={closeDetail}
+                  disabled={actionLoading}
+                  className="text-xs text-slate-500 hover:text-slate-700 px-3 py-2"
+                >
+                  Tutup
+                </button>
+
+                {selectedPendaftar.status ===
+                  "menunggu" && (
+                  <div className="flex items-center gap-2">
+
+                    <button
+                      onClick={() =>
+                        handleTolak(
+                          selectedPendaftar
+                        )
+                      }
+                      disabled={
+                        actionLoading
+                      }
+                      className="flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-medium px-3.5 py-2 rounded-lg disabled:opacity-50"
+                    >
+                      <XCircle
+                        size={14}
+                      />
+                      Tolak
+                    </button>
+
+                    <button
+                      onClick={() =>
+                        openLulusModal(
+                          selectedPendaftar
+                        )
+                      }
+                      disabled={
+                        actionLoading
+                      }
+                      className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium px-3.5 py-2 rounded-lg disabled:opacity-50"
+                    >
+                      <CheckCircle2
+                        size={14}
+                      />
+                      Luluskan
+                    </button>
+
+                  </div>
+                )}
+
+              </div>
+
             </div>
           </div>
-        </div>
-      )}
+        )}
+
+      {/* ===================================================== */}
+      {/* MODAL LULUS */}
+      {/* ===================================================== */}
+
+      {showLulusModal &&
+        selectedPendaftar && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+
+            <div
+              className="absolute inset-0 bg-slate-900/40"
+              onClick={
+                actionLoading
+                  ? undefined
+                  : closeLulusModal
+              }
+            />
+
+            <div className="relative bg-white w-full max-w-md rounded-2xl shadow-xl">
+
+              <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-800">
+                    Luluskan Pendaftar
+                  </h3>
+
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    {
+                      selectedPendaftar.namaLengkap
+                    }
+                  </p>
+                </div>
+
+                <button
+                  onClick={
+                    closeLulusModal
+                  }
+                  disabled={
+                    actionLoading
+                  }
+                  className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400"
+                >
+                  <X size={17} />
+                </button>
+
+              </div>
+
+              <div className="p-5">
+
+                <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 mb-4">
+                  <p className="text-xs text-amber-700 leading-relaxed">
+                    Pendaftar yang dinyatakan
+                    lulus akan dikonversi oleh
+                    BE menjadi akun siswa dan
+                    dimasukkan ke kelas yang
+                    dipilih.
+                  </p>
+                </div>
+
+                <label className="block text-xs font-medium text-slate-600 mb-2">
+                  ID Kelas
+                </label>
+
+                <input
+                  value={kelasId}
+                  onChange={(e) =>
+                    setKelasId(
+                      e.target.value
+                    )
+                  }
+                  placeholder="Masukkan ID kelas"
+                  disabled={
+                    actionLoading
+                  }
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-50"
+                />
+
+                {actionError && (
+                  <p className="text-xs text-rose-600 mt-2">
+                    {actionError}
+                  </p>
+                )}
+
+              </div>
+
+              <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-slate-100">
+
+                <button
+                  onClick={
+                    closeLulusModal
+                  }
+                  disabled={
+                    actionLoading
+                  }
+                  className="text-xs text-slate-500 px-3 py-2"
+                >
+                  Batal
+                </button>
+
+                <button
+                  onClick={handleLulus}
+                  disabled={
+                    actionLoading
+                  }
+                  className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium px-4 py-2.5 rounded-lg disabled:opacity-50"
+                >
+                  {actionLoading ? (
+                    <>
+                      <RefreshCw
+                        size={13}
+                        className="animate-spin"
+                      />
+                      Memproses...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2
+                        size={14}
+                      />
+                      Luluskan
+                    </>
+                  )}
+                </button>
+
+              </div>
+
+            </div>
+          </div>
+        )}
+
+      {/* ===================================================== */}
+      {/* MODAL UPLOAD */}
+      {/* ===================================================== */}
+
+      {showUploadModal &&
+        selectedPendaftar &&
+        selectedBerkas && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+
+            <div
+              className="absolute inset-0 bg-slate-900/40"
+              onClick={
+                actionLoading
+                  ? undefined
+                  : closeUploadModal
+              }
+            />
+
+            <div className="relative bg-white w-full max-w-md rounded-2xl shadow-xl">
+
+              <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-800">
+                    Upload Berkas
+                  </h3>
+
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    {
+                      selectedBerkas.label
+                    }
+                  </p>
+                </div>
+
+                <button
+                  onClick={
+                    closeUploadModal
+                  }
+                  disabled={
+                    actionLoading
+                  }
+                  className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400"
+                >
+                  <X size={17} />
+                </button>
+
+              </div>
+
+              <div className="p-5">
+
+                <div className="border-2 border-dashed border-slate-200 rounded-xl p-8 text-center hover:border-blue-300 transition-colors">
+
+                  <div className="w-12 h-12 mx-auto rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mb-3">
+                    <Upload
+                      size={21}
+                    />
+                  </div>
+
+                  <p className="text-sm font-medium text-slate-700">
+                    Pilih file berkas
+                  </p>
+
+                  <p className="text-[11px] text-slate-400 mt-1 mb-4">
+                    PDF, JPG, JPEG, atau PNG
+                  </p>
+
+                  <input
+                    ref={
+                      fileInputRef
+                    }
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    onChange={
+                      handleFileChange
+                    }
+                    disabled={
+                      actionLoading
+                    }
+                    className="hidden"
+                    id="ppdb-file-upload"
+                  />
+
+                  <label
+                    htmlFor="ppdb-file-upload"
+                    className={`inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium px-4 py-2.5 rounded-lg cursor-pointer ${
+                      actionLoading
+                        ? "opacity-50 pointer-events-none"
+                        : ""
+                    }`}
+                  >
+                    {actionLoading ? (
+                      <>
+                        <RefreshCw
+                          size={13}
+                          className="animate-spin"
+                        />
+                        Uploading...
+                      </>
+                    ) : (
+                      <>
+                        <Upload
+                          size={13}
+                        />
+                        Pilih File
+                      </>
+                    )}
+                  </label>
+
+                </div>
+
+                {actionError && (
+                  <p className="text-xs text-rose-600 mt-3">
+                    {actionError}
+                  </p>
+                )}
+
+              </div>
+
+            </div>
+          </div>
+        )}
+    </div>
+  );
+}
+
+// =========================================================
+// INFO ITEM
+// =========================================================
+
+function InfoItem({
+  label,
+  value,
+  full = false,
+}) {
+  return (
+    <div
+      className={`bg-slate-50 rounded-lg px-3 py-2.5 ${
+        full ? "md:col-span-2" : ""
+      }`}
+    >
+      <p className="text-[10px] text-slate-400 mb-1">
+        {label}
+      </p>
+
+      <p className="text-xs text-slate-700 break-words">
+        {value || "-"}
+      </p>
     </div>
   );
 }
