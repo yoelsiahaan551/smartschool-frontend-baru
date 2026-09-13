@@ -29,7 +29,7 @@ import {
 import {
   getMataPelajaran,
   deleteMataPelajaran,
-} from "../../../../services/mapel.service";
+} from "../../../../services/mataPelajaran.service";
 
 import { getKelasMapel } from "../../../../services/kelasMapel.service";
 

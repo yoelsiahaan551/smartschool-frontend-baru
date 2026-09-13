@@ -19,7 +19,6 @@ import {
   Info,
   School,
   UserRound,
-  Users,
   Search,
   ChevronDown,
   Check,
@@ -29,7 +28,7 @@ import {
 
 import {
   createMataPelajaran,
-} from "../../../../../services/mapel.service";
+} from "../../../../../services/mataPelajaran.service";
 
 import {
   createKelasMapel,
@@ -43,6 +42,9 @@ import {
   getUsers,
 } from "../../../../../services/user.service";
 
+/* =========================================================
+   STATUS BADGE
+========================================================= */
 
 function StatusBadge({ status }) {
   const aktif = status === "aktif";
@@ -68,6 +70,9 @@ function StatusBadge({ status }) {
   );
 }
 
+/* =========================================================
+   RESPONSE DATA HELPER
+========================================================= */
 
 function getResponseData(response) {
   if (Array.isArray(response)) {
@@ -93,7 +98,6 @@ function getResponseData(response) {
   return [];
 }
 
-
 function getUserData(response) {
   if (Array.isArray(response)) {
     return response;
@@ -106,6 +110,9 @@ function getUserData(response) {
   return [];
 }
 
+/* =========================================================
+   PAGE
+========================================================= */
 
 export default function TambahMapelPage() {
   const router = useRouter();
@@ -150,16 +157,18 @@ export default function TambahMapelPage() {
   const [success, setSuccess] =
     useState(false);
 
+  /* =========================================================
+     SIDEBAR
+  ========================================================= */
+
   const toggleSidebar = () => {
     setIsCollapsed((prev) => !prev);
   };
 
+  /* =========================================================
+     LOAD KELAS + GURU
+  ========================================================= */
 
-  /*
-   * ============================================================
-   * LOAD KELAS + GURU
-   * ============================================================
-   */
   useEffect(() => {
     let mounted = true;
 
@@ -221,12 +230,10 @@ export default function TambahMapelPage() {
     };
   }, []);
 
+  /* =========================================================
+     HANDLE FORM
+  ========================================================= */
 
-  /*
-   * ============================================================
-   * HANDLE FORM
-   * ============================================================
-   */
   const handleChange = (
     field,
     value
@@ -241,12 +248,10 @@ export default function TambahMapelPage() {
     }
   };
 
+  /* =========================================================
+     FILTER KELAS
+  ========================================================= */
 
-  /*
-   * ============================================================
-   * FILTER KELAS
-   * ============================================================
-   */
   const filteredKelas = useMemo(() => {
     const keyword =
       kelasSearch
@@ -280,12 +285,10 @@ export default function TambahMapelPage() {
     kelasSearch,
   ]);
 
+  /* =========================================================
+     FILTER GURU
+  ========================================================= */
 
-  /*
-   * ============================================================
-   * FILTER GURU
-   * ============================================================
-   */
   const filteredGuru = useMemo(() => {
     const keyword =
       guruSearch
@@ -325,12 +328,10 @@ export default function TambahMapelPage() {
     guruSearch,
   ]);
 
+  /* =========================================================
+     SELECTED GURU
+  ========================================================= */
 
-  /*
-   * ============================================================
-   * SELECTED GURU
-   * ============================================================
-   */
   const selectedGuru = useMemo(() => {
     return guruList.find(
       (guru) =>
@@ -342,12 +343,10 @@ export default function TambahMapelPage() {
     form.guruPengajarId,
   ]);
 
+  /* =========================================================
+     SELECTED KELAS
+  ========================================================= */
 
-  /*
-   * ============================================================
-   * SELECTED KELAS
-   * ============================================================
-   */
   const selectedKelas = useMemo(() => {
     return kelasList.filter(
       (kelas) =>
@@ -360,12 +359,10 @@ export default function TambahMapelPage() {
     selectedKelasIds,
   ]);
 
+  /* =========================================================
+     TOGGLE KELAS
+  ========================================================= */
 
-  /*
-   * ============================================================
-   * TOGGLE KELAS
-   * ============================================================
-   */
   const toggleKelas = (
     kelasId
   ) => {
@@ -392,12 +389,10 @@ export default function TambahMapelPage() {
     }
   };
 
+  /* =========================================================
+     SELECT ALL KELAS
+  ========================================================= */
 
-  /*
-   * ============================================================
-   * SELECT ALL KELAS
-   * ============================================================
-   */
   const selectAllFilteredKelas =
     () => {
       const filteredIds =
@@ -425,23 +420,19 @@ export default function TambahMapelPage() {
       }
     };
 
+  /* =========================================================
+     CLEAR KELAS
+  ========================================================= */
 
-  /*
-   * ============================================================
-   * CLEAR KELAS
-   * ============================================================
-   */
   const clearSelectedKelas =
     () => {
       setSelectedKelasIds([]);
     };
 
+  /* =========================================================
+     SUBMIT
+  ========================================================= */
 
-  /*
-   * ============================================================
-   * SUBMIT
-   * ============================================================
-   */
   const handleSubmit = async (
     e
   ) => {
@@ -455,9 +446,8 @@ export default function TambahMapelPage() {
     const kode =
       form.kode.trim().toUpperCase();
 
-    /*
-     * VALIDASI
-     */
+    /* VALIDASI */
+
     if (!nama) {
       setError(
         "Nama mata pelajaran wajib diisi."
@@ -494,24 +484,11 @@ export default function TambahMapelPage() {
       setError("");
       setSuccess(false);
 
-      /*
-       * ========================================================
-       * STEP 1
-       * CREATE MATA PELAJARAN
-       *
-       * POST /api/mata-pelajaran
-       *
-       * Payload:
-       * {
-       *   nama,
-       *   kode,
-       *   status
-       * }
-       *
-       * sekolahId TIDAK dikirim.
-       * BE mengambil sekolahId dari req.user.sekolahId.
-       * ========================================================
-       */
+      /* ======================================================
+         STEP 1
+         CREATE MATA PELAJARAN
+      ====================================================== */
+
       const mapelResponse =
         await createMataPelajaran({
           nama,
@@ -537,44 +514,25 @@ export default function TambahMapelPage() {
         );
       }
 
+      /* ======================================================
+         STEP 2
+         CREATE KELAS MAPEL
+      ====================================================== */
 
-      /*
-       * ========================================================
-       * STEP 2
-       * CREATE KELAS MAPEL
-       *
-       * POST /api/kelas-mapel
-       *
-       * Untuk setiap kelas:
-       *
-       * {
-       *   kelasId,
-       *   mataPelajaranId,
-       *   guruPengajarId
-       * }
-       * ========================================================
-       */
       const relationResults =
         await Promise.allSettled(
           selectedKelasIds.map(
             async (kelasId) => {
-              return createKelasMapel(
-                {
-                  kelasId,
-                  mataPelajaranId,
-                  guruPengajarId:
-                    form.guruPengajarId,
-                }
-              );
+              return createKelasMapel({
+                kelasId,
+                mataPelajaranId,
+                guruPengajarId:
+                  form.guruPengajarId,
+              });
             }
           )
         );
 
-
-      /*
-       * Cek apakah ada relasi
-       * yang gagal.
-       */
       const failedRelations =
         relationResults.filter(
           (result) =>
@@ -600,10 +558,8 @@ export default function TambahMapelPage() {
         );
       }
 
+      /* SEMUA BERHASIL */
 
-      /*
-       * SEMUA BERHASIL
-       */
       setSuccess(true);
 
       setTimeout(() => {
@@ -629,12 +585,10 @@ export default function TambahMapelPage() {
     }
   };
 
+  /* =========================================================
+     BACK
+  ========================================================= */
 
-  /*
-   * ============================================================
-   * BACK
-   * ============================================================
-   */
   const handleBack = () => {
     if (saving) return;
 
@@ -643,18 +597,17 @@ export default function TambahMapelPage() {
     );
   };
 
+  /* =========================================================
+     RENDER
+  ========================================================= */
 
-  /*
-   * ============================================================
-   * RENDER
-   * ============================================================
-   */
   return (
     <div className="flex h-screen w-full bg-slate-50 overflow-hidden">
 
-      {/* ========================================================
+      {/* =====================================================
           SIDEBAR
-      ======================================================== */}
+      ====================================================== */}
+
       <Sidebar
         active="guruMapel"
         setActive={() => {}}
@@ -665,13 +618,12 @@ export default function TambahMapelPage() {
         role="admin"
       />
 
-
-      {/* ========================================================
+      {/* =====================================================
           MAIN
-      ======================================================== */}
+      ====================================================== */}
+
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
 
-        {/* HEADER */}
         <Header
           toggleSidebar={
             toggleSidebar
@@ -685,8 +637,6 @@ export default function TambahMapelPage() {
           }}
         />
 
-
-        {/* CONTENT */}
         <main className="flex-1 overflow-y-auto">
 
           <div className="p-4 sm:p-6 lg:p-8">
@@ -696,6 +646,7 @@ export default function TambahMapelPage() {
               {/* ==================================================
                   PAGE HEADER
               ================================================== */}
+
               <div className="flex items-center gap-3">
 
                 <button
@@ -712,13 +663,11 @@ export default function TambahMapelPage() {
                   />
                 </button>
 
-
                 <div className="p-2.5 rounded-xl bg-gradient-to-br from-[#155DFC] to-[#0d47c9] text-white shadow-lg shadow-blue-900/10 shrink-0">
                   <BookMarked
                     size={20}
                   />
                 </div>
-
 
                 <div className="min-w-0">
 
@@ -740,22 +689,19 @@ export default function TambahMapelPage() {
 
               </div>
 
-
               {/* ==================================================
                   SUCCESS
               ================================================== */}
+
               {success && (
                 <div className="flex items-center gap-3 p-4 rounded-xl border border-emerald-200 bg-emerald-50">
 
                   <div className="w-9 h-9 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0">
-
                     <CheckCircle2
                       size={20}
                       className="text-emerald-600"
                     />
-
                   </div>
-
 
                   <div>
 
@@ -779,22 +725,19 @@ export default function TambahMapelPage() {
                 </div>
               )}
 
-
               {/* ==================================================
                   ERROR
               ================================================== */}
+
               {error && (
                 <div className="flex items-start gap-3 p-4 rounded-xl border border-rose-200 bg-rose-50">
 
                   <div className="w-9 h-9 rounded-lg bg-rose-100 flex items-center justify-center shrink-0">
-
                     <AlertCircle
                       size={20}
                       className="text-rose-600"
                     />
-
                   </div>
-
 
                   <div className="flex-1 min-w-0">
 
@@ -812,10 +755,10 @@ export default function TambahMapelPage() {
                 </div>
               )}
 
-
               {/* ==================================================
                   LOADING DATA
               ================================================== */}
+
               {loadingData && (
                 <div className="flex items-center gap-3 p-4 rounded-xl border border-blue-100 bg-blue-50">
 
@@ -841,15 +784,16 @@ export default function TambahMapelPage() {
                 </div>
               )}
 
-
               {/* ==================================================
                   CONTENT GRID
               ================================================== */}
+
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
 
                 {/* =================================================
                     LEFT FORM
                 ================================================= */}
+
                 <form
                   onSubmit={
                     handleSubmit
@@ -858,6 +802,7 @@ export default function TambahMapelPage() {
                 >
 
                   {/* FORM HEADER */}
+
                   <div className="px-6 py-5 border-b border-slate-100 bg-slate-50/60">
 
                     <div className="flex items-center gap-3">
@@ -870,7 +815,6 @@ export default function TambahMapelPage() {
                         />
 
                       </div>
-
 
                       <div>
 
@@ -891,20 +835,18 @@ export default function TambahMapelPage() {
 
                   </div>
 
-
                   {/* FORM BODY */}
+
                   <div className="p-6 space-y-7">
 
-                    {/* =================================================
-                        NAMA
-                    ================================================= */}
+                    {/* NAMA */}
+
                     <div>
 
                       <label
                         htmlFor="nama"
                         className="flex items-center gap-1.5 text-sm font-medium text-slate-700 mb-2"
                       >
-
                         <Type
                           size={14}
                           className="text-slate-400"
@@ -916,9 +858,7 @@ export default function TambahMapelPage() {
                         <span className="text-rose-500">
                           *
                         </span>
-
                       </label>
-
 
                       <input
                         id="nama"
@@ -926,13 +866,10 @@ export default function TambahMapelPage() {
                         value={
                           form.nama
                         }
-                        onChange={(
-                          e
-                        ) =>
+                        onChange={(e) =>
                           handleChange(
                             "nama",
-                            e.target
-                              .value
+                            e.target.value
                           )
                         }
                         placeholder="Contoh: Matematika"
@@ -940,7 +877,6 @@ export default function TambahMapelPage() {
                         autoComplete="off"
                         className="w-full px-3.5 py-3 text-sm rounded-xl border border-slate-200 bg-white text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#155DFC]/20 focus:border-[#155DFC]/50 transition-all disabled:bg-slate-50 disabled:text-slate-400"
                       />
-
 
                       <p className="text-xs text-slate-400 mt-1.5">
                         Masukkan nama
@@ -951,17 +887,14 @@ export default function TambahMapelPage() {
 
                     </div>
 
+                    {/* KODE */}
 
-                    {/* =================================================
-                        KODE
-                    ================================================= */}
                     <div>
 
                       <label
                         htmlFor="kode"
                         className="flex items-center gap-1.5 text-sm font-medium text-slate-700 mb-2"
                       >
-
                         <Hash
                           size={14}
                           className="text-slate-400"
@@ -973,9 +906,7 @@ export default function TambahMapelPage() {
                         <span className="text-rose-500">
                           *
                         </span>
-
                       </label>
-
 
                       <input
                         id="kode"
@@ -983,9 +914,7 @@ export default function TambahMapelPage() {
                         value={
                           form.kode
                         }
-                        onChange={(
-                          e
-                        ) =>
+                        onChange={(e) =>
                           handleChange(
                             "kode",
                             e.target.value.toUpperCase()
@@ -997,7 +926,6 @@ export default function TambahMapelPage() {
                         className="w-full px-3.5 py-3 text-sm rounded-xl border border-slate-200 bg-white text-slate-800 placeholder:text-slate-400 font-mono uppercase focus:outline-none focus:ring-2 focus:ring-[#155DFC]/20 focus:border-[#155DFC]/50 transition-all disabled:bg-slate-50 disabled:text-slate-400"
                       />
 
-
                       <p className="text-xs text-slate-400 mt-1.5">
                         Kode harus unik
                         untuk sekolah
@@ -1006,17 +934,14 @@ export default function TambahMapelPage() {
 
                     </div>
 
+                    {/* STATUS */}
 
-                    {/* =================================================
-                        STATUS
-                    ================================================= */}
                     <div>
 
                       <label
                         htmlFor="status"
                         className="flex items-center gap-1.5 text-sm font-medium text-slate-700 mb-2"
                       >
-
                         <ToggleLeft
                           size={15}
                           className="text-slate-400"
@@ -1025,25 +950,20 @@ export default function TambahMapelPage() {
                         Status
                       </label>
 
-
                       <select
                         id="status"
                         value={
                           form.status
                         }
-                        onChange={(
-                          e
-                        ) =>
+                        onChange={(e) =>
                           handleChange(
                             "status",
-                            e.target
-                              .value
+                            e.target.value
                           )
                         }
                         disabled={saving}
                         className="w-full px-3.5 py-3 text-sm rounded-xl border border-slate-200 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#155DFC]/20 focus:border-[#155DFC]/50 transition-all disabled:bg-slate-50 disabled:text-slate-400"
                       >
-
                         <option value="aktif">
                           Aktif
                         </option>
@@ -1051,15 +971,12 @@ export default function TambahMapelPage() {
                         <option value="nonaktif">
                           Nonaktif
                         </option>
-
                       </select>
 
                     </div>
 
+                    {/* GURU */}
 
-                    {/* =================================================
-                        GURU
-                    ================================================= */}
                     <div>
 
                       <label className="flex items-center gap-1.5 text-sm font-medium text-slate-700 mb-2">
@@ -1076,7 +993,6 @@ export default function TambahMapelPage() {
                         </span>
 
                       </label>
-
 
                       <div className="relative">
 
@@ -1106,7 +1022,6 @@ export default function TambahMapelPage() {
 
                             </div>
 
-
                             <div className="min-w-0">
 
                               <p className="text-sm font-medium text-slate-700 truncate">
@@ -1119,18 +1034,15 @@ export default function TambahMapelPage() {
 
                               {selectedGuru && (
                                 <p className="text-[11px] text-slate-400 truncate">
-
                                   {selectedGuru.email ||
                                     selectedGuru.nip ||
                                     "Guru"}
-
                                 </p>
                               )}
 
                             </div>
 
                           </div>
-
 
                           <ChevronDown
                             size={17}
@@ -1143,11 +1055,9 @@ export default function TambahMapelPage() {
 
                         </button>
 
-
                         {showGuruDropdown && (
                           <div className="absolute z-30 left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden">
 
-                            {/* SEARCH */}
                             <div className="p-3 border-b border-slate-100">
 
                               <div className="relative">
@@ -1162,12 +1072,9 @@ export default function TambahMapelPage() {
                                   value={
                                     guruSearch
                                   }
-                                  onChange={(
-                                    e
-                                  ) =>
+                                  onChange={(e) =>
                                     setGuruSearch(
-                                      e.target
-                                        .value
+                                      e.target.value
                                     )
                                   }
                                   placeholder="Cari nama, email, atau NIP..."
@@ -1178,8 +1085,6 @@ export default function TambahMapelPage() {
 
                             </div>
 
-
-                            {/* LIST */}
                             <div className="max-h-64 overflow-y-auto">
 
                               {filteredGuru.length ===
@@ -1199,9 +1104,7 @@ export default function TambahMapelPage() {
                                 </div>
                               ) : (
                                 filteredGuru.map(
-                                  (
-                                    guru
-                                  ) => (
+                                  (guru) => (
                                     <button
                                       key={
                                         guru.id
@@ -1235,27 +1138,21 @@ export default function TambahMapelPage() {
 
                                       </div>
 
-
                                       <div className="flex-1 min-w-0">
 
                                         <p className="text-sm font-medium text-slate-700 truncate">
-
                                           {
                                             guru.namaLengkap
                                           }
-
                                         </p>
 
                                         <p className="text-[11px] text-slate-400 truncate">
-
                                           {guru.nip
                                             ? `NIP ${guru.nip}`
                                             : guru.email}
-
                                         </p>
 
                                       </div>
-
 
                                       {form.guruPengajarId ===
                                         guru.id && (
@@ -1279,7 +1176,6 @@ export default function TambahMapelPage() {
 
                       </div>
 
-
                       {selectedGuru && (
                         <div className="mt-2 flex items-center gap-2 text-xs text-emerald-600">
 
@@ -1299,10 +1195,8 @@ export default function TambahMapelPage() {
 
                     </div>
 
+                    {/* KELAS */}
 
-                    {/* =================================================
-                        KELAS
-                    ================================================= */}
                     <div>
 
                       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2 mb-2">
@@ -1322,7 +1216,6 @@ export default function TambahMapelPage() {
                           </span>
 
                         </label>
-
 
                         <div className="flex items-center gap-2">
 
@@ -1365,8 +1258,6 @@ export default function TambahMapelPage() {
 
                       </div>
 
-
-                      {/* SEARCH KELAS */}
                       <div className="relative mb-3">
 
                         <Search
@@ -1379,12 +1270,9 @@ export default function TambahMapelPage() {
                           value={
                             kelasSearch
                           }
-                          onChange={(
-                            e
-                          ) =>
+                          onChange={(e) =>
                             setKelasSearch(
-                              e.target
-                                .value
+                              e.target.value
                             )
                           }
                           disabled={
@@ -1397,8 +1285,6 @@ export default function TambahMapelPage() {
 
                       </div>
 
-
-                      {/* SELECTED COUNT */}
                       <div className="flex items-center justify-between mb-3">
 
                         <p className="text-xs text-slate-500">
@@ -1419,21 +1305,12 @@ export default function TambahMapelPage() {
 
                         </p>
 
-
                         <p className="text-[11px] text-slate-400">
-
-                          Total{" "}
-                          {
-                            kelasList.length
-                          }{" "}
-                          kelas
-
+                          Total {kelasList.length} kelas
                         </p>
 
                       </div>
 
-
-                      {/* KELAS LIST */}
                       <div className="border border-slate-200 rounded-xl overflow-hidden">
 
                         {loadingData ? (
@@ -1473,9 +1350,7 @@ export default function TambahMapelPage() {
                           <div className="max-h-80 overflow-y-auto divide-y divide-slate-100">
 
                             {filteredKelas.map(
-                              (
-                                kelas
-                              ) => {
+                              (kelas) => {
                                 const isSelected =
                                   selectedKelasIds.includes(
                                     kelas.id
@@ -1502,7 +1377,6 @@ export default function TambahMapelPage() {
                                     }`}
                                   >
 
-                                    {/* CHECKBOX */}
                                     <div
                                       className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 transition-all ${
                                         isSelected
@@ -1513,38 +1387,26 @@ export default function TambahMapelPage() {
 
                                       {isSelected && (
                                         <Check
-                                          size={
-                                            14
-                                          }
+                                          size={14}
                                           className="text-white"
                                         />
                                       )}
 
                                     </div>
 
-
-                                    {/* ICON */}
                                     <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
 
                                       <School
-                                        size={
-                                          16
-                                        }
+                                        size={16}
                                         className="text-slate-500"
                                       />
 
                                     </div>
 
-
-                                    {/* DATA */}
                                     <div className="flex-1 min-w-0">
 
                                       <p className="text-sm font-semibold text-slate-700 truncate">
-
-                                        {
-                                          kelas.nama
-                                        }
-
+                                        {kelas.nama}
                                       </p>
 
                                       <p className="text-[11px] text-slate-400 mt-0.5">
@@ -1561,12 +1423,9 @@ export default function TambahMapelPage() {
 
                                     </div>
 
-
                                     {isSelected && (
                                       <CheckCircle2
-                                        size={
-                                          17
-                                        }
+                                        size={17}
                                         className="text-[#155DFC] shrink-0"
                                       />
                                     )}
@@ -1581,16 +1440,12 @@ export default function TambahMapelPage() {
 
                       </div>
 
-
-                      {/* SELECTED CLASS CHIPS */}
                       {selectedKelas.length >
                         0 && (
                         <div className="mt-3 flex flex-wrap gap-2">
 
                           {selectedKelas.map(
-                            (
-                              kelas
-                            ) => (
+                            (kelas) => (
                               <span
                                 key={
                                   kelas.id
@@ -1635,10 +1490,10 @@ export default function TambahMapelPage() {
 
                   </div>
 
-
                   {/* =================================================
-                      FOOTER
+                      FORM FOOTER
                   ================================================= */}
+
                   <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-5 border-t border-slate-100 bg-slate-50/60">
 
                     <button
@@ -1651,7 +1506,6 @@ export default function TambahMapelPage() {
                     >
                       Batal
                     </button>
-
 
                     <button
                       type="submit"
@@ -1666,9 +1520,7 @@ export default function TambahMapelPage() {
                       {saving ? (
                         <>
                           <Loader2
-                            size={
-                              17
-                            }
+                            size={17}
                             className="animate-spin"
                           />
 
@@ -1678,9 +1530,7 @@ export default function TambahMapelPage() {
                       ) : (
                         <>
                           <Save
-                            size={
-                              17
-                            }
+                            size={17}
                           />
 
                           Simpan Mata
@@ -1694,15 +1544,14 @@ export default function TambahMapelPage() {
 
                 </form>
 
-
                 {/* =================================================
                     RIGHT SIDE
                 ================================================= */}
+
                 <div className="space-y-6">
 
-                  {/* =================================================
-                      PREVIEW
-                  ================================================= */}
+                  {/* PREVIEW */}
+
                   <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
 
                     <div className="px-5 py-4 border-b border-slate-100 bg-slate-50/60">
@@ -1718,7 +1567,6 @@ export default function TambahMapelPage() {
                       </p>
 
                     </div>
-
 
                     <div className="p-5">
 
@@ -1736,7 +1584,6 @@ export default function TambahMapelPage() {
 
                           </span>
 
-
                           <StatusBadge
                             status={
                               form.status
@@ -1745,7 +1592,6 @@ export default function TambahMapelPage() {
 
                         </div>
 
-
                         <h3 className="text-base font-bold text-slate-900 mt-3">
 
                           {form.nama.trim() ||
@@ -1753,11 +1599,9 @@ export default function TambahMapelPage() {
 
                         </h3>
 
-
                         <p className="text-xs text-slate-400 mt-1">
                           Mata Pelajaran
                         </p>
-
 
                         {selectedGuru && (
                           <div className="mt-4 pt-3 border-t border-slate-200">
@@ -1765,9 +1609,7 @@ export default function TambahMapelPage() {
                             <div className="flex items-center gap-2">
 
                               <UserRound
-                                size={
-                                  14
-                                }
+                                size={14}
                                 className="text-slate-400"
                               />
 
@@ -1790,7 +1632,6 @@ export default function TambahMapelPage() {
                           </div>
                         )}
 
-
                         {selectedKelas.length >
                           0 && (
                           <div className="mt-3">
@@ -1798,9 +1639,7 @@ export default function TambahMapelPage() {
                             <div className="flex items-center gap-2 mb-2">
 
                               <School
-                                size={
-                                  14
-                                }
+                                size={14}
                                 className="text-slate-400"
                               />
 
@@ -1810,7 +1649,6 @@ export default function TambahMapelPage() {
 
                             </div>
 
-
                             <div className="flex flex-wrap gap-1.5">
 
                               {selectedKelas
@@ -1819,9 +1657,7 @@ export default function TambahMapelPage() {
                                   6
                                 )
                                 .map(
-                                  (
-                                    kelas
-                                  ) => (
+                                  (kelas) => (
                                     <span
                                       key={
                                         kelas.id
@@ -1834,7 +1670,6 @@ export default function TambahMapelPage() {
                                     </span>
                                   )
                                 )}
-
 
                               {selectedKelas.length >
                                 6 && (
@@ -1857,10 +1692,8 @@ export default function TambahMapelPage() {
 
                   </div>
 
+                  {/* RELATION INFO */}
 
-                  {/* =================================================
-                      RELATION INFO
-                  ================================================= */}
                   <div className="bg-blue-50 rounded-2xl border border-blue-100 p-5">
 
                     <div className="flex items-center gap-2 mb-3">
@@ -1868,14 +1701,11 @@ export default function TambahMapelPage() {
                       <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center">
 
                         <BookOpen
-                          size={
-                            16
-                          }
+                          size={16}
                           className="text-[#155DFC]"
                         />
 
                       </div>
-
 
                       <div>
 
@@ -1890,7 +1720,6 @@ export default function TambahMapelPage() {
                       </div>
 
                     </div>
-
 
                     <div className="space-y-3">
 
@@ -1907,7 +1736,6 @@ export default function TambahMapelPage() {
 
                       </div>
 
-
                       <div className="flex items-center justify-between gap-3">
 
                         <span className="text-xs text-slate-500">
@@ -1921,7 +1749,6 @@ export default function TambahMapelPage() {
                         </span>
 
                       </div>
-
 
                       <div className="pt-3 border-t border-blue-100">
 
@@ -1944,10 +1771,8 @@ export default function TambahMapelPage() {
 
                   </div>
 
+                  {/* BACKEND INFO */}
 
-                  {/* =================================================
-                      BACKEND INFO
-                  ================================================= */}
                   <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
 
                     <div className="flex items-start gap-3">
@@ -1955,14 +1780,11 @@ export default function TambahMapelPage() {
                       <div className="w-9 h-9 rounded-lg bg-emerald-50 flex items-center justify-center shrink-0">
 
                         <Info
-                          size={
-                            18
-                          }
+                          size={18}
                           className="text-emerald-600"
                         />
 
                       </div>
-
 
                       <div>
 

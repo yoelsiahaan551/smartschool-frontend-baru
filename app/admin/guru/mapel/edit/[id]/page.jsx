@@ -25,7 +25,7 @@ import {
 import {
   getMataPelajaran,
   updateMataPelajaran,
-} from "../../../../../../services/mapel.service";
+} from "../../../../../../services/mataPelajaran.service";
 
 function StatusBadge({ status }) {
   const aktif = status === "aktif";
@@ -222,6 +222,11 @@ export default function EditMapelPage() {
     }
   };
 
+  /*
+   * ============================================
+   * BACK
+   * ============================================
+   */
   const handleBack = () => {
     if (saving) return;
 
@@ -390,6 +395,7 @@ export default function EditMapelPage() {
         <main className="flex-1 overflow-y-auto">
           <div className="p-4 sm:p-6 lg:p-8">
             <div className="max-w-7xl mx-auto space-y-6">
+
               {/* ============================================
                   PAGE HEADER
               ============================================ */}
@@ -472,6 +478,7 @@ export default function EditMapelPage() {
                   MAIN GRID
               ============================================ */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+
                 {/* ============================================
                     FORM
                 ============================================ */}
@@ -479,17 +486,23 @@ export default function EditMapelPage() {
                   onSubmit={handleSubmit}
                   className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden"
                 >
+
                   {/* FORM HEADER */}
+
                   <div className="px-6 py-5 border-b border-slate-100 bg-slate-50/60">
                     <div className="flex items-center gap-3">
+
                       <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center">
+
                         <BookMarked
                           size={18}
                           className="text-[#155DFC]"
                         />
+
                       </div>
 
                       <div>
+
                         <h2 className="text-sm font-semibold text-slate-700">
                           Informasi Mata Pelajaran
                         </h2>
@@ -497,18 +510,25 @@ export default function EditMapelPage() {
                         <p className="text-xs text-slate-500 mt-0.5">
                           Ubah data yang ingin diperbarui.
                         </p>
+
                       </div>
+
                     </div>
                   </div>
 
                   {/* FORM BODY */}
+
                   <div className="p-6 space-y-6">
+
                     {/* NAMA */}
+
                     <div>
+
                       <label
                         htmlFor="nama"
                         className="flex items-center gap-1.5 text-sm font-medium text-slate-700 mb-2"
                       >
+
                         <Type
                           size={14}
                           className="text-slate-400"
@@ -519,6 +539,7 @@ export default function EditMapelPage() {
                         <span className="text-rose-500">
                           *
                         </span>
+
                       </label>
 
                       <input
@@ -541,14 +562,18 @@ export default function EditMapelPage() {
                         Masukkan nama mata pelajaran sesuai
                         dengan data sekolah.
                       </p>
+
                     </div>
 
                     {/* KODE */}
+
                     <div>
+
                       <label
                         htmlFor="kode"
                         className="flex items-center gap-1.5 text-sm font-medium text-slate-700 mb-2"
                       >
+
                         <Hash
                           size={14}
                           className="text-slate-400"
@@ -559,6 +584,7 @@ export default function EditMapelPage() {
                         <span className="text-rose-500">
                           *
                         </span>
+
                       </label>
 
                       <input
@@ -580,20 +606,25 @@ export default function EditMapelPage() {
                       <p className="text-xs text-slate-400 mt-1.5">
                         Kode harus unik di sekolah ini.
                       </p>
+
                     </div>
 
                     {/* STATUS */}
+
                     <div>
+
                       <label
                         htmlFor="status"
                         className="flex items-center gap-1.5 text-sm font-medium text-slate-700 mb-2"
                       >
+
                         <ToggleLeft
                           size={15}
                           className="text-slate-400"
                         />
 
                         Status
+
                       </label>
 
                       <select
@@ -608,6 +639,7 @@ export default function EditMapelPage() {
                         disabled={saving}
                         className="w-full px-3.5 py-3 text-sm rounded-xl border border-slate-200 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#155DFC]/20 focus:border-[#155DFC]/50 transition-all disabled:bg-slate-50 disabled:text-slate-400"
                       >
+
                         <option value="aktif">
                           Aktif
                         </option>
@@ -615,6 +647,7 @@ export default function EditMapelPage() {
                         <option value="nonaktif">
                           Nonaktif
                         </option>
+
                       </select>
 
                       <p className="text-xs text-slate-400 mt-1.5">
@@ -622,11 +655,15 @@ export default function EditMapelPage() {
                         dapat dibatasi penggunaannya pada fitur
                         tertentu.
                       </p>
+
                     </div>
+
                   </div>
 
                   {/* FORM FOOTER */}
+
                   <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-5 border-t border-slate-100 bg-slate-50/60">
+
                     <button
                       type="button"
                       onClick={handleBack}
@@ -641,32 +678,44 @@ export default function EditMapelPage() {
                       disabled={saving || success}
                       className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 bg-[#155DFC] hover:bg-[#0d47c9] text-white rounded-xl transition-all shadow-sm font-medium text-sm disabled:opacity-60 disabled:cursor-not-allowed"
                     >
+
                       {saving ? (
                         <>
                           <Loader2
                             size={17}
                             className="animate-spin"
                           />
+
                           Menyimpan Perubahan...
                         </>
                       ) : (
                         <>
                           <Save size={17} />
+
                           Simpan Perubahan
                         </>
                       )}
+
                     </button>
+
                   </div>
+
                 </form>
 
                 {/* ============================================
                     RIGHT PANEL
                 ============================================ */}
+
                 <div className="space-y-6">
+
                   {/* PREVIEW */}
+
                   <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+
                     <div className="px-5 py-4 border-b border-slate-100 bg-slate-50/60">
+
                       <div className="flex items-center gap-2">
+
                         <Pencil
                           size={16}
                           className="text-[#155DFC]"
@@ -675,55 +724,72 @@ export default function EditMapelPage() {
                         <h2 className="text-sm font-semibold text-slate-700">
                           Pratinjau
                         </h2>
+
                       </div>
 
                       <p className="text-xs text-slate-500 mt-1">
                         Perubahan akan terlihat setelah data
                         berhasil disimpan.
                       </p>
+
                     </div>
 
                     <div className="p-5">
+
                       <div className="p-4 rounded-xl border border-slate-200 bg-slate-50">
-                        {/* CODE + STATUS */}
+
                         <div className="flex flex-wrap items-center gap-2">
+
                           <span className="font-mono text-xs font-semibold text-[#155DFC] bg-blue-50 border border-blue-100 px-2.5 py-1 rounded-lg">
+
                             {form.kode.trim()
                               ? form.kode
                                   .trim()
                                   .toUpperCase()
                               : "KODE"}
+
                           </span>
 
                           <StatusBadge
                             status={form.status}
                           />
+
                         </div>
 
-                        {/* NAME */}
                         <h3 className="text-base font-bold text-slate-900 mt-3">
+
                           {form.nama.trim() ||
                             "Nama mata pelajaran"}
+
                         </h3>
 
                         <p className="text-xs text-slate-400 mt-1">
                           Mata Pelajaran
                         </p>
+
                       </div>
+
                     </div>
+
                   </div>
 
                   {/* INFO BACKEND */}
+
                   <div className="bg-blue-50 rounded-2xl border border-blue-100 p-5">
+
                     <div className="flex items-center gap-2 mb-3">
+
                       <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center">
+
                         <Info
                           size={16}
                           className="text-[#155DFC]"
                         />
+
                       </div>
 
                       <div>
+
                         <h2 className="text-sm font-semibold text-[#0d47c9]">
                           Informasi Update
                         </h2>
@@ -731,50 +797,67 @@ export default function EditMapelPage() {
                         <p className="text-[11px] text-blue-700/70">
                           Sesuai API backend
                         </p>
+
                       </div>
+
                     </div>
 
                     <div className="space-y-3 text-xs">
+
                       <div className="flex items-start gap-2">
+
                         <span className="mt-1 w-1.5 h-1.5 rounded-full bg-[#155DFC] shrink-0" />
 
                         <p className="text-slate-600">
                           Nama, kode, dan status dapat diperbarui
                           dari halaman ini.
                         </p>
+
                       </div>
 
                       <div className="flex items-start gap-2">
+
                         <span className="mt-1 w-1.5 h-1.5 rounded-full bg-[#155DFC] shrink-0" />
 
                         <p className="text-slate-600">
                           Kode mata pelajaran harus tetap unik
                           dalam sekolah.
                         </p>
+
                       </div>
 
                       <div className="flex items-start gap-2">
+
                         <span className="mt-1 w-1.5 h-1.5 rounded-full bg-[#155DFC] shrink-0" />
 
                         <p className="text-slate-600">
                           Sekolah ditentukan otomatis dari akun
                           Admin Sekolah yang login.
                         </p>
+
                       </div>
+
                     </div>
+
                   </div>
 
                   {/* SCHOOL */}
+
                   <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+
                     <div className="flex items-start gap-3">
+
                       <div className="w-9 h-9 rounded-lg bg-emerald-50 flex items-center justify-center shrink-0">
+
                         <School
                           size={18}
                           className="text-emerald-600"
                         />
+
                       </div>
 
                       <div>
+
                         <p className="text-sm font-semibold text-slate-700">
                           Data Sekolah
                         </p>
@@ -785,23 +868,32 @@ export default function EditMapelPage() {
                           yang sesuai dengan akun yang sedang
                           login.
                         </p>
+
                       </div>
+
                     </div>
+
                   </div>
+
                 </div>
+
               </div>
 
               {/* ============================================
                   FOOTNOTE
               ============================================ */}
+
               <div className="flex items-center gap-2 text-xs text-slate-400 px-1">
+
                 <AlertCircle size={14} />
 
                 <span>
                   Pastikan perubahan data sudah benar sebelum
                   menyimpan.
                 </span>
+
               </div>
+
             </div>
           </div>
         </main>
