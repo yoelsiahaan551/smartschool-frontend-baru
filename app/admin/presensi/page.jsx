@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Sidebar from "../../components/Sidebar";
 import Header from "../../components/Header";
 
@@ -29,191 +29,155 @@ import {
 } from "lucide-react";
 
 /* =========================================================
-   MOCK DATA
+   BACKEND HELPERS
 ========================================================= */
 
-const PRESENSI_DATA = [
-  {
-    id: 1,
-    nama: "Ahmad Fauzan",
-    nomorInduk: "1987654321",
-    kelas: "XII IPA 1",
-    role: "Guru",
-    tanggal: "09 September 2026",
-    jamMasuk: "06:47",
-    jamPulang: "15:32",
-    status: "Hadir",
-    metode: "Face ID",
-    lokasi: "Sekolah",
-    keterangan: "-",
-    avatar: "AF",
-  },
-  {
-    id: 2,
-    nama: "Siti Rahma",
-    nomorInduk: "1987654322",
-    kelas: "XI IPS 2",
-    role: "Guru",
-    tanggal: "09 September 2026",
-    jamMasuk: "06:51",
-    jamPulang: "15:30",
-    status: "Hadir",
-    metode: "Face ID",
-    lokasi: "Sekolah",
-    keterangan: "-",
-    avatar: "SR",
-  },
-  {
-    id: 3,
-    nama: "Budi Santoso",
-    nomorInduk: "1987654323",
-    kelas: "Staff",
-    role: "Staff",
-    tanggal: "09 September 2026",
-    jamMasuk: "06:55",
-    jamPulang: "15:45",
-    status: "Hadir",
-    metode: "Face ID",
-    lokasi: "Sekolah",
-    keterangan: "-",
-    avatar: "BS",
-  },
-  {
-    id: 4,
-    nama: "Rizky Pratama",
-    nomorInduk: "20260001",
-    kelas: "XII IPA 1",
-    role: "Siswa",
-    tanggal: "09 September 2026",
-    jamMasuk: "06:38",
+import {
+  getAbsensiKelas,
+} from "../../../services/absensi.service";
+import {
+  getKelas,
+} from "../../../services/kelas.service";
+
+function formatTanggal(tanggal) {
+  if (!tanggal) return "-";
+
+  // Untuk filter input type=date (YYYY-MM-DD), tampilkan tanggal tanpa
+  // menggeser hari akibat konversi timezone.
+  const raw = String(tanggal);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    const [yyyy, mm, dd] = raw.split("-");
+    return new Date(Number(yyyy), Number(mm) - 1, Number(dd)).toLocaleDateString("id-ID", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    });
+  }
+
+  const date = new Date(tanggal);
+  if (Number.isNaN(date.getTime())) return String(tanggal);
+
+  return date.toLocaleDateString("id-ID", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+function formatJam(tanggal) {
+  if (!tanggal) return "-";
+
+  const date = new Date(tanggal);
+  if (Number.isNaN(date.getTime())) return "-";
+
+  return date.toLocaleTimeString("id-ID", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function getTodayInputValue() {
+  const today = new Date();
+  const yyyy = today.getFullYear();
+  const mm = String(today.getMonth() + 1).padStart(2, "0");
+  const dd = String(today.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function normalizeListResponse(response) {
+  if (Array.isArray(response)) return response;
+  if (Array.isArray(response?.data)) return response.data;
+  if (Array.isArray(response?.data?.data)) return response.data.data;
+  if (Array.isArray(response?.items)) return response.items;
+  if (Array.isArray(response?.result)) return response.result;
+  return [];
+}
+
+function normalizeAbsensiItem(item, fallbackKelas = null) {
+  const pengguna = item?.pengguna || item?.siswa || {};
+  const roleRaw =
+    item?.role ||
+    item?.peran ||
+    pengguna?.role ||
+    pengguna?.peran?.nama ||
+    pengguna?.role?.nama ||
+    "Siswa";
+
+  const roleText = String(roleRaw || "Siswa").toLowerCase();
+  const role = roleText.includes("guru")
+    ? "Guru"
+    : roleText.includes("staff") || roleText.includes("staf")
+      ? "Staff"
+      : "Siswa";
+
+  const statusRaw = String(item?.status || "alpha").toLowerCase();
+  const status =
+    statusRaw === "alpa" ? "Tidak Hadir" :
+    statusRaw === "alpha" ? "Tidak Hadir" :
+    statusRaw === "hadir" ? "Hadir" :
+    statusRaw === "izin" ? "Izin" :
+    statusRaw === "sakit" ? "Sakit" :
+    statusRaw;
+
+  const metodeRaw = String(item?.metode || "-").toLowerCase();
+  const metode =
+    metodeRaw === "lokasi" ? "Lokasi" :
+    metodeRaw === "barcode" ? "Barcode" :
+    metodeRaw === "face" ? "Face" :
+    metodeRaw === "manual" ? "Manual" :
+    item?.metode || "-";
+
+  const nama =
+    pengguna?.namaLengkap ||
+    pengguna?.nama ||
+    item?.namaLengkap ||
+    item?.nama ||
+    "Pengguna";
+
+  const nomorInduk =
+    pengguna?.nisn ||
+    pengguna?.nip ||
+    pengguna?.nik ||
+    item?.nisn ||
+    item?.nip ||
+    item?.nomorInduk ||
+    "-";
+
+  const kelas =
+    item?.kelas?.nama ||
+    item?.kelasNama ||
+    pengguna?.kelas?.nama ||
+    fallbackKelas?.nama ||
+    "-";
+
+  const initials = nama
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase() || "-";
+
+  return {
+    ...item,
+    _kelasId: item?.kelasId || item?.kelas?.id || fallbackKelas?.id || null,
+    nama,
+    nomorInduk,
+    kelas,
+    role,
+    tanggal: item?.tanggal || item?.dibuatPada || null,
+    jamMasuk: item?.dibuatPada ? formatJam(item.dibuatPada) : "-",
     jamPulang: "-",
-    status: "Hadir",
-    metode: "Face ID",
-    lokasi: "Sekolah",
-    keterangan: "-",
-    avatar: "RP",
-  },
-  {
-    id: 5,
-    nama: "Nabila Putri",
-    nomorInduk: "20260002",
-    kelas: "XI IPS 2",
-    role: "Siswa",
-    tanggal: "09 September 2026",
-    jamMasuk: "06:59",
-    jamPulang: "-",
-    status: "Terlambat",
-    metode: "Face ID",
-    lokasi: "Sekolah",
-    keterangan: "Terlambat 14 menit",
-    avatar: "NP",
-  },
-  {
-    id: 6,
-    nama: "Fajar Hidayat",
-    nomorInduk: "20260003",
-    kelas: "X IPA 2",
-    role: "Siswa",
-    tanggal: "09 September 2026",
-    jamMasuk: "-",
-    jamPulang: "-",
-    status: "Tidak Hadir",
-    metode: "-",
-    lokasi: "-",
-    keterangan: "Tidak ada keterangan",
-    avatar: "FH",
-  },
-  {
-    id: 7,
-    nama: "Dewi Lestari",
-    nomorInduk: "1987654324",
-    kelas: "X IPA 1",
-    role: "Guru",
-    tanggal: "09 September 2026",
-    jamMasuk: "07:04",
-    jamPulang: "15:28",
-    status: "Terlambat",
-    metode: "Face ID",
-    lokasi: "Sekolah",
-    keterangan: "Terlambat 19 menit",
-    avatar: "DL",
-  },
-  {
-    id: 8,
-    nama: "Maya Anggraini",
-    nomorInduk: "1987654325",
-    kelas: "XI IPA 1",
-    role: "Guru",
-    tanggal: "09 September 2026",
-    jamMasuk: "06:44",
-    jamPulang: "15:35",
-    status: "Hadir",
-    metode: "Face ID",
-    lokasi: "Sekolah",
-    keterangan: "-",
-    avatar: "MA",
-  },
-  {
-    id: 9,
-    nama: "Yoga Saputra",
-    nomorInduk: "20260004",
-    kelas: "X IPA 2",
-    role: "Siswa",
-    tanggal: "09 September 2026",
-    jamMasuk: "06:53",
-    jamPulang: "-",
-    status: "Hadir",
-    metode: "Face ID",
-    lokasi: "Sekolah",
-    keterangan: "-",
-    avatar: "YS",
-  },
-  {
-    id: 10,
-    nama: "Putri Amelia",
-    nomorInduk: "20260005",
-    kelas: "XII IPS 1",
-    role: "Siswa",
-    tanggal: "09 September 2026",
-    jamMasuk: "-",
-    jamPulang: "-",
-    status: "Izin",
-    metode: "Manual",
-    lokasi: "-",
-    keterangan: "Izin keluarga",
-    avatar: "PA",
-  },
-  {
-    id: 11,
-    nama: "Andi Setiawan",
-    nomorInduk: "20260006",
-    kelas: "XI IPA 1",
-    role: "Siswa",
-    tanggal: "09 September 2026",
-    jamMasuk: "07:00",
-    jamPulang: "-",
-    status: "Hadir",
-    metode: "Face ID",
-    lokasi: "Sekolah",
-    keterangan: "-",
-    avatar: "AS",
-  },
-  {
-    id: 12,
-    nama: "Sarah Aulia",
-    nomorInduk: "20260007",
-    kelas: "XII IPA 2",
-    role: "Siswa",
-    tanggal: "09 September 2026",
-    jamMasuk: "-",
-    jamPulang: "-",
-    status: "Sakit",
-    metode: "Manual",
-    lokasi: "-",
-    keterangan: "Surat keterangan sakit",
-    avatar: "SA",
-  },
-];
+    status,
+    metode,
+    lokasi:
+      item?.lintang != null && item?.bujur != null
+        ? "Sekolah / GPS"
+        : "-",
+    keterangan: item?.keterangan || "-",
+    avatar: initials,
+  };
+}
 
 /* =========================================================
    CONFIG
@@ -367,16 +331,17 @@ export default function PresensiPage() {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState("");
-
   const [roleFilter, setRoleFilter] = useState("Semua");
-
   const [statusFilter, setStatusFilter] = useState("Semua");
-
   const [classFilter, setClassFilter] = useState("Semua");
+  const [dateFilter, setDateFilter] = useState(getTodayInputValue());
 
-  const [dateFilter, setDateFilter] = useState(
-    "09 September 2026"
-  );
+  const [kelas, setKelas] = useState([]);
+  const [absensi, setAbsensi] = useState([]);
+  const [loadingKelas, setLoadingKelas] = useState(true);
+  const [loadingAbsensi, setLoadingAbsensi] = useState(false);
+  const [errorKelas, setErrorKelas] = useState("");
+  const [errorAbsensi, setErrorAbsensi] = useState("");
 
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -394,12 +359,92 @@ export default function PresensiPage() {
 
   const itemsPerPage = 7;
 
+  const fetchKelas = useCallback(async () => {
+    try {
+      setLoadingKelas(true);
+      setErrorKelas("");
+
+      const response = await getKelas({
+        page: 1,
+        limit: 100,
+        sortBy: "tingkat",
+        sortOrder: "asc",
+      });
+
+      const data = normalizeListResponse(response);
+      setKelas(data);
+    } catch (err) {
+      console.error("Error fetch kelas admin absensi:", err);
+      setKelas([]);
+      setErrorKelas(err?.message || "Gagal mengambil data kelas.");
+    } finally {
+      setLoadingKelas(false);
+    }
+  }, []);
+
+  const fetchAbsensi = useCallback(async () => {
+    if (kelas.length === 0) {
+      setAbsensi([]);
+      return;
+    }
+
+    try {
+      setLoadingAbsensi(true);
+      setErrorAbsensi("");
+
+      const selectedClasses =
+        classFilter === "Semua"
+          ? kelas
+          : kelas.filter((item) => item?.id === classFilter);
+
+      const responses = await Promise.all(
+        selectedClasses.map(async (kelasItem) => {
+          try {
+            const response = await getAbsensiKelas(
+              kelasItem.id,
+              dateFilter || null,
+            );
+
+            const records = normalizeListResponse(response);
+            return records.map((item) =>
+              normalizeAbsensiItem(item, kelasItem),
+            );
+          } catch (err) {
+            console.error(
+              `Error absensi kelas ${kelasItem?.nama || kelasItem?.id}:`,
+              err,
+            );
+            throw err;
+          }
+        }),
+      );
+
+      setAbsensi(responses.flat());
+    } catch (err) {
+      console.error("Error fetch absensi admin:", err);
+      setAbsensi([]);
+      setErrorAbsensi(
+        err?.message || "Gagal mengambil data absensi dari backend.",
+      );
+    } finally {
+      setLoadingAbsensi(false);
+    }
+  }, [kelas, classFilter, dateFilter]);
+
+  useEffect(() => {
+    fetchKelas();
+  }, [fetchKelas]);
+
+  useEffect(() => {
+    fetchAbsensi();
+  }, [fetchAbsensi]);
+
   /* =========================================================
      FILTER DATA
   ========================================================= */
 
   const filteredData = useMemo(() => {
-    return PRESENSI_DATA.filter((item) => {
+    return absensi.filter((item) => {
       const search = searchQuery.toLowerCase().trim();
 
       const matchesSearch =
@@ -418,7 +463,8 @@ export default function PresensiPage() {
 
       const matchesClass =
         classFilter === "Semua" ||
-        item.kelas === classFilter;
+        item._kelasId === classFilter ||
+        item.kelasId === classFilter;
 
       return (
         matchesSearch &&
@@ -428,6 +474,7 @@ export default function PresensiPage() {
       );
     });
   }, [
+    absensi,
     searchQuery,
     roleFilter,
     statusFilter,
@@ -457,26 +504,24 @@ export default function PresensiPage() {
      STATISTICS
   ========================================================= */
 
-  const totalPresensi = PRESENSI_DATA.length;
+  const totalPresensi = absensi.length;
 
-  const totalHadir = PRESENSI_DATA.filter(
+  const totalHadir = absensi.filter(
     (item) => item.status === "Hadir"
   ).length;
 
-  const totalTerlambat = PRESENSI_DATA.filter(
-    (item) => item.status === "Terlambat"
-  ).length;
+  const totalTerlambat = absensi.filter((item) => String(item.status).toLowerCase() === "terlambat").length;
 
-  const totalTidakHadir = PRESENSI_DATA.filter(
+  const totalTidakHadir = absensi.filter(
     (item) =>
       item.status === "Tidak Hadir" ||
       item.status === "Izin" ||
       item.status === "Sakit"
   ).length;
 
-  const attendancePercentage = Math.round(
-    (totalHadir / totalPresensi) * 100
-  );
+  const attendancePercentage = totalPresensi
+    ? Math.round((totalHadir / totalPresensi) * 100)
+    : 0;
 
   /* =========================================================
      RESET
@@ -487,7 +532,7 @@ export default function PresensiPage() {
     setRoleFilter("Semua");
     setStatusFilter("Semua");
     setClassFilter("Semua");
-    setDateFilter("09 September 2026");
+    setDateFilter(getTodayInputValue());
     setCurrentPage(1);
   };
 
@@ -512,13 +557,64 @@ export default function PresensiPage() {
     if (!editPresensi) return;
 
     setIsSaving(true);
-
-    await new Promise((resolve) =>
-      setTimeout(resolve, 800)
+    setErrorAbsensi(
+      "Backend saat ini belum menyediakan endpoint update absensi admin, jadi perubahan tidak disimpan."
     );
-
     setIsSaving(false);
     setEditPresensi(null);
+  };
+
+  const handleExport = () => {
+    if (filteredData.length === 0) {
+      setErrorAbsensi("Tidak ada data absensi untuk diekspor.");
+      return;
+    }
+
+    const headers = [
+      "Nama",
+      "Nomor Induk",
+      "Kelas",
+      "Peran",
+      "Tanggal",
+      "Jam Masuk",
+      "Status",
+      "Metode",
+      "Lokasi",
+      "Keterangan",
+    ];
+
+    const rows = filteredData.map((item) => [
+      item.nama,
+      item.nomorInduk,
+      item.kelas,
+      item.role,
+      formatTanggal(item.tanggal),
+      item.jamMasuk,
+      item.status,
+      item.metode,
+      item.lokasi,
+      item.keterangan,
+    ]);
+
+    const csv = [headers, ...rows]
+      .map((row) =>
+        row
+          .map((value) => `"${String(value ?? "").replace(/"/g, '""')}"`)
+          .join(","),
+      )
+      .join("\n");
+
+    const blob = new Blob(["\ufeff" + csv], {
+      type: "text/csv;charset=utf-8;",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `presensi-${dateFilter || "semua"}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
   };
 
   /* =========================================================
@@ -598,6 +694,8 @@ export default function PresensiPage() {
 
                 <div className="flex shrink-0 items-center gap-2">
                   <button
+                    onClick={handleExport}
+                    type="button"
                     className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-600 shadow-sm transition hover:bg-slate-50"
                   >
                     <Download size={15} />
@@ -627,7 +725,7 @@ export default function PresensiPage() {
                     </p>
 
                     <p className="text-sm font-semibold text-slate-700">
-                      {dateFilter}
+                      {formatTanggal(dateFilter)}
                     </p>
                   </div>
                 </div>
@@ -759,27 +857,12 @@ export default function PresensiPage() {
                       <option value="Semua">
                         Semua Kelas
                       </option>
-                      <option value="X IPA 1">
-                        X IPA 1
-                      </option>
-                      <option value="X IPA 2">
-                        X IPA 2
-                      </option>
-                      <option value="XI IPA 1">
-                        XI IPA 1
-                      </option>
-                      <option value="XI IPS 2">
-                        XI IPS 2
-                      </option>
-                      <option value="XII IPA 1">
-                        XII IPA 1
-                      </option>
-                      <option value="XII IPA 2">
-                        XII IPA 2
-                      </option>
-                      <option value="XII IPS 1">
-                        XII IPS 1
-                      </option>
+                      {kelas.map((item) => (
+                        <option key={item?.id} value={item?.id}>
+                          {item?.nama || `Kelas ${item?.tingkat || "-"}`}
+                          {item?.tingkat ? ` - Tingkat ${item.tingkat}` : ""}
+                        </option>
+                      ))}
                     </select>
 
                     <select
@@ -803,6 +886,17 @@ export default function PresensiPage() {
                         Tidak Hadir
                       </option>
                     </select>
+
+                    <input
+                      type="date"
+                      value={dateFilter}
+                      onChange={(e) => {
+                        setDateFilter(e.target.value);
+                        setCurrentPage(1);
+                      }}
+                      className="h-10 min-w-[145px] rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-600 outline-none focus:border-[#8bb4ff] focus:ring-2 focus:ring-[#155DFC]/10"
+                      aria-label="Filter tanggal absensi"
+                    />
 
                     <button
                       onClick={resetFilters}

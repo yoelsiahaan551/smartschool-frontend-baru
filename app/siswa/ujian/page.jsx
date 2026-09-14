@@ -9,7 +9,6 @@ import {
   Calendar,
   Clock,
   Search,
-  ChevronRight,
   AlertCircle,
   CheckCircle,
   FileText,
@@ -265,43 +264,6 @@ function getLoggedInUserId() {
 }
 
 // =========================================================
-// GET KELAS ID
-// =========================================================
-
-function getExistingKelasId() {
-  try {
-    const rawUser = localStorage.getItem("user");
-
-    if (!rawUser) {
-      return null;
-    }
-
-    const user = JSON.parse(rawUser);
-
-    const kelasId =
-      user?.kelasId ||
-      user?.kelas_id ||
-      user?.kelas?.id ||
-      user?.siswa?.kelasId ||
-      user?.siswa?.kelas?.id ||
-      user?.data?.kelasId ||
-      user?.data?.kelas?.id ||
-      user?.data?.siswa?.kelasId ||
-      user?.data?.siswa?.kelas?.id ||
-      null;
-
-    return kelasId ? String(kelasId) : null;
-  } catch (error) {
-    console.error(
-      "Gagal membaca kelas dari localStorage:",
-      error
-    );
-
-    return null;
-  }
-}
-
-// =========================================================
 // CHECK STUDENT MEMBER
 // =========================================================
 
@@ -310,10 +272,19 @@ function isStudentMemberOfClass(anggota, userId) {
     return false;
   }
 
+  /*
+   * Struktur BE:
+   *
+   * anggota[].siswa.id
+   *
+   * berdasarkan:
+   * AnggotaKelas -> siswa Pengguna
+   */
+
   const anggotaUserId =
     anggota?.siswa?.id ||
-    anggota?.siswaId ||
     anggota?.penggunaId ||
+    anggota?.siswaId ||
     anggota?.pengguna?.id ||
     anggota?.userId ||
     anggota?.user?.id ||
@@ -332,7 +303,6 @@ function isStudentMemberOfClass(anggota, userId) {
 
 async function findStudentClass() {
   const userId = getLoggedInUserId();
-  const existingKelasId = getExistingKelasId();
 
   if (!userId) {
     throw new Error(
@@ -340,50 +310,56 @@ async function findStudentClass() {
     );
   }
 
-  // PRIORITAS 1
-  if (existingKelasId) {
-    try {
-      const response = await getKelasById(existingKelasId);
-      const kelasDetail = normalizeObjectResponse(response);
+  /*
+   * JANGAN menggunakan kelasId dari localStorage
+   * sebagai sumber utama.
+   *
+   * Sumber kelas siswa berasal dari BE:
+   *
+   * GET /api/kelas
+   *      ↓
+   * GET /api/kelas/:id
+   *      ↓
+   * detail.anggota[].siswa.id
+   */
 
-      if (kelasDetail?.id) {
-        const anggota = Array.isArray(kelasDetail?.anggota)
-          ? kelasDetail.anggota
-          : [];
-
-        const isMember =
-          anggota.length === 0 ||
-          anggota.some((item) =>
-            isStudentMemberOfClass(item, userId)
-          );
-
-        if (isMember) {
-          return kelasDetail;
-        }
-      }
-    } catch (error) {
-      console.warn(
-        "Kelas dari localStorage tidak bisa digunakan:",
-        error
-      );
-    }
-  }
-
-  // PRIORITAS 2
   const kelasResponse = await getKelas({
     page: 1,
     limit: 100,
   });
 
-  const daftarKelas = normalizeArrayResponse(
-    kelasResponse
-  );
+  console.log("========== PENCARIAN KELAS SISWA ==========");
+  console.log("USER ID:", userId);
+  console.log("RESPONSE GET KELAS:", kelasResponse);
+
+  const daftarKelas = normalizeArrayResponse(kelasResponse);
+
+  console.log("DAFTAR KELAS:", daftarKelas);
+  console.log("JUMLAH KELAS:", daftarKelas.length);
 
   if (daftarKelas.length === 0) {
     throw new Error(
-      "Belum ada data kelas yang tersedia untuk siswa."
+      "Belum ada data kelas pada sekolah akun siswa."
     );
   }
+
+  /*
+   * Ambil detail setiap kelas.
+   *
+   * BE getDetailKelas() mengembalikan:
+   *
+   * anggota: [
+   *   {
+   *     siswa: {
+   *       id,
+   *       namaLengkap,
+   *       nisn,
+   *       nis,
+   *       ...
+   *     }
+   *   }
+   * ]
+   */
 
   const hasilPencarian = await Promise.allSettled(
     daftarKelas.map(async (kelas) => {
@@ -392,22 +368,40 @@ async function findStudentClass() {
       }
 
       try {
-        const response = await getKelasById(kelas.id);
+        const response = await getKelasById(
+          String(kelas.id)
+        );
+
         const detail = normalizeObjectResponse(response);
 
         if (!detail?.id) {
           return null;
         }
 
-        const anggota = Array.isArray(detail?.anggota)
+        const anggota = Array.isArray(detail.anggota)
           ? detail.anggota
           : [];
+
+        console.log(
+          `DETAIL KELAS ${detail.nama || detail.id}:`,
+          detail
+        );
+
+        console.log(
+          `ANGGOTA KELAS ${detail.nama || detail.id}:`,
+          anggota
+        );
 
         const ditemukan = anggota.some((item) =>
           isStudentMemberOfClass(item, userId)
         );
 
         if (ditemukan) {
+          console.log(
+            "KELAS SISWA DITEMUKAN:",
+            detail
+          );
+
           return detail;
         }
 
@@ -486,232 +480,370 @@ export default function DaftarUjianPage() {
       setLoading(true);
       setError("");
 
-      // 1. KELAS SISWA
+      // ====================================================
+      // 1. CARI KELAS SISWA DARI BACKEND
+      // ====================================================
+
       const kelasSiswa = await findStudentClass();
 
       if (!kelasSiswa?.id) {
-        throw new Error("Kelas siswa tidak ditemukan.");
+        throw new Error(
+          "Kelas siswa tidak ditemukan."
+        );
       }
 
       const kelasSiswaId = String(kelasSiswa.id);
 
-      // 2. KELAS MAPEL
-      const kelasMapelResponse = await getKelasMapel();
-
-      const semuaKelasMapel = normalizeArrayResponse(
-        kelasMapelResponse
+      console.log(
+        "KELAS SISWA:",
+        kelasSiswa
       );
 
-      // 3. FILTER KELAS MAPEL
-      let kelasMapelData = semuaKelasMapel.filter((km) => {
-        const kmKelasId =
-          km?.kelasId ||
-          km?.kelas?.id ||
-          null;
+      console.log(
+        "KELAS SISWA ID:",
+        kelasSiswaId
+      );
 
-        return (
-          kmKelasId &&
-          String(kmKelasId) === kelasSiswaId
+      // ====================================================
+      // 2. AMBIL KELAS MAPEL
+      // ====================================================
+
+      const kelasMapelResponse =
+        await getKelasMapel();
+
+      const semuaKelasMapel =
+        normalizeArrayResponse(
+          kelasMapelResponse
         );
-      });
 
-      // FALLBACK
+      console.log(
+        "SEMUA KELAS MAPEL:",
+        semuaKelasMapel
+      );
+
+      // ====================================================
+      // 3. FILTER KELAS MAPEL BERDASARKAN KELAS SISWA
+      // ====================================================
+
+      let kelasMapelData =
+        semuaKelasMapel.filter((km) => {
+          const kmKelasId =
+            km?.kelasId ||
+            km?.kelas?.id ||
+            null;
+
+          return (
+            kmKelasId &&
+            String(kmKelasId) ===
+              kelasSiswaId
+          );
+        });
+
+      /*
+       * FALLBACK:
+       *
+       * getDetailKelas() BE juga include kelasMapel.
+       *
+       * Jadi kalau endpoint getKelasMapel
+       * tidak mengembalikan data yang diperlukan,
+       * gunakan data dari detail kelas yang
+       * memang sudah diberikan oleh BE.
+       */
+
       if (
         kelasMapelData.length === 0 &&
-        Array.isArray(kelasSiswa?.kelasMapel)
+        Array.isArray(
+          kelasSiswa?.kelasMapel
+        )
       ) {
         kelasMapelData =
-          kelasSiswa.kelasMapel.filter((km) => {
-            const kmKelasId =
-              km?.kelasId ||
-              km?.kelas?.id ||
-              null;
+          kelasSiswa.kelasMapel.filter(
+            (km) => {
+              const kmKelasId =
+                km?.kelasId ||
+                km?.kelas?.id ||
+                null;
 
-            return (
-              kmKelasId &&
-              String(kmKelasId) === kelasSiswaId
-            );
-          });
+              return (
+                kmKelasId &&
+                String(kmKelasId) ===
+                  kelasSiswaId
+              );
+            }
+          );
       }
+
+      console.log(
+        "KELAS MAPEL KELAS SISWA:",
+        kelasMapelData
+      );
 
       if (kelasMapelData.length === 0) {
         setDaftarUjian([]);
 
         setError(
           `Belum ada mata pelajaran yang terdaftar untuk kelas ${
-            kelasSiswa?.nama || "siswa"
+            kelasSiswa?.nama ||
+            "siswa"
           }`
         );
 
         return;
       }
 
-      // 4. AMBIL UJIAN
-      const hasilRequest = await Promise.allSettled(
-        kelasMapelData.map(async (km) => {
-          if (!km?.id) {
-            return [];
-          }
+      // ====================================================
+      // 4. AMBIL UJIAN DARI SETIAP KELAS MAPEL
+      // ====================================================
 
-          const response =
-            await getUjianByKelasMapel(km.id);
-
-          const data =
-            normalizeArrayResponse(response);
-
-          return data
-            .map((ujian) => {
-              if (!ujian?.id) {
-                return null;
+      const hasilRequest =
+        await Promise.allSettled(
+          kelasMapelData.map(
+            async (km) => {
+              if (!km?.id) {
+                return [];
               }
 
-              return {
-                ...ujian,
+              try {
+                const response =
+                  await getUjianByKelasMapel(
+                    String(km.id)
+                  );
 
-                kelasMapel: {
-                  ...(km || {}),
-                  ...(ujian?.kelasMapel || {}),
+                const data =
+                  normalizeArrayResponse(
+                    response
+                  );
 
-                  kelas:
-                    ujian?.kelasMapel?.kelas ||
-                    km?.kelas ||
-                    kelasSiswa ||
-                    null,
+                console.log(
+                  `UJIAN KELAS MAPEL ${km.id}:`,
+                  data
+                );
 
-                  mataPelajaran:
-                    ujian?.kelasMapel?.mataPelajaran ||
-                    km?.mataPelajaran ||
-                    null,
+                return data
+                  .map((ujian) => {
+                    if (!ujian?.id) {
+                      return null;
+                    }
 
-                  guruPengajar:
-                    ujian?.kelasMapel?.guruPengajar ||
-                    km?.guruPengajar ||
-                    null,
-                },
-              };
-            })
-            .filter(Boolean);
-        })
-      );
+                    return {
+                      ...ujian,
 
-      // 5. GABUNGKAN
+                      kelasMapel: {
+                        ...(km || {}),
+
+                        ...(ujian?.kelasMapel ||
+                          {}),
+
+                        kelas:
+                          ujian
+                            ?.kelasMapel
+                            ?.kelas ||
+                          km?.kelas ||
+                          kelasSiswa ||
+                          null,
+
+                        mataPelajaran:
+                          ujian
+                            ?.kelasMapel
+                            ?.mataPelajaran ||
+                          km?.mataPelajaran ||
+                          null,
+
+                        guruPengajar:
+                          ujian
+                            ?.kelasMapel
+                            ?.guruPengajar ||
+                          km?.guruPengajar ||
+                          null,
+                      },
+                    };
+                  })
+                  .filter(Boolean);
+              } catch (error) {
+                console.warn(
+                  `Gagal mengambil ujian kelas mapel ${km.id}:`,
+                  error
+                );
+
+                return [];
+              }
+            }
+          )
+        );
+
+      // ====================================================
+      // 5. GABUNGKAN HASIL
+      // ====================================================
+
       const hasilUjian = [];
 
-      hasilRequest.forEach((result) => {
-        if (
-          result.status === "fulfilled" &&
-          Array.isArray(result.value)
-        ) {
-          hasilUjian.push(...result.value);
+      hasilRequest.forEach(
+        (result) => {
+          if (
+            result.status ===
+              "fulfilled" &&
+            Array.isArray(
+              result.value
+            )
+          ) {
+            hasilUjian.push(
+              ...result.value
+            );
+          }
         }
-      });
-
-      // 6. FILTER KELAS
-      const ujianKelasSiswa =
-        hasilUjian.filter((ujian) => {
-          const ujianKelasId =
-            ujian?.kelasMapel?.kelasId ||
-            ujian?.kelasMapel?.kelas?.id ||
-            null;
-
-          return (
-            ujianKelasId &&
-            String(ujianKelasId) === kelasSiswaId
-          );
-        });
-
-      // 7. HILANGKAN DUPLIKAT
-      const uniqueUjian = Array.from(
-        new Map(
-          ujianKelasSiswa
-            .filter((item) => item?.id)
-            .map((item) => [item.id, item])
-        ).values()
       );
 
-      // 8. MAPPING
-      const mapped = uniqueUjian.map((ujian) => {
-        const kelas =
-          ujian?.kelasMapel?.kelas ||
-          kelasSiswa ||
-          null;
+      console.log(
+        "HASIL SEMUA UJIAN:",
+        hasilUjian
+      );
 
-        const mapel =
-          ujian?.kelasMapel?.mataPelajaran ||
-          null;
+      // ====================================================
+      // 6. FILTER BERDASARKAN KELAS SISWA
+      // ====================================================
 
-        const guru =
-          ujian?.kelasMapel?.guruPengajar ||
-          null;
+      const ujianKelasSiswa =
+        hasilUjian.filter(
+          (ujian) => {
+            const ujianKelasId =
+              ujian?.kelasMapel
+                ?.kelasId ||
+              ujian?.kelasMapel
+                ?.kelas?.id ||
+              null;
 
-        const status =
-          getStatusUjian(ujian);
+            return (
+              ujianKelasId &&
+              String(
+                ujianKelasId
+              ) === kelasSiswaId
+            );
+          }
+        );
 
-        return {
-          id: ujian.id,
+      // ====================================================
+      // 7. HILANGKAN DUPLIKAT
+      // ====================================================
 
-          judul:
-            ujian?.judul ||
-            "Ujian Tanpa Judul",
+      const uniqueUjian =
+        Array.from(
+          new Map(
+            ujianKelasSiswa
+              .filter(
+                (item) =>
+                  item?.id
+              )
+              .map((item) => [
+                String(item.id),
+                item,
+              ])
+          ).values()
+        );
 
-          mapel:
-            mapel?.nama ||
-            "-",
+      // ====================================================
+      // 8. MAPPING UNTUK UI
+      // ====================================================
 
-          guru:
-            guru?.namaLengkap ||
-            "-",
+      const mapped =
+        uniqueUjian.map(
+          (ujian) => {
+            const kelas =
+              ujian
+                ?.kelasMapel
+                ?.kelas ||
+              kelasSiswa ||
+              null;
 
-          kelas:
-            kelas?.nama ||
-            kelasSiswa?.nama ||
-            "-",
+            const mapel =
+              ujian
+                ?.kelasMapel
+                ?.mataPelajaran ||
+              null;
 
-          tanggal:
-            ujian?.waktuMulai ||
-            ujian?.dibuatPada ||
-            null,
+            const guru =
+              ujian
+                ?.kelasMapel
+                ?.guruPengajar ||
+              null;
 
-          durasi:
-            ujian?.durasi
-              ? `${ujian.durasi} menit`
-              : "0 menit",
+            const status =
+              getStatusUjian(
+                ujian
+              );
 
-          soal:
-            ujian?._count?.soalUjian ||
-            ujian?._count?.soal ||
-            0,
+            return {
+              id: ujian.id,
 
-          status,
+              judul:
+                ujian?.judul ||
+                "Ujian Tanpa Judul",
 
-          warna:
-            getColorByJenis(
-              ujian?.jenis
-            ),
+              mapel:
+                mapel?.nama ||
+                "-",
 
-          icon:
-            getIconByJenis(
-              ujian?.jenis
-            ),
+              guru:
+                guru?.namaLengkap ||
+                "-",
 
-          waktuMulai:
-            ujian?.waktuMulai ||
-            null,
+              kelas:
+                kelas?.nama ||
+                kelasSiswa?.nama ||
+                "-",
 
-          waktuSelesai:
-            ujian?.waktuSelesai ||
-            null,
+              tanggal:
+                ujian?.waktuMulai ||
+                ujian?.dibuatPada ||
+                null,
 
-          dipublikasikan:
-            Boolean(
-              ujian?.dipublikasikan
-            ),
+              durasi:
+                ujian?.durasi
+                  ? `${ujian.durasi} menit`
+                  : "0 menit",
 
-          jenis:
-            ujian?.jenis ||
-            "Lainnya",
-        };
-      });
+              soal:
+                ujian?._count
+                  ?.soalUjian ||
+                ujian?._count
+                  ?.soal ||
+                0,
+
+              status,
+
+              warna:
+                getColorByJenis(
+                  ujian?.jenis
+                ),
+
+              icon:
+                getIconByJenis(
+                  ujian?.jenis
+                ),
+
+              waktuMulai:
+                ujian?.waktuMulai ||
+                null,
+
+              waktuSelesai:
+                ujian?.waktuSelesai ||
+                null,
+
+              dipublikasikan:
+                Boolean(
+                  ujian?.dipublikasikan
+                ),
+
+              jenis:
+                ujian?.jenis ||
+                "Lainnya",
+            };
+          }
+        );
+
+      console.log(
+        "UJIAN FINAL UNTUK UI:",
+        mapped
+      );
 
       setDaftarUjian(mapped);
     } catch (err) {
@@ -747,37 +879,53 @@ export default function DaftarUjianPage() {
     const keyword =
       search.toLowerCase().trim();
 
-    return daftarUjian.filter((ujian) => {
-      const judul = String(
-        ujian?.judul || ""
-      ).toLowerCase();
+    return daftarUjian.filter(
+      (ujian) => {
+        const judul =
+          String(
+            ujian?.judul ||
+              ""
+          ).toLowerCase();
 
-      const mapel = String(
-        ujian?.mapel || ""
-      ).toLowerCase();
+        const mapel =
+          String(
+            ujian?.mapel ||
+              ""
+          ).toLowerCase();
 
-      const guru = String(
-        ujian?.guru || ""
-      ).toLowerCase();
+        const guru =
+          String(
+            ujian?.guru ||
+              ""
+          ).toLowerCase();
 
-      const matchSearch =
-        judul.includes(keyword) ||
-        mapel.includes(keyword) ||
-        guru.includes(keyword);
+        const matchSearch =
+          judul.includes(
+            keyword
+          ) ||
+          mapel.includes(
+            keyword
+          ) ||
+          guru.includes(
+            keyword
+          );
 
-      if (!matchSearch) {
-        return false;
+        if (!matchSearch) {
+          return false;
+        }
+
+        if (
+          filterStatus !==
+            "semua" &&
+          ujian.status !==
+            filterStatus
+        ) {
+          return false;
+        }
+
+        return true;
       }
-
-      if (
-        filterStatus !== "semua" &&
-        ujian.status !== filterStatus
-      ) {
-        return false;
-      }
-
-      return true;
-    });
+    );
   }, [
     daftarUjian,
     search,
@@ -790,19 +938,29 @@ export default function DaftarUjianPage() {
 
   const stats = useMemo(
     () => ({
-      total: daftarUjian.length,
+      total:
+        daftarUjian.length,
 
-      belum: daftarUjian.filter(
-        (u) => u.status === "belum"
-      ).length,
+      belum:
+        daftarUjian.filter(
+          (u) =>
+            u.status ===
+            "belum"
+        ).length,
 
-      sedang: daftarUjian.filter(
-        (u) => u.status === "sedang"
-      ).length,
+      sedang:
+        daftarUjian.filter(
+          (u) =>
+            u.status ===
+            "sedang"
+        ).length,
 
-      selesai: daftarUjian.filter(
-        (u) => u.status === "selesai"
-      ).length,
+      selesai:
+        daftarUjian.filter(
+          (u) =>
+            u.status ===
+            "selesai"
+        ).length,
     }),
     [daftarUjian]
   );
@@ -811,14 +969,21 @@ export default function DaftarUjianPage() {
   // FORMAT DATE
   // =======================================================
 
-  const formatDate = (dateStr) => {
+  const formatDate = (
+    dateStr
+  ) => {
     if (!dateStr) {
       return "-";
     }
 
-    const d = new Date(dateStr);
+    const d =
+      new Date(dateStr);
 
-    if (Number.isNaN(d.getTime())) {
+    if (
+      Number.isNaN(
+        d.getTime()
+      )
+    ) {
       return "-";
     }
 
@@ -833,14 +998,21 @@ export default function DaftarUjianPage() {
     );
   };
 
-  const formatTime = (dateStr) => {
+  const formatTime = (
+    dateStr
+  ) => {
     if (!dateStr) {
       return "-";
     }
 
-    const d = new Date(dateStr);
+    const d =
+      new Date(dateStr);
 
-    if (Number.isNaN(d.getTime())) {
+    if (
+      Number.isNaN(
+        d.getTime()
+      )
+    ) {
       return "-";
     }
 
@@ -857,7 +1029,9 @@ export default function DaftarUjianPage() {
   // CARD CLICK
   // =======================================================
 
-  const handleCardClick = (ujianId) => {
+  const handleCardClick = (
+    ujianId
+  ) => {
     if (!ujianId) {
       return;
     }
@@ -871,10 +1045,13 @@ export default function DaftarUjianPage() {
   // STATUS
   // =======================================================
 
-  const getStatusBadge = (status) => {
+  const getStatusBadge = (
+    status
+  ) => {
     const map = {
       belum: {
-        label: "Belum Dimulai",
+        label:
+          "Belum Dimulai",
         color:
           "border-slate-200 bg-slate-50 text-slate-600",
         dot: "bg-slate-400",
@@ -882,7 +1059,8 @@ export default function DaftarUjianPage() {
       },
 
       sedang: {
-        label: "Berlangsung",
+        label:
+          "Berlangsung",
         color:
           "border-amber-200 bg-amber-50 text-amber-700",
         dot: "bg-amber-500",
@@ -910,8 +1088,6 @@ export default function DaftarUjianPage() {
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-[#F6F8FC]">
-      {/* SIDEBAR */}
-
       <Sidebar
         role="siswa"
         active="ujian"
@@ -920,13 +1096,9 @@ export default function DaftarUjianPage() {
         setCollapsed={() => {}}
       />
 
-      {/* MAIN */}
-
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <div className="shrink-0">
-          <Header
-            
-          />
+          <Header />
         </div>
 
         <main className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden">
@@ -938,7 +1110,6 @@ export default function DaftarUjianPage() {
               ================================================= */}
 
               <section className="relative overflow-hidden rounded-[24px] bg-[#0D47C9] shadow-[0_18px_45px_rgba(15,70,200,0.18)]">
-                {/* decorative background */}
 
                 <div className="absolute -right-24 -top-28 h-72 w-72 rounded-full bg-white/10 blur-2xl" />
 
@@ -951,12 +1122,12 @@ export default function DaftarUjianPage() {
                 <div className="relative p-6 sm:p-8 lg:p-9">
                   <div className="flex flex-col gap-7 lg:flex-row lg:items-end lg:justify-between">
 
-                    {/* TITLE */}
-
                     <div className="min-w-0 max-w-2xl">
                       <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-medium text-blue-50 backdrop-blur-sm">
                         <GraduationCap size={14} />
-                        <span>AKADEMIK SISWA</span>
+                        <span>
+                          AKADEMIK SISWA
+                        </span>
                       </div>
 
                       <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl lg:text-[34px]">
@@ -970,22 +1141,26 @@ export default function DaftarUjianPage() {
                       </p>
                     </div>
 
-                    {/* HERO STATS */}
-
                     <div className="grid grid-cols-3 gap-2 sm:gap-3">
                       <HeroStat
-                        value={stats.total}
+                        value={
+                          stats.total
+                        }
                         label="Total"
                       />
 
                       <HeroStat
-                        value={stats.sedang}
+                        value={
+                          stats.sedang
+                        }
                         label="Berlangsung"
                         highlight
                       />
 
                       <HeroStat
-                        value={stats.selesai}
+                        value={
+                          stats.selesai
+                        }
                         label="Selesai"
                       />
                     </div>
@@ -1000,8 +1175,6 @@ export default function DaftarUjianPage() {
               <section className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_4px_20px_rgba(15,23,42,0.04)] sm:p-5">
                 <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
 
-                  {/* SEARCH */}
-
                   <div className="relative w-full xl:max-w-md">
                     <Search
                       size={18}
@@ -1012,14 +1185,14 @@ export default function DaftarUjianPage() {
                       type="text"
                       value={search}
                       onChange={(e) =>
-                        setSearch(e.target.value)
+                        setSearch(
+                          e.target.value
+                        )
                       }
                       placeholder="Cari ujian, mata pelajaran, atau guru..."
                       className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50/70 pl-10 pr-4 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10"
                     />
                   </div>
-
-                  {/* FILTER */}
 
                   <div className="flex min-w-0 overflow-x-auto rounded-xl bg-slate-100 p-1">
                     {Object.entries(
@@ -1033,7 +1206,8 @@ export default function DaftarUjianPage() {
                           config.icon;
 
                         const count =
-                          key === "semua"
+                          key ===
+                          "semua"
                             ? stats.total
                             : stats[key];
 
@@ -1055,10 +1229,14 @@ export default function DaftarUjianPage() {
                                 : "text-slate-500 hover:text-slate-700"
                             }`}
                           >
-                            <Icon size={14} />
+                            <Icon
+                              size={14}
+                            />
 
                             <span>
-                              {config.label}
+                              {
+                                config.label
+                              }
                             </span>
 
                             <span
@@ -1068,7 +1246,9 @@ export default function DaftarUjianPage() {
                                   : "bg-slate-200 text-slate-500"
                               }`}
                             >
-                              {count}
+                              {
+                                count
+                              }
                             </span>
                           </button>
                         );
@@ -1076,10 +1256,10 @@ export default function DaftarUjianPage() {
                     )}
                   </div>
 
-                  {/* REFRESH */}
-
                   <button
-                    onClick={loadUjian}
+                    onClick={
+                      loadUjian
+                    }
                     disabled={loading}
                     className="flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
                   >
@@ -1098,17 +1278,19 @@ export default function DaftarUjianPage() {
                   </button>
                 </div>
 
-                {/* RESULT INFO */}
-
                 <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-4">
                   <p className="text-xs text-slate-500">
                     Menampilkan{" "}
                     <span className="font-semibold text-slate-700">
-                      {filtered.length}
+                      {
+                        filtered.length
+                      }
                     </span>{" "}
                     dari{" "}
                     <span className="font-semibold text-slate-700">
-                      {daftarUjian.length}
+                      {
+                        daftarUjian.length
+                      }
                     </span>{" "}
                     ujian
                   </p>
@@ -1135,9 +1317,12 @@ export default function DaftarUjianPage() {
               ) : error ? (
                 <ErrorState
                   error={error}
-                  onRetry={loadUjian}
+                  onRetry={
+                    loadUjian
+                  }
                 />
-              ) : filtered.length === 0 ? (
+              ) : filtered.length ===
+                0 ? (
                 <EmptyState
                   search={search}
                   onReset={() => {
@@ -1162,8 +1347,6 @@ export default function DaftarUjianPage() {
                     </div>
                   </div>
 
-                  {/* CARD GRID */}
-
                   <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
                     {filtered.map(
                       (ujian) => {
@@ -1178,9 +1361,6 @@ export default function DaftarUjianPage() {
                             ujian.status
                           );
 
-                        const StatusIcon =
-                          statusBadge.icon;
-
                         const IconComponent =
                           ujian.icon;
 
@@ -1194,7 +1374,9 @@ export default function DaftarUjianPage() {
 
                         return (
                           <article
-                            key={ujian.id}
+                            key={
+                              ujian.id
+                            }
                             onClick={() =>
                               handleCardClick(
                                 ujian.id
@@ -1202,13 +1384,9 @@ export default function DaftarUjianPage() {
                             }
                             className="group relative flex min-w-0 cursor-pointer flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_4px_18px_rgba(15,23,42,0.045)] transition-all duration-300 hover:-translate-y-1 hover:border-blue-200 hover:shadow-[0_14px_32px_rgba(15,23,42,0.09)]"
                           >
-                            {/* TOP ACCENT */}
-
                             <div
                               className={`h-1 w-full bg-gradient-to-r ${c.grad}`}
                             />
-
-                            {/* CARD TOP */}
 
                             <div className="p-5 pb-4">
                               <div className="flex items-start justify-between gap-3">
@@ -1227,25 +1405,27 @@ export default function DaftarUjianPage() {
                                     className={`h-1.5 w-1.5 rounded-full ${statusBadge.dot}`}
                                   />
 
-                                  {statusBadge.label}
+                                  {
+                                    statusBadge.label
+                                  }
                                 </span>
                               </div>
-
-                              {/* TITLE */}
 
                               <div className="mt-4">
                                 <p
                                   className={`text-[11px] font-bold uppercase tracking-[0.08em] ${c.text}`}
                                 >
-                                  {ujian.jenis}
+                                  {
+                                    ujian.jenis
+                                  }
                                 </p>
 
                                 <h3 className="mt-1.5 line-clamp-2 min-h-[42px] text-[15px] font-bold leading-5 text-slate-800 transition-colors group-hover:text-blue-700">
-                                  {ujian.judul}
+                                  {
+                                    ujian.judul
+                                  }
                                 </h3>
                               </div>
-
-                              {/* MAPEL */}
 
                               <div className="mt-3 flex min-w-0 items-center gap-2">
                                 <BookOpen
@@ -1254,22 +1434,26 @@ export default function DaftarUjianPage() {
                                 />
 
                                 <span className="truncate text-xs font-semibold text-slate-600">
-                                  {ujian.mapel}
+                                  {
+                                    ujian.mapel
+                                  }
                                 </span>
                               </div>
 
                               <p className="mt-1 truncate pl-5 text-[11px] text-slate-400">
-                                {ujian.guru}
+                                {
+                                  ujian.guru
+                                }
                               </p>
                             </div>
-
-                            {/* INFO */}
 
                             <div className="mx-5 border-t border-slate-100" />
 
                             <div className="grid grid-cols-2 gap-2 p-5">
                               <InfoItem
-                                icon={Calendar}
+                                icon={
+                                  Calendar
+                                }
                                 label="Tanggal"
                                 value={formatDate(
                                   ujian.tanggal
@@ -1277,7 +1461,9 @@ export default function DaftarUjianPage() {
                               />
 
                               <InfoItem
-                                icon={Clock}
+                                icon={
+                                  Clock
+                                }
                                 label="Waktu"
                                 value={formatTime(
                                   ujian.waktuMulai
@@ -1285,19 +1471,23 @@ export default function DaftarUjianPage() {
                               />
 
                               <InfoItem
-                                icon={Timer}
+                                icon={
+                                  Timer
+                                }
                                 label="Durasi"
-                                value={ujian.durasi}
+                                value={
+                                  ujian.durasi
+                                }
                               />
 
                               <InfoItem
-                                icon={FileText}
+                                icon={
+                                  FileText
+                                }
                                 label="Soal"
                                 value={`${ujian.soal} soal`}
                               />
                             </div>
-
-                            {/* CLASS */}
 
                             <div className="mx-5 rounded-xl bg-slate-50 px-3.5 py-3">
                               <div className="flex items-center justify-between gap-3">
@@ -1307,7 +1497,9 @@ export default function DaftarUjianPage() {
                                   </p>
 
                                   <p className="mt-0.5 truncate text-xs font-semibold text-slate-700">
-                                    {ujian.kelas}
+                                    {
+                                      ujian.kelas
+                                    }
                                   </p>
                                 </div>
 
@@ -1318,8 +1510,6 @@ export default function DaftarUjianPage() {
                                 </div>
                               </div>
                             </div>
-
-                            {/* ACTION */}
 
                             <div className="mt-auto p-5 pt-4">
                               <button
@@ -1356,8 +1546,6 @@ export default function DaftarUjianPage() {
                               </button>
                             </div>
 
-                            {/* HOVER LINE */}
-
                             <div
                               className={`absolute bottom-0 left-0 h-0.5 w-0 bg-gradient-to-r ${c.grad} transition-all duration-300 group-hover:w-full`}
                             />
@@ -1368,10 +1556,6 @@ export default function DaftarUjianPage() {
                   </div>
                 </section>
               )}
-
-              {/* =================================================
-                  FOOTER
-              ================================================= */}
 
               <footer className="border-t border-slate-200/70 py-5">
                 <div className="flex flex-col items-center justify-between gap-2 text-center sm:flex-row sm:text-left">
@@ -1456,41 +1640,41 @@ function InfoItem({
 function LoadingState() {
   return (
     <section className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-      {Array.from({ length: 8 }).map(
-        (_, index) => (
-          <div
-            key={index}
-            className="overflow-hidden rounded-2xl border border-slate-200 bg-white"
-          >
-            <div className="h-1 bg-slate-100" />
+      {Array.from({
+        length: 8,
+      }).map((_, index) => (
+        <div
+          key={index}
+          className="overflow-hidden rounded-2xl border border-slate-200 bg-white"
+        >
+          <div className="h-1 bg-slate-100" />
 
-            <div className="animate-pulse p-5">
-              <div className="flex justify-between">
-                <div className="h-11 w-11 rounded-xl bg-slate-100" />
+          <div className="animate-pulse p-5">
+            <div className="flex justify-between">
+              <div className="h-11 w-11 rounded-xl bg-slate-100" />
 
-                <div className="h-7 w-24 rounded-full bg-slate-100" />
-              </div>
-
-              <div className="mt-5 h-3 w-16 rounded bg-slate-100" />
-
-              <div className="mt-2 h-4 w-4/5 rounded bg-slate-100" />
-
-              <div className="mt-2 h-4 w-3/5 rounded bg-slate-100" />
-
-              <div className="mt-5 grid grid-cols-2 gap-2">
-                <div className="h-12 rounded-xl bg-slate-50" />
-                <div className="h-12 rounded-xl bg-slate-50" />
-                <div className="h-12 rounded-xl bg-slate-50" />
-                <div className="h-12 rounded-xl bg-slate-50" />
-              </div>
-
-              <div className="mt-3 h-12 rounded-xl bg-slate-50" />
-
-              <div className="mt-4 h-10 rounded-xl bg-slate-100" />
+              <div className="h-7 w-24 rounded-full bg-slate-100" />
             </div>
+
+            <div className="mt-5 h-3 w-16 rounded bg-slate-100" />
+
+            <div className="mt-2 h-4 w-4/5 rounded bg-slate-100" />
+
+            <div className="mt-2 h-4 w-3/5 rounded bg-slate-100" />
+
+            <div className="mt-5 grid grid-cols-2 gap-2">
+              <div className="h-12 rounded-xl bg-slate-50" />
+              <div className="h-12 rounded-xl bg-slate-50" />
+              <div className="h-12 rounded-xl bg-slate-50" />
+              <div className="h-12 rounded-xl bg-slate-50" />
+            </div>
+
+            <div className="mt-3 h-12 rounded-xl bg-slate-50" />
+
+            <div className="mt-4 h-10 rounded-xl bg-slate-100" />
           </div>
-        )
-      )}
+        </div>
+      ))}
     </section>
   );
 }
