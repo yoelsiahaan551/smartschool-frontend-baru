@@ -1,11 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import Sidebar from "../../components/Sidebar";
 import Header from "../../components/Header";
+import { apiFetch } from "../../../lib/api";
 import {
-  ArrowLeft,
   User,
   Lock,
   Bell,
@@ -15,44 +14,57 @@ import {
   IdCard,
   Mail,
   School,
-  CalendarDays,
-  MapPin,
   GraduationCap,
   ShieldCheck,
   BookOpen,
-  TrendingUp,
-  ChevronRight,
+  Save,
+  AlertCircle,
+  Loader2,
 } from "lucide-react";
 
-/**
- * Halaman Pengaturan Siswa
- * /siswa/pengaturan
- *
- * Dummy data sementara.
- * Nanti bisa diganti dengan data dari session/API.
- */
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
-const dataPribadi = {
-  nama: "Andi Saputra",
-  nisn: "0091234567",
-  kelas: "9A",
-  email: "siswa@smartschool.com",
-  sekolah: "SMP SmartSchool",
-  tempatLahir: "Jakarta",
-  tanggalLahir: "12 Mei 2012",
-  alamat: "Jakarta Selatan",
-  tahunAjaran: "2026/2027",
-};
+function getAvatarUrl(avatar) {
+  if (!avatar) return "";
 
-const studentStats = {
-  rataRata: "86.7",
-  kehadiran: "92%",
-  tugas: "24",
-};
+  const value = String(avatar).trim();
+
+  if (!value) return "";
+
+  if (
+    value.startsWith("http://") ||
+    value.startsWith("https://")
+  ) {
+    return value;
+  }
+
+  if (value.startsWith("/")) {
+    return `${API_URL}${value}`;
+  }
+
+  return `${API_URL}/${value}`;
+}
+
+function getInitials(name) {
+  if (!name) return "S";
+
+  return name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((word) => word.charAt(0).toUpperCase())
+    .join("");
+}
 
 export default function PengaturanSiswaPage() {
-  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  const [profile, setProfile] = useState(null);
+  const [loadingProfile, setLoadingProfile] = useState(true);
+
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   const notifications = [
     {
@@ -63,66 +75,145 @@ export default function PengaturanSiswaPage() {
     },
   ];
 
+  useEffect(() => {
+    loadProfile();
+  }, []);
+
+  const loadProfile = async () => {
+    try {
+      setLoadingProfile(true);
+      setError("");
+
+      const response = await apiFetch("/api/users/profile", {
+        method: "GET",
+      });
+
+      const userData =
+        response?.data ||
+        response?.user ||
+        response;
+
+      setProfile(userData);
+    } catch (err) {
+      console.error("Gagal mengambil profile:", err);
+
+      setError(
+        err?.message ||
+          "Gagal mengambil data profile. Silakan coba lagi."
+      );
+    } finally {
+      setLoadingProfile(false);
+    }
+  };
+
+  const nama = profile?.namaLengkap || "Siswa";
+  const email = profile?.email || "-";
+  const avatarUrl = getAvatarUrl(profile?.avatar);
+  const initials = getInitials(nama);
+
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">
-      {/* SIDEBAR */}
       <Sidebar
         role="siswa"
         active="profil"
         setActive={() => {}}
         collapsed={!sidebarOpen}
-        setCollapsed={() => setSidebarOpen((prev) => !prev)}
+        setCollapsed={() =>
+          setSidebarOpen((prev) => !prev)
+        }
       />
 
-      {/* MAIN */}
       <div className="flex min-w-0 flex-1 flex-col">
         <Header
-          toggleSidebar={() => setSidebarOpen((prev) => !prev)}
+          toggleSidebar={() =>
+            setSidebarOpen((prev) => !prev)
+          }
           notifications={notifications}
           user={{
-            name: dataPribadi.nama,
-            email: dataPribadi.email,
-            avatar: "AS",
+            name: nama,
+            email,
+            avatar: avatarUrl || initials,
           }}
         />
 
         <main className="flex-1 overflow-y-auto">
           <div className="mx-auto w-full max-w-[1380px] p-4 sm:p-6 lg:p-8">
-            {/* PAGE HEADER */}
-            <div className="mb-6 flex items-center gap-3">
-              
+            <div className="mb-6">
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-blue-600">
+                Profil Saya
+              </p>
 
-              <div className="min-w-0">
-                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-blue-600">
-                  Profil Saya
-                </p>
+              <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900 sm:text-[28px]">
+                Pengaturan
+              </h1>
 
-                <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900 sm:text-[28px]">
-                  Pengaturan
-                </h1>
-
-                <p className="mt-1 text-sm text-slate-500">
-                  Kelola keamanan dan preferensi akun kamu.
-                </p>
-              </div>
+              <p className="mt-1 text-sm text-slate-500">
+                Kelola keamanan dan preferensi akun kamu.
+              </p>
             </div>
 
-            {/* TWO COLUMN LAYOUT */}
-            <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
-              {/* LEFT CONTENT */}
-              <div className="min-w-0 space-y-6">
-                <DataPribadiSection />
+            {error && (
+              <div className="mb-6 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                <AlertCircle
+                  size={18}
+                  className="mt-0.5 shrink-0"
+                />
 
-                <KeamananSection />
+                <div className="min-w-0">
+                  <p className="font-semibold">
+                    Terjadi kesalahan
+                  </p>
 
-                <NotifikasiSection />
+                  <p className="mt-0.5">{error}</p>
+                </div>
               </div>
+            )}
 
-              {/* RIGHT STUDENT CARD */}
-              <aside className="xl:sticky xl:top-6">
-                <StudentCard />
-              </aside>
-            </div>
+            {success && (
+              <div className="mb-6 flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                <Check size={18} />
+
+                <span>{success}</span>
+              </div>
+            )}
+
+            {loadingProfile ? (
+              <div className="flex min-h-[400px] items-center justify-center rounded-2xl border border-slate-200 bg-white">
+                <div className="flex flex-col items-center gap-3 text-slate-500">
+                  <Loader2
+                    size={28}
+                    className="animate-spin text-blue-600"
+                  />
+
+                  <p className="text-sm">
+                    Memuat data profile...
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
+                <div className="min-w-0 space-y-6">
+                  <DataPribadiSection
+                    profile={profile}
+                    onProfileUpdated={setProfile}
+                    onSuccess={setSuccess}
+                    onError={setError}
+                  />
+
+                  <KeamananSection />
+
+                  <NotifikasiSection />
+                </div>
+
+                <aside className="xl:sticky xl:top-6">
+                  <StudentCard
+                    profile={profile}
+                    avatarUrl={avatarUrl}
+                    initials={initials}
+                  />
+                </aside>
+              </div>
+            )}
           </div>
         </main>
       </div>
@@ -160,7 +251,9 @@ function SettingsCard({
         </div>
       </div>
 
-      <div className="p-5 sm:p-6">{children}</div>
+      <div className="p-5 sm:p-6">
+        {children}
+      </div>
     </section>
   );
 }
@@ -173,16 +266,31 @@ function SaveButton({
   saved,
   onClick,
   disabled = false,
+  loading = false,
 }) {
   return (
     <button
       onClick={onClick}
-      disabled={disabled}
+      disabled={disabled || loading}
       type="button"
       className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#155DFC] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0D47C9] disabled:cursor-not-allowed disabled:opacity-50"
     >
-      {saved && <Check size={15} />}
-      {saved ? "Tersimpan" : "Simpan Perubahan"}
+      {loading ? (
+        <Loader2
+          size={15}
+          className="animate-spin"
+        />
+      ) : saved ? (
+        <Check size={15} />
+      ) : (
+        <Save size={15} />
+      )}
+
+      {loading
+        ? "Menyimpan..."
+        : saved
+        ? "Tersimpan"
+        : "Simpan Perubahan"}
     </button>
   );
 }
@@ -191,12 +299,20 @@ function SaveButton({
    STUDENT CARD
 ========================================================= */
 
-function StudentCard() {
+function StudentCard({
+  profile,
+  avatarUrl,
+  initials,
+}) {
+  const nama = profile?.namaLengkap || "Siswa";
+  const nisn = profile?.nisn || "-";
+  const email = profile?.email || "-";
+  const sekolah = profile?.sekolah?.nama || "-";
+  const status = profile?.status || "-";
+
   return (
     <div className="overflow-hidden rounded-[24px] border border-slate-200/80 bg-white shadow-sm">
-      {/* CARD HEADER */}
       <div className="relative overflow-hidden bg-[#155DFC] px-6 pb-20 pt-6">
-        {/* Decorative shapes */}
         <div className="absolute -right-14 -top-14 h-40 w-40 rounded-full bg-white/10" />
 
         <div className="absolute -bottom-20 -left-10 h-40 w-40 rounded-full bg-white/5" />
@@ -220,96 +336,69 @@ function StudentCard() {
         </div>
       </div>
 
-      {/* CARD BODY */}
       <div className="relative px-5 pb-5 sm:px-6">
-        {/* AVATAR */}
         <div className="-mt-14 flex items-end justify-between">
-          <div className="flex h-24 w-24 items-center justify-center rounded-2xl border-4 border-white bg-gradient-to-br from-blue-100 to-blue-50 text-2xl font-bold text-blue-700 shadow-md">
-            AS
-          </div>
+          {avatarUrl ? (
+            <img
+              src={avatarUrl}
+              alt={`Foto ${nama}`}
+              className="h-24 w-24 rounded-2xl border-4 border-white object-cover shadow-md"
+              onError={(event) => {
+                event.currentTarget.style.display =
+                  "none";
+              }}
+            />
+          ) : (
+            <div className="flex h-24 w-24 items-center justify-center rounded-2xl border-4 border-white bg-gradient-to-br from-blue-100 to-blue-50 text-2xl font-bold text-blue-700 shadow-md">
+              {initials}
+            </div>
+          )}
 
-          <div className="mb-1 inline-flex items-center gap-1.5 rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-1.5 text-[11px] font-semibold text-emerald-700">
+          <div className="mb-1 inline-flex items-center gap-1.5 rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-1.5 text-[11px] font-semibold capitalize text-emerald-700">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-            Siswa Aktif
+
+            {status}
           </div>
         </div>
 
-        {/* NAME */}
         <div className="mt-4">
           <h2 className="text-xl font-bold tracking-tight text-slate-900">
-            {dataPribadi.nama}
+            {nama}
           </h2>
 
           <p className="mt-1 text-sm text-slate-500">
-            Siswa · Kelas {dataPribadi.kelas}
+            {profile?.peran?.namaTampilan ||
+              profile?.peran?.nama ||
+              "Siswa"}
           </p>
         </div>
 
-        {/* INFO */}
         <div className="mt-5 divide-y divide-slate-100 rounded-2xl border border-slate-100 bg-slate-50/70">
           <StudentInfo
             icon={IdCard}
             label="NISN"
-            value={dataPribadi.nisn}
+            value={nisn}
           />
 
           <StudentInfo
             icon={School}
             label="Sekolah"
-            value={dataPribadi.sekolah}
+            value={sekolah}
           />
 
           <StudentInfo
             icon={Mail}
             label="Email"
-            value={dataPribadi.email}
+            value={email}
           />
 
           <StudentInfo
-            icon={CalendarDays}
-            label="Tahun Ajaran"
-            value={dataPribadi.tahunAjaran}
+            icon={User}
+            label="Username"
+            value={profile?.namaPengguna || "-"}
           />
         </div>
 
-        {/* ACADEMIC SUMMARY */}
-        <div className="mt-5">
-          <div className="mb-3 flex items-center justify-between">
-            <div>
-              <p className="text-sm font-bold text-slate-800">
-                Ringkasan Akademik
-              </p>
-
-              <p className="mt-0.5 text-xs text-slate-500">
-                Performa belajar kamu
-              </p>
-            </div>
-
-            <TrendingUp
-              size={17}
-              className="text-blue-500"
-            />
-          </div>
-
-          <div className="grid grid-cols-3 gap-2">
-            <MiniStat
-              value={studentStats.rataRata}
-              label="Rata-rata"
-            />
-
-            <MiniStat
-              value={studentStats.kehadiran}
-              label="Kehadiran"
-            />
-
-            <MiniStat
-              value={studentStats.tugas}
-              label="Tugas"
-            />
-          </div>
-        </div>
-
-        {/* SECURITY STATUS */}
         <div className="mt-5 rounded-2xl border border-blue-100 bg-blue-50/70 p-4">
           <div className="flex items-start gap-3">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-blue-600 shadow-sm">
@@ -322,14 +411,13 @@ function StudentCard() {
               </p>
 
               <p className="mt-1 text-[11px] leading-5 text-slate-500">
-                Pastikan kata sandi akun kamu tetap aman dan
-                tidak dibagikan kepada orang lain.
+                Pastikan kata sandi akun kamu tetap aman
+                dan tidak dibagikan kepada orang lain.
               </p>
             </div>
           </div>
         </div>
 
-        {/* FOOTER */}
         <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
           <div className="flex items-center gap-2">
             <BookOpen
@@ -343,7 +431,7 @@ function StudentCard() {
           </div>
 
           <span className="text-[11px] font-semibold text-blue-600">
-            {dataPribadi.kelas}
+            {profile?.sekolah?.kode || "STUDENT"}
           </span>
         </div>
       </div>
@@ -375,91 +463,305 @@ function StudentInfo({
   );
 }
 
-function MiniStat({ value, label }) {
-  return (
-    <div className="rounded-xl border border-slate-100 bg-white px-2 py-3 text-center">
-      <p className="text-sm font-bold text-slate-900">
-        {value}
-      </p>
-
-      <p className="mt-0.5 text-[9px] font-medium text-slate-400 sm:text-[10px]">
-        {label}
-      </p>
-    </div>
-  );
-}
-
 /* =========================================================
    DATA PRIBADI
 ========================================================= */
 
-function DataPribadiSection() {
-  const fields = [
-    {
-      label: "Nama Lengkap",
-      value: dataPribadi.nama,
-      icon: User,
-    },
-    {
-      label: "NISN",
-      value: dataPribadi.nisn,
-      icon: IdCard,
-    },
-    {
-      label: "Kelas",
-      value: dataPribadi.kelas,
-      icon: School,
-    },
-    {
-      label: "Email",
-      value: dataPribadi.email,
-      icon: Mail,
-    },
-  ];
+function DataPribadiSection({
+  profile,
+  onProfileUpdated,
+  onSuccess,
+  onError,
+}) {
+  const [namaLengkap, setNamaLengkap] = useState(
+    profile?.namaLengkap || ""
+  );
+
+  const [noTelepon, setNoTelepon] = useState(
+    profile?.noTelepon || ""
+  );
+
+  const [alamat, setAlamat] = useState(
+    profile?.alamat || ""
+  );
+
+  const [alamatDomisili, setAlamatDomisili] =
+    useState(profile?.alamatDomisili || "");
+
+  const [tempatLahir, setTempatLahir] =
+    useState(profile?.tempatLahir || "");
+
+  const [tanggalLahir, setTanggalLahir] = useState(
+    profile?.tanggalLahir
+      ? new Date(profile.tanggalLahir)
+          .toISOString()
+          .split("T")[0]
+      : ""
+  );
+
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    setNamaLengkap(profile?.namaLengkap || "");
+    setNoTelepon(profile?.noTelepon || "");
+    setAlamat(profile?.alamat || "");
+    setAlamatDomisili(
+      profile?.alamatDomisili || ""
+    );
+    setTempatLahir(profile?.tempatLahir || "");
+
+    setTanggalLahir(
+      profile?.tanggalLahir
+        ? new Date(profile.tanggalLahir)
+            .toISOString()
+            .split("T")[0]
+        : ""
+    );
+  }, [profile]);
+
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      onError("");
+      onSuccess("");
+
+      const response = await apiFetch(
+        "/api/users/profile",
+        {
+          method: "PUT",
+          body: JSON.stringify({
+            namaLengkap,
+            noTelepon,
+            alamat,
+            alamatDomisili,
+            tempatLahir,
+            tanggalLahir:
+              tanggalLahir || undefined,
+          }),
+        }
+      );
+
+      const updatedProfile =
+        response?.data ||
+        response?.user ||
+        response;
+
+      onProfileUpdated((current) => ({
+        ...current,
+        ...updatedProfile,
+      }));
+
+      setSaved(true);
+      onSuccess(
+        "Data profile berhasil diperbarui."
+      );
+
+      setTimeout(() => {
+        setSaved(false);
+        onSuccess("");
+      }, 2500);
+    } catch (err) {
+      console.error(
+        "Gagal update profile:",
+        err
+      );
+
+      onError(
+        err?.message ||
+          "Gagal menyimpan perubahan profile."
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <SettingsCard
       icon={User}
       title="Data Pribadi"
-      desc="Data ini dikelola oleh sekolah dan tidak dapat diubah sendiri"
+      desc="Data akun kamu dapat diperbarui melalui profile"
     >
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {fields.map(
-          ({ label, value, icon: Icon }) => (
-            <div
-              key={label}
-              className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/70 px-3.5 py-3 transition hover:border-blue-100 hover:bg-blue-50/30"
-            >
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500">
-                <Icon size={15} />
-              </div>
+      <div className="space-y-5">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <ReadOnlyField
+            label="NISN"
+            value={profile?.nisn || "-"}
+            icon={IdCard}
+          />
 
-              <div className="min-w-0">
-                <p className="text-[11px] font-medium text-slate-400">
-                  {label}
-                </p>
+          <ReadOnlyField
+            label="Email"
+            value={profile?.email || "-"}
+            icon={Mail}
+          />
 
-                <p className="mt-0.5 truncate text-sm font-semibold text-slate-800">
-                  {value}
-                </p>
-              </div>
+          <ReadOnlyField
+            label="Username"
+            value={
+              profile?.namaPengguna || "-"
+            }
+            icon={User}
+          />
+
+          <ReadOnlyField
+            label="Sekolah"
+            value={
+              profile?.sekolah?.nama || "-"
+            }
+            icon={School}
+          />
+        </div>
+
+        <div className="border-t border-slate-100 pt-5">
+          <p className="mb-4 text-xs font-semibold uppercase tracking-wide text-slate-400">
+            Data yang dapat diperbarui
+          </p>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <InputField
+              label="Nama Lengkap"
+              value={namaLengkap}
+              onChange={setNamaLengkap}
+            />
+
+            <InputField
+              label="No. Telepon"
+              value={noTelepon}
+              onChange={setNoTelepon}
+              placeholder="Masukkan nomor telepon"
+            />
+
+            <InputField
+              label="Tempat Lahir"
+              value={tempatLahir}
+              onChange={setTempatLahir}
+              placeholder="Masukkan tempat lahir"
+            />
+
+            <div>
+              <label className="text-xs font-semibold text-slate-600">
+                Tanggal Lahir
+              </label>
+
+              <input
+                type="date"
+                value={tanggalLahir}
+                onChange={(event) =>
+                  setTanggalLahir(
+                    event.target.value
+                  )
+                }
+                className="mt-1.5 h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm text-slate-800 outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
+              />
             </div>
-          )
-        )}
-      </div>
+          </div>
 
-      <div className="mt-4 flex items-start gap-2 rounded-xl border border-slate-100 bg-slate-50 px-3.5 py-3">
-        <School
-          size={14}
-          className="mt-0.5 shrink-0 text-slate-400"
-        />
+          <div className="mt-4 grid grid-cols-1 gap-4">
+            <TextAreaField
+              label="Alamat"
+              value={alamat}
+              onChange={setAlamat}
+              placeholder="Masukkan alamat"
+            />
 
-        <p className="text-xs leading-5 text-slate-500">
-          Ada data yang salah atau perlu diperbarui? Hubungi
-          wali kelas atau tata usaha sekolah.
-        </p>
+            <TextAreaField
+              label="Alamat Domisili"
+              value={alamatDomisili}
+              onChange={setAlamatDomisili}
+              placeholder="Masukkan alamat domisili"
+            />
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs leading-5 text-slate-400">
+            Data seperti NISN, email, username, dan
+            sekolah mengikuti data dari sekolah.
+          </p>
+
+          <SaveButton
+            saved={saved}
+            loading={saving}
+            disabled={!namaLengkap.trim()}
+            onClick={handleSave}
+          />
+        </div>
       </div>
     </SettingsCard>
+  );
+}
+
+function ReadOnlyField({
+  label,
+  value,
+  icon: Icon,
+}) {
+  return (
+    <div className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/70 px-3.5 py-3">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500">
+        <Icon size={15} />
+      </div>
+
+      <div className="min-w-0">
+        <p className="text-[11px] font-medium text-slate-400">
+          {label}
+        </p>
+
+        <p className="mt-0.5 truncate text-sm font-semibold text-slate-800">
+          {value}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function InputField({
+  label,
+  value,
+  onChange,
+  placeholder,
+}) {
+  return (
+    <div>
+      <label className="text-xs font-semibold text-slate-600">
+        {label}
+      </label>
+
+      <input
+        value={value}
+        onChange={(event) =>
+          onChange(event.target.value)
+        }
+        placeholder={placeholder}
+        className="mt-1.5 h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm text-slate-800 outline-none transition placeholder:text-slate-300 focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
+      />
+    </div>
+  );
+}
+
+function TextAreaField({
+  label,
+  value,
+  onChange,
+  placeholder,
+}) {
+  return (
+    <div>
+      <label className="text-xs font-semibold text-slate-600">
+        {label}
+      </label>
+
+      <textarea
+        value={value}
+        onChange={(event) =>
+          onChange(event.target.value)
+        }
+        placeholder={placeholder}
+        rows={3}
+        className="mt-1.5 w-full resize-none rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-300 focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
+      />
+    </div>
   );
 }
 
@@ -472,27 +774,17 @@ function KeamananSection() {
   const [sandiBaru, setSandiBaru] = useState("");
   const [konfirmasiSandi, setKonfirmasiSandi] =
     useState("");
+
   const [showSandi, setShowSandi] = useState(false);
-  const [saved, setSaved] = useState(false);
 
   const cocok =
     sandiBaru.length > 0 &&
     sandiBaru === konfirmasiSandi;
 
   const handleSave = () => {
-    if (!cocok || !sandiLama) return;
-
-    // TODO:
-    // Kirim sandiLama dan sandiBaru ke API.
-    setSaved(true);
-
-    setSandiLama("");
-    setSandiBaru("");
-    setKonfirmasiSandi("");
-
-    setTimeout(() => {
-      setSaved(false);
-    }, 2000);
+    alert(
+      "Endpoint ubah kata sandi belum tersedia pada backend yang kamu kirim."
+    );
   };
 
   return (
@@ -543,15 +835,19 @@ function KeamananSection() {
 
         <div className="flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs leading-5 text-slate-400">
-            Gunakan kata sandi yang sulit ditebak dan jangan
-            membagikannya kepada orang lain.
+            Fitur ubah kata sandi menunggu endpoint
+            backend.
           </p>
 
-          <SaveButton
-            saved={saved}
-            disabled={!cocok || !sandiLama}
+          <button
+            type="button"
             onClick={handleSave}
-          />
+            disabled={!cocok || !sandiLama}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#155DFC] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0D47C9] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Lock size={15} />
+            Ubah Kata Sandi
+          </button>
         </div>
       </div>
     </SettingsCard>
@@ -574,7 +870,9 @@ function PasswordInput({
       <div className="relative mt-1.5">
         <input
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(event) =>
+            onChange(event.target.value)
+          }
           type={show ? "text" : "password"}
           className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 pr-11 text-sm text-slate-800 outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
         />
@@ -583,11 +881,6 @@ function PasswordInput({
           onClick={onToggle}
           className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-700"
           type="button"
-          aria-label={
-            show
-              ? "Sembunyikan kata sandi"
-              : "Tampilkan kata sandi"
-          }
         >
           {show ? (
             <EyeOff size={16} />
@@ -652,18 +945,15 @@ function NotifikasiSection() {
   const [materiBaru, setMateriBaru] = useState(true);
   const [pengingatUjian, setPengingatUjian] =
     useState(true);
-  const [pengumuman, setPengumuman] = useState(false);
+  const [pengumuman, setPengumuman] =
+    useState(false);
+
   const [saved, setSaved] = useState(false);
 
   const handleSave = () => {
-    // TODO:
-    // Kirim preferensi notifikasi ke API.
-
-    setSaved(true);
-
-    setTimeout(() => {
-      setSaved(false);
-    }, 2000);
+    alert(
+      "Endpoint preferensi notifikasi belum tersedia pada backend yang dikirim."
+    );
   };
 
   return (
@@ -703,10 +993,14 @@ function NotifikasiSection() {
       </div>
 
       <div className="mt-4 flex justify-end border-t border-slate-100 pt-4">
-        <SaveButton
-          saved={saved}
+        <button
+          type="button"
           onClick={handleSave}
-        />
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#155DFC] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0D47C9]"
+        >
+          {saved && <Check size={15} />}
+          Simpan Perubahan
+        </button>
       </div>
     </SettingsCard>
   );

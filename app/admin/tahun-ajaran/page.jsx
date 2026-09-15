@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+
 import {
   CalendarDays,
   Plus,
@@ -62,7 +63,7 @@ export default function AdminTahunAjaranPage() {
   const itemsPerPage = 8;
 
   // =========================================================
-  // HELPER
+  // HELPER RESPONSE
   // =========================================================
 
   const extractArray = (response) => {
@@ -82,6 +83,36 @@ export default function AdminTahunAjaranPage() {
   };
 
   // =========================================================
+  // NORMALIZE TAHUN AJARAN
+  // =========================================================
+
+  const normalizeTahunAjaran = (item) => {
+    if (!item) return null;
+
+    return {
+      ...item,
+
+      // BE menggunakan tahunAjaran
+      tahunAjaran:
+        item?.tahunAjaran ??
+        item?.nama ??
+        item?.tahun_ajaran ??
+        "",
+
+      semester:
+        item?.semester ?? "",
+
+      status:
+        item?.status ?? "tidak_aktif",
+
+      sekolahId:
+        item?.sekolahId ??
+        item?.sekolah_id ??
+        "",
+    };
+  };
+
+  // =========================================================
   // LOAD DATA
   // =========================================================
 
@@ -97,6 +128,7 @@ export default function AdminTahunAjaranPage() {
 
       const [tahunResponse, kelasResponse] = await Promise.all([
         getTahunAjaran(),
+
         getKelas({
           page: 1,
           limit: 1000,
@@ -105,13 +137,35 @@ export default function AdminTahunAjaranPage() {
         }),
       ]);
 
+      console.log(
+        "[TAHUN AJARAN] Response:",
+        tahunResponse
+      );
+
+      console.log(
+        "[KELAS] Response:",
+        kelasResponse
+      );
+
       const tahunData = extractArray(tahunResponse);
       const kelasData = extractArray(kelasResponse);
 
-      setTahunAjaran(tahunData);
+      const normalizedTahun = tahunData
+        .map(normalizeTahunAjaran)
+        .filter(Boolean);
+
+      console.log(
+        "[TAHUN AJARAN] Data setelah normalize:",
+        normalizedTahun
+      );
+
+      setTahunAjaran(normalizedTahun);
       setKelas(kelasData);
     } catch (err) {
-      console.error("Gagal mengambil data:", err);
+      console.error(
+        "Gagal mengambil data tahun ajaran:",
+        err
+      );
 
       setTahunAjaran([]);
       setKelas([]);
@@ -132,7 +186,7 @@ export default function AdminTahunAjaranPage() {
   }, []);
 
   // =========================================================
-  // KELOMPOKKAN KELAS
+  // KELOMPOKKAN KELAS BERDASARKAN TAHUN AJARAN
   // =========================================================
 
   const kelasByTahunAjaran = useMemo(() => {
@@ -140,11 +194,13 @@ export default function AdminTahunAjaranPage() {
 
     kelas.forEach((item) => {
       const tahunAjaranId =
-        item?.tahunAjaranId ||
-        item?.tahun_ajaran_id ||
+        item?.tahunAjaranId ??
+        item?.tahun_ajaran_id ??
         item?.tahunAjaran?.id;
 
-      if (!tahunAjaranId) return;
+      if (!tahunAjaranId) {
+        return;
+      }
 
       if (!grouped[tahunAjaranId]) {
         grouped[tahunAjaranId] = [];
@@ -163,40 +219,55 @@ export default function AdminTahunAjaranPage() {
   const filteredData = useMemo(() => {
     let result = [...tahunAjaran];
 
+    // FILTER STATUS
     if (filterStatus !== "semua") {
       result = result.filter(
-        (item) => item?.status === filterStatus
+        (item) =>
+          String(item?.status ?? "").toLowerCase() ===
+          filterStatus.toLowerCase()
       );
     }
 
+    // FILTER SEMESTER
     if (filterSemester !== "semua") {
       result = result.filter(
-        (item) => item?.semester === filterSemester
+        (item) =>
+          String(item?.semester ?? "").toLowerCase() ===
+          filterSemester.toLowerCase()
       );
     }
 
+    // SEARCH
     const keyword = search.trim().toLowerCase();
 
     if (keyword) {
       result = result.filter((item) => {
-        const nama = String(item?.nama ?? "").toLowerCase();
+        const namaTahun = String(
+          item?.tahunAjaran ?? ""
+        ).toLowerCase();
 
         const semester = String(
           item?.semester ?? ""
         ).toLowerCase();
 
+        const status = String(
+          item?.status ?? ""
+        ).toLowerCase();
+
         const daftarKelas =
           kelasByTahunAjaran[item?.id] || [];
 
-        const kelasMatch = daftarKelas.some((kelasItem) =>
-          String(kelasItem?.nama ?? "")
-            .toLowerCase()
-            .includes(keyword)
+        const kelasMatch = daftarKelas.some(
+          (kelasItem) =>
+            String(kelasItem?.nama ?? "")
+              .toLowerCase()
+              .includes(keyword)
         );
 
         return (
-          nama.includes(keyword) ||
+          namaTahun.includes(keyword) ||
           semester.includes(keyword) ||
+          status.includes(keyword) ||
           kelasMatch
         );
       });
@@ -217,7 +288,9 @@ export default function AdminTahunAjaranPage() {
 
   const totalPages = Math.max(
     1,
-    Math.ceil(filteredData.length / itemsPerPage)
+    Math.ceil(
+      filteredData.length / itemsPerPage
+    )
   );
 
   const safeCurrentPage = Math.min(
@@ -226,12 +299,14 @@ export default function AdminTahunAjaranPage() {
   );
 
   const startIndex =
-    (safeCurrentPage - 1) * itemsPerPage;
+    (safeCurrentPage - 1) *
+    itemsPerPage;
 
-  const currentItems = filteredData.slice(
-    startIndex,
-    startIndex + itemsPerPage
-  );
+  const currentItems =
+    filteredData.slice(
+      startIndex,
+      startIndex + itemsPerPage
+    );
 
   useEffect(() => {
     if (currentPage > totalPages) {
@@ -244,21 +319,24 @@ export default function AdminTahunAjaranPage() {
   // =========================================================
 
   const activeYear = tahunAjaran.find(
-    (item) => item?.status === "aktif"
+    (item) =>
+      item?.status === "aktif"
   );
 
   const activeCount = tahunAjaran.filter(
-    (item) => item?.status === "aktif"
+    (item) =>
+      item?.status === "aktif"
   ).length;
 
   const inactiveCount = tahunAjaran.filter(
-    (item) => item?.status === "tidak_aktif"
+    (item) =>
+      item?.status === "tidak_aktif"
   ).length;
 
   const totalKelas = kelas.length;
 
   // =========================================================
-  // TOGGLE
+  // TOGGLE ROW
   // =========================================================
 
   const toggleRow = (id) => {
@@ -273,23 +351,39 @@ export default function AdminTahunAjaranPage() {
   // =========================================================
 
   const handleSetActive = async (item) => {
-    if (item?.status === "aktif") return;
+    if (!item?.id) {
+      return;
+    }
+
+    if (item?.status === "aktif") {
+      return;
+    }
 
     const confirmed = window.confirm(
-      `Aktifkan tahun ajaran "${item?.nama}" semester ${item?.semester}?`
+      `Aktifkan tahun ajaran "${item?.tahunAjaran}" semester ${item?.semester}?`
     );
 
-    if (!confirmed) return;
+    if (!confirmed) {
+      return;
+    }
 
     try {
       setError("");
 
-      await updateTahunAjaran(item.id, {
-        status: "aktif",
-      });
+      await updateTahunAjaran(
+        item.id,
+        {
+          status: "aktif",
+        }
+      );
 
       await loadData(true);
     } catch (err) {
+      console.error(
+        "Gagal mengaktifkan tahun ajaran:",
+        err
+      );
+
       setError(
         err instanceof Error
           ? err.message
@@ -303,33 +397,38 @@ export default function AdminTahunAjaranPage() {
   // =========================================================
 
   const handleDelete = async (item) => {
+    if (!item?.id) {
+      return;
+    }
+
     const message =
       item?.status === "aktif"
-        ? `Tahun ajaran "${item?.nama}" sedang aktif. Yakin ingin menghapusnya?`
-        : `Yakin ingin menghapus tahun ajaran "${item?.nama}" semester ${item?.semester}?`;
+        ? `Tahun ajaran "${item?.tahunAjaran}" sedang aktif. Yakin ingin menghapusnya?`
+        : `Yakin ingin menghapus tahun ajaran "${item?.tahunAjaran}" semester ${item?.semester}?`;
 
-    if (!window.confirm(message)) return;
+    if (!window.confirm(message)) {
+      return;
+    }
 
     try {
       setError("");
 
-      await deleteTahunAjaran(item.id);
-
-      const updated = tahunAjaran.filter(
-        (row) => row.id !== item.id
+      await deleteTahunAjaran(
+        item.id
       );
 
-      setTahunAjaran(updated);
-
-      const nextTotalPages = Math.max(
-        1,
-        Math.ceil(updated.length / itemsPerPage)
+      setTahunAjaran((prev) =>
+        prev.filter(
+          (row) =>
+            row.id !== item.id
+        )
       );
-
-      if (currentPage > nextTotalPages) {
-        setCurrentPage(nextTotalPages);
-      }
     } catch (err) {
+      console.error(
+        "Gagal menghapus tahun ajaran:",
+        err
+      );
+
       setError(
         err instanceof Error
           ? err.message
@@ -339,7 +438,7 @@ export default function AdminTahunAjaranPage() {
   };
 
   // =========================================================
-  // RESET
+  // RESET FILTER
   // =========================================================
 
   const handleResetSearch = () => {
@@ -366,12 +465,15 @@ export default function AdminTahunAjaranPage() {
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
           <Header
             toggleSidebar={() =>
-              setIsCollapsed((prev) => !prev)
+              setIsCollapsed(
+                (prev) => !prev
+              )
             }
             notifications={[]}
             user={{
               name: "Admin Sekolah",
-              email: "admin@smartschool.com",
+              email:
+                "admin@smartschool.com",
               avatar: "AD",
             }}
           />
@@ -415,12 +517,15 @@ export default function AdminTahunAjaranPage() {
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <Header
           toggleSidebar={() =>
-            setIsCollapsed((prev) => !prev)
+            setIsCollapsed(
+              (prev) => !prev
+            )
           }
           notifications={[]}
           user={{
             name: "Admin Sekolah",
-            email: "admin@smartschool.com",
+            email:
+              "admin@smartschool.com",
             avatar: "AD",
           }}
         />
@@ -435,15 +540,11 @@ export default function AdminTahunAjaranPage() {
 
               <section className="relative overflow-hidden rounded-[20px] bg-gradient-to-br from-[#111827] via-[#050d27] to-[#0c152e] px-6 py-7 shadow-[0_12px_30px_rgba(15,23,42,0.16)] sm:px-8 sm:py-8">
 
-                {/* decorative glow */}
-
                 <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-blue-500/10 blur-3xl" />
 
                 <div className="pointer-events-none absolute -bottom-32 left-1/3 h-72 w-72 rounded-full bg-indigo-500/10 blur-3xl" />
 
                 <div className="relative z-10">
-
-                  {/* TITLE */}
 
                   <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
 
@@ -468,19 +569,20 @@ export default function AdminTahunAjaranPage() {
                         </div>
 
                         <p className="mt-1.5 max-w-2xl text-sm leading-6 text-blue-200/80">
-                          Kelola periode akademik, semester,
-                          dan kelas sekolah dalam satu tempat.
+                          Kelola periode akademik,
+                          semester, dan kelas sekolah
+                          dalam satu tempat.
                         </p>
 
                       </div>
                     </div>
 
-                    {/* BUTTON */}
-
                     <div className="flex shrink-0 flex-wrap items-center gap-2">
 
                       <button
-                        onClick={() => loadData(true)}
+                        onClick={() =>
+                          loadData(true)
+                        }
                         disabled={refreshing}
                         className="inline-flex h-11 items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-4 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-50"
                       >
@@ -501,7 +603,6 @@ export default function AdminTahunAjaranPage() {
                         className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#2563EB] px-5 text-sm font-semibold text-white shadow-lg shadow-blue-950/20 transition hover:bg-[#3B82F6]"
                       >
                         <Plus size={18} />
-
                         Tambah Tahun Ajaran
                       </Link>
 
@@ -511,8 +612,6 @@ export default function AdminTahunAjaranPage() {
                   {/* STATS */}
 
                   <div className="mt-7 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-
-                    {/* TOTAL */}
 
                     <div className="rounded-xl border border-white/10 bg-white/[0.06] p-4 backdrop-blur-sm">
                       <div className="flex items-center gap-3">
@@ -534,8 +633,6 @@ export default function AdminTahunAjaranPage() {
                       </div>
                     </div>
 
-                    {/* ACTIVE */}
-
                     <div className="rounded-xl border border-white/10 bg-white/[0.06] p-4 backdrop-blur-sm">
                       <div className="flex items-center gap-3">
 
@@ -556,8 +653,6 @@ export default function AdminTahunAjaranPage() {
                       </div>
                     </div>
 
-                    {/* INACTIVE */}
-
                     <div className="rounded-xl border border-white/10 bg-white/[0.06] p-4 backdrop-blur-sm">
                       <div className="flex items-center gap-3">
 
@@ -577,8 +672,6 @@ export default function AdminTahunAjaranPage() {
 
                       </div>
                     </div>
-
-                    {/* KELAS */}
 
                     <div className="rounded-xl border border-white/10 bg-white/[0.06] p-4 backdrop-blur-sm">
                       <div className="flex items-center gap-3">
@@ -616,6 +709,7 @@ export default function AdminTahunAjaranPage() {
                   </div>
 
                   <div className="min-w-0 flex-1">
+
                     <p className="text-sm font-semibold">
                       Terjadi kesalahan
                     </p>
@@ -623,10 +717,13 @@ export default function AdminTahunAjaranPage() {
                     <p className="mt-0.5 text-sm text-red-600">
                       {error}
                     </p>
+
                   </div>
 
                   <button
-                    onClick={() => setError("")}
+                    onClick={() =>
+                      setError("")
+                    }
                     className="rounded-lg p-1 text-red-400 transition hover:bg-red-100 hover:text-red-600"
                   >
                     <X size={18} />
@@ -642,8 +739,6 @@ export default function AdminTahunAjaranPage() {
               <section className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_5px_20px_rgba(15,23,42,0.05)] sm:p-5">
 
                 <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-
-                  {/* FILTER LEFT */}
 
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
 
@@ -670,7 +765,9 @@ export default function AdminTahunAjaranPage() {
                     <select
                       value={filterStatus}
                       onChange={(e) => {
-                        setFilterStatus(e.target.value);
+                        setFilterStatus(
+                          e.target.value
+                        );
                         setCurrentPage(1);
                       }}
                       className="h-10 rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-medium text-slate-700 outline-none transition hover:border-slate-300 focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10"
@@ -691,7 +788,9 @@ export default function AdminTahunAjaranPage() {
                     <select
                       value={filterSemester}
                       onChange={(e) => {
-                        setFilterSemester(e.target.value);
+                        setFilterSemester(
+                          e.target.value
+                        );
                         setCurrentPage(1);
                       }}
                       className="h-10 rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-medium text-slate-700 outline-none transition hover:border-slate-300 focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10"
@@ -724,7 +823,9 @@ export default function AdminTahunAjaranPage() {
                       type="text"
                       value={search}
                       onChange={(e) => {
-                        setSearch(e.target.value);
+                        setSearch(
+                          e.target.value
+                        );
                         setCurrentPage(1);
                       }}
                       placeholder="Cari tahun ajaran atau kelas..."
@@ -733,7 +834,9 @@ export default function AdminTahunAjaranPage() {
 
                     {search && (
                       <button
-                        onClick={handleResetSearch}
+                        onClick={
+                          handleResetSearch
+                        }
                         className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
                       >
                         <X size={15} />
@@ -752,22 +855,29 @@ export default function AdminTahunAjaranPage() {
               <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
 
                 <div>
+
                   <h2 className="text-xl font-bold text-[#0F172A]">
                     Daftar Tahun Ajaran
                   </h2>
 
                   <p className="mt-1 text-sm text-slate-400">
                     {filteredData.length} periode ditampilkan
-                    {tahunAjaran.length !== filteredData.length &&
+
+                    {tahunAjaran.length !==
+                      filteredData.length &&
                       ` dari ${tahunAjaran.length} data`}
                   </p>
+
                 </div>
 
                 {(search ||
                   filterStatus !== "semua" ||
-                  filterSemester !== "semua") && (
+                  filterSemester !==
+                    "semua") && (
                   <button
-                    onClick={handleResetSearch}
+                    onClick={
+                      handleResetSearch
+                    }
                     className="self-start text-sm font-medium text-[#2563EB] hover:text-blue-700 sm:self-auto"
                   >
                     Reset filter
@@ -787,6 +897,7 @@ export default function AdminTahunAjaranPage() {
                   <table className="w-full min-w-[950px] border-collapse">
 
                     <thead>
+
                       <tr className="border-b border-slate-100 bg-slate-50/80">
 
                         <th className="w-16 px-5 py-4 text-center text-[11px] font-bold uppercase tracking-wide text-slate-400">
@@ -814,12 +925,15 @@ export default function AdminTahunAjaranPage() {
                         </th>
 
                       </tr>
+
                     </thead>
 
                     <tbody>
 
-                      {currentItems.length === 0 ? (
+                      {currentItems.length ===
+                      0 ? (
                         <tr>
+
                           <td
                             colSpan={6}
                             className="px-5 py-20 text-center"
@@ -828,30 +942,40 @@ export default function AdminTahunAjaranPage() {
                             <div className="mx-auto max-w-sm">
 
                               <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-50 text-slate-300">
-                                <CalendarDays size={28} />
+                                <CalendarDays
+                                  size={28}
+                                />
                               </div>
 
                               <p className="mt-4 text-base font-semibold text-slate-700">
                                 {search ||
-                                filterStatus !== "semua" ||
-                                filterSemester !== "semua"
+                                filterStatus !==
+                                  "semua" ||
+                                filterSemester !==
+                                  "semua"
                                   ? "Data tidak ditemukan"
                                   : "Belum ada tahun ajaran"}
                               </p>
 
                               <p className="mt-1 text-sm leading-6 text-slate-400">
                                 {search ||
-                                filterStatus !== "semua" ||
-                                filterSemester !== "semua"
+                                filterStatus !==
+                                  "semua" ||
+                                filterSemester !==
+                                  "semua"
                                   ? "Coba ubah filter atau kata kunci pencarian."
                                   : "Tambahkan tahun ajaran baru untuk memulai."}
                               </p>
 
                               {(search ||
-                                filterStatus !== "semua" ||
-                                filterSemester !== "semua") && (
+                                filterStatus !==
+                                  "semua" ||
+                                filterSemester !==
+                                  "semua") && (
                                 <button
-                                  onClick={handleResetSearch}
+                                  onClick={
+                                    handleResetSearch
+                                  }
                                   className="mt-5 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm transition hover:bg-slate-50"
                                 >
                                   Reset Filter
@@ -861,305 +985,424 @@ export default function AdminTahunAjaranPage() {
                             </div>
 
                           </td>
+
                         </tr>
                       ) : (
-                        currentItems.map((item, index) => {
+                        currentItems.map(
+                          (
+                            item,
+                            index
+                          ) => {
 
-                          const isActive =
-                            item?.status === "aktif";
+                            const isActive =
+                              item?.status ===
+                              "aktif";
 
-                          const daftarKelas =
-                            kelasByTahunAjaran[item?.id] || [];
+                            const daftarKelas =
+                              kelasByTahunAjaran[
+                                item?.id
+                              ] || [];
 
-                          const isExpanded =
-                            expandedRows[item?.id];
+                            const isExpanded =
+                              Boolean(
+                                expandedRows[
+                                  item?.id
+                                ]
+                              );
 
-                          return (
-                            <tr
-                              key={item.id}
-                              className={`border-b border-slate-100 last:border-0 transition ${
-                                isActive
-                                  ? "bg-blue-50/25"
-                                  : "hover:bg-slate-50/60"
-                              }`}
-                            >
+                            return (
+                              <tr
+                                key={
+                                  item.id
+                                }
+                                className={`border-b border-slate-100 last:border-0 transition ${
+                                  isActive
+                                    ? "bg-blue-50/25"
+                                    : "hover:bg-slate-50/60"
+                                }`}
+                              >
 
-                              {/* NO */}
+                                {/* NO */}
 
-                              <td className="px-5 py-4 text-center text-sm font-medium text-slate-400">
-                                {startIndex + index + 1}
-                              </td>
+                                <td className="px-5 py-4 text-center text-sm font-medium text-slate-400">
+                                  {startIndex +
+                                    index +
+                                    1}
+                                </td>
 
-                              {/* TAHUN */}
+                                {/* TAHUN AJARAN */}
 
-                              <td className="px-5 py-4">
+                                <td className="px-5 py-4">
 
-                                <div className="flex items-center gap-3">
+                                  <div className="flex items-center gap-3">
 
-                                  <div
-                                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
-                                      isActive
-                                        ? "bg-blue-50 text-[#2563EB]"
-                                        : "bg-slate-50 text-slate-500"
-                                    }`}
-                                  >
-                                    <CalendarDays size={18} />
-                                  </div>
+                                    <div
+                                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+                                        isActive
+                                          ? "bg-blue-50 text-[#2563EB]"
+                                          : "bg-slate-50 text-slate-500"
+                                      }`}
+                                    >
+                                      <CalendarDays
+                                        size={18}
+                                      />
+                                    </div>
 
-                                  <div className="min-w-0">
+                                    <div className="min-w-0">
 
-                                    <p className="font-semibold text-slate-800">
-                                      {item?.nama || "-"}
-                                    </p>
-
-                                    {item?.id && (
-                                      <p className="mt-0.5 text-[11px] text-slate-400">
-                                        ID:{" "}
-                                        {item.id.slice(0, 8)}
-                                        ...
+                                      <p className="font-semibold text-slate-800">
+                                        {item?.tahunAjaran ||
+                                          "-"}
                                       </p>
-                                    )}
 
-                                  </div>
-
-                                </div>
-
-                              </td>
-
-                              {/* SEMESTER */}
-
-                              <td className="px-5 py-4">
-
-                                <span
-                                  className={`inline-flex rounded-full px-3 py-1.5 text-xs font-semibold ${
-                                    item?.semester === "Ganjil"
-                                      ? "bg-indigo-50 text-indigo-600"
-                                      : "bg-blue-50 text-blue-600"
-                                  }`}
-                                >
-                                  {item?.semester || "-"}
-                                </span>
-
-                              </td>
-
-                              {/* KELAS */}
-
-                              <td className="px-5 py-4">
-
-                                {daftarKelas.length === 0 ? (
-                                  <span className="text-xs text-slate-400">
-                                    Belum ada kelas
-                                  </span>
-                                ) : (
-                                  <div className="flex flex-col gap-2">
-
-                                    <div className="flex items-center gap-2">
-
-                                      <span className="inline-flex items-center gap-1.5 rounded-lg bg-violet-50 px-2.5 py-1.5 text-xs font-semibold text-violet-600">
-                                        <Users size={13} />
-
-                                        {daftarKelas.length} kelas
-                                      </span>
-
-                                      <button
-                                        onClick={() =>
-                                          toggleRow(item.id)
-                                        }
-                                        className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
-                                      >
-                                        {isExpanded
-                                          ? "Sembunyikan"
-                                          : "Lihat"}
-
-                                        {isExpanded ? (
-                                          <ChevronUp size={14} />
-                                        ) : (
-                                          <ChevronDown size={14} />
-                                        )}
-                                      </button>
+                                      {item?.id && (
+                                        <p className="mt-0.5 text-[11px] text-slate-400">
+                                          ID:{" "}
+                                          {item.id.slice(
+                                            0,
+                                            8
+                                          )}
+                                          ...
+                                        </p>
+                                      )}
 
                                     </div>
 
-                                    {isExpanded && (
-                                      <div className="flex max-w-[360px] flex-wrap gap-1.5 pt-1">
+                                  </div>
 
-                                        {daftarKelas.map(
-                                          (kelasItem) => (
-                                            <Link
-                                              key={kelasItem.id}
-                                              href={`/admin/kelas/${kelasItem.id}`}
-                                              className="rounded-lg border border-violet-100 bg-violet-50 px-2.5 py-1.5 text-xs font-medium text-violet-600 transition hover:border-violet-200 hover:bg-violet-100"
-                                            >
-                                              {kelasItem?.nama ||
-                                                "Kelas"}
-                                            </Link>
-                                          )
-                                        )}
+                                </td>
+
+                                {/* SEMESTER */}
+
+                                <td className="px-5 py-4">
+
+                                  <span
+                                    className={`inline-flex rounded-full px-3 py-1.5 text-xs font-semibold ${
+                                      item?.semester ===
+                                      "Ganjil"
+                                        ? "bg-indigo-50 text-indigo-600"
+                                        : "bg-blue-50 text-blue-600"
+                                    }`}
+                                  >
+                                    {item?.semester ||
+                                      "-"}
+                                  </span>
+
+                                </td>
+
+                                {/* KELAS */}
+
+                                <td className="px-5 py-4">
+
+                                  {daftarKelas.length ===
+                                  0 ? (
+                                    <span className="text-xs text-slate-400">
+                                      Belum ada kelas
+                                    </span>
+                                  ) : (
+                                    <div className="flex flex-col gap-2">
+
+                                      <div className="flex items-center gap-2">
+
+                                        <span className="inline-flex items-center gap-1.5 rounded-lg bg-violet-50 px-2.5 py-1.5 text-xs font-semibold text-violet-600">
+
+                                          <Users
+                                            size={13}
+                                          />
+
+                                          {
+                                            daftarKelas.length
+                                          }{" "}
+                                          kelas
+                                        </span>
+
+                                        <button
+                                          onClick={() =>
+                                            toggleRow(
+                                              item.id
+                                            )
+                                          }
+                                          className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                                        >
+                                          {isExpanded
+                                            ? "Sembunyikan"
+                                            : "Lihat"}
+
+                                          {isExpanded ? (
+                                            <ChevronUp
+                                              size={
+                                                14
+                                              }
+                                            />
+                                          ) : (
+                                            <ChevronDown
+                                              size={
+                                                14
+                                              }
+                                            />
+                                          )}
+                                        </button>
 
                                       </div>
+
+                                      {isExpanded && (
+                                        <div className="flex max-w-[360px] flex-wrap gap-1.5 pt-1">
+
+                                          {daftarKelas.map(
+                                            (
+                                              kelasItem
+                                            ) => (
+                                              <Link
+                                                key={
+                                                  kelasItem.id
+                                                }
+                                                href={`/admin/kelas/${kelasItem.id}`}
+                                                className="rounded-lg border border-violet-100 bg-violet-50 px-2.5 py-1.5 text-xs font-medium text-violet-600 transition hover:border-violet-200 hover:bg-violet-100"
+                                              >
+                                                {kelasItem?.nama ||
+                                                  "Kelas"}
+                                              </Link>
+                                            )
+                                          )}
+
+                                        </div>
+                                      )}
+
+                                    </div>
+                                  )}
+
+                                </td>
+
+                                {/* STATUS */}
+
+                                <td className="px-5 py-4">
+
+                                  <span
+                                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold ${
+                                      isActive
+                                        ? "bg-emerald-50 text-emerald-600"
+                                        : "bg-slate-100 text-slate-500"
+                                    }`}
+                                  >
+
+                                    {isActive ? (
+                                      <CheckCircle
+                                        size={
+                                          13
+                                        }
+                                      />
+                                    ) : (
+                                      <XCircle
+                                        size={
+                                          13
+                                        }
+                                      />
                                     )}
 
-                                  </div>
-                                )}
+                                    {isActive
+                                      ? "Aktif"
+                                      : "Tidak Aktif"}
 
-                              </td>
+                                  </span>
 
-                              {/* STATUS */}
+                                </td>
 
-                              <td className="px-5 py-4">
+                                {/* AKSI */}
 
-                                <span
-                                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold ${
-                                    isActive
-                                      ? "bg-emerald-50 text-emerald-600"
-                                      : "bg-slate-100 text-slate-500"
-                                  }`}
-                                >
-                                  {isActive ? (
-                                    <CheckCircle size={13} />
-                                  ) : (
-                                    <XCircle size={13} />
-                                  )}
+                                <td className="px-5 py-4">
 
-                                  {isActive
-                                    ? "Aktif"
-                                    : "Tidak Aktif"}
-                                </span>
+                                  <div className="flex items-center justify-end gap-1">
 
-                              </td>
+                                    <Link
+                                      href={`/admin/tahun-ajaran/${item.id}`}
+                                      title="Detail"
+                                      className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition hover:bg-blue-50 hover:text-[#2563EB]"
+                                    >
+                                      <Eye
+                                        size={
+                                          16
+                                        }
+                                      />
+                                    </Link>
 
-                              {/* AKSI */}
+                                    {!isActive && (
+                                      <button
+                                        onClick={() =>
+                                          handleSetActive(
+                                            item
+                                          )
+                                        }
+                                        title="Set Aktif"
+                                        className="flex h-9 w-9 items-center justify-center rounded-lg text-emerald-500 transition hover:bg-emerald-50 hover:text-emerald-600"
+                                      >
+                                        <Check
+                                          size={
+                                            17
+                                          }
+                                        />
+                                      </button>
+                                    )}
 
-                              <td className="px-5 py-4">
+                                    <Link
+                                      href={`/admin/tahun-ajaran/edit/${item.id}`}
+                                      title="Edit"
+                                      className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition hover:bg-amber-50 hover:text-amber-600"
+                                    >
+                                      <Edit
+                                        size={
+                                          16
+                                        }
+                                      />
+                                    </Link>
 
-                                <div className="flex items-center justify-end gap-1">
-
-                                  <Link
-                                    href={`/admin/tahun-ajaran/${item.id}`}
-                                    title="Detail"
-                                    className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition hover:bg-blue-50 hover:text-[#2563EB]"
-                                  >
-                                    <Eye size={16} />
-                                  </Link>
-
-                                  {!isActive && (
                                     <button
                                       onClick={() =>
-                                        handleSetActive(item)
+                                        handleDelete(
+                                          item
+                                        )
                                       }
-                                      title="Set Aktif"
-                                      className="flex h-9 w-9 items-center justify-center rounded-lg text-emerald-500 transition hover:bg-emerald-50 hover:text-emerald-600"
+                                      title="Hapus"
+                                      className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition hover:bg-red-50 hover:text-red-600"
                                     >
-                                      <Check size={17} />
+                                      <Trash2
+                                        size={
+                                          16
+                                        }
+                                      />
                                     </button>
-                                  )}
 
-                                  <Link
-                                    href={`/admin/tahun-ajaran/edit/${item.id}`}
-                                    title="Edit"
-                                    className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition hover:bg-amber-50 hover:text-amber-600"
-                                  >
-                                    <Edit size={16} />
-                                  </Link>
+                                  </div>
 
-                                  <button
-                                    onClick={() =>
-                                      handleDelete(item)
-                                    }
-                                    title="Hapus"
-                                    className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition hover:bg-red-50 hover:text-red-600"
-                                  >
-                                    <Trash2 size={16} />
-                                  </button>
+                                </td>
 
-                                </div>
-
-                              </td>
-
-                            </tr>
-                          );
-                        })
+                              </tr>
+                            );
+                          }
+                        )
                       )}
 
                     </tbody>
+
                   </table>
+
                 </div>
 
-                {/* ================================================= */}
                 {/* PAGINATION */}
-                {/* ================================================= */}
 
-                {filteredData.length > 0 && (
+                {filteredData.length >
+                  0 && (
                   <div className="flex flex-col gap-3 border-t border-slate-100 bg-slate-50/50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
 
                     <p className="text-xs text-slate-400 sm:text-sm">
+
                       Menampilkan{" "}
+
                       <span className="font-semibold text-slate-600">
-                        {startIndex + 1}
-                      </span>{" "}
-                      -{" "}
+                        {startIndex +
+                          1}
+                      </span>
+
+                      {" - "}
+
                       <span className="font-semibold text-slate-600">
                         {Math.min(
-                          startIndex + currentItems.length,
+                          startIndex +
+                            currentItems.length,
                           filteredData.length
                         )}
-                      </span>{" "}
-                      dari{" "}
+                      </span>
+
+                      {" dari "}
+
                       <span className="font-semibold text-slate-600">
-                        {filteredData.length}
-                      </span>{" "}
-                      data
+                        {
+                          filteredData.length
+                        }
+                      </span>
+
+                      {" data"}
+
                     </p>
 
                     <div className="flex items-center gap-1">
 
                       <button
                         onClick={() =>
-                          setCurrentPage((p) =>
-                            Math.max(1, p - 1)
+                          setCurrentPage(
+                            (p) =>
+                              Math.max(
+                                1,
+                                p - 1
+                              )
                           )
                         }
-                        disabled={safeCurrentPage === 1}
+                        disabled={
+                          safeCurrentPage ===
+                          1
+                        }
                         className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-500 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
                       >
                         Sebelumnya
                       </button>
 
                       {Array.from(
-                        { length: totalPages },
-                        (_, i) => i + 1
+                        {
+                          length:
+                            totalPages,
+                        },
+                        (_, i) =>
+                          i + 1
                       )
                         .slice(
-                          Math.max(0, safeCurrentPage - 3),
+                          Math.max(
+                            0,
+                            safeCurrentPage -
+                              3
+                          ),
                           Math.min(
                             totalPages,
-                            safeCurrentPage + 2
+                            safeCurrentPage +
+                              2
                           )
                         )
-                        .map((page) => (
-                          <button
-                            key={page}
-                            onClick={() =>
-                              setCurrentPage(page)
-                            }
-                            className={`h-9 w-9 rounded-lg text-xs font-semibold transition ${
-                              safeCurrentPage === page
-                                ? "bg-[#2563EB] text-white shadow-sm"
-                                : "text-slate-500 hover:bg-slate-100"
-                            }`}
-                          >
-                            {page}
-                          </button>
-                        ))}
+                        .map(
+                          (page) => (
+                            <button
+                              key={
+                                page
+                              }
+                              onClick={() =>
+                                setCurrentPage(
+                                  page
+                                )
+                              }
+                              className={`h-9 w-9 rounded-lg text-xs font-semibold transition ${
+                                safeCurrentPage ===
+                                page
+                                  ? "bg-[#2563EB] text-white shadow-sm"
+                                  : "text-slate-500 hover:bg-slate-100"
+                              }`}
+                            >
+                              {
+                                page
+                              }
+                            </button>
+                          )
+                        )}
 
                       <button
                         onClick={() =>
-                          setCurrentPage((p) =>
-                            Math.min(totalPages, p + 1)
+                          setCurrentPage(
+                            (p) =>
+                              Math.min(
+                                totalPages,
+                                p + 1
+                              )
                           )
                         }
                         disabled={
-                          safeCurrentPage === totalPages
+                          safeCurrentPage ===
+                          totalPages
                         }
                         className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-500 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
                       >
@@ -1167,6 +1410,7 @@ export default function AdminTahunAjaranPage() {
                       </button>
 
                     </div>
+
                   </div>
                 )}
 
@@ -1191,9 +1435,11 @@ export default function AdminTahunAjaranPage() {
                     </p>
 
                     <p className="mt-1 text-sm leading-6 text-slate-500">
+
                       {activeYear
-                        ? `${activeYear.nama} · ${activeYear.semester} adalah periode akademik yang sedang aktif dan digunakan oleh sekolah.`
+                        ? `${activeYear.tahunAjaran} · ${activeYear.semester} adalah periode akademik yang sedang aktif dan digunakan oleh sekolah.`
                         : "Belum ada tahun ajaran yang ditetapkan sebagai periode aktif."}
+
                     </p>
 
                   </div>

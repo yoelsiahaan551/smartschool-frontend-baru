@@ -31,7 +31,20 @@ export default function ArticlesPage() {
   const [mobileMenu, setMobileMenu] = useState(false);
 
   // ============================================================
-  // LOAD ARTIKEL
+  // API BASE URL
+  // ============================================================
+  const getApiBaseUrl = () => {
+    if (!API_URL) {
+      throw new Error(
+        "NEXT_PUBLIC_API_URL belum dikonfigurasi."
+      );
+    }
+
+    return API_URL.replace(/\/$/, "");
+  };
+
+  // ============================================================
+  // LOAD ARTIKEL PUBLIC
   // ============================================================
   const loadArtikel = async () => {
     try {
@@ -39,13 +52,9 @@ export default function ArticlesPage() {
       setError("");
 
       // --------------------------------------------------------
-      // VALIDASI API URL
+      // VALIDASI API
       // --------------------------------------------------------
-      if (!API_URL) {
-        throw new Error(
-          "NEXT_PUBLIC_API_URL belum dikonfigurasi."
-        );
-      }
+      const apiBaseUrl = getApiBaseUrl();
 
       // --------------------------------------------------------
       // VALIDASI SUBDOMAIN
@@ -57,18 +66,17 @@ export default function ArticlesPage() {
       }
 
       // --------------------------------------------------------
-      // URL BACKEND
-      // Backend:
+      // ENDPOINT BACKEND
       //
       // GET /api/v1/publik/:subdomain/artikel
       // --------------------------------------------------------
       const url =
-        `${API_URL}/api/v1/publik/` +
+        `${apiBaseUrl}/api/v1/publik/` +
         `${encodeURIComponent(SUBDOMAIN)}/artikel`;
 
       console.log("=================================");
       console.log("FETCH ARTIKEL PUBLIC");
-      console.log("API URL:", API_URL);
+      console.log("API URL:", apiBaseUrl);
       console.log("SUBDOMAIN:", SUBDOMAIN);
       console.log("REQUEST:", url);
       console.log("=================================");
@@ -85,16 +93,25 @@ export default function ArticlesPage() {
       });
 
       // --------------------------------------------------------
-      // PARSE RESPONSE
+      // BACA RESPONSE
       // --------------------------------------------------------
       let result = null;
 
+      const responseText = await response.text();
+
       try {
-        result = await response.json();
+        result = responseText
+          ? JSON.parse(responseText)
+          : null;
       } catch (jsonError) {
         console.error(
           "Gagal membaca JSON:",
           jsonError
+        );
+
+        console.error(
+          "Raw response:",
+          responseText
         );
 
         throw new Error(
@@ -107,8 +124,13 @@ export default function ArticlesPage() {
         result
       );
 
+      console.log(
+        "HTTP STATUS:",
+        response.status
+      );
+
       // --------------------------------------------------------
-      // HANDLE ERROR
+      // HANDLE HTTP ERROR
       // --------------------------------------------------------
       if (!response.ok) {
         throw new Error(
@@ -120,16 +142,32 @@ export default function ArticlesPage() {
 
       // --------------------------------------------------------
       // AMBIL DATA
+      //
+      // successResponse BE:
+      // {
+      //   success: true,
+      //   message: "...",
+      //   data: [...]
+      // }
       // --------------------------------------------------------
       const data = result?.data;
 
       if (!Array.isArray(data)) {
+        console.error(
+          "Format data tidak sesuai:",
+          result
+        );
+
         throw new Error(
           "Format data artikel dari server tidak valid."
         );
       }
 
+      // --------------------------------------------------------
+      // SET DATA
+      // --------------------------------------------------------
       setArticles(data);
+
     } catch (err) {
       console.error(
         "LOAD ARTIKEL ERROR:",
@@ -158,9 +196,17 @@ export default function ArticlesPage() {
   // FORMAT DATE
   // ============================================================
   const formatDate = (date) => {
-    if (!date) return "-";
+    if (!date) {
+      return "-";
+    }
 
     try {
+      const parsedDate = new Date(date);
+
+      if (Number.isNaN(parsedDate.getTime())) {
+        return "-";
+      }
+
       return new Intl.DateTimeFormat(
         "id-ID",
         {
@@ -168,26 +214,82 @@ export default function ArticlesPage() {
           month: "long",
           year: "numeric",
         }
-      ).format(new Date(date));
+      ).format(parsedDate);
+
     } catch {
       return "-";
     }
   };
 
   // ============================================================
-  // IMAGE FALLBACK
+  // GET IMAGE
+  //
+  // Bisa menangani:
+  //
+  // 1. https://domain.com/uploads/abc.jpg
+  //
+  // 2. http://domain.com/uploads/abc.jpg
+  //
+  // 3. /uploads/abc.jpg
+  //
+  // 4. uploads/abc.jpg
   // ============================================================
   const getImage = (article) => {
+    const image = article?.gambarUtama;
+
     if (
-      article?.gambarUtama &&
-      article.gambarUtama.trim() !== ""
+      !image ||
+      typeof image !== "string"
     ) {
-      return article.gambarUtama;
+      return null;
     }
 
-    return null;
+    const trimmedImage = image.trim();
+
+    if (!trimmedImage) {
+      return null;
+    }
+
+    // --------------------------------------------------------
+    // Kalau sudah URL lengkap
+    // --------------------------------------------------------
+    if (
+      trimmedImage.startsWith("http://") ||
+      trimmedImage.startsWith("https://")
+    ) {
+      return trimmedImage;
+    }
+
+    // --------------------------------------------------------
+    // Kalau path relatif
+    // --------------------------------------------------------
+    if (API_URL) {
+      return (
+        `${API_URL.replace(/\/$/, "")}/` +
+        `${trimmedImage.replace(/^\//, "")}`
+      );
+    }
+
+    return trimmedImage;
   };
 
+  // ============================================================
+  // TOGGLE MOBILE MENU
+  // ============================================================
+  const handleMobileMenu = () => {
+    setMobileMenu((prev) => !prev);
+  };
+
+  // ============================================================
+  // CLOSE MOBILE MENU
+  // ============================================================
+  const closeMobileMenu = () => {
+    setMobileMenu(false);
+  };
+
+  // ============================================================
+  // RENDER
+  // ============================================================
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
 
@@ -198,7 +300,9 @@ export default function ArticlesPage() {
 
         <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-6 lg:px-8">
 
-          {/* LOGO */}
+          {/* ==================================================
+              LOGO
+          ================================================== */}
           <Link
             href="/website"
             className="flex items-center gap-3"
@@ -218,7 +322,9 @@ export default function ArticlesPage() {
             </div>
           </Link>
 
-          {/* DESKTOP NAV */}
+          {/* ==================================================
+              DESKTOP NAV
+          ================================================== */}
           <nav className="hidden items-center gap-8 md:flex">
 
             <Link
@@ -258,12 +364,12 @@ export default function ArticlesPage() {
 
           </nav>
 
-          {/* MOBILE */}
+          {/* ==================================================
+              MOBILE BUTTON
+          ================================================== */}
           <button
             type="button"
-            onClick={() =>
-              setMobileMenu((prev) => !prev)
-            }
+            onClick={handleMobileMenu}
             className="rounded-lg p-2 text-slate-700 transition hover:bg-slate-100 md:hidden"
             aria-label="Menu"
           >
@@ -276,7 +382,9 @@ export default function ArticlesPage() {
 
         </div>
 
-        {/* MOBILE NAV */}
+        {/* ==================================================
+            MOBILE NAV
+        ================================================== */}
         {mobileMenu && (
           <div className="border-t border-slate-200 bg-white px-6 py-5 md:hidden">
 
@@ -284,39 +392,31 @@ export default function ArticlesPage() {
 
               <Link
                 href="/website"
-                onClick={() =>
-                  setMobileMenu(false)
-                }
-                className="font-medium text-slate-600"
+                onClick={closeMobileMenu}
+                className="font-medium text-slate-600 transition hover:text-blue-700"
               >
                 Beranda
               </Link>
 
               <Link
                 href="/website/tentang"
-                onClick={() =>
-                  setMobileMenu(false)
-                }
-                className="font-medium text-slate-600"
+                onClick={closeMobileMenu}
+                className="font-medium text-slate-600 transition hover:text-blue-700"
               >
                 Tentang
               </Link>
 
               <Link
                 href="/website/akademik"
-                onClick={() =>
-                  setMobileMenu(false)
-                }
-                className="font-medium text-slate-600"
+                onClick={closeMobileMenu}
+                className="font-medium text-slate-600 transition hover:text-blue-700"
               >
                 Akademik
               </Link>
 
               <Link
                 href="/website/articles"
-                onClick={() =>
-                  setMobileMenu(false)
-                }
+                onClick={closeMobileMenu}
                 className="font-semibold text-blue-700"
               >
                 Artikel
@@ -324,10 +424,8 @@ export default function ArticlesPage() {
 
               <Link
                 href="/website/kontak"
-                onClick={() =>
-                  setMobileMenu(false)
-                }
-                className="font-medium text-slate-600"
+                onClick={closeMobileMenu}
+                className="font-medium text-slate-600 transition hover:text-blue-700"
               >
                 Kontak
               </Link>
@@ -376,6 +474,7 @@ export default function ArticlesPage() {
             </p>
 
           </div>
+
         </div>
 
       </section>
@@ -435,7 +534,9 @@ export default function ArticlesPage() {
                   {error}
                 </p>
 
-                {/* REQUEST DEBUG */}
+                {/* ==================================================
+                    REQUEST DEBUG
+                ================================================== */}
                 <div className="mt-4 border border-red-200 bg-white p-4">
 
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -449,6 +550,9 @@ export default function ArticlesPage() {
 
                 </div>
 
+                {/* ==================================================
+                    RETRY
+                ================================================== */}
                 <button
                   type="button"
                   onClick={loadArtikel}
@@ -459,6 +563,7 @@ export default function ArticlesPage() {
                 </button>
 
               </div>
+
             </div>
 
           </div>
@@ -507,14 +612,24 @@ export default function ArticlesPage() {
                     className="group flex h-full flex-col overflow-hidden border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
                   >
 
-                    {/* IMAGE */}
+                    {/* ==================================================
+                        IMAGE
+                    ================================================== */}
                     <div className="relative aspect-[16/9] overflow-hidden bg-slate-100">
 
                       {image ? (
                         <img
                           src={image}
-                          alt={article.judul || "Artikel sekolah"}
+                          alt={
+                            article.judul ||
+                            "Artikel sekolah"
+                          }
                           className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                          loading="lazy"
+                          onError={(event) => {
+                            event.currentTarget.style.display =
+                              "none";
+                          }}
                         />
                       ) : (
                         <div className="flex h-full items-center justify-center">
@@ -525,21 +640,29 @@ export default function ArticlesPage() {
                         </div>
                       )}
 
-                      {/* CATEGORY */}
+                      {/* ==================================================
+                          CATEGORY
+                      ================================================== */}
                       {article.kategoriArtikel?.nama && (
                         <div className="absolute left-4 top-4">
+
                           <span className="inline-flex items-center border border-white/20 bg-slate-900/85 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur">
                             {article.kategoriArtikel.nama}
                           </span>
+
                         </div>
                       )}
 
                     </div>
 
-                    {/* BODY */}
+                    {/* ==================================================
+                        BODY
+                    ================================================== */}
                     <div className="flex flex-1 flex-col p-6">
 
-                      {/* DATE */}
+                      {/* ==================================================
+                          DATE
+                      ================================================== */}
                       <div className="flex items-center gap-2 text-xs font-medium text-slate-400">
 
                         <CalendarDays size={14} />
@@ -553,18 +676,24 @@ export default function ArticlesPage() {
 
                       </div>
 
-                      {/* TITLE */}
+                      {/* ==================================================
+                          TITLE
+                      ================================================== */}
                       <h3 className="mt-3 line-clamp-2 text-xl font-bold leading-7 text-slate-900 transition group-hover:text-blue-700">
                         {article.judul}
                       </h3>
 
-                      {/* SUMMARY */}
+                      {/* ==================================================
+                          SUMMARY
+                      ================================================== */}
                       <p className="mt-3 line-clamp-3 text-sm leading-6 text-slate-500">
                         {article.ringkasan ||
                           "Baca informasi selengkapnya mengenai artikel ini."}
                       </p>
 
-                      {/* BUTTON */}
+                      {/* ==================================================
+                          BUTTON
+                      ================================================== */}
                       <div className="mt-auto pt-6">
 
                         <Link
@@ -600,6 +729,7 @@ export default function ArticlesPage() {
         <div className="mx-auto flex max-w-7xl flex-col gap-4 px-6 py-8 sm:flex-row sm:items-center sm:justify-between lg:px-8">
 
           <div>
+
             <p className="font-semibold text-slate-900">
               Smart School
             </p>
@@ -607,6 +737,7 @@ export default function ArticlesPage() {
             <p className="mt-1 text-sm text-slate-500">
               Portal informasi sekolah
             </p>
+
           </div>
 
           <p className="text-sm text-slate-400">

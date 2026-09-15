@@ -25,8 +25,7 @@ import {
 
 import {
   getKelas,
-  getKelasById,
-  deleteKelas,x
+  deleteKelas,
 } from "../../../services/kelas.service";
 
 import {
@@ -99,15 +98,39 @@ function getNamaWaliKelas(item) {
   return (
     item?.waliKelas?.namaLengkap ||
     item?.waliKelas?.nama ||
+    item?.wali_kelas?.namaLengkap ||
+    item?.wali_kelas?.nama ||
     "Belum ditentukan"
   );
 }
 
+/**
+ * Membaca nama tahun ajaran dari beberapa kemungkinan
+ * bentuk response backend.
+ *
+ * Backend bisa mengirim:
+ *
+ * tahunAjaran: {
+ *   tahunAjaran: "2026/2027",
+ *   semester: "Genap"
+ * }
+ *
+ * atau:
+ *
+ * tahunAjaran: {
+ *   nama: "2026/2027",
+ *   semester: "Genap"
+ * }
+ */
 function getNamaTahunAjaran(item) {
   return (
     item?.tahunAjaran?.nama ||
+    item?.tahunAjaran?.tahunAjaran ||
     item?.tahun_ajaran?.nama ||
+    item?.tahun_ajaran?.tahunAjaran ||
     item?.tahun_ajaran ||
+    item?.tahunAjaranNama ||
+    item?.tahun_ajaran_nama ||
     "-"
   );
 }
@@ -116,6 +139,7 @@ function getSemesterTahunAjaran(item) {
   return (
     item?.tahunAjaran?.semester ||
     item?.tahun_ajaran?.semester ||
+    item?.semester ||
     "-"
   );
 }
@@ -198,18 +222,62 @@ export default function AdminKelasPage() {
     try {
       const response = await getTahunAjaran();
 
-      const list = Array.isArray(response)
-        ? response
-        : Array.isArray(response?.data)
-        ? response.data
-        : [];
+      let list = [];
 
-      setTahunAjaran(list);
+      if (Array.isArray(response)) {
+        list = response;
+      } else if (Array.isArray(response?.data)) {
+        list = response.data;
+      } else if (
+        Array.isArray(response?.data?.data)
+      ) {
+        list = response.data.data;
+      }
+
+      /**
+       * Normalisasi response backend.
+       *
+       * Backend:
+       * tahunAjaran: "2026/2027"
+       *
+       * FE:
+       * nama: "2026/2027"
+       */
+      const normalized = list.map((item) => ({
+        ...item,
+
+        nama:
+          item?.nama ||
+          item?.tahunAjaran ||
+          item?.tahun_ajaran ||
+          "",
+
+        semester:
+          item?.semester ||
+          "-",
+      }));
+
+      console.log(
+        "========== TAHUN AJARAN API =========="
+      );
+      console.log("Response:", response);
+      console.log("Data:", normalized);
+      console.log(
+        "Jumlah tahun ajaran:",
+        normalized.length
+      );
+      console.log(
+        "======================================"
+      );
+
+      setTahunAjaran(normalized);
     } catch (err) {
       console.error(
         "Gagal mengambil tahun ajaran:",
         err
       );
+
+      setTahunAjaran([]);
     }
   };
 
@@ -255,7 +323,9 @@ export default function AdminKelasPage() {
         sortOrder: "asc",
       });
 
-      console.log("========== KELAS API ==========");
+      console.log(
+        "========== KELAS API =========="
+      );
       console.log("Response:", response);
       console.log("Data:", response?.data);
 
@@ -265,21 +335,40 @@ export default function AdminKelasPage() {
             `Kelas "${item?.nama}"`,
             {
               id: item?.id,
-              count: item?._count,
-              jumlahSiswa: item?.jumlahSiswa,
-              anggota: item?.anggota,
+              tingkat: item?.tingkat,
+
+              tahunAjaran:
+                item?.tahunAjaran,
+
+              tahun_ajaran:
+                item?.tahun_ajaran,
+
+              jumlahSiswa:
+                item?.jumlahSiswa,
+
+              count:
+                item?._count,
+
+              anggota:
+                item?.anggota,
+
+              waliKelas:
+                item?.waliKelas,
             }
           );
         });
       }
 
-      console.log("===============================");
+      console.log(
+        "==============================="
+      );
 
-      const data = Array.isArray(response?.data)
-        ? response.data
-        : Array.isArray(response)
-        ? response
-        : [];
+      const data =
+        Array.isArray(response?.data)
+          ? response.data
+          : Array.isArray(response)
+          ? response
+          : [];
 
       setKelas(data);
 
@@ -349,7 +438,9 @@ export default function AdminKelasPage() {
 
   const totalPages = Math.max(
     1,
-    Math.ceil(totalData / itemsPerPage)
+    Math.ceil(
+      totalData / itemsPerPage
+    )
   );
 
 // =========================================================
@@ -363,7 +454,10 @@ export default function AdminKelasPage() {
     ) {
       setCurrentPage(totalPages);
     }
-  }, [currentPage, totalPages]);
+  }, [
+    currentPage,
+    totalPages,
+  ]);
 
 // =========================================================
 // DISPLAYED DATA
@@ -384,7 +478,10 @@ export default function AdminKelasPage() {
   const totalSiswa = useMemo(() => {
     return displayedKelas.reduce(
       (total, item) => {
-        return total + getJumlahSiswa(item);
+        return (
+          total +
+          getJumlahSiswa(item)
+        );
       },
       0
     );
@@ -393,12 +490,16 @@ export default function AdminKelasPage() {
   const totalWali = useMemo(() => {
     return displayedKelas.filter(
       (item) =>
-        Boolean(item?.waliKelasId)
+        Boolean(
+          item?.waliKelasId ||
+          item?.wali_kelas_id
+        )
     ).length;
   }, [displayedKelas]);
 
   const totalTanpaWali =
-    displayedKelas.length - totalWali;
+    displayedKelas.length -
+    totalWali;
 
 // =========================================================
 // REFRESH
@@ -416,9 +517,10 @@ export default function AdminKelasPage() {
 // =========================================================
 
   const handleDelete = async (item) => {
-    const confirmed = window.confirm(
-      `Yakin ingin menghapus kelas "${item.nama}"?`
-    );
+    const confirmed =
+      window.confirm(
+        `Yakin ingin menghapus kelas "${item.nama}"?`
+      );
 
     if (!confirmed) {
       return;
@@ -460,8 +562,11 @@ export default function AdminKelasPage() {
   const pageNumbers = useMemo(() => {
     if (totalPages <= 5) {
       return Array.from(
-        { length: totalPages },
-        (_, index) => index + 1
+        {
+          length: totalPages,
+        },
+        (_, index) =>
+          index + 1
       );
     }
 
@@ -470,7 +575,8 @@ export default function AdminKelasPage() {
     }
 
     if (
-      currentPage >= totalPages - 2
+      currentPage >=
+      totalPages - 2
     ) {
       return [
         totalPages - 4,
@@ -488,7 +594,10 @@ export default function AdminKelasPage() {
       currentPage + 1,
       currentPage + 2,
     ];
-  }, [currentPage, totalPages]);
+  }, [
+    currentPage,
+    totalPages,
+  ]);
 
   const startIndex =
     totalData === 0
@@ -509,6 +618,7 @@ export default function AdminKelasPage() {
   if (loading) {
     return (
       <div className="flex h-screen w-full overflow-hidden bg-slate-100">
+
         <Sidebar
           active="kelas"
           setActive={() => {}}
@@ -517,6 +627,7 @@ export default function AdminKelasPage() {
         />
 
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+
           <Header
             toggleSidebar={() =>
               setIsCollapsed(
@@ -533,15 +644,21 @@ export default function AdminKelasPage() {
           />
 
           <main className="flex min-h-0 flex-1 items-center justify-center">
+
             <div className="flex flex-col items-center gap-3">
+
               <div className="h-9 w-9 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" />
 
               <p className="text-sm font-medium text-slate-500">
                 Memuat data kelas...
               </p>
+
             </div>
+
           </main>
+
         </div>
+
       </div>
     );
   }
@@ -586,7 +703,9 @@ export default function AdminKelasPage() {
         {/* MAIN */}
 
         <main className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden">
+
           <div className="w-full px-4 py-5 sm:px-5 sm:py-6 md:px-6 lg:px-8 xl:px-10">
+
             <div className="w-full space-y-5">
 
               {/* PAGE HEADER */}
@@ -631,6 +750,7 @@ export default function AdminKelasPage() {
                       </p>
 
                     </div>
+
                   </div>
 
                   <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
@@ -641,6 +761,7 @@ export default function AdminKelasPage() {
                       disabled={refreshing}
                       className="flex min-h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
                     >
+
                       <RefreshCw
                         size={17}
                         className={
@@ -651,6 +772,7 @@ export default function AdminKelasPage() {
                       />
 
                       Refresh
+
                     </button>
 
                     <button
@@ -662,12 +784,17 @@ export default function AdminKelasPage() {
                       }
                       className="flex min-h-10 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-blue-200 transition hover:bg-blue-700 hover:shadow-lg"
                     >
+
                       <Plus size={18} />
+
                       Tambah Kelas
+
                     </button>
 
                   </div>
+
                 </div>
+
               </section>
 
               {/* ERROR */}
@@ -694,7 +821,9 @@ export default function AdminKelasPage() {
 
                   <button
                     type="button"
-                    onClick={() => setError("")}
+                    onClick={() =>
+                      setError("")
+                    }
                     className="rounded-lg p-1 text-red-400 transition hover:bg-red-100 hover:text-red-600"
                   >
                     <X size={16} />
@@ -766,6 +895,7 @@ export default function AdminKelasPage() {
                         setSearch(
                           e.target.value
                         );
+
                         setCurrentPage(1);
                       }}
                       placeholder="Cari nama kelas atau wali kelas..."
@@ -784,10 +914,12 @@ export default function AdminKelasPage() {
                         setJenjangFilter(
                           e.target.value
                         );
+
                         setCurrentPage(1);
                       }}
                       className="min-w-[130px] rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-700 outline-none transition hover:border-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                     >
+
                       <option value="Semua">
                         Semua Jenjang
                       </option>
@@ -803,6 +935,7 @@ export default function AdminKelasPage() {
                       <option value="XII">
                         Kelas XII
                       </option>
+
                     </select>
 
                     <select
@@ -811,31 +944,44 @@ export default function AdminKelasPage() {
                         setTahunAjaranFilter(
                           e.target.value
                         );
+
                         setCurrentPage(1);
                       }}
                       className="min-w-[200px] rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-700 outline-none transition hover:border-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                     >
+
                       <option value="Semua">
                         Semua Tahun Ajaran
                       </option>
 
-                      {tahunAjaran.map((item) => (
-                        <option
-                          key={item.id}
-                          value={item.id}
-                        >
-                          {item.nama} ·{" "}
-                          {item.semester}
-                        </option>
-                      ))}
+                      {tahunAjaran.map(
+                        (item) => (
+                          <option
+                            key={item.id}
+                            value={item.id}
+                          >
+                            {item.nama ||
+                              item.tahunAjaran ||
+                              "-"}{" "}
+                            ·{" "}
+                            {item.semester ||
+                              "-"}
+                          </option>
+                        )
+                      )}
+
                     </select>
 
                     <button
                       type="button"
                       onClick={() => {
                         setSearch("");
-                        setJenjangFilter("Semua");
-                        setTahunAjaranFilter("Semua");
+                        setJenjangFilter(
+                          "Semua"
+                        );
+                        setTahunAjaranFilter(
+                          "Semua"
+                        );
                         setCurrentPage(1);
                       }}
                       className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-800"
@@ -848,7 +994,9 @@ export default function AdminKelasPage() {
                     </span>
 
                   </div>
+
                 </div>
+
               </section>
 
               {/* TABLE */}
@@ -858,6 +1006,7 @@ export default function AdminKelasPage() {
                 <div className="flex flex-col gap-3 border-b border-slate-100 bg-slate-50/70 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
 
                   <div>
+
                     <h2 className="text-sm font-bold text-slate-800 sm:text-base">
                       Daftar Kelas
                     </h2>
@@ -865,6 +1014,7 @@ export default function AdminKelasPage() {
                     <p className="mt-1 text-xs text-slate-400">
                       Data langsung dari database sekolah.
                     </p>
+
                   </div>
 
                   <div className="flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-xs font-semibold text-slate-500 shadow-sm">
@@ -872,7 +1022,8 @@ export default function AdminKelasPage() {
                     <CalendarDays size={14} />
 
                     <span>
-                      {tahunAjaranFilter === "Semua"
+                      {tahunAjaranFilter ===
+                      "Semua"
                         ? "Semua Tahun Ajaran"
                         : tahunAjaran.find(
                             (item) =>
@@ -883,6 +1034,7 @@ export default function AdminKelasPage() {
                     </span>
 
                   </div>
+
                 </div>
 
                 <div className="overflow-x-auto">
@@ -890,6 +1042,7 @@ export default function AdminKelasPage() {
                   <table className="w-full min-w-[1050px]">
 
                     <thead>
+
                       <tr className="border-b border-slate-200 bg-white">
 
                         <th className="w-[6%] px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-slate-400">
@@ -921,21 +1074,27 @@ export default function AdminKelasPage() {
                         </th>
 
                       </tr>
+
                     </thead>
 
                     <tbody className="divide-y divide-slate-100">
 
-                      {displayedKelas.length === 0 ? (
+                      {displayedKelas.length ===
+                      0 ? (
 
                         <tr>
+
                           <td
                             colSpan={7}
                             className="px-5 py-16 text-center"
                           >
+
                             <div className="mx-auto flex max-w-sm flex-col items-center">
 
                               <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
-                                <GraduationCap size={28} />
+                                <GraduationCap
+                                  size={28}
+                                />
                               </div>
 
                               <p className="mt-4 text-sm font-bold text-slate-700">
@@ -958,20 +1117,28 @@ export default function AdminKelasPage() {
                                 }
                                 className="mt-4 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-blue-700"
                               >
+
                                 <Plus size={15} />
+
                                 Tambah Kelas
+
                               </button>
 
                             </div>
+
                           </td>
+
                         </tr>
 
                       ) : (
 
                         displayedKelas.map(
                           (item, index) => {
+
                             const jumlahSiswa =
-                              getJumlahSiswa(item);
+                              getJumlahSiswa(
+                                item
+                              );
 
                             const jenjang =
                               getJenjangFromTingkat(
@@ -983,7 +1150,18 @@ export default function AdminKelasPage() {
                                 item
                               );
 
+                            const namaTahunAjaran =
+                              getNamaTahunAjaran(
+                                item
+                              );
+
+                            const semester =
+                              getSemesterTahunAjaran(
+                                item
+                              );
+
                             return (
+
                               <tr
                                 key={item.id}
                                 className="group transition-colors hover:bg-blue-50/40"
@@ -992,7 +1170,8 @@ export default function AdminKelasPage() {
                                 {/* NO */}
 
                                 <td className="px-4 py-4 text-center text-sm font-medium text-slate-500">
-                                  {(currentPage - 1) *
+                                  {(currentPage -
+                                    1) *
                                     itemsPerPage +
                                     index +
                                     1}
@@ -1005,18 +1184,22 @@ export default function AdminKelasPage() {
                                   <div className="flex items-center gap-3">
 
                                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-                                      <GraduationCap size={18} />
+                                      <GraduationCap
+                                        size={18}
+                                      />
                                     </div>
 
                                     <div className="min-w-0">
 
                                       <p className="truncate text-sm font-bold text-slate-800">
-                                        {item.nama}
+                                        {item.nama ||
+                                          "-"}
                                       </p>
 
                                       <p className="mt-0.5 text-[11px] text-slate-400">
                                         Kapasitas{" "}
-                                        {item.kapasitas ?? 0}{" "}
+                                        {item.kapasitas ??
+                                          0}{" "}
                                         siswa
                                       </p>
 
@@ -1036,7 +1219,8 @@ export default function AdminKelasPage() {
 
                                   <p className="mt-1 text-[10px] text-slate-400">
                                     Tingkat{" "}
-                                    {item.tingkat}
+                                    {item.tingkat ??
+                                      "-"}
                                   </p>
 
                                 </td>
@@ -1049,19 +1233,23 @@ export default function AdminKelasPage() {
 
                                     <div
                                       className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
-                                        item.waliKelasId
+                                        item.waliKelasId ||
+                                        item.wali_kelas_id
                                           ? "bg-emerald-50 text-emerald-600"
                                           : "bg-slate-100 text-slate-400"
                                       }`}
                                     >
-                                      <UserCheck size={15} />
+                                      <UserCheck
+                                        size={15}
+                                      />
                                     </div>
 
                                     <div className="min-w-0">
 
                                       <p
                                         className={`truncate text-sm font-medium ${
-                                          item.waliKelasId
+                                          item.waliKelasId ||
+                                          item.wali_kelas_id
                                             ? "text-slate-700"
                                             : "text-slate-400"
                                         }`}
@@ -1069,10 +1257,20 @@ export default function AdminKelasPage() {
                                         {wali}
                                       </p>
 
-                                      {item.waliKelas?.nip && (
+                                      {(item
+                                        ?.waliKelas
+                                        ?.nip ||
+                                        item
+                                          ?.wali_kelas
+                                          ?.nip) && (
                                         <p className="mt-0.5 truncate text-[10px] text-slate-400">
                                           NIP{" "}
-                                          {item.waliKelas.nip}
+                                          {item
+                                            ?.waliKelas
+                                            ?.nip ||
+                                            item
+                                              ?.wali_kelas
+                                              ?.nip}
                                         </p>
                                       )}
 
@@ -1096,16 +1294,16 @@ export default function AdminKelasPage() {
                                     <div className="min-w-0">
 
                                       <p className="truncate text-sm font-medium text-slate-700">
-                                        {getNamaTahunAjaran(
-                                          item
-                                        )}
+                                        {
+                                          namaTahunAjaran
+                                        }
                                       </p>
 
                                       <p className="text-[10px] text-slate-400">
                                         Semester{" "}
-                                        {getSemesterTahunAjaran(
-                                          item
-                                        )}
+                                        {
+                                          semester
+                                        }
                                       </p>
 
                                     </div>
@@ -1126,7 +1324,9 @@ export default function AdminKelasPage() {
                                     />
 
                                     <span className="text-sm font-semibold text-slate-700">
-                                      {jumlahSiswa}
+                                      {
+                                        jumlahSiswa
+                                      }
                                     </span>
 
                                   </div>
@@ -1149,7 +1349,9 @@ export default function AdminKelasPage() {
                                       className="rounded-lg p-2 text-slate-400 transition hover:bg-blue-100 hover:text-blue-700"
                                       title="Detail Kelas"
                                     >
-                                      <Eye size={17} />
+                                      <Eye
+                                        size={17}
+                                      />
                                     </button>
 
                                     <button
@@ -1162,18 +1364,24 @@ export default function AdminKelasPage() {
                                       className="rounded-lg p-2 text-slate-400 transition hover:bg-amber-100 hover:text-amber-700"
                                       title="Edit Kelas"
                                     >
-                                      <Edit size={17} />
+                                      <Edit
+                                        size={17}
+                                      />
                                     </button>
 
                                     <button
                                       type="button"
                                       onClick={() =>
-                                        handleDelete(item)
+                                        handleDelete(
+                                          item
+                                        )
                                       }
                                       className="rounded-lg p-2 text-slate-400 transition hover:bg-rose-100 hover:text-rose-700"
                                       title="Hapus Kelas"
                                     >
-                                      <Trash2 size={17} />
+                                      <Trash2
+                                        size={17}
+                                      />
                                     </button>
 
                                   </div>
@@ -1181,9 +1389,11 @@ export default function AdminKelasPage() {
                                 </td>
 
                               </tr>
+
                             );
                           }
                         )
+
                       )}
 
                     </tbody>
@@ -1195,22 +1405,31 @@ export default function AdminKelasPage() {
                 {/* PAGINATION */}
 
                 {totalData > 0 && (
+
                   <div className="flex flex-col gap-3 border-t border-slate-100 bg-slate-50/50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
 
                     <div className="text-[11px] text-slate-500">
+
                       Menampilkan{" "}
+
                       <span className="font-semibold text-slate-700">
                         {startIndex}
                       </span>{" "}
+
                       -{" "}
+
                       <span className="font-semibold text-slate-700">
                         {endIndex}
                       </span>{" "}
+
                       dari{" "}
+
                       <span className="font-semibold text-slate-700">
                         {totalData}
                       </span>{" "}
+
                       kelas
+
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
@@ -1219,12 +1438,16 @@ export default function AdminKelasPage() {
                         value={itemsPerPage}
                         onChange={(e) => {
                           setItemsPerPage(
-                            Number(e.target.value)
+                            Number(
+                              e.target.value
+                            )
                           );
+
                           setCurrentPage(1);
                         }}
                         className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-600 outline-none focus:border-blue-500"
                       >
+
                         <option value={10}>
                           10 / halaman
                         </option>
@@ -1236,6 +1459,7 @@ export default function AdminKelasPage() {
                         <option value={40}>
                           40 / halaman
                         </option>
+
                       </select>
 
                       <button
@@ -1245,28 +1469,33 @@ export default function AdminKelasPage() {
                             currentPage - 1
                           )
                         }
-                        disabled={currentPage === 1}
+                        disabled={
+                          currentPage === 1
+                        }
                         className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
                       >
                         Prev
                       </button>
 
-                      {pageNumbers.map((page) => (
-                        <button
-                          key={page}
-                          type="button"
-                          onClick={() =>
-                            goToPage(page)
-                          }
-                          className={`flex h-8 w-8 items-center justify-center rounded-lg text-xs font-semibold transition ${
-                            currentPage === page
-                              ? "bg-blue-600 text-white shadow-sm"
-                              : "text-slate-500 hover:bg-white hover:text-blue-600"
-                          }`}
-                        >
-                          {page}
-                        </button>
-                      ))}
+                      {pageNumbers.map(
+                        (page) => (
+                          <button
+                            key={page}
+                            type="button"
+                            onClick={() =>
+                              goToPage(page)
+                            }
+                            className={`flex h-8 w-8 items-center justify-center rounded-lg text-xs font-semibold transition ${
+                              currentPage ===
+                              page
+                                ? "bg-blue-600 text-white shadow-sm"
+                                : "text-slate-500 hover:bg-white hover:text-blue-600"
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        )
+                      )}
 
                       <button
                         type="button"
@@ -1276,7 +1505,8 @@ export default function AdminKelasPage() {
                           )
                         }
                         disabled={
-                          currentPage >= totalPages
+                          currentPage >=
+                          totalPages
                         }
                         className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
                       >
@@ -1284,7 +1514,9 @@ export default function AdminKelasPage() {
                       </button>
 
                     </div>
+
                   </div>
+
                 )}
 
               </section>
@@ -1300,6 +1532,7 @@ export default function AdminKelasPage() {
                   </div>
 
                   <div>
+
                     <p className="text-xs font-bold text-blue-800">
                       Data berdasarkan sekolah
                     </p>
@@ -1312,6 +1545,7 @@ export default function AdminKelasPage() {
                       admin yang sedang
                       login.
                     </p>
+
                   </div>
 
                 </div>
@@ -1323,6 +1557,7 @@ export default function AdminKelasPage() {
                   </div>
 
                   <div>
+
                     <p className="text-xs font-bold text-indigo-800">
                       Terhubung ke backend
                     </p>
@@ -1333,6 +1568,7 @@ export default function AdminKelasPage() {
                       kelas diproses melalui
                       API backend.
                     </p>
+
                   </div>
 
                 </div>
@@ -1357,9 +1593,13 @@ export default function AdminKelasPage() {
               </footer>
 
             </div>
+
           </div>
+
         </main>
+
       </div>
+
     </div>
   );
 }

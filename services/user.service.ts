@@ -499,3 +499,30 @@ export async function updateUserStatus(
     }
   );
 }
+
+
+
+export async function getGuruById(id: string) {
+if (!id) {
+throw new Error("ID guru tidak ditemukan.");
+}
+
+const response = await getUsers({
+page: 1,
+limit: 100,
+role: "guru",
+});
+
+const guru = response?.data?.find(
+(item: any) => String(item.id) === String(id)
+);
+
+if (!guru) {
+throw new Error("Data guru tidak ditemukan.");
+}
+
+return {
+success: true,
+data: guru,
+};
+}

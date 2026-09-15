@@ -22,7 +22,7 @@ const SUBDOMAIN = "smart";
 // ============================================================
 // SLUG KONTAK DARI DATABASE
 // ============================================================
-const SLUG_KONTAK = "kontak-1788757150853";
+const SLUG_KONTAK = "kontak-1789406265168";
 
 export default function KontakPage() {
   const [page, setPage] = useState(null);

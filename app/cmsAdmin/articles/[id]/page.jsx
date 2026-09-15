@@ -109,6 +109,12 @@ export default function ArticleDetailPage() {
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState("");
 
+  /*
+   * State sidebar.
+   * Default true (expanded).
+   */
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+
   useEffect(() => {
     if (!articleId) return;
 
@@ -121,12 +127,11 @@ export default function ArticleDetailPage() {
       setError("");
 
       /*
-       * Backend kamu belum menyediakan:
+       * Backend belum menyediakan:
        *
        * GET /api/v1/cms/artikel/:id
        *
-       * Jadi kita ambil semua artikel lalu
-       * mencari artikel berdasarkan ID.
+       * Jadi ambil semua artikel lalu cari berdasarkan ID.
        */
       const data = await apiFetch(
         "/api/v1/cms/artikel"
@@ -141,9 +146,7 @@ export default function ArticleDetailPage() {
       );
 
       if (!found) {
-        setError(
-          "Artikel tidak ditemukan."
-        );
+        setError("Artikel tidak ditemukan.");
         setArticle(null);
         return;
       }
@@ -183,13 +186,9 @@ export default function ArticleDetailPage() {
         }
       );
 
-      alert(
-        "Artikel berhasil dihapus."
-      );
+      alert("Artikel berhasil dihapus.");
 
-      router.push(
-        "/cmsAdmin/articles"
-      );
+      router.push("/cmsAdmin/articles");
     } catch (err) {
       console.error(
         "Gagal menghapus artikel:",
@@ -205,15 +204,36 @@ export default function ArticleDetailPage() {
     }
   }
 
+  /* =========================================================
+     LOADING STATE
+  ========================================================= */
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#F8FAFC]">
-        <Sidebar />
+      <div className="flex h-screen overflow-hidden bg-[#F8FAFC]">
+        <Sidebar
+          role="cms"
+          collapsed={!sidebarOpen}
+          setCollapsed={(value) => {
+            const next =
+              typeof value === "function"
+                ? value(!sidebarOpen)
+                : value;
 
-        <div className="min-h-screen lg:ml-[260px]">
-          <Header />
+            setSidebarOpen(!next);
+          }}
+        />
 
-          <main className="flex min-h-[calc(100vh-80px)] items-center justify-center p-6">
+        <div className="flex h-screen min-w-0 flex-1 flex-col overflow-hidden">
+          <div className="sticky top-0 z-30 shrink-0">
+            <Header
+              onMenuClick={() =>
+                setSidebarOpen((prev) => !prev)
+              }
+            />
+          </div>
+
+          <main className="flex flex-1 items-center justify-center overflow-y-auto p-6">
             <div className="text-center">
               <Loader2
                 size={32}
@@ -230,20 +250,39 @@ export default function ArticleDetailPage() {
     );
   }
 
+  /* =========================================================
+     ERROR STATE
+  ========================================================= */
+
   if (error || !article) {
     return (
-      <div className="min-h-screen bg-[#F8FAFC]">
-        <Sidebar />
+      <div className="flex h-screen overflow-hidden bg-[#F8FAFC]">
+        <Sidebar
+          role="cms"
+          collapsed={!sidebarOpen}
+          setCollapsed={(value) => {
+            const next =
+              typeof value === "function"
+                ? value(!sidebarOpen)
+                : value;
 
-        <div className="min-h-screen lg:ml-[260px]">
-          <Header />
+            setSidebarOpen(!next);
+          }}
+        />
 
-          <main className="p-4 sm:p-6 lg:p-8">
+        <div className="flex h-screen min-w-0 flex-1 flex-col overflow-hidden">
+          <div className="sticky top-0 z-30 shrink-0">
+            <Header
+              onMenuClick={() =>
+                setSidebarOpen((prev) => !prev)
+              }
+            />
+          </div>
+
+          <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
             <button
               onClick={() =>
-                router.push(
-                  "/cmsAdmin/articles"
-                )
+                router.push("/cmsAdmin/articles")
               }
               className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-slate-600 transition hover:text-blue-600"
             >
@@ -268,9 +307,7 @@ export default function ArticleDetailPage() {
 
               <button
                 onClick={() =>
-                  router.push(
-                    "/cmsAdmin/articles"
-                  )
+                  router.push("/cmsAdmin/articles")
                 }
                 className="mt-5 inline-flex items-center gap-2 bg-[#2563EB] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#1D4ED8]"
               >
@@ -285,6 +322,10 @@ export default function ArticleDetailPage() {
     );
   }
 
+  /* =========================================================
+     MAIN RENDER
+  ========================================================= */
+
   const categoryName =
     article.kategoriArtikel?.nama ||
     article.kategori?.nama ||
@@ -296,20 +337,52 @@ export default function ArticleDetailPage() {
     "";
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC]">
-      <Sidebar />
+    <div className="flex h-screen overflow-hidden bg-[#F8FAFC]">
+      {/* =====================================================
+          SIDEBAR
+      ===================================================== */}
 
-      <div className="min-h-screen lg:ml-[260px]">
-        <Header />
+      <Sidebar
+        role="cms"
+        collapsed={!sidebarOpen}
+        setCollapsed={(value) => {
+          const next =
+            typeof value === "function"
+              ? value(!sidebarOpen)
+              : value;
 
-        <main className="p-4 sm:p-6 lg:p-8">
+          setSidebarOpen(!next);
+        }}
+      />
+
+      {/* =====================================================
+          CONTENT
+      ===================================================== */}
+
+      <div className="flex h-screen min-w-0 flex-1 flex-col overflow-hidden">
+        {/* ===================================================
+            HEADER (STICKY)
+        =================================================== */}
+
+        <div className="sticky top-0 z-30 shrink-0">
+          <Header
+            onMenuClick={() =>
+              setSidebarOpen((prev) => !prev)
+            }
+          />
+        </div>
+
+        {/* ===================================================
+            MAIN (SCROLL INTERNAL)
+        =================================================== */}
+
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
           {/* TOP BAR */}
+
           <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <button
               onClick={() =>
-                router.push(
-                  "/cmsAdmin/articles"
-                )
+                router.push("/cmsAdmin/articles")
               }
               className="inline-flex w-fit items-center gap-2 text-sm font-semibold text-slate-600 transition hover:text-blue-600"
             >
@@ -346,18 +419,19 @@ export default function ArticleDetailPage() {
                   <Trash2 size={16} />
                 )}
 
-                {deleting
-                  ? "Menghapus..."
-                  : "Hapus"}
+                {deleting ? "Menghapus..." : "Hapus"}
               </button>
             </div>
           </div>
 
           {/* ARTICLE */}
+
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
             {/* CONTENT */}
+
             <article className="overflow-hidden border border-slate-200 bg-white shadow-sm">
               {/* IMAGE */}
+
               {imageUrl ? (
                 <div className="aspect-[16/7] w-full overflow-hidden bg-slate-100">
                   <img
@@ -387,6 +461,7 @@ export default function ArticleDetailPage() {
 
               <div className="p-5 sm:p-7 lg:p-9">
                 {/* CATEGORY + STATUS */}
+
                 <div className="mb-4 flex flex-wrap items-center gap-2">
                   <span className="inline-flex items-center gap-1.5 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-600">
                     <Tag size={13} />
@@ -400,11 +475,13 @@ export default function ArticleDetailPage() {
                 </div>
 
                 {/* TITLE */}
+
                 <h1 className="text-2xl font-bold leading-tight tracking-tight text-[#0F172A] sm:text-3xl lg:text-4xl">
                   {article.judul}
                 </h1>
 
                 {/* META */}
+
                 <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 border-b border-slate-100 pb-5 text-xs text-slate-400">
                   <span className="inline-flex items-center gap-1.5">
                     <CalendarDays size={14} />
@@ -431,6 +508,7 @@ export default function ArticleDetailPage() {
                 </div>
 
                 {/* SUMMARY */}
+
                 {article.ringkasan && (
                   <div className="mt-6 border-l-4 border-blue-500 bg-blue-50/60 px-5 py-4">
                     <p className="text-sm font-medium leading-7 text-slate-600">
@@ -440,6 +518,7 @@ export default function ArticleDetailPage() {
                 )}
 
                 {/* CONTENT */}
+
                 <div className="mt-7">
                   {article.konten ? (
                     <div
@@ -456,8 +535,7 @@ export default function ArticleDetailPage() {
                       />
 
                       <p className="mt-3 text-sm text-slate-400">
-                        Artikel belum memiliki
-                        konten.
+                        Artikel belum memiliki konten.
                       </p>
                     </div>
                   )}
@@ -466,8 +544,10 @@ export default function ArticleDetailPage() {
             </article>
 
             {/* SIDEBAR DETAIL */}
+
             <aside className="space-y-5">
               {/* INFO */}
+
               <div className="border border-slate-200 bg-white shadow-sm">
                 <div className="border-b border-slate-100 px-5 py-4">
                   <h2 className="text-sm font-bold text-[#0F172A]">
@@ -492,9 +572,7 @@ export default function ArticleDetailPage() {
 
                   <InfoRow
                     label="Slug"
-                    value={
-                      article.slug || "-"
-                    }
+                    value={article.slug || "-"}
                   />
 
                   <InfoRow
@@ -518,6 +596,7 @@ export default function ArticleDetailPage() {
               </div>
 
               {/* QUICK ACTION */}
+
               <div className="border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center bg-blue-50 text-blue-600">

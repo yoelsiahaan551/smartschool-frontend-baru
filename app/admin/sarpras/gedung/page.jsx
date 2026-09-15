@@ -78,16 +78,20 @@ function StatCard({
 function GedungImage({ src, nama }) {
   const [imageError, setImageError] = useState(false);
 
-  const hasImage =
-    typeof src === "string" &&
-    src.trim() !== "" &&
-    !imageError;
+  const imageUrl =
+    typeof src === "string" ? src.trim() : "";
+
+  const hasImage = imageUrl !== "" && !imageError;
 
   if (!hasImage) {
     return (
       <div className="flex h-14 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-br from-slate-50 to-slate-100">
         <div className="flex flex-col items-center justify-center text-slate-400">
-          <Building size={21} strokeWidth={1.7} />
+          <Building
+            size={21}
+            strokeWidth={1.7}
+          />
+
           <span className="mt-0.5 text-[8px] font-medium">
             Tidak ada foto
           </span>
@@ -99,9 +103,10 @@ function GedungImage({ src, nama }) {
   return (
     <div className="h-14 w-20 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-100 shadow-sm">
       <img
-        src={src}
+        src={imageUrl}
         alt={`Foto ${nama || "gedung"}`}
         className="h-full w-full object-cover transition-transform duration-300 hover:scale-105"
+        loading="lazy"
         onError={() => setImageError(true)}
       />
     </div>
@@ -144,13 +149,33 @@ export default function SarprasGedungPage() {
 
       const response = await getGedung();
 
+      console.log("Response get gedung:", response);
+
       const result =
         response?.data ??
         response?.result ??
         response ??
         [];
 
-      setData(Array.isArray(result) ? result : []);
+      const normalizedData = Array.isArray(result)
+        ? result.map((item) => ({
+            ...item,
+
+            /*
+             * Backend Prisma menggunakan:
+             * fotoGedung
+             *
+             * fotoUrl dijadikan fallback supaya
+             * response lama tetap bisa dibaca.
+             */
+            fotoGedung:
+              item?.fotoGedung ??
+              item?.fotoUrl ??
+              null,
+          }))
+        : [];
+
+      setData(normalizedData);
     } catch (err) {
       console.error("Error fetch gedung:", err);
 
@@ -230,9 +255,13 @@ export default function SarprasGedungPage() {
     if (!keyword) return data;
 
     return data.filter((item) => {
-      const nama = String(item?.nama ?? "").toLowerCase();
+      const nama = String(
+        item?.nama ?? ""
+      ).toLowerCase();
 
-      const kode = String(item?.kode ?? "").toLowerCase();
+      const kode = String(
+        item?.kode ?? ""
+      ).toLowerCase();
 
       return (
         nama.includes(keyword) ||
@@ -338,7 +367,10 @@ export default function SarprasGedungPage() {
   }, [search, sortBy, itemsPerPage]);
 
   const goToPage = (page) => {
-    if (page >= 1 && page <= totalPages) {
+    if (
+      page >= 1 &&
+      page <= totalPages
+    ) {
       setCurrentPage(page);
     }
   };
@@ -355,7 +387,10 @@ export default function SarprasGedungPage() {
       return [1, 2, 3, 4, 5];
     }
 
-    if (safePage >= totalPages - 2) {
+    if (
+      safePage >=
+      totalPages - 2
+    ) {
       return [
         totalPages - 4,
         totalPages - 3,
@@ -381,17 +416,24 @@ export default function SarprasGedungPage() {
   const totalLantai = useMemo(() => {
     return data.reduce(
       (total, gedung) =>
-        total + (gedung?.lantai?.length ?? 0),
+        total +
+        (gedung?.lantai?.length ?? 0),
       0
     );
   }, [data]);
 
   const totalFoto = useMemo(() => {
-    return data.filter(
-      (item) =>
-        typeof item?.fotoUrl === "string" &&
-        item.fotoUrl.trim() !== ""
-    ).length;
+    return data.filter((item) => {
+      const foto =
+        item?.fotoGedung ??
+        item?.fotoUrl ??
+        "";
+
+      return (
+        typeof foto === "string" &&
+        foto.trim() !== ""
+      );
+    }).length;
   }, [data]);
 
   /* =========================================================
@@ -409,24 +451,38 @@ export default function SarprasGedungPage() {
       "Jumlah Lantai",
     ];
 
-    const rows = data.map((item, index) => [
-      index + 1,
-      item?.nama ?? "",
-      item?.kode ?? "",
-      item?.fotoUrl ?? "",
-      item?.lantai?.length ?? 0,
-    ]);
+    const rows = data.map(
+      (item, index) => [
+        index + 1,
+        item?.nama ?? "",
+        item?.kode ?? "",
+        item?.fotoGedung ??
+          item?.fotoUrl ??
+          "",
+        item?.lantai?.length ?? 0,
+      ]
+    );
 
     const escapeCSV = (value) => {
-      const text = String(value ?? "");
+      const text = String(
+        value ?? ""
+      );
 
-      return `"${text.replace(/"/g, '""')}"`;
+      return `"${text.replace(
+        /"/g,
+        '""'
+      )}"`;
     };
 
     const csv = [
-      headers.map(escapeCSV).join(","),
+      headers
+        .map(escapeCSV)
+        .join(","),
+
       ...rows.map((row) =>
-        row.map(escapeCSV).join(",")
+        row
+          .map(escapeCSV)
+          .join(",")
       ),
     ].join("\n");
 
@@ -437,9 +493,11 @@ export default function SarprasGedungPage() {
       }
     );
 
-    const url = URL.createObjectURL(blob);
+    const url =
+      URL.createObjectURL(blob);
 
-    const link = document.createElement("a");
+    const link =
+      document.createElement("a");
 
     link.href = url;
 
@@ -467,11 +525,26 @@ export default function SarprasGedungPage() {
 
     const escapeHTML = (value) => {
       return String(value ?? "")
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
+        .replace(
+          /&/g,
+          "&amp;"
+        )
+        .replace(
+          /</g,
+          "&lt;"
+        )
+        .replace(
+          />/g,
+          "&gt;"
+        )
+        .replace(
+          /"/g,
+          "&quot;"
+        )
+        .replace(
+          /'/g,
+          "&#039;"
+        );
     };
 
     const headers = [
@@ -493,23 +566,38 @@ export default function SarprasGedungPage() {
               ${headers
                 .map(
                   (header) =>
-                    `<th>${escapeHTML(header)}</th>`
+                    `<th>${escapeHTML(
+                      header
+                    )}</th>`
                 )
                 .join("")}
             </tr>
     `;
 
-    data.forEach((item, index) => {
-      html += `
-        <tr>
-          <td>${index + 1}</td>
-          <td>${escapeHTML(item?.nama)}</td>
-          <td>${escapeHTML(item?.kode)}</td>
-          <td>${escapeHTML(item?.fotoUrl)}</td>
-          <td>${item?.lantai?.length ?? 0}</td>
-        </tr>
-      `;
-    });
+    data.forEach(
+      (item, index) => {
+        html += `
+          <tr>
+            <td>${index + 1}</td>
+            <td>${escapeHTML(
+              item?.nama
+            )}</td>
+            <td>${escapeHTML(
+              item?.kode
+            )}</td>
+            <td>${escapeHTML(
+              item?.fotoGedung ??
+                item?.fotoUrl ??
+                ""
+            )}</td>
+            <td>${
+              item?.lantai?.length ??
+              0
+            }</td>
+          </tr>
+        `;
+      }
+    );
 
     html += `
           </table>
@@ -517,13 +605,19 @@ export default function SarprasGedungPage() {
       </html>
     `;
 
-    const blob = new Blob([html], {
-      type: "application/vnd.ms-excel",
-    });
+    const blob = new Blob(
+      [html],
+      {
+        type:
+          "application/vnd.ms-excel",
+      }
+    );
 
-    const url = URL.createObjectURL(blob);
+    const url =
+      URL.createObjectURL(blob);
 
-    const link = document.createElement("a");
+    const link =
+      document.createElement("a");
 
     link.href = url;
 
@@ -558,7 +652,9 @@ export default function SarprasGedungPage() {
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <Header
           toggleSidebar={() =>
-            setIsCollapsed(!isCollapsed)
+            setIsCollapsed(
+              !isCollapsed
+            )
           }
           notifications={[]}
           user={{
@@ -572,9 +668,7 @@ export default function SarprasGedungPage() {
           <div className="w-full p-3 sm:p-5 lg:p-7 xl:p-8">
             <div className="mx-auto w-full max-w-[1600px] space-y-4 sm:space-y-5 lg:space-y-6">
 
-              {/* =================================================
-                  HEADER
-              ================================================= */}
+              {/* HEADER */}
 
               <section className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_2px_10px_rgba(15,23,42,0.05)]">
                 <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-blue-50/70 blur-3xl" />
@@ -618,14 +712,16 @@ export default function SarprasGedungPage() {
 
                   <div className="flex w-full flex-wrap gap-2 sm:flex-row lg:w-auto">
 
-                    {/* EXPORT */}
-
                     <div className="relative">
                       <button
                         onClick={() =>
-                          setShowExport(!showExport)
+                          setShowExport(
+                            !showExport
+                          )
                         }
-                        disabled={data.length === 0}
+                        disabled={
+                          data.length === 0
+                        }
                         className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-600 shadow-[0_2px_5px_rgba(15,23,42,0.05)] transition-all hover:border-slate-300 hover:bg-slate-50 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-50 sm:h-11 sm:px-5"
                       >
                         <Download size={16} />
@@ -636,7 +732,9 @@ export default function SarprasGedungPage() {
                         <div className="absolute right-0 top-12 z-40 w-48 rounded-xl border border-slate-200 bg-white py-1 shadow-[0_10px_40px_rgba(15,23,42,0.12)]">
 
                           <button
-                            onClick={exportExcel}
+                            onClick={
+                              exportExcel
+                            }
                             className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-slate-700 transition hover:bg-slate-50"
                           >
                             <FileSpreadsheet
@@ -648,7 +746,9 @@ export default function SarprasGedungPage() {
                           </button>
 
                           <button
-                            onClick={exportCSV}
+                            onClick={
+                              exportCSV
+                            }
                             className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-slate-700 transition hover:bg-slate-50"
                           >
                             <FileSpreadsheet
@@ -658,14 +758,15 @@ export default function SarprasGedungPage() {
 
                             Export CSV
                           </button>
+
                         </div>
                       )}
                     </div>
 
-                    {/* REFRESH */}
-
                     <button
-                      onClick={handleRefresh}
+                      onClick={
+                        handleRefresh
+                      }
                       disabled={loading}
                       className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-[0_2px_5px_rgba(15,23,42,0.05)] transition-all hover:border-slate-300 hover:bg-slate-50 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-50 sm:h-11 sm:w-11"
                       title="Refresh data"
@@ -680,10 +781,10 @@ export default function SarprasGedungPage() {
                       />
                     </button>
 
-                    {/* ADD */}
-
                     <button
-                      onClick={handleAdd}
+                      onClick={
+                        handleAdd
+                      }
                       className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 text-sm font-semibold text-white shadow-[0_7px_18px_rgba(15,23,42,0.16)] transition-all hover:bg-slate-800 hover:shadow-[0_9px_22px_rgba(15,23,42,0.20)] active:scale-[0.98] sm:h-11 sm:px-5"
                     >
                       <Plus
@@ -693,13 +794,12 @@ export default function SarprasGedungPage() {
 
                       Tambah Gedung
                     </button>
+
                   </div>
                 </div>
               </section>
 
-              {/* =================================================
-                  ERROR
-              ================================================= */}
+              {/* ERROR */}
 
               {error && (
                 <div className="flex items-start justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
@@ -714,7 +814,9 @@ export default function SarprasGedungPage() {
                   </div>
 
                   <button
-                    onClick={() => setError("")}
+                    onClick={() =>
+                      setError("")
+                    }
                     className="text-xs font-semibold text-rose-600 hover:text-rose-800"
                   >
                     Tutup
@@ -722,16 +824,16 @@ export default function SarprasGedungPage() {
                 </div>
               )}
 
-              {/* =================================================
-                  STATS
-              ================================================= */}
+              {/* STATS */}
 
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
 
                 <StatCard
                   icon={Building}
                   label="Total Gedung"
-                  value={data.length}
+                  value={
+                    data.length
+                  }
                   description="Seluruh gedung"
                   iconClass="bg-blue-50 text-blue-600"
                   valueClass="text-slate-800"
@@ -740,7 +842,9 @@ export default function SarprasGedungPage() {
                 <StatCard
                   icon={Layers}
                   label="Total Lantai"
-                  value={totalLantai}
+                  value={
+                    totalLantai
+                  }
                   description="Seluruh lantai"
                   iconClass="bg-indigo-50 text-indigo-600"
                   valueClass="text-indigo-700"
@@ -749,7 +853,9 @@ export default function SarprasGedungPage() {
                 <StatCard
                   icon={ImageIcon}
                   label="Gedung Berfoto"
-                  value={totalFoto}
+                  value={
+                    totalFoto
+                  }
                   description="Memiliki URL foto"
                   iconClass="bg-emerald-50 text-emerald-600"
                   valueClass="text-emerald-700"
@@ -757,9 +863,7 @@ export default function SarprasGedungPage() {
 
               </div>
 
-              {/* =================================================
-                  SEARCH & FILTER
-              ================================================= */}
+              {/* SEARCH */}
 
               <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_2px_10px_rgba(15,23,42,0.04)] sm:p-5">
 
@@ -794,7 +898,9 @@ export default function SarprasGedungPage() {
                       type="text"
                       value={search}
                       onChange={(e) =>
-                        setSearch(e.target.value)
+                        setSearch(
+                          e.target.value
+                        )
                       }
                       placeholder="Cari nama atau kode..."
                       className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 text-sm text-slate-700 outline-none transition-all placeholder:text-slate-400 focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-500/10"
@@ -804,7 +910,9 @@ export default function SarprasGedungPage() {
                   <select
                     value={sortBy}
                     onChange={(e) =>
-                      setSortBy(e.target.value)
+                      setSortBy(
+                        e.target.value
+                      )
                     }
                     className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-600 outline-none transition-all hover:border-slate-300 focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-500/10"
                   >
@@ -836,12 +944,15 @@ export default function SarprasGedungPage() {
                   <button
                     onClick={() => {
                       setSearch("");
-                      setSortBy("nama_asc");
+                      setSortBy(
+                        "nama_asc"
+                      );
                     }}
                     className="h-10 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-600 transition-all hover:border-slate-300 hover:bg-slate-50 hover:text-slate-800"
                   >
                     Reset
                   </button>
+
                 </div>
 
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
@@ -853,11 +964,10 @@ export default function SarprasGedungPage() {
                     data gedung
                   </p>
                 </div>
+
               </section>
 
-              {/* =================================================
-                  TABLE
-              ================================================= */}
+              {/* TABLE */}
 
               <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_3px_14px_rgba(15,23,42,0.05)]">
 
@@ -877,6 +987,7 @@ export default function SarprasGedungPage() {
                     <div className="text-xs text-slate-500">
                       {totalItems} data
                     </div>
+
                   </div>
                 </div>
 
@@ -915,8 +1026,6 @@ export default function SarprasGedungPage() {
 
                     <tbody className="divide-y divide-slate-100">
 
-                      {/* LOADING */}
-
                       {loading && (
                         <tr>
                           <td
@@ -943,46 +1052,65 @@ export default function SarprasGedungPage() {
                         </tr>
                       )}
 
-                      {/* DATA */}
-
                       {!loading &&
                         currentItems.map(
-                          (item, index) => {
+                          (
+                            item,
+                            index
+                          ) => {
                             const rowNumber =
-                              startIndex + index + 1;
+                              startIndex +
+                              index +
+                              1;
 
                             const jumlahLantai =
-                              item?.lantai?.length ?? 0;
+                              item?.lantai
+                                ?.length ??
+                              0;
+
+                            /*
+                             * Backend:
+                             * fotoGedung
+                             *
+                             * fallback:
+                             * fotoUrl
+                             */
+                            const fotoGedung =
+                              item?.fotoGedung ??
+                              item?.fotoUrl ??
+                              "";
 
                             return (
                               <tr
-                                key={item.id}
+                                key={
+                                  item.id
+                                }
                                 className="group transition-colors hover:bg-blue-50/30"
                               >
-
-                                {/* NO */}
 
                                 <td className="px-4 py-3.5 text-center text-sm text-slate-400">
                                   {rowNumber}
                                 </td>
 
-                                {/* FOTO */}
-
                                 <td className="px-4 py-3.5">
                                   <GedungImage
-                                    src={item?.fotoUrl}
-                                    nama={item?.nama}
+                                    src={
+                                      fotoGedung
+                                    }
+                                    nama={
+                                      item?.nama
+                                    }
                                   />
                                 </td>
-
-                                {/* GEDUNG */}
 
                                 <td className="px-4 py-3.5">
                                   <div className="flex items-center gap-3">
 
                                     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
                                       <Building
-                                        size={17}
+                                        size={
+                                          17
+                                        }
                                       />
                                     </div>
 
@@ -1001,19 +1129,20 @@ export default function SarprasGedungPage() {
                                       </button>
 
                                       <p className="max-w-[320px] truncate text-xs text-slate-400">
-                                        ID #{item?.id}
+                                        ID #
+                                        {item?.id}
                                       </p>
 
                                     </div>
                                   </div>
                                 </td>
 
-                                {/* KODE */}
-
                                 <td className="px-4 py-3.5">
                                   {item?.kode ? (
                                     <span className="inline-flex rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600">
-                                      {item.kode}
+                                      {
+                                        item.kode
+                                      }
                                     </span>
                                   ) : (
                                     <span className="text-xs text-slate-400">
@@ -1021,8 +1150,6 @@ export default function SarprasGedungPage() {
                                     </span>
                                   )}
                                 </td>
-
-                                {/* LANTAI */}
 
                                 <td className="px-4 py-3.5">
                                   <button
@@ -1035,16 +1162,18 @@ export default function SarprasGedungPage() {
                                     title="Lihat lantai"
                                   >
                                     <Layers
-                                      size={15}
+                                      size={
+                                        15
+                                      }
                                       className="text-slate-400"
                                     />
 
-                                    {jumlahLantai}{" "}
+                                    {
+                                      jumlahLantai
+                                    }{" "}
                                     Lantai
                                   </button>
                                 </td>
-
-                                {/* AKSI */}
 
                                 <td className="px-4 py-3.5">
                                   <div className="flex items-center justify-center gap-1">
@@ -1059,7 +1188,9 @@ export default function SarprasGedungPage() {
                                       title="Detail"
                                     >
                                       <Eye
-                                        size={16}
+                                        size={
+                                          16
+                                        }
                                       />
                                     </button>
 
@@ -1073,7 +1204,9 @@ export default function SarprasGedungPage() {
                                       title="Edit"
                                     >
                                       <Edit
-                                        size={16}
+                                        size={
+                                          16
+                                        }
                                       />
                                     </button>
 
@@ -1088,7 +1221,9 @@ export default function SarprasGedungPage() {
                                       title="Hapus"
                                     >
                                       <Trash2
-                                        size={16}
+                                        size={
+                                          16
+                                        }
                                       />
                                     </button>
 
@@ -1099,18 +1234,20 @@ export default function SarprasGedungPage() {
                             );
                           }
                         )}
+
                     </tbody>
                   </table>
                 </div>
 
-                {/* EMPTY */}
-
                 {!loading &&
-                  currentItems.length === 0 && (
+                  currentItems.length ===
+                    0 && (
                     <div className="flex flex-col items-center justify-center py-16 text-center">
 
                       <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
-                        <Building size={24} />
+                        <Building
+                          size={24}
+                        />
                       </div>
 
                       <h3 className="mt-4 text-sm font-semibold text-slate-700">
@@ -1125,18 +1262,20 @@ export default function SarprasGedungPage() {
 
                       {!search && (
                         <button
-                          onClick={handleAdd}
+                          onClick={
+                            handleAdd
+                          }
                           className="mt-4 inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800"
                         >
-                          <Plus size={14} />
+                          <Plus
+                            size={14}
+                          />
                           Tambah Gedung
                         </button>
                       )}
 
                     </div>
                   )}
-
-                {/* PAGINATION */}
 
                 {!loading &&
                   totalItems > 0 && (
@@ -1147,7 +1286,8 @@ export default function SarprasGedungPage() {
                         <span>
                           Menampilkan{" "}
                           <span className="font-semibold text-slate-700">
-                            {startIndex + 1}
+                            {startIndex +
+                              1}
                           </span>{" "}
                           -{" "}
                           <span className="font-semibold text-slate-700">
@@ -1155,7 +1295,9 @@ export default function SarprasGedungPage() {
                           </span>{" "}
                           dari{" "}
                           <span className="font-semibold text-slate-700">
-                            {totalItems}
+                            {
+                              totalItems
+                            }
                           </span>{" "}
                           data
                         </span>
@@ -1168,15 +1310,23 @@ export default function SarprasGedungPage() {
                           </span>
 
                           <select
-                            value={itemsPerPage}
-                            onChange={(e) => {
+                            value={
+                              itemsPerPage
+                            }
+                            onChange={(
+                              e
+                            ) => {
                               setItemsPerPage(
                                 Number(
-                                  e.target.value
+                                  e
+                                    .target
+                                    .value
                                 )
                               );
 
-                              setCurrentPage(1);
+                              setCurrentPage(
+                                1
+                              );
                             }}
                             className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-xs font-medium text-slate-700 outline-none transition-all focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10"
                           >
@@ -1199,10 +1349,13 @@ export default function SarprasGedungPage() {
 
                         <button
                           onClick={() =>
-                            goToPage(1)
+                            goToPage(
+                              1
+                            )
                           }
                           disabled={
-                            safePage === 1
+                            safePage ===
+                            1
                           }
                           className="flex h-8 w-8 items-center justify-center rounded-lg border border-transparent text-slate-400 transition-all hover:border-slate-200 hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
                         >
@@ -1214,11 +1367,13 @@ export default function SarprasGedungPage() {
                         <button
                           onClick={() =>
                             goToPage(
-                              safePage - 1
+                              safePage -
+                                1
                             )
                           }
                           disabled={
-                            safePage === 1
+                            safePage ===
+                            1
                           }
                           className="flex h-8 w-8 items-center justify-center rounded-lg border border-transparent text-slate-400 transition-all hover:border-slate-200 hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
                         >
@@ -1230,9 +1385,13 @@ export default function SarprasGedungPage() {
                         {getPageNumbers().map(
                           (page) => (
                             <button
-                              key={page}
+                              key={
+                                page
+                              }
                               onClick={() =>
-                                goToPage(page)
+                                goToPage(
+                                  page
+                                )
                               }
                               className={`flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-xs font-semibold transition-all ${
                                 safePage ===
@@ -1241,7 +1400,9 @@ export default function SarprasGedungPage() {
                                   : "text-slate-600 hover:bg-slate-100"
                               }`}
                             >
-                              {page}
+                              {
+                                page
+                              }
                             </button>
                           )
                         )}
@@ -1249,7 +1410,8 @@ export default function SarprasGedungPage() {
                         <button
                           onClick={() =>
                             goToPage(
-                              safePage + 1
+                              safePage +
+                                1
                             )
                           }
                           disabled={
@@ -1283,9 +1445,8 @@ export default function SarprasGedungPage() {
                       </div>
                     </div>
                   )}
-              </section>
 
-              {/* FOOTER */}
+              </section>
 
               <footer className="border-t border-slate-200/70 pt-4 text-center sm:pt-5">
                 <p className="text-xs text-slate-400">

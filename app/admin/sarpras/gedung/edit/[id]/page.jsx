@@ -51,7 +51,7 @@ export default function EditGedungPage() {
   const BACK_URL = "/admin/sarpras/gedung";
 
   /* =========================================================
-     FETCH GEDUNG
+     FETCH GEDUNG DETAIL
   ========================================================= */
 
   useEffect(() => {
@@ -89,10 +89,27 @@ export default function EditGedungPage() {
           return;
         }
 
+        /*
+         * Backend Prisma menggunakan:
+         * fotoGedung
+         *
+         * FE tetap menggunakan:
+         * fotoUrl
+         *
+         * Jadi kita mapping di sini.
+         */
+        const fotoGedung =
+          data?.fotoGedung ??
+          data?.fotoUrl ??
+          "";
+
         setFormData({
           nama: data?.nama ?? "",
           kode: data?.kode ?? "",
-          fotoUrl: data?.fotoUrl ?? "",
+          fotoUrl:
+            typeof fotoGedung === "string"
+              ? fotoGedung.trim()
+              : "",
         });
 
         setImageError(false);
@@ -205,9 +222,16 @@ export default function EditGedungPage() {
 
       const payload = {
         nama: formData.nama.trim(),
+
         kode: formData.kode.trim()
           ? formData.kode.trim()
           : null,
+
+        /*
+         * Tetap kirim fotoUrl.
+         * Backend controller yang mengubah
+         * fotoUrl -> fotoGedung.
+         */
         fotoUrl: formData.fotoUrl.trim()
           ? formData.fotoUrl.trim()
           : null,
@@ -243,7 +267,7 @@ export default function EditGedungPage() {
     return (
       <div className="h-screen overflow-hidden bg-[#f8fafc]">
 
-        {/* SIDEBAR FULL HEIGHT */}
+        {/* SIDEBAR */}
         <div className="fixed inset-y-0 left-0 z-50 h-screen">
           <Sidebar
             active="sarpras"
@@ -289,6 +313,7 @@ export default function EditGedungPage() {
               <p className="mt-1 text-xs text-slate-400">
                 Mohon tunggu sebentar...
               </p>
+
             </div>
           </main>
         </div>
@@ -385,6 +410,7 @@ export default function EditGedungPage() {
                   <span>/</span>
                   <span>Gedung</span>
                   <span>/</span>
+
                   <span className="font-medium text-slate-500">
                     Edit
                   </span>
@@ -398,7 +424,6 @@ export default function EditGedungPage() {
 
               <section className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_3px_15px_rgba(15,23,42,0.05)]">
 
-                {/* blue decoration */}
                 <div className="pointer-events-none absolute -right-24 -top-28 h-72 w-72 rounded-full bg-blue-50/80 blur-3xl" />
 
                 <div className="pointer-events-none absolute -bottom-20 right-48 h-40 w-40 rounded-full bg-indigo-50/50 blur-3xl" />
@@ -432,6 +457,7 @@ export default function EditGedungPage() {
                       </div>
 
                       <div className="mt-1.5 flex items-center gap-2">
+
                         <Building
                           size={14}
                           className="shrink-0 text-blue-500"
@@ -442,6 +468,7 @@ export default function EditGedungPage() {
                           yang tersimpan di
                           SmartSchool.
                         </p>
+
                       </div>
 
                     </div>
@@ -495,6 +522,7 @@ export default function EditGedungPage() {
                   </div>
 
                   <div className="min-w-0">
+
                     <p className="text-sm font-semibold text-rose-800">
                       Terjadi kesalahan
                     </p>
@@ -502,6 +530,7 @@ export default function EditGedungPage() {
                     <p className="mt-0.5 text-xs leading-5 text-rose-700">
                       {errorMessage}
                     </p>
+
                   </div>
 
                 </div>
@@ -519,6 +548,7 @@ export default function EditGedungPage() {
                   </div>
 
                   <div>
+
                     <p className="text-sm font-semibold text-emerald-800">
                       Perubahan berhasil disimpan
                     </p>
@@ -526,6 +556,7 @@ export default function EditGedungPage() {
                     <p className="mt-0.5 text-xs text-emerald-700">
                       Mengalihkan kembali ke daftar gedung...
                     </p>
+
                   </div>
 
                 </div>
@@ -557,6 +588,7 @@ export default function EditGedungPage() {
                       </div>
 
                       <div className="min-w-0">
+
                         <h2 className="text-sm font-semibold text-slate-800">
                           Informasi Gedung
                         </h2>
@@ -564,6 +596,7 @@ export default function EditGedungPage() {
                         <p className="mt-0.5 text-[11px] text-slate-400">
                           Perbarui data dasar gedung
                         </p>
+
                       </div>
 
                     </div>
@@ -876,6 +909,7 @@ export default function EditGedungPage() {
                         </div>
 
                         <div>
+
                           <h2 className="text-sm font-semibold text-slate-800">
                             Preview
                           </h2>
@@ -883,6 +917,7 @@ export default function EditGedungPage() {
                           <p className="mt-0.5 text-[10px] text-slate-400">
                             Tampilan data gedung
                           </p>
+
                         </div>
 
                       </div>

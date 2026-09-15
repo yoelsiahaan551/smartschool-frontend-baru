@@ -16,12 +16,8 @@ import {
   Info,
   Hash,
   Printer,
-  DoorOpen,
   GraduationCap,
-  CalendarDays,
   ChevronRight,
-  MapPin,
-  School,
   Clock3,
   Image as ImageIcon,
   CheckCircle2,
@@ -47,6 +43,16 @@ export default function DetailGedungPage() {
   const [lantai, setLantai] = useState([]);
 
   const [error, setError] = useState("");
+
+  /* =========================================================
+     FOTO GEDUNG
+  ========================================================= */
+
+  const fotoGedung = useMemo(() => {
+    const foto = data?.fotoGedung ?? data?.fotoUrl ?? "";
+
+    return typeof foto === "string" ? foto.trim() : "";
+  }, [data]);
 
   /* =========================================================
      FORMAT TANGGAL
@@ -121,6 +127,9 @@ export default function DetailGedungPage() {
         if (!found) {
           if (mounted) {
             setData(null);
+            setError(
+              `Data gedung dengan ID #${id} tidak tersedia.`
+            );
           }
 
           return;
@@ -422,7 +431,6 @@ export default function DetailGedungPage() {
             ================================================= */}
 
             <div className="mb-4 flex items-center gap-2 text-xs text-slate-400">
-
               <button
                 type="button"
                 onClick={() =>
@@ -440,7 +448,6 @@ export default function DetailGedungPage() {
               <span className="truncate font-medium text-slate-600">
                 Detail
               </span>
-
             </div>
 
             {/* =================================================
@@ -448,8 +455,6 @@ export default function DetailGedungPage() {
             ================================================= */}
 
             <section className="relative overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_4px_20px_rgba(15,23,42,0.045)]">
-
-              {/* DECORATION */}
 
               <div className="pointer-events-none absolute -right-24 -top-32 h-72 w-72 rounded-full bg-blue-50 blur-3xl" />
 
@@ -464,12 +469,10 @@ export default function DetailGedungPage() {
                   <div className="flex min-w-0 items-start gap-4">
 
                     <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-[0_8px_22px_rgba(37,99,235,0.22)] sm:h-16 sm:w-16">
-
                       <Building
                         size={27}
                         strokeWidth={1.7}
                       />
-
                     </div>
 
                     <div className="min-w-0">
@@ -590,8 +593,6 @@ export default function DetailGedungPage() {
 
             <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
 
-              {/* GEDUNG */}
-
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_2px_10px_rgba(15,23,42,0.035)]">
 
                 <div className="flex items-center justify-between">
@@ -616,8 +617,6 @@ export default function DetailGedungPage() {
 
               </div>
 
-              {/* LANTAI */}
-
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_2px_10px_rgba(15,23,42,0.035)]">
 
                 <div className="flex items-center justify-between">
@@ -641,8 +640,6 @@ export default function DetailGedungPage() {
                 </p>
 
               </div>
-
-              {/* KELAS */}
 
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_2px_10px_rgba(15,23,42,0.035)]">
 
@@ -669,8 +666,6 @@ export default function DetailGedungPage() {
                 </p>
 
               </div>
-
-              {/* STATUS */}
 
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_2px_10px_rgba(15,23,42,0.035)]">
 
@@ -744,8 +739,6 @@ export default function DetailGedungPage() {
 
                   <div className="grid grid-cols-1 gap-px bg-slate-100 sm:grid-cols-2">
 
-                    {/* NAMA */}
-
                     <div className="bg-white p-5">
 
                       <div className="flex items-center gap-2 text-slate-400">
@@ -764,8 +757,6 @@ export default function DetailGedungPage() {
 
                     </div>
 
-                    {/* KODE */}
-
                     <div className="bg-white p-5">
 
                       <div className="flex items-center gap-2 text-slate-400">
@@ -782,8 +773,6 @@ export default function DetailGedungPage() {
 
                     </div>
 
-                    {/* ID */}
-
                     <div className="bg-white p-5">
 
                       <div className="flex items-center gap-2 text-slate-400">
@@ -799,8 +788,6 @@ export default function DetailGedungPage() {
                       </p>
 
                     </div>
-
-                    {/* LANTAI */}
 
                     <div className="bg-white p-5">
 
@@ -833,7 +820,9 @@ export default function DetailGedungPage() {
                     <div className="flex items-center gap-3">
 
                       <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
-                        <Layers size={16} />
+                        <Layers
+                          size={16}
+                        />
                       </div>
 
                       <div>
@@ -902,8 +891,6 @@ export default function DetailGedungPage() {
                               className="p-5 transition hover:bg-slate-50/40 sm:p-6"
                             >
 
-                              {/* FLOOR HEADER */}
-
                               <div className="flex items-center justify-between gap-4">
 
                                 <div className="flex min-w-0 items-center gap-3">
@@ -949,8 +936,6 @@ export default function DetailGedungPage() {
                                 </div>
 
                               </div>
-
-                              {/* KELAS */}
 
                               {kelas.length > 0 ? (
 
@@ -1074,26 +1059,56 @@ export default function DetailGedungPage() {
 
                   </div>
 
-                  {data.fotoUrl ? (
+                  {fotoGedung ? (
 
                     <div className="p-3">
 
                       <div className="group relative overflow-hidden rounded-xl bg-slate-100">
 
                         <img
-                          src={data.fotoUrl}
+                          src={fotoGedung}
                           alt={
                             data.nama ||
                             "Foto Gedung"
                           }
                           className="h-[220px] w-full object-cover transition duration-500 group-hover:scale-[1.025]"
-                          onError={(
-                            event
-                          ) => {
+                          onError={(event) => {
                             event.currentTarget.style.display =
                               "none";
+
+                            const fallback =
+                              event.currentTarget
+                                .parentElement
+                                ?.querySelector(
+                                  "[data-photo-fallback]"
+                                );
+
+                            if (fallback) {
+                              fallback.classList.remove(
+                                "hidden"
+                              );
+                            }
                           }}
                         />
+
+                        <div
+                          data-photo-fallback
+                          className="hidden h-[220px] flex-col items-center justify-center bg-slate-100 text-center"
+                        >
+                          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white text-slate-300 shadow-sm">
+                            <ImageIcon
+                              size={22}
+                            />
+                          </div>
+
+                          <p className="mt-3 text-xs font-semibold text-slate-500">
+                            Foto tidak dapat dimuat
+                          </p>
+
+                          <p className="mt-1 px-4 text-[10px] text-slate-400">
+                            URL foto tidak dapat diakses.
+                          </p>
+                        </div>
 
                         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/35 to-transparent" />
 
@@ -1165,8 +1180,6 @@ export default function DetailGedungPage() {
 
                   <div className="mt-4 space-y-4">
 
-                    {/* STATUS */}
-
                     <div className="flex items-center justify-between">
 
                       <div className="flex items-center gap-3">
@@ -1189,8 +1202,6 @@ export default function DetailGedungPage() {
 
                     </div>
 
-                    {/* KODE */}
-
                     <div className="flex items-center justify-between gap-3">
 
                       <div className="flex items-center gap-3">
@@ -1210,8 +1221,6 @@ export default function DetailGedungPage() {
                       </span>
 
                     </div>
-
-                    {/* LANTAI */}
 
                     <div className="flex items-center justify-between">
 
@@ -1234,8 +1243,6 @@ export default function DetailGedungPage() {
                       </span>
 
                     </div>
-
-                    {/* KELAS */}
 
                     <div className="flex items-center justify-between">
 
@@ -1299,7 +1306,8 @@ export default function DetailGedungPage() {
 
                       <p className="mt-1 text-xs font-semibold leading-5 text-slate-700">
                         {formatDate(
-                          data.createdAt
+                          data.createdAt ??
+                            data.dibuatPada
                         )}
                       </p>
 
@@ -1313,7 +1321,8 @@ export default function DetailGedungPage() {
 
                       <p className="mt-1 text-xs font-semibold leading-5 text-slate-700">
                         {formatDate(
-                          data.updatedAt
+                          data.updatedAt ??
+                            data.diperbaruiPada
                         )}
                       </p>
 
@@ -1355,6 +1364,7 @@ export default function DetailGedungPage() {
                       className="flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-600 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <Trash2 size={14} />
+
                       {isDeleting
                         ? "..."
                         : "Hapus"}

@@ -36,7 +36,7 @@ import {
 import {
   getGedung,
   getLantaiByGedung,
-} from "../../../../../services/infrastruktur";
+} from "../../../../../services/infrastruktur.service";
 
 const TINGKAT_OPTIONS = [
   {

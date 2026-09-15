@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Bell,
@@ -8,8 +8,8 @@ import {
   ChevronDown,
   User,
   Settings,
-  LogOut,
   HelpCircle,
+  LogOut,
   Moon,
   Sun,
   Command,
@@ -39,7 +39,10 @@ export default function Header({
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
 
-  const [notifList, setNotifList] = useState([]);
+  const [notifList, setNotifList] = useState(
+    Array.isArray(notifications) ? notifications : []
+  );
+
   const [unreadCount, setUnreadCount] = useState(0);
   const [loadingNotif, setLoadingNotif] = useState(false);
   const [notifError, setNotifError] = useState("");
@@ -148,61 +151,124 @@ export default function Header({
   // LOAD NOTIFIKASI DARI BACKEND
   // ============================================================
 
-  const loadNotifications = async () => {
+  const loadNotifications = useCallback(async (showLoading = false) => {
     try {
-      setLoadingNotif(true);
+      if (showLoading) {
+        setLoadingNotif(true);
+      }
+
       setNotifError("");
 
       const result = await getNotifikasi();
 
-      const list = Array.isArray(result?.list)
-        ? result.list
-        : Array.isArray(result?.data)
-          ? result.data
-          : Array.isArray(result)
-            ? result
-            : [];
+      console.log("📢 RESPONSE NOTIFIKASI:", result);
+
+      /*
+       * Backend successResponse kemungkinan menghasilkan:
+       *
+       * {
+       *   success: true,
+       *   message: "...",
+       *   data: {
+       *     unreadCount: 1,
+       *     list: [...]
+       *   }
+       * }
+       *
+       * Tetapi kita buat fleksibel kalau apiFetch
+       * ternyata sudah meng-unwrapping data.
+       */
+
+      const notificationData =
+        result?.data?.data ??
+        result?.data ??
+        result ??
+        {};
+
+      const list =
+        Array.isArray(notificationData?.list)
+          ? notificationData.list
+          : Array.isArray(result?.list)
+            ? result.list
+            : Array.isArray(notificationData)
+              ? notificationData
+              : [];
+
+      const unreadFromBackend =
+        notificationData?.unreadCount ??
+        result?.unreadCount;
+
+      const unread =
+        unreadFromBackend !== undefined &&
+        unreadFromBackend !== null
+          ? Number(unreadFromBackend)
+          : list.filter(
+              (item) => !item?.dibaca
+            ).length;
 
       setNotifList(list);
 
-      const unread = Number(
-        result?.unreadCount ??
-          list.filter((item) => !item?.dibaca).length ??
-          0
+      setUnreadCount(
+        Number.isFinite(unread)
+          ? unread
+          : 0
+      );
+    } catch (error) {
+      console.error(
+        "❌ Gagal mengambil notifikasi:",
+        error
       );
 
-      setUnreadCount(Number.isFinite(unread) ? unread : 0);
-    } catch (error) {
-      console.error("Gagal mengambil notifikasi:", error);
-
-      setNotifList([]);
-      setUnreadCount(0);
-
+      /*
+       * Jangan langsung menghapus notifikasi lama
+       * ketika polling gagal.
+       */
       setNotifError(
-        error?.message || "Gagal mengambil notifikasi."
+        error?.message ||
+          "Gagal mengambil notifikasi."
       );
     } finally {
-      setLoadingNotif(false);
+      if (showLoading) {
+        setLoadingNotif(false);
+      }
     }
-  };
-
-  // ============================================================
-  // LOAD SAAT HEADER DIBUKA
-  // ============================================================
-
-  useEffect(() => {
-    loadNotifications();
   }, []);
 
   // ============================================================
-  // REFRESH NOTIFIKASI SAAT DROPDOWN DIBUKA
+  // LOAD PERTAMA KALI
+  // ============================================================
+
+  useEffect(() => {
+    loadNotifications(true);
+  }, [loadNotifications]);
+
+  // ============================================================
+  // AUTO REFRESH NOTIFIKASI
+  //
+  // Setiap 10 detik.
+  // Jadi kalau guru baru menilai tugas,
+  // badge notifikasi siswa akan muncul otomatis.
+  // ============================================================
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      loadNotifications(false);
+    }, 10000);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [loadNotifications]);
+
+  // ============================================================
+  // REFRESH SAAT DROPDOWN DIBUKA
   // ============================================================
 
   useEffect(() => {
     if (isNotifOpen) {
-      loadNotifications();
+      loadNotifications(true);
     }
-  }, [isNotifOpen]);
+  }, [isNotifOpen, loadNotifications]);
 
   // ============================================================
   // FORMAT WAKTU
@@ -220,16 +286,28 @@ export default function Header({
     }
 
     const now = new Date();
-    const diff = now.getTime() - date.getTime();
+    const diff =
+      now.getTime() - date.getTime();
 
     if (diff < 0) {
       return "Baru saja";
     }
 
-    const seconds = Math.floor(diff / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const hours = Math.floor(minutes / 60);
-    const days = Math.floor(hours / 24);
+    const seconds = Math.floor(
+      diff / 1000
+    );
+
+    const minutes = Math.floor(
+      seconds / 60
+    );
+
+    const hours = Math.floor(
+      minutes / 60
+    );
+
+    const days = Math.floor(
+      hours / 24
+    );
 
     if (seconds < 60) {
       return "Baru saja";
@@ -247,25 +325,32 @@ export default function Header({
       return `${days} hari lalu`;
     }
 
-    return date.toLocaleDateString("id-ID", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
+    return date.toLocaleDateString(
+      "id-ID",
+      {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      }
+    );
   };
 
   // ============================================================
   // KLIK NOTIFIKASI
   // ============================================================
 
-  const handleNotificationClick = async (notif) => {
+  const handleNotificationClick = async (
+    notif
+  ) => {
     try {
       if (!notif?.id) {
         return;
       }
 
       if (!notif.dibaca) {
-        await markNotifikasiAsRead(notif.id);
+        await markNotifikasiAsRead(
+          notif.id
+        );
 
         setNotifList((current) =>
           current.map((item) =>
@@ -273,7 +358,8 @@ export default function Header({
               ? {
                   ...item,
                   dibaca: true,
-                  dibacaPada: new Date().toISOString(),
+                  dibacaPada:
+                    new Date().toISOString(),
                 }
               : item
           )
@@ -287,7 +373,9 @@ export default function Header({
       setIsNotifOpen(false);
 
       if (notif.targetUrl) {
-        router.push(notif.targetUrl);
+        router.push(
+          notif.targetUrl
+        );
       }
     } catch (error) {
       console.error(
@@ -359,7 +447,8 @@ export default function Header({
   // ============================================================
 
   const currentPathMap =
-    pathMap[role] || pathMap["super-admin"];
+    pathMap[role] ||
+    pathMap["super-admin"];
 
   const menuItems = [
     {
@@ -384,6 +473,10 @@ export default function Header({
       iconColor: "text-emerald-500",
     },
   ];
+
+  // ============================================================
+  // RENDER
+  // ============================================================
 
   return (
     <header className="h-16 sticky top-0 z-30 bg-white/95 backdrop-blur-xl border-b border-slate-200/70">
@@ -436,7 +529,9 @@ export default function Header({
           <button
             type="button"
             onClick={() =>
-              setIsDarkMode((current) => !current)
+              setIsDarkMode(
+                (current) => !current
+              )
             }
             className="p-2 rounded-xl hover:bg-slate-100 transition-all duration-200 text-slate-400 hover:text-slate-600 hover:scale-105 relative group"
             aria-label={
@@ -469,7 +564,9 @@ export default function Header({
             <button
               type="button"
               onClick={() =>
-                setIsNotifOpen((current) => !current)
+                setIsNotifOpen(
+                  (current) => !current
+                )
               }
               className="p-2 rounded-xl hover:bg-slate-100 transition-all duration-200 text-slate-400 hover:text-slate-600 hover:scale-105 relative group"
               aria-label="Notifikasi"
@@ -496,7 +593,7 @@ export default function Header({
             {isNotifOpen && (
               <div className="absolute right-0 mt-2 w-[360px] max-w-[calc(100vw-24px)] bg-white rounded-2xl shadow-2xl border border-slate-200/60 py-1 z-40 overflow-hidden">
 
-                {/* HEADER NOTIFIKASI */}
+                {/* HEADER */}
 
                 <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -523,7 +620,9 @@ export default function Header({
                   {unreadCount > 0 && (
                     <button
                       type="button"
-                      onClick={handleMarkAllAsRead}
+                      onClick={
+                        handleMarkAllAsRead
+                      }
                       className="flex items-center gap-1.5 text-[10px] text-blue-600 font-medium hover:text-blue-700 hover:underline"
                     >
                       <CheckCheck size={13} />
@@ -565,7 +664,11 @@ export default function Header({
 
                       <button
                         type="button"
-                        onClick={loadNotifications}
+                        onClick={() =>
+                          loadNotifications(
+                            true
+                          )
+                        }
                         className="mt-2 text-[11px] text-blue-600 hover:underline"
                       >
                         Coba lagi
@@ -579,7 +682,9 @@ export default function Header({
                           type="button"
                           key={notif.id}
                           onClick={() =>
-                            handleNotificationClick(notif)
+                            handleNotificationClick(
+                              notif
+                            )
                           }
                           className={`w-full text-left px-4 py-3 hover:bg-slate-50 transition-all duration-150 border-l-4 ${
                             !notif.dibaca
@@ -665,7 +770,9 @@ export default function Header({
                     onClick={() => {
                       setIsNotifOpen(false);
 
-                      if (currentPathMap.profile) {
+                      if (
+                        currentPathMap.profile
+                      ) {
                         router.push(
                           currentPathMap.profile
                         );
@@ -688,7 +795,9 @@ export default function Header({
             <button
               type="button"
               onClick={() =>
-                setIsProfileOpen((current) => !current)
+                setIsProfileOpen(
+                  (current) => !current
+                )
               }
               className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl hover:bg-slate-100 transition-all duration-200 group"
               aria-label="Menu profil"
@@ -764,7 +873,9 @@ export default function Header({
                           <Icon size={16} />
                         </div>
 
-                        <span>{item.label}</span>
+                        <span>
+                          {item.label}
+                        </span>
                       </button>
                     );
                   })}

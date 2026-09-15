@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+
 import Header from "../../components/Header";
 import Sidebar from "../../components/Sidebar";
 
@@ -61,69 +62,6 @@ const ICON_MAP = {
 };
 
 /* =========================================================
-   DEFAULT MODULE
-========================================================= */
-
-const DEFAULT_MODULES = [
-  {
-    id: "akademik",
-    kode: "akademik",
-    nama: "Akademik",
-    deskripsi: "Nilai, jadwal & rapor digital",
-    icon: BookOpen,
-  },
-  {
-    id: "keuangan",
-    kode: "keuangan",
-    nama: "Keuangan",
-    deskripsi: "SPP, tagihan & laporan keuangan",
-    icon: Wallet,
-  },
-  {
-    id: "kepegawaian",
-    kode: "kepegawaian",
-    nama: "Kepegawaian",
-    deskripsi: "Data guru & staff sekolah",
-    icon: UserCog,
-  },
-  {
-    id: "perpustakaan",
-    kode: "perpustakaan",
-    nama: "Perpustakaan",
-    deskripsi: "Katalog & sirkulasi buku",
-    icon: Library,
-  },
-  {
-    id: "presensi",
-    kode: "presensi",
-    nama: "Presensi",
-    deskripsi: "Absensi digital siswa & guru",
-    icon: ClipboardCheck,
-  },
-  {
-    id: "ppdb",
-    kode: "ppdb",
-    nama: "PPDB",
-    deskripsi: "Pendaftaran siswa baru online",
-    icon: UserPlus,
-  },
-  {
-    id: "komunikasi",
-    kode: "komunikasi",
-    nama: "Komunikasi",
-    deskripsi: "Pesan ke orang tua & wali murid",
-    icon: MessageSquare,
-  },
-  {
-    id: "inventaris",
-    kode: "inventaris",
-    nama: "Inventaris",
-    deskripsi: "Aset & barang milik sekolah",
-    icon: Boxes,
-  },
-];
-
-/* =========================================================
    PACKAGE THEMES
 ========================================================= */
 
@@ -159,7 +97,7 @@ function formatRupiah(value) {
 }
 
 /* =========================================================
-   GET RESPONSE DATA
+   RESPONSE HELPER
 ========================================================= */
 
 function getResponseData(response) {
@@ -233,6 +171,10 @@ function getPaketDescription(paket) {
   );
 }
 
+/* =========================================================
+   STATUS
+========================================================= */
+
 function getPaketStatus(paket) {
   const status = String(
     paket?.status ??
@@ -241,19 +183,26 @@ function getPaketStatus(paket) {
       "aktif"
   ).toLowerCase();
 
-  return status === "aktif"
-    ? "aktif"
-    : "nonaktif";
+  return status === "aktif" ? "aktif" : "nonaktif";
 }
 
-function getPaketCycle(paket) {
-  return (
-    paket?.siklus ??
-    paket?.periode ??
-    paket?.durasi ??
-    "bulan"
-  );
+/* =========================================================
+   DURASI
+========================================================= */
+
+function getPaketDuration(paket) {
+  const durasi = Number(paket?.durasi ?? 1);
+
+  if (!Number.isFinite(durasi) || durasi <= 0) {
+    return 1;
+  }
+
+  return durasi;
 }
+
+/* =========================================================
+   SUBSCRIBERS
+========================================================= */
 
 function getPaketSubscribers(paket) {
   return Number(
@@ -268,8 +217,7 @@ function getPaketSubscribers(paket) {
 }
 
 /* =========================================================
-   GET FITUR DARI PAKET
-   SESUAI RESPONSE BACKEND
+   GET FEATURE DARI PAKET
 ========================================================= */
 
 function getPaketFeatures(paket) {
@@ -278,21 +226,21 @@ function getPaketFeatures(paket) {
   }
 
   /*
-    RESPONSE BACKEND:
+    Response backend:
 
     {
-      id: "...",
-      nama: "...",
-      deskripsi: "...",
-      harga: 100000,
-      durasi: "bulan",
+      id,
+      nama,
+      deskripsi,
+      harga,
+      durasi,
       fitur: [
         {
-          id: "...",
-          kode: "akademik",
-          nama: "Akademik",
-          deskripsi: "...",
-          ikon: "..."
+          id,
+          kode,
+          nama,
+          deskripsi,
+          ikon
         }
       ]
     }
@@ -303,15 +251,12 @@ function getPaketFeatures(paket) {
   }
 
   /*
-    Fallback apabila ada endpoint/response
-    yang mengembalikan paketModul.
+    Fallback jika response menggunakan paketModul
   */
 
   if (Array.isArray(paket.paketModul)) {
     return paket.paketModul
-      .map((item) => {
-        return item?.modul || item?.fitur || null;
-      })
+      .map((item) => item?.modul || item?.fitur || null)
       .filter(Boolean);
   }
 
@@ -359,9 +304,7 @@ function normalizeFeature(item, index) {
     item?.keterangan ??
     "";
 
-  const kode = String(
-    item?.kode ?? ""
-  ).toLowerCase();
+  const kode = String(item?.kode ?? "").toLowerCase();
 
   const namaKey = String(nama)
     .toLowerCase()
@@ -388,8 +331,7 @@ function normalizeFeature(item, index) {
 ========================================================= */
 
 function getPackageTheme(paket, index) {
-  const name =
-    getPaketName(paket).toLowerCase();
+  const name = getPaketName(paket).toLowerCase();
 
   if (
     name.includes("premium") ||
@@ -425,8 +367,7 @@ function getPackageTheme(paket, index) {
 ========================================================= */
 
 function getPackageIcon(paket, index) {
-  const nama =
-    getPaketName(paket).toLowerCase();
+  const nama = getPaketName(paket).toLowerCase();
 
   if (
     nama.includes("enterprise") ||
@@ -470,32 +411,18 @@ function getPackageIcon(paket, index) {
 export default function PaketModulPage() {
   const router = useRouter();
 
-  const [activeMenu, setActiveMenu] =
-    useState("paket-modul");
+  const [activeMenu, setActiveMenu] = useState("paket-modul");
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  const [sidebarOpen, setSidebarOpen] =
-    useState(true);
+  const [paketList, setPaketList] = useState([]);
+  const [fiturList, setFiturList] = useState([]);
 
-  const [paketList, setPaketList] =
-    useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const [fiturList, setFiturList] =
-    useState([]);
-
-  const [loading, setLoading] =
-    useState(true);
-
-  const [refreshing, setRefreshing] =
-    useState(false);
-
-  const [error, setError] =
-    useState("");
-
-  const [confirmDelete, setConfirmDelete] =
-    useState(null);
-
-  const [search, setSearch] =
-    useState("");
+  const [error, setError] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(null);
+  const [search, setSearch] = useState("");
 
   const notifications = [
     {
@@ -526,23 +453,14 @@ export default function PaketModulPage() {
 
       setError("");
 
-      const [
-        paketResponse,
-        fiturResponse,
-      ] = await Promise.all([
-        getPaket(),
-        getFitur(),
-      ]);
+      const [paketResponse, fiturResponse] =
+        await Promise.all([
+          getPaket(),
+          getFitur(),
+        ]);
 
-      const paketData =
-        getResponseData(
-          paketResponse
-        );
-
-      const fiturData =
-        getResponseData(
-          fiturResponse
-        );
+      const paketData = getResponseData(paketResponse);
+      const fiturData = getResponseData(fiturResponse);
 
       console.log(
         "===================================="
@@ -554,33 +472,42 @@ export default function PaketModulPage() {
       );
 
       console.log(
-        "DATA FITUR DARI BACKEND:",
+        "DATA MODUL DARI BACKEND:",
         fiturData
       );
+
+      paketData.forEach((paket) => {
+        console.log(
+          "PAKET:",
+          paket?.nama
+        );
+
+        console.log(
+          "ID:",
+          paket?.id
+        );
+
+        console.log(
+          "DURASI:",
+          paket?.durasi
+        );
+
+        console.log(
+          "FITUR:",
+          paket?.fitur
+        );
+
+        console.log(
+          "JUMLAH FITUR:",
+          Array.isArray(paket?.fitur)
+            ? paket.fitur.length
+            : 0
+        );
+      });
 
       console.log(
         "===================================="
       );
-
-      /*
-        Debug setiap paket.
-        Ini memastikan fitur per paket
-        benar-benar terbaca dari BE.
-      */
-
-      paketData.forEach((paket) => {
-        console.log(
-          `PAKET: ${paket?.nama}`,
-          {
-            id: paket?.id,
-            fitur: paket?.fitur,
-            jumlahFitur:
-              Array.isArray(paket?.fitur)
-                ? paket.fitur.length
-                : 0,
-          }
-        );
-      });
 
       setPaketList(
         Array.isArray(paketData)
@@ -590,13 +517,16 @@ export default function PaketModulPage() {
 
       setFiturList(
         Array.isArray(fiturData)
-          ? fiturData.map(
-              (item, index) =>
+          ? fiturData
+              .map((item, index) =>
                 normalizeFeature(
                   item,
                   index
                 )
-            )
+              )
+              .filter(
+                (item) => item.id
+              )
           : []
       );
     } catch (err) {
@@ -621,78 +551,61 @@ export default function PaketModulPage() {
 
   /* =======================================================
      NORMALIZED PACKAGE
-======================================================= */
+  ======================================================= */
 
-  const normalizedPaket =
-    useMemo(() => {
-      return paketList.map(
-        (paket, index) => {
-          /*
-            LANGSUNG AMBIL fitur
-            dari response BE.
-          */
+  const normalizedPaket = useMemo(() => {
+    return paketList.map(
+      (paket, index) => {
+        const features =
+          getPaketFeatures(paket);
 
-          const features =
-            getPaketFeatures(paket);
+        return {
+          ...paket,
 
-          return {
-            ...paket,
+          id: getPaketId(paket),
 
-            id:
-              getPaketId(paket),
+          nama: getPaketName(paket),
 
-            nama:
-              getPaketName(paket),
+          harga: getPaketPrice(paket),
 
-            harga:
-              getPaketPrice(paket),
+          deskripsi:
+            getPaketDescription(paket),
 
-            deskripsi:
-              getPaketDescription(
-                paket
-              ),
+          status:
+            getPaketStatus(paket),
 
-            status:
-              getPaketStatus(paket),
+          durasi:
+            getPaketDuration(paket),
 
-            siklus:
-              getPaketCycle(paket),
+          langganan:
+            getPaketSubscribers(paket),
 
-            langganan:
-              getPaketSubscribers(
-                paket
-              ),
+          fitur: features,
 
-            /*
-              INI YANG PALING PENTING
-            */
+          theme:
+            getPackageTheme(
+              paket,
+              index
+            ),
 
-            fitur: features,
+          icon:
+            getPackageIcon(
+              paket,
+              index
+            ),
 
-            theme:
-              getPackageTheme(
-                paket,
-                index
-              ),
-
-            icon:
-              getPackageIcon(
-                paket,
-                index
-              ),
-
-            populer:
-              paket?.populer === true ||
-              paket?.isPopular === true ||
-              paket?.is_popular === true,
-          };
-        }
-      );
-    }, [paketList]);
+          populer:
+            paket?.populer === true ||
+            paket?.isPopular === true ||
+            paket?.is_popular === true,
+        };
+      }
+    );
+  }, [paketList]);
 
   /* =======================================================
      STATISTICS
-======================================================= */
+  ======================================================= */
 
   const totalPaket =
     normalizedPaket.length;
@@ -726,7 +639,7 @@ export default function PaketModulPage() {
 
   /* =======================================================
      SEARCH
-======================================================= */
+  ======================================================= */
 
   const filteredPaket =
     normalizedPaket.filter(
@@ -734,13 +647,15 @@ export default function PaketModulPage() {
         paket.nama
           .toLowerCase()
           .includes(
-            search.toLowerCase()
+            search
+              .toLowerCase()
+              .trim()
           )
     );
 
   /* =======================================================
      NAVIGATION
-======================================================= */
+  ======================================================= */
 
   function navigateToTambah() {
     router.push(
@@ -749,8 +664,7 @@ export default function PaketModulPage() {
   }
 
   function navigateToEdit(paket) {
-    const id =
-      getPaketId(paket);
+    const id = getPaketId(paket);
 
     if (!id) {
       setError(
@@ -766,14 +680,13 @@ export default function PaketModulPage() {
 
   /* =======================================================
      DELETE
-======================================================= */
+  ======================================================= */
 
   async function hapusPaket(paket) {
     try {
       setError("");
 
-      const id =
-        getPaketId(paket);
+      const id = getPaketId(paket);
 
       if (!id) {
         throw new Error(
@@ -783,9 +696,15 @@ export default function PaketModulPage() {
 
       await deletePaket(id);
 
-      setConfirmDelete(null);
+      setPaketList(
+        (current) =>
+          current.filter(
+            (item) =>
+              getPaketId(item) !== id
+          )
+      );
 
-      await loadData(false);
+      setConfirmDelete(null);
     } catch (err) {
       console.error(
         "Gagal menghapus paket:",
@@ -801,14 +720,13 @@ export default function PaketModulPage() {
 
   /* =======================================================
      TOGGLE STATUS
-======================================================= */
+  ======================================================= */
 
   async function toggleStatus(paket) {
     try {
       setError("");
 
-      const id =
-        getPaketId(paket);
+      const id = getPaketId(paket);
 
       if (!id) {
         throw new Error(
@@ -816,15 +734,13 @@ export default function PaketModulPage() {
         );
       }
 
+      const currentStatus =
+        getPaketStatus(paket);
+
       const nextStatus =
-        paket.status === "aktif"
+        currentStatus === "aktif"
           ? "nonaktif"
           : "aktif";
-
-      /*
-        Ambil ID fitur/modul yang
-        memang dimiliki paket.
-      */
 
       const modulIds =
         getPaketFeatures(paket)
@@ -837,15 +753,41 @@ export default function PaketModulPage() {
           .filter(Boolean);
 
       await updatePaket(id, {
-        nama: paket.nama,
-        deskripsi: paket.deskripsi,
-        harga: paket.harga,
-        durasi: paket.siklus,
-        status: nextStatus,
+        nama: getPaketName(paket),
+
+        deskripsi:
+          getPaketDescription(paket),
+
+        harga:
+          getPaketPrice(paket),
+
+        durasi:
+          getPaketDuration(paket),
+
         modulIds,
+
+        status: nextStatus,
       });
 
-      await loadData(false);
+      setPaketList(
+        (current) =>
+          current.map(
+            (item) => {
+              if (
+                getPaketId(item) !==
+                id
+              ) {
+                return item;
+              }
+
+              return {
+                ...item,
+                status:
+                  nextStatus,
+              };
+            }
+          )
+      );
     } catch (err) {
       console.error(
         "Gagal mengubah status:",
@@ -861,7 +803,7 @@ export default function PaketModulPage() {
 
   /* =======================================================
      DUPLICATE
-======================================================= */
+  ======================================================= */
 
   function duplikatPaket(paket) {
     const modulIds =
@@ -875,12 +817,24 @@ export default function PaketModulPage() {
         .filter(Boolean);
 
     const data = {
-      ...paket,
-      id: undefined,
-      nama: `${paket.nama} (Salinan)`,
-      populer: false,
-      langganan: 0,
+      nama: `${getPaketName(
+        paket
+      )} (Salinan)`,
+
+      deskripsi:
+        getPaketDescription(paket),
+
+      harga:
+        getPaketPrice(paket),
+
+      durasi:
+        getPaketDuration(paket),
+
       modulIds,
+
+      populer: false,
+
+      langganan: 0,
     };
 
     sessionStorage.setItem(
@@ -895,11 +849,11 @@ export default function PaketModulPage() {
 
   /* =======================================================
      LOADING
-======================================================= */
+  ======================================================= */
 
   if (loading) {
     return (
-      <div className="flex min-h-screen bg-white">
+      <div className="min-h-screen flex bg-slate-50">
         <Sidebar
           active={activeMenu}
           setActive={setActiveMenu}
@@ -956,10 +910,10 @@ export default function PaketModulPage() {
 
   /* =======================================================
      RETURN
-======================================================= */
+  ======================================================= */
 
   return (
-    <div className="flex min-h-screen bg-white">
+    <div className="min-h-screen flex bg-slate-50">
       {/* SIDEBAR */}
 
       <Sidebar
@@ -1024,10 +978,11 @@ export default function PaketModulPage() {
                   </div>
 
                   <p className="text-sm text-blue-100/80 mt-3 max-w-xl">
-                    Kelola paket langganan
-                    dan fitur yang
-                    tersedia untuk setiap
-                    sekolah.
+                    Kelola paket
+                    langganan dan
+                    fitur yang
+                    tersedia untuk
+                    setiap sekolah.
                   </p>
                 </div>
 
@@ -1143,8 +1098,10 @@ export default function PaketModulPage() {
 
                 <p className="text-xs text-slate-500 mt-0.5">
                   Setiap paket
-                  menampilkan fitur yang
-                  didapatkan.
+                  menampilkan fitur
+                  yang didapatkan
+                  berdasarkan data
+                  backend.
                 </p>
               </div>
 
@@ -1217,12 +1174,14 @@ export default function PaketModulPage() {
                   </div>
 
                   <p className="mt-4 text-sm font-semibold text-slate-600">
-                    Paket tidak ditemukan
+                    Paket tidak
+                    ditemukan
                   </p>
 
                   <p className="text-xs text-slate-400 mt-1">
-                    Coba gunakan kata
-                    kunci pencarian lain.
+                    Coba gunakan
+                    kata kunci
+                    pencarian lain.
                   </p>
                 </div>
               )}
@@ -1231,14 +1190,8 @@ export default function PaketModulPage() {
             {/* MODULE MATRIX */}
 
             <ModulMatrix
-              paketList={
-                normalizedPaket
-              }
-              fiturList={
-                fiturList.length > 0
-                  ? fiturList
-                  : DEFAULT_MODULES
-              }
+              paketList={normalizedPaket}
+              fiturList={fiturList}
             />
           </div>
         </main>
@@ -1296,7 +1249,7 @@ function StatCard({
     themes.blue;
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:shadow-md transition-all">
+    <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div
         className={`absolute right-0 top-0 w-24 h-24 rounded-full blur-2xl ${t.glow}`}
       />
@@ -1337,8 +1290,10 @@ function PaketCard({
   onDuplicate,
   onToggleStatus,
 }) {
-  const [menuOpen, setMenuOpen] =
-    useState(false);
+  const [
+    menuOpen,
+    setMenuOpen,
+  ] = useState(false);
 
   const Icon =
     paket.icon || Package;
@@ -1347,18 +1302,13 @@ function PaketCard({
     paket.theme ||
     PACKAGE_THEMES.blue;
 
-  /*
-    FITUR DIAMBIL LANGSUNG
-    DARI paket.fitur
-  */
-
   const selectedFeatures =
     Array.isArray(paket.fitur)
       ? paket.fitur
       : [];
 
   return (
-    <div className="group relative flex flex-col h-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-300/30 transition-all duration-300">
+    <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm hover:shadow-md transition flex flex-col">
       {/* HEADER */}
 
       <div
@@ -1386,9 +1336,7 @@ function PaketCard({
               }
               className="w-9 h-9 rounded-lg flex items-center justify-center text-white/80 hover:text-white hover:bg-white/10 transition"
             >
-              <MoreHorizontal
-                size={18}
-              />
+              <MoreHorizontal size={18} />
             </button>
 
             {menuOpen && (
@@ -1489,7 +1437,7 @@ function PaketCard({
 
             {paket.harga > 0 && (
               <span className="text-xs text-slate-400 pb-1">
-                / {paket.siklus}
+                / {paket.durasi} bulan
               </span>
             )}
           </div>
@@ -1528,9 +1476,7 @@ function PaketCard({
           </span>
         </div>
 
-        {/* =================================================
-            FITUR PAKET
-        ================================================= */}
+        {/* FITUR PAKET */}
 
         <div className="mt-4 flex-1">
           <div className="flex items-center justify-between mb-3">
@@ -1598,9 +1544,7 @@ function PaketCard({
                     >
                       <div className="w-8 h-8 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0">
                         <FeatureIcon
-                          size={
-                            14
-                          }
+                          size={14}
                           className="text-blue-600"
                         />
                       </div>
@@ -1612,17 +1556,13 @@ function PaketCard({
 
                         {deskripsi && (
                           <p className="text-[10px] text-slate-400 truncate">
-                            {
-                              deskripsi
-                            }
+                            {deskripsi}
                           </p>
                         )}
                       </div>
 
                       <Check
-                        size={
-                          15
-                        }
+                        size={15}
                         className="text-emerald-500 shrink-0"
                       />
                     </div>
@@ -1646,9 +1586,9 @@ function PaketCard({
                   </p>
 
                   <p className="text-[10px] text-slate-400 mt-0.5">
-                    Belum ada modul yang
-                    ditambahkan ke paket
-                    ini.
+                    Belum ada modul
+                    yang ditambahkan
+                    ke paket ini.
                   </p>
                 </div>
               </div>
@@ -1725,13 +1665,14 @@ function ModulMatrix({
 
             <p className="text-xs text-slate-400 mt-0.5">
               Perbandingan fitur yang
-              tersedia di setiap paket.
+              tersedia di setiap paket
+              berdasarkan data backend.
             </p>
           </div>
         </div>
       </div>
 
-      {/* TABLE */}
+      {/* EMPTY */}
 
       {fiturList.length === 0 ? (
         <div className="py-12 text-center">
@@ -1741,7 +1682,19 @@ function ModulMatrix({
           />
 
           <p className="text-sm text-slate-400 mt-3">
-            Belum ada data fitur.
+            Belum ada data modul dari
+            backend.
+          </p>
+        </div>
+      ) : paketList.length === 0 ? (
+        <div className="py-12 text-center">
+          <Package
+            size={28}
+            className="mx-auto text-slate-300"
+          />
+
+          <p className="text-sm text-slate-400 mt-3">
+            Belum ada data paket.
           </p>
         </div>
       ) : (
@@ -1777,9 +1730,7 @@ function ModulMatrix({
 
                   return (
                     <tr
-                      key={
-                        fitur.id
-                      }
+                      key={fitur.id}
                       className="border-t border-slate-100 hover:bg-blue-50/30 transition"
                     >
                       {/* FEATURE */}
@@ -1788,18 +1739,14 @@ function ModulMatrix({
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
                             <Icon
-                              size={
-                                14
-                              }
+                              size={14}
                               className="text-slate-500"
                             />
                           </div>
 
                           <div className="min-w-0">
                             <p className="font-semibold text-xs text-slate-700 truncate">
-                              {
-                                fitur.nama
-                              }
+                              {fitur.nama}
                             </p>
 
                             {fitur.deskripsi && (
@@ -1832,28 +1779,8 @@ function ModulMatrix({
                                       feature?.modul_id ??
                                       feature?.fiturId ??
                                       feature?.fitur_id ??
-                                      feature?.kode
+                                      ""
                                     : feature;
-
-                                /*
-                                  Cocokkan ID terlebih dahulu.
-                                */
-
-                                if (
-                                  String(
-                                    featureId
-                                  ) ===
-                                  String(
-                                    fitur.id
-                                  )
-                                ) {
-                                  return true;
-                                }
-
-                                /*
-                                  Kalau ID berbeda,
-                                  coba cocokkan kode.
-                                */
 
                                 const featureKode =
                                   typeof feature ===
@@ -1864,20 +1791,39 @@ function ModulMatrix({
                                       ).toLowerCase()
                                     : "";
 
+                                const fiturId =
+                                  String(
+                                    fitur.id ||
+                                      ""
+                                  );
+
                                 const fiturKode =
                                   String(
-                                    fitur?.kode ||
+                                    fitur.kode ||
                                       ""
                                   ).toLowerCase();
 
-                                return (
-                                  featureKode !==
-                                    "" &&
-                                  fiturKode !==
-                                    "" &&
+                                if (
+                                  featureId &&
+                                  fiturId &&
+                                  String(
+                                    featureId
+                                  ) ===
+                                    fiturId
+                                ) {
+                                  return true;
+                                }
+
+                                if (
+                                  featureKode &&
+                                  fiturKode &&
                                   featureKode ===
                                     fiturKode
-                                );
+                                ) {
+                                  return true;
+                                }
+
+                                return false;
                               }
                             );
 
@@ -1932,13 +1878,14 @@ function ConfirmDeleteModal({
   onCancel,
   onConfirm,
 }) {
-  const [deleting, setDeleting] =
-    useState(false);
+  const [
+    deleting,
+    setDeleting,
+  ] = useState(false);
 
   async function handleDelete() {
     try {
       setDeleting(true);
-
       await onConfirm();
     } finally {
       setDeleting(false);
@@ -1946,8 +1893,21 @@ function ConfirmDeleteModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 backdrop-blur-sm p-4">
-      <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      {/* BACKDROP */}
+
+      <div
+        className="absolute inset-0 bg-slate-950/50 backdrop-blur-sm"
+        onClick={
+          deleting
+            ? undefined
+            : onCancel
+        }
+      />
+
+      {/* MODAL */}
+
+      <div className="relative w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
         {/* TOP */}
 
         <div className="bg-rose-600 p-6 text-center">
@@ -1972,17 +1932,17 @@ function ConfirmDeleteModal({
             <span className="font-semibold text-slate-700">
               "{paket.nama}"
             </span>
-            . Tindakan ini tidak
-            dapat dibatalkan.
+            . Tindakan ini akan
+            menghapus paket dari
+            daftar aktif.
           </p>
 
-          {paket.langganan >
-            0 && (
+          {paket.langganan > 0 && (
             <div className="mt-4 p-3 rounded-xl bg-amber-50 border border-amber-100 text-xs text-amber-700">
-              Paket ini masih memiliki{" "}
+              Paket ini masih
+              memiliki{" "}
               <strong>
-                {paket.langganan}{" "}
-                sekolah
+                {paket.langganan} sekolah
               </strong>{" "}
               yang berlangganan.
             </div>
@@ -1990,9 +1950,7 @@ function ConfirmDeleteModal({
 
           <div className="flex items-center gap-3 mt-6">
             <button
-              onClick={
-                onCancel
-              }
+              onClick={onCancel}
               disabled={deleting}
               className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition disabled:opacity-50"
             >
@@ -2000,9 +1958,7 @@ function ConfirmDeleteModal({
             </button>
 
             <button
-              onClick={
-                handleDelete
-              }
+              onClick={handleDelete}
               disabled={deleting}
               className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-sm font-semibold shadow-sm transition disabled:opacity-60"
             >

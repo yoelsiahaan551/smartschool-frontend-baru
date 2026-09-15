@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import Sidebar from "../../components/Sidebar";
@@ -8,240 +8,246 @@ import Header from "../../components/Header";
 import { apiFetch } from "../../../lib/api";
 
 import {
-  Plus,
   Search,
+  Plus,
+  Eye,
   Pencil,
   Trash2,
-  Eye,
-  RefreshCw,
-  Check,
   FileText,
-  X,
-  Loader2,
+  CheckCircle2,
+  Clock3,
+  RefreshCw,
+  Filter,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
-/* =========================================================
-   HELPERS
-========================================================= */
-
-function extractList(data) {
-  if (Array.isArray(data)) return data;
-  if (Array.isArray(data?.data)) return data.data;
-  if (Array.isArray(data?.data?.data)) return data.data.data;
-  if (Array.isArray(data?.result)) return data.result;
-
-  return [];
-}
-
-function formatDate(date) {
-  if (!date) return "—";
-
-  try {
-    return new Intl.DateTimeFormat("id-ID", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    }).format(new Date(date));
-  } catch {
-    return "—";
-  }
-}
-
-function getStatus(status) {
-  const value = String(status || "").toLowerCase();
-
-  if (value === "published") {
-    return {
-      label: "Published",
-      className: "bg-emerald-50 text-emerald-700 border-emerald-100",
-      dot: "bg-emerald-500",
-    };
-  }
-
-  return {
-    label: "Draft",
-    className: "bg-amber-50 text-amber-700 border-amber-100",
-    dot: "bg-amber-500",
-  };
-}
-
-/* =========================================================
-   STATUS BADGE
-========================================================= */
-
-function StatusBadge({ status }) {
-  const config = getStatus(status);
-
-  return (
-    <span
-      className={`inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-[10px] font-bold ${config.className}`}
-    >
-      <span className={`h-1.5 w-1.5 rounded-full ${config.dot}`} />
-      {config.label}
-    </span>
-  );
-}
-
-/* =========================================================
-   ARTICLE IMAGE
-========================================================= */
-
-function ArticleImage({ article, large = false }) {
-  const imageClass = large
-    ? "h-16 w-24"
-    : "h-14 w-20";
-
-  if (article?.gambarUtama) {
-    return (
-      <div
-        className={`${imageClass} shrink-0 overflow-hidden rounded-lg bg-slate-100`}
-      >
-        <img
-          src={article.gambarUtama}
-          alt={article.judul || "Artikel"}
-          className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
-          onError={(e) => {
-            e.currentTarget.style.display = "none";
-          }}
-        />
-      </div>
-    );
-  }
-
-  return (
-    <div
-      className={`${imageClass} flex shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-50`}
-    >
-      <FileText
-        size={20}
-        strokeWidth={1.7}
-        className="text-slate-300"
-      />
-    </div>
-  );
-}
-
-/* =========================================================
-   STAT CARD
-========================================================= */
-
-function StatCard({ label, value, description }) {
-  return (
-    <div className="group rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition duration-200 hover:border-slate-300 hover:shadow-[0_6px_20px_rgba(15,23,42,0.05)]">
-      <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">
-        {label}
-      </p>
-
-      <div className="mt-2 flex items-end justify-between gap-3">
-        <p className="text-[26px] font-bold tracking-tight text-[#0F172A]">
-          {value}
-        </p>
-
-        <span className="pb-1 text-[11px] font-medium text-slate-400">
-          {description}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-/* =========================================================
-   PAGE
-========================================================= */
-
-export default function ArticlesPage() {
+export default function ArtikelPage() {
   const router = useRouter();
 
   const [articles, setArticles] = useState([]);
   const [categories, setCategories] = useState([]);
 
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
+  const [loadingCategory, setLoadingCategory] = useState(true);
+  const [deletingId, setDeletingId] = useState(null);
 
+  const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
 
-  const [deleteTarget, setDeleteTarget] = useState(null);
-  const [deleting, setDeleting] = useState(false);
+  const [page, setPage] = useState(1);
+  const [limit] = useState(10);
 
-  const [errorMessage, setErrorMessage] = useState("");
+  const [error, setError] = useState("");
 
-  /* =======================================================
-     LOAD DATA
-  ======================================================= */
+  /*
+   * State sidebar.
+   * Default true (expanded).
+   */
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  async function loadData() {
+  /* =========================================================
+     STATUS HELPER
+  ========================================================= */
+
+  function normalizeStatus(status) {
+    return String(status || "").trim().toLowerCase();
+  }
+
+  function isPublishedStatus(status) {
+    const value = normalizeStatus(status);
+
+    return [
+      "published",
+      "dipublikasikan",
+      "aktif",
+    ].includes(value);
+  }
+
+  function isDraftStatus(status) {
+    return normalizeStatus(status) === "draft";
+  }
+
+  function getStatus(status) {
+    if (isPublishedStatus(status)) {
+      return {
+        label: "Published",
+        className:
+          "bg-emerald-50 text-emerald-700 border-emerald-100",
+        dot: "bg-emerald-500",
+      };
+    }
+
+    return {
+      label: "Draft",
+      className:
+        "bg-amber-50 text-amber-700 border-amber-100",
+      dot: "bg-amber-500",
+    };
+  }
+
+  /* =========================================================
+     FETCH ARTIKEL
+  ========================================================= */
+
+  const fetchArticles = useCallback(async () => {
     try {
       setLoading(true);
-      setErrorMessage("");
+      setError("");
 
-      const [articleResponse, categoryResponse] =
-        await Promise.all([
-          apiFetch("/api/v1/cms/artikel"),
-          apiFetch("/api/v1/cms/kategori-artikel"),
-        ]);
+      const response = await apiFetch("/api/v1/cms/artikel");
 
-      setArticles(extractList(articleResponse));
-      setCategories(extractList(categoryResponse));
-    } catch (error) {
-      console.error(
-        "Gagal mengambil data artikel:",
-        error
+      const data =
+        response?.data ||
+        response?.result?.data ||
+        response?.result ||
+        [];
+
+      setArticles(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("Gagal mengambil artikel:", err);
+
+      setError(
+        err?.message ||
+          "Gagal mengambil data artikel."
       );
 
       setArticles([]);
-      setCategories([]);
-
-      setErrorMessage(
-        error?.message ||
-          "Gagal mengambil data artikel dari server."
-      );
     } finally {
       setLoading(false);
     }
-  }
-
-  useEffect(() => {
-    loadData();
   }, []);
 
-  /* =======================================================
-     FILTER
-  ======================================================= */
+  /* =========================================================
+     FETCH KATEGORI
+  ========================================================= */
+
+  const fetchCategories = useCallback(async () => {
+    try {
+      setLoadingCategory(true);
+
+      const response = await apiFetch(
+        "/api/v1/cms/kategori-artikel"
+      );
+
+      const data =
+        response?.data ||
+        response?.result?.data ||
+        response?.result ||
+        [];
+
+      setCategories(
+        Array.isArray(data) ? data : []
+      );
+    } catch (err) {
+      console.error(
+        "Gagal mengambil kategori:",
+        err
+      );
+
+      setCategories([]);
+    } finally {
+      setLoadingCategory(false);
+    }
+  }, []);
+
+  /* =========================================================
+     INITIAL LOAD
+  ========================================================= */
+
+  useEffect(() => {
+    fetchArticles();
+    fetchCategories();
+  }, [fetchArticles, fetchCategories]);
+
+  /* =========================================================
+     DELETE
+  ========================================================= */
+
+  async function handleDelete(id) {
+    if (!id) return;
+
+    const confirmed = window.confirm(
+      "Apakah kamu yakin ingin menghapus artikel ini?"
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setDeletingId(id);
+
+      await apiFetch(
+        `/api/v1/cms/artikel/${id}`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      await fetchArticles();
+    } catch (err) {
+      console.error(
+        "Gagal menghapus artikel:",
+        err
+      );
+
+      alert(
+        err?.message ||
+          "Gagal menghapus artikel."
+      );
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  /* =========================================================
+     FILTER ARTICLE
+  ========================================================= */
 
   const filteredArticles = useMemo(() => {
-    const keyword = search.toLowerCase().trim();
+    const keyword = search
+      .trim()
+      .toLowerCase();
 
     return articles.filter((article) => {
       const title = String(
-        article?.judul || ""
+        article?.judul ||
+          article?.title ||
+          ""
       ).toLowerCase();
 
-      const summary = String(
-        article?.ringkasan || ""
+      const categoryName = String(
+        article?.kategoriArtikel?.nama ||
+          article?.kategoriArtikel?.name ||
+          article?.kategori?.nama ||
+          article?.kategori?.name ||
+          ""
       ).toLowerCase();
 
-      const slug = String(
-        article?.slug || ""
-      ).toLowerCase();
+      const articleStatus =
+        normalizeStatus(article?.status);
 
       const matchesSearch =
         !keyword ||
         title.includes(keyword) ||
-        summary.includes(keyword) ||
-        slug.includes(keyword);
-
-      const articleStatus = String(
-        article?.status || ""
-      ).toLowerCase();
+        categoryName.includes(keyword);
 
       const matchesStatus =
         statusFilter === "all" ||
-        articleStatus === statusFilter;
+        (statusFilter === "published"
+          ? isPublishedStatus(articleStatus)
+          : articleStatus === statusFilter);
+
+      const articleCategoryId =
+        article?.kategoriArtikelId ||
+        article?.kategoriId ||
+        article?.kategoriArtikel?.id ||
+        article?.kategori?.id ||
+        "";
 
       const matchesCategory =
         categoryFilter === "all" ||
-        String(article?.kategoriArtikelId || "") ===
+        String(articleCategoryId) ===
           String(categoryFilter);
 
       return (
@@ -257,1335 +263,729 @@ export default function ArticlesPage() {
     categoryFilter,
   ]);
 
-  /* =======================================================
+  /* =========================================================
      STATISTICS
-  ======================================================= */
+  ========================================================= */
 
   const totalArticles = articles.length;
 
   const publishedArticles = articles.filter(
     (article) =>
-      String(article?.status || "").toLowerCase() ===
-      "published"
+      isPublishedStatus(article?.status)
   ).length;
 
   const draftArticles = articles.filter(
     (article) =>
-      String(article?.status || "").toLowerCase() ===
-      "draft"
+      isDraftStatus(article?.status)
   ).length;
 
-  /* =======================================================
-     DELETE
-  ======================================================= */
+  /* =========================================================
+     PAGINATION
+  ========================================================= */
 
-  async function handleDelete() {
-    if (!deleteTarget) return;
+  const totalPages = Math.max(
+    1,
+    Math.ceil(
+      filteredArticles.length / limit
+    )
+  );
 
-    try {
-      setDeleting(true);
-      setErrorMessage("");
+  const currentPage = Math.min(
+    page,
+    totalPages
+  );
 
-      await apiFetch(
-        `/api/v1/cms/artikel/${deleteTarget.id}`,
-        {
-          method: "DELETE",
-        }
-      );
+  const paginatedArticles =
+    filteredArticles.slice(
+      (currentPage - 1) * limit,
+      currentPage * limit
+    );
 
-      setArticles((prev) =>
-        prev.filter(
-          (article) =>
-            article.id !== deleteTarget.id
-        )
-      );
+  useEffect(() => {
+    setPage(1);
+  }, [
+    search,
+    statusFilter,
+    categoryFilter,
+  ]);
 
-      setDeleteTarget(null);
-    } catch (error) {
-      console.error(
-        "Gagal menghapus artikel:",
-        error
-      );
+  /* =========================================================
+     FORMAT DATE
+  ========================================================= */
 
-      setErrorMessage(
-        error?.message ||
-          "Gagal menghapus artikel."
-      );
-    } finally {
-      setDeleting(false);
+  function formatDate(date) {
+    if (!date) return "-";
+
+    const parsed = new Date(date);
+
+    if (Number.isNaN(parsed.getTime())) {
+      return "-";
     }
+
+    return parsed.toLocaleDateString(
+      "id-ID",
+      {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      }
+    );
   }
 
-  /* =======================================================
-     RESET FILTER
-  ======================================================= */
+  /* =========================================================
+     GET ARTICLE DATA
+  ========================================================= */
 
-  function resetFilters() {
-    setSearch("");
-    setStatusFilter("all");
-    setCategoryFilter("all");
+  function getArticleTitle(article) {
+    return (
+      article?.judul ||
+      article?.title ||
+      "Tanpa Judul"
+    );
   }
 
-  const hasFilter =
-    search ||
-    statusFilter !== "all" ||
-    categoryFilter !== "all";
+  function getArticleCategory(article) {
+    return (
+      article?.kategoriArtikel?.nama ||
+      article?.kategoriArtikel?.name ||
+      article?.kategori?.nama ||
+      article?.kategori?.name ||
+      "-"
+    );
+  }
 
-  /* =======================================================
+  function getArticleDate(article) {
+    return (
+      article?.dibuatPada ||
+      article?.createdAt ||
+      article?.created_at ||
+      null
+    );
+  }
+
+  function getArticleId(article) {
+    return (
+      article?.id ||
+      article?._id
+    );
+  }
+
+  /* =========================================================
      RENDER
-  ======================================================= */
+  ========================================================= */
 
   return (
-    <div className="fixed inset-0 overflow-hidden bg-[#F8FAFC]">
-      {/* ===================================================
+    <div className="flex h-screen overflow-hidden bg-slate-50">
+      {/* =====================================================
           SIDEBAR
-      =================================================== */}
+      ===================================================== */}
 
-      <Sidebar />
+      <Sidebar
+        role="cms"
+        collapsed={!sidebarOpen}
+        setCollapsed={(value) => {
+          const next =
+            typeof value === "function"
+              ? value(!sidebarOpen)
+              : value;
 
-      {/* ===================================================
-          MAIN AREA
-      =================================================== */}
+          setSidebarOpen(!next);
+        }}
+      />
 
-      <div
-        className="
-          absolute
-          inset-y-0
-          left-[60px]
-          right-0
-          flex
-          min-w-0
-          flex-col
-          overflow-hidden
-          lg:left-[260px]
-        "
-      >
-        {/* =================================================
-            HEADER COMPONENT
-        ================================================= */}
+      {/* =====================================================
+          CONTENT
+      ===================================================== */}
 
-        <div className="shrink-0">
-          <Header />
+      <div className="flex h-screen min-w-0 flex-1 flex-col overflow-hidden">
+        {/* ===================================================
+            HEADER (STICKY)
+        =================================================== */}
+
+        <div className="sticky top-0 z-30 shrink-0">
+          <Header
+            onMenuClick={() =>
+              setSidebarOpen((prev) => !prev)
+            }
+          />
         </div>
 
-        {/* =================================================
-            PAGE CONTENT
-        ================================================= */}
+        {/* ===================================================
+            MAIN (SCROLL INTERNAL)
+        =================================================== */}
 
-        <main className="min-h-0 flex-1 overflow-hidden p-4 sm:p-5 lg:p-6">
-          <div className="mx-auto flex h-full w-full max-w-[1440px] min-w-0 flex-col">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+          {/* =================================================
+              HEADER
+          ================================================= */}
 
-            {/* =================================================
-                PAGE HEADER
-            ================================================= */}
+          <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900">
+                Artikel
+              </h1>
 
-            <div className="mb-5 flex shrink-0 flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-              <div className="min-w-0">
-
-                {/* Breadcrumb */}
-
-                <div className="mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.14em]">
-                  <span className="text-blue-600">
-                    CMS
-                  </span>
-
-                  <span className="text-slate-300">
-                    /
-                  </span>
-
-                  <span className="text-slate-400">
-                    Artikel
-                  </span>
-                </div>
-
-                <h1 className="text-[25px] font-bold tracking-tight text-[#0F172A] sm:text-[28px]">
-                  Artikel Sekolah
-                </h1>
-
-                <p className="mt-1 max-w-xl text-sm leading-6 text-slate-500">
-                  Kelola berita, informasi,
-                  pengumuman, dan konten sekolah
-                  secara terstruktur.
-                </p>
-              </div>
-
-              {/* ACTION */}
-
-              <div className="flex shrink-0 gap-2">
-
-                <button
-                  type="button"
-                  onClick={loadData}
-                  disabled={loading}
-                  className="
-                    inline-flex
-                    h-10
-                    items-center
-                    justify-center
-                    gap-2
-                    rounded-lg
-                    border
-                    border-slate-200
-                    bg-white
-                    px-3.5
-                    text-sm
-                    font-semibold
-                    text-slate-600
-                    shadow-sm
-                    transition
-                    hover:border-slate-300
-                    hover:bg-slate-50
-                    disabled:cursor-not-allowed
-                    disabled:opacity-50
-                  "
-                >
-                  <RefreshCw
-                    size={14}
-                    className={
-                      loading
-                        ? "animate-spin"
-                        : ""
-                    }
-                  />
-
-                  <span>Refresh</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    router.push(
-                      "/cmsAdmin/articles/tambah"
-                    )
-                  }
-                  className="
-                    inline-flex
-                    h-10
-                    items-center
-                    justify-center
-                    gap-2
-                    rounded-lg
-                    bg-[#2563EB]
-                    px-4
-                    text-sm
-                    font-semibold
-                    text-white
-                    shadow-sm
-                    transition
-                    hover:bg-[#1D4ED8]
-                    hover:shadow-md
-                  "
-                >
-                  <Plus size={15} />
-
-                  <span>
-                    Tambah Artikel
-                  </span>
-                </button>
-
-              </div>
+              <p className="mt-1 text-sm text-slate-500">
+                Kelola artikel dan informasi yang
+                ditampilkan pada website sekolah.
+              </p>
             </div>
 
-            {/* =================================================
-                ERROR
-            ================================================= */}
+            <button
+              type="button"
+              onClick={() =>
+                router.push("/cmsAdmin/articles/tambah")
+              }
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
+            >
+              <Plus size={18} />
 
-            {errorMessage && (
-              <div className="mb-4 flex shrink-0 items-center gap-3 rounded-lg border border-red-100 bg-red-50 px-4 py-3">
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-medium text-red-600">
-                    {errorMessage}
+              Tambah Artikel
+            </button>
+          </div>
+
+          {/* =================================================
+              ERROR
+          ================================================= */}
+
+          {error && (
+            <div className="mb-6 flex items-start justify-between gap-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              <span>{error}</span>
+
+              <button
+                type="button"
+                onClick={fetchArticles}
+                className="font-semibold underline"
+              >
+                Coba lagi
+              </button>
+            </div>
+          )}
+
+          {/* =================================================
+              STATISTICS
+          ================================================= */}
+
+          <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-slate-500">
+                    Total Artikel
+                  </p>
+
+                  <p className="mt-2 text-2xl font-bold text-slate-900">
+                    {totalArticles}
                   </p>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() =>
-                    setErrorMessage("")
-                  }
-                  className="shrink-0 text-red-400 transition hover:text-red-600"
-                >
-                  <X size={15} />
-                </button>
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                  <FileText size={21} />
+                </div>
               </div>
-            )}
-
-            {/* =================================================
-                STATISTICS
-            ================================================= */}
-
-            <div className="mb-4 grid shrink-0 grid-cols-1 gap-3 sm:grid-cols-3">
-
-              <StatCard
-                label="Total Artikel"
-                value={totalArticles}
-                description="Semua"
-              />
-
-              <StatCard
-                label="Published"
-                value={publishedArticles}
-                description="Terbit"
-              />
-
-              <StatCard
-                label="Draft"
-                value={draftArticles}
-                description="Konsep"
-              />
-
             </div>
 
-            {/* =================================================
-                FILTER BAR
-            ================================================= */}
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-slate-500">
+                    Published
+                  </p>
 
-            <div className="mb-3 shrink-0 rounded-xl border border-slate-200 bg-white p-3 shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
-
-              <div className="flex flex-col gap-2 lg:flex-row">
-
-                {/* SEARCH */}
-
-                <div className="relative min-w-0 flex-1">
-
-                  <Search
-                    size={16}
-                    strokeWidth={1.8}
-                    className="
-                      absolute
-                      left-3
-                      top-1/2
-                      -translate-y-1/2
-                      text-slate-400
-                    "
-                  />
-
-                  <input
-                    type="text"
-                    value={search}
-                    onChange={(e) =>
-                      setSearch(e.target.value)
-                    }
-                    placeholder="Cari judul, ringkasan, atau slug artikel..."
-                    className="
-                      h-10
-                      w-full
-                      rounded-lg
-                      border
-                      border-slate-200
-                      bg-slate-50
-                      pl-10
-                      pr-10
-                      text-sm
-                      text-slate-700
-                      outline-none
-                      transition
-                      placeholder:text-slate-400
-                      focus:border-blue-500
-                      focus:bg-white
-                      focus:ring-2
-                      focus:ring-blue-100
-                    "
-                  />
-
-                  {search && (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setSearch("")
-                      }
-                      className="
-                        absolute
-                        right-3
-                        top-1/2
-                        -translate-y-1/2
-                        text-slate-400
-                        transition
-                        hover:text-slate-600
-                      "
-                    >
-                      <X size={15} />
-                    </button>
-                  )}
-
+                  <p className="mt-2 text-2xl font-bold text-slate-900">
+                    {publishedArticles}
+                  </p>
                 </div>
 
-                {/* STATUS */}
-
-                <select
-                  value={statusFilter}
-                  onChange={(e) =>
-                    setStatusFilter(
-                      e.target.value
-                    )
-                  }
-                  className="
-                    h-10
-                    w-full
-                    rounded-lg
-                    border
-                    border-slate-200
-                    bg-white
-                    px-3
-                    text-sm
-                    font-medium
-                    text-slate-600
-                    outline-none
-                    transition
-                    focus:border-blue-500
-                    focus:ring-2
-                    focus:ring-blue-100
-                    lg:w-[170px]
-                  "
-                >
-                  <option value="all">
-                    Semua Status
-                  </option>
-
-                  <option value="published">
-                    Published
-                  </option>
-
-                  <option value="draft">
-                    Draft
-                  </option>
-                </select>
-
-                {/* CATEGORY */}
-
-                <select
-                  value={categoryFilter}
-                  onChange={(e) =>
-                    setCategoryFilter(
-                      e.target.value
-                    )
-                  }
-                  className="
-                    h-10
-                    w-full
-                    rounded-lg
-                    border
-                    border-slate-200
-                    bg-white
-                    px-3
-                    text-sm
-                    font-medium
-                    text-slate-600
-                    outline-none
-                    transition
-                    focus:border-blue-500
-                    focus:ring-2
-                    focus:ring-blue-100
-                    lg:w-[210px]
-                  "
-                >
-                  <option value="all">
-                    Semua Kategori
-                  </option>
-
-                  {categories.map(
-                    (category) => (
-                      <option
-                        key={category.id}
-                        value={category.id}
-                      >
-                        {category.nama}
-                      </option>
-                    )
-                  )}
-                </select>
-
-                {/* RESET */}
-
-                {hasFilter && (
-                  <button
-                    type="button"
-                    onClick={resetFilters}
-                    className="
-                      h-10
-                      shrink-0
-                      rounded-lg
-                      border
-                      border-slate-200
-                      bg-slate-50
-                      px-3
-                      text-xs
-                      font-semibold
-                      text-slate-500
-                      transition
-                      hover:bg-slate-100
-                      hover:text-slate-700
-                    "
-                  >
-                    Reset
-                  </button>
-                )}
-
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+                  <CheckCircle2 size={21} />
+                </div>
               </div>
             </div>
 
-            {/* =================================================
-                TABLE CONTAINER
-            ================================================= */}
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-slate-500">
+                    Draft
+                  </p>
 
-            <div className="min-h-0 flex-1 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
+                  <p className="mt-2 text-2xl font-bold text-slate-900">
+                    {draftArticles}
+                  </p>
+                </div>
 
-              {/* =================================================
-                  DESKTOP TABLE
-              ================================================= */}
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
+                  <Clock3 size={21} />
+                </div>
+              </div>
+            </div>
+          </div>
 
-              <div className="hidden h-full overflow-auto md:block">
+          {/* =================================================
+              FILTER
+          ================================================= */}
 
-                <table className="w-full min-w-[920px] border-collapse">
+          <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-slate-800">
+              <Filter size={17} />
 
-                  <thead className="sticky top-0 z-10">
+              Filter Artikel
+            </div>
 
-                    <tr className="border-b border-slate-200 bg-slate-50">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+              {/* SEARCH */}
 
-                      <th className="px-5 py-3.5 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
-                        Artikel
-                      </th>
+              <div className="relative">
+                <Search
+                  size={18}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                />
 
-                      <th className="w-[190px] px-5 py-3.5 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
-                        Kategori
-                      </th>
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) =>
+                    setSearch(e.target.value)
+                  }
+                  placeholder="Cari artikel..."
+                  className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                />
+              </div>
 
-                      <th className="w-[130px] px-5 py-3.5 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
-                        Status
-                      </th>
+              {/* STATUS */}
 
-                      <th className="w-[150px] px-5 py-3.5 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
-                        Tanggal
-                      </th>
+              <select
+                value={statusFilter}
+                onChange={(e) =>
+                  setStatusFilter(e.target.value)
+                }
+                className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              >
+                <option value="all">
+                  Semua Status
+                </option>
 
-                      <th className="w-[130px] px-5 py-3.5 text-right text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
-                        Aksi
-                      </th>
+                <option value="published">
+                  Published
+                </option>
 
-                    </tr>
+                <option value="draft">
+                  Draft
+                </option>
+              </select>
 
-                  </thead>
+              {/* CATEGORY */}
 
-                  <tbody className="divide-y divide-slate-100">
+              <select
+                value={categoryFilter}
+                onChange={(e) =>
+                  setCategoryFilter(e.target.value)
+                }
+                className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              >
+                <option value="all">
+                  Semua Kategori
+                </option>
 
-                    {/* LOADING */}
+                {!loadingCategory &&
+                  categories.map((category) => (
+                    <option
+                      key={category.id}
+                      value={category.id}
+                    >
+                      {category.nama ||
+                        category.name ||
+                        "Tanpa Nama"}
+                    </option>
+                  ))}
+              </select>
+            </div>
+          </div>
 
-                    {loading && (
-                      <tr>
-                        <td
-                          colSpan={5}
-                          className="px-5 py-20 text-center"
-                        >
-                          <Loader2
-                            size={24}
-                            className="mx-auto animate-spin text-blue-600"
-                          />
+          {/* =================================================
+              ARTICLE TABLE
+          ================================================= */}
 
-                          <p className="mt-3 text-sm font-semibold text-slate-500">
-                            Memuat artikel...
-                          </p>
+          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            {/* TABLE HEADER */}
 
-                          <p className="mt-1 text-xs text-slate-400">
-                            Mengambil data dari server
-                          </p>
-                        </td>
+            <div className="flex flex-col gap-2 border-b border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-base font-bold text-slate-900">
+                  Daftar Artikel
+                </h2>
+
+                <p className="mt-1 text-xs text-slate-500">
+                  Menampilkan{" "}
+                  {paginatedArticles.length} dari{" "}
+                  {filteredArticles.length} artikel
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={fetchArticles}
+                disabled={loading}
+                className="inline-flex items-center justify-center gap-2 self-start rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 sm:self-auto"
+              >
+                <RefreshCw
+                  size={16}
+                  className={
+                    loading ? "animate-spin" : ""
+                  }
+                />
+
+                Refresh
+              </button>
+            </div>
+
+            {/* LOADING */}
+
+            {loading ? (
+              <div className="flex min-h-[300px] items-center justify-center">
+                <div className="flex flex-col items-center gap-3">
+                  <RefreshCw
+                    size={28}
+                    className="animate-spin text-blue-600"
+                  />
+
+                  <p className="text-sm text-slate-500">
+                    Memuat artikel...
+                  </p>
+                </div>
+              </div>
+            ) : paginatedArticles.length === 0 ? (
+              /* EMPTY */
+
+              <div className="flex min-h-[300px] flex-col items-center justify-center px-6 text-center">
+                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
+                  <FileText size={26} />
+                </div>
+
+                <h3 className="text-base font-semibold text-slate-800">
+                  Data artikel belum ditemukan
+                </h3>
+
+                <p className="mt-1 max-w-md text-sm text-slate-500">
+                  Belum ada artikel yang sesuai
+                  dengan pencarian atau filter yang
+                  kamu pilih.
+                </p>
+              </div>
+            ) : (
+              <>
+                {/* DESKTOP TABLE */}
+
+                <div className="hidden overflow-x-auto md:block">
+                  <table className="w-full min-w-[850px]">
+                    <thead>
+                      <tr className="border-b border-slate-100 bg-slate-50/70">
+                        <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          Artikel
+                        </th>
+
+                        <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          Kategori
+                        </th>
+
+                        <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          Status
+                        </th>
+
+                        <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          Tanggal
+                        </th>
+
+                        <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          Aksi
+                        </th>
                       </tr>
-                    )}
+                    </thead>
 
-                    {/* EMPTY */}
+                    <tbody className="divide-y divide-slate-100">
+                      {paginatedArticles.map(
+                        (article) => {
+                          const id =
+                            getArticleId(article);
 
-                    {!loading &&
-                      filteredArticles.length ===
-                        0 && (
-                        <tr>
-                          <td
-                            colSpan={5}
-                            className="px-5 py-20 text-center"
-                          >
-                            <div className="mx-auto max-w-md">
+                          const status =
+                            getStatus(article?.status);
 
-                              <p className="text-sm font-semibold text-slate-600">
-                                {hasFilter
-                                  ? "Artikel tidak ditemukan"
-                                  : "Belum ada artikel"}
-                              </p>
+                          return (
+                            <tr
+                              key={id}
+                              className="transition hover:bg-slate-50/70"
+                            >
+                              <td className="px-5 py-4">
+                                <div className="flex items-center gap-3">
+                                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                                    <FileText size={18} />
+                                  </div>
 
-                              <p className="mt-1 text-sm leading-6 text-slate-400">
-                                {hasFilter
-                                  ? "Tidak ada artikel yang sesuai dengan filter yang dipilih."
-                                  : "Tambahkan artikel pertama untuk mulai mengelola konten sekolah."}
-                              </p>
+                                  <div className="min-w-0">
+                                    <p className="truncate font-semibold text-slate-800">
+                                      {getArticleTitle(
+                                        article
+                                      )}
+                                    </p>
 
-                              {hasFilter ? (
-                                <button
-                                  type="button"
-                                  onClick={
-                                    resetFilters
-                                  }
-                                  className="
-                                    mt-4
-                                    rounded-lg
-                                    border
-                                    border-slate-200
-                                    bg-white
-                                    px-4
-                                    py-2
-                                    text-xs
-                                    font-semibold
-                                    text-slate-600
-                                    shadow-sm
-                                    transition
-                                    hover:bg-slate-50
-                                  "
-                                >
-                                  Reset Filter
-                                </button>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    router.push(
-                                      "/cmsAdmin/articles/tambah"
-                                    )
-                                  }
-                                  className="
-                                    mt-4
-                                    inline-flex
-                                    items-center
-                                    gap-2
-                                    rounded-lg
-                                    bg-[#2563EB]
-                                    px-4
-                                    py-2.5
-                                    text-xs
-                                    font-semibold
-                                    text-white
-                                    transition
-                                    hover:bg-[#1D4ED8]
-                                  "
-                                >
-                                  <Plus size={14} />
-                                  Tambah Artikel
-                                </button>
-                              )}
-
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-
-                    {/* DATA */}
-
-                    {!loading &&
-                      filteredArticles.map(
-                        (article) => (
-                          <tr
-                            key={article.id}
-                            className="
-                              group
-                              transition
-                              hover:bg-slate-50/70
-                            "
-                          >
-
-                            {/* ARTICLE */}
-
-                            <td className="px-5 py-4">
-
-                              <div className="flex min-w-0 items-center gap-3">
-
-                                <ArticleImage
-                                  article={
-                                    article
-                                  }
-                                  large
-                                />
-
-                                <div className="min-w-0">
-
-                                  <p className="
-                                    max-w-[390px]
-                                    truncate
-                                    text-sm
-                                    font-semibold
-                                    text-[#0F172A]
-                                  ">
-                                    {article.judul ||
-                                      "Tanpa judul"}
-                                  </p>
-
-                                  <p className="
-                                    mt-1
-                                    max-w-[390px]
-                                    truncate
-                                    text-xs
-                                    text-slate-400
-                                  ">
-                                    {article.ringkasan ||
-                                      "Tidak ada ringkasan"}
-                                  </p>
-
+                                    {article?.slug && (
+                                      <p className="mt-0.5 truncate text-xs text-slate-400">
+                                        /{article.slug}
+                                      </p>
+                                    )}
+                                  </div>
                                 </div>
+                              </td>
 
-                              </div>
+                              <td className="px-5 py-4">
+                                <span className="text-sm text-slate-600">
+                                  {getArticleCategory(
+                                    article
+                                  )}
+                                </span>
+                              </td>
 
-                            </td>
+                              <td className="px-5 py-4">
+                                <span
+                                  className={`inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-xs font-semibold ${status.className}`}
+                                >
+                                  <span
+                                    className={`h-1.5 w-1.5 rounded-full ${status.dot}`}
+                                  />
 
-                            {/* CATEGORY */}
+                                  {status.label}
+                                </span>
+                              </td>
 
-                            <td className="px-5 py-4">
+                              <td className="px-5 py-4">
+                                <span className="text-sm text-slate-600">
+                                  {formatDate(
+                                    getArticleDate(article)
+                                  )}
+                                </span>
+                              </td>
 
-                              <span className="
-                                inline-flex
-                                max-w-[160px]
-                                truncate
-                                rounded-md
-                                bg-slate-50
-                                px-2.5
-                                py-1.5
-                                text-xs
-                                font-medium
-                                text-slate-600
-                              ">
-                                {article
-                                  ?.kategoriArtikel
-                                  ?.nama ||
-                                  "Tanpa kategori"}
-                              </span>
+                              <td className="px-5 py-4">
+                                <div className="flex items-center justify-end gap-1">
+                                  <button
+                                    type="button"
+                                    title="Lihat artikel"
+                                    onClick={() =>
+                                      router.push(
+                                        `/cmsAdmin/articles/${id}`
+                                      )
+                                    }
+                                    className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
+                                  >
+                                    <Eye size={17} />
+                                  </button>
 
-                            </td>
+                                  <button
+                                    type="button"
+                                    title="Edit artikel"
+                                    onClick={() =>
+                                      router.push(
+                                        `/cmsAdmin/articles/${id}/edit`
+                                      )
+                                    }
+                                    className="flex h-9 w-9 items-center justify-center rounded-lg text-blue-500 transition hover:bg-blue-50 hover:text-blue-700"
+                                  >
+                                    <Pencil size={17} />
+                                  </button>
 
-                            {/* STATUS */}
+                                  <button
+                                    type="button"
+                                    title="Hapus artikel"
+                                    disabled={
+                                      deletingId === id
+                                    }
+                                    onClick={() =>
+                                      handleDelete(id)
+                                    }
+                                    className="flex h-9 w-9 items-center justify-center rounded-lg text-red-500 transition hover:bg-red-50 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                  >
+                                    {deletingId === id ? (
+                                      <RefreshCw
+                                        size={17}
+                                        className="animate-spin"
+                                      />
+                                    ) : (
+                                      <Trash2 size={17} />
+                                    )}
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        }
+                      )}
+                    </tbody>
+                  </table>
+                </div>
 
-                            <td className="px-5 py-4">
-                              <StatusBadge
-                                status={
-                                  article.status
-                                }
-                              />
-                            </td>
+                {/* MOBILE CARD */}
 
-                            {/* DATE */}
+                <div className="divide-y divide-slate-100 md:hidden">
+                  {paginatedArticles.map(
+                    (article) => {
+                      const id =
+                        getArticleId(article);
 
-                            <td className="px-5 py-4">
+                      const status =
+                        getStatus(article?.status);
 
-                              <span className="text-xs font-medium text-slate-500">
-                                {formatDate(
-                                  article.createdAt ||
-                                    article.dibuatPada ||
-                                    article.created_at
+                      return (
+                        <div key={id} className="p-4">
+                          <div className="flex gap-3">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                              <FileText size={18} />
+                            </div>
+
+                            <div className="min-w-0 flex-1">
+                              <h3 className="font-semibold text-slate-800">
+                                {getArticleTitle(
+                                  article
                                 )}
-                              </span>
+                              </h3>
 
-                            </td>
+                              <p className="mt-1 text-xs text-slate-500">
+                                {getArticleCategory(
+                                  article
+                                )}
+                              </p>
 
-                            {/* ACTION */}
-
-                            <td className="px-5 py-4">
-
-                              <div className="flex justify-end gap-1.5">
-
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    router.push(
-                                      `/cmsAdmin/articles/${article.id}`
-                                    )
-                                  }
-                                  title="Lihat artikel"
-                                  className="
-                                    flex
-                                    h-8
-                                    w-8
-                                    items-center
-                                    justify-center
-                                    rounded-md
-                                    border
-                                    border-slate-200
-                                    bg-white
-                                    text-slate-500
-                                    transition
-                                    hover:border-slate-300
-                                    hover:bg-slate-50
-                                    hover:text-slate-700
-                                  "
+                              <div className="mt-3 flex flex-wrap items-center gap-2">
+                                <span
+                                  className={`inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-xs font-semibold ${status.className}`}
                                 >
-                                  <Eye size={14} />
-                                </button>
+                                  <span
+                                    className={`h-1.5 w-1.5 rounded-full ${status.dot}`}
+                                  />
 
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    router.push(
-                                      `/cmsAdmin/articles/${article.id}/edit`
-                                    )
-                                  }
-                                  title="Edit artikel"
-                                  className="
-                                    flex
-                                    h-8
-                                    w-8
-                                    items-center
-                                    justify-center
-                                    rounded-md
-                                    border
-                                    border-blue-100
-                                    bg-blue-50
-                                    text-blue-600
-                                    transition
-                                    hover:border-blue-200
-                                    hover:bg-blue-100
-                                  "
-                                >
-                                  <Pencil size={14} />
-                                </button>
+                                  {status.label}
+                                </span>
 
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setDeleteTarget(
+                                <span className="text-xs text-slate-400">
+                                  {formatDate(
+                                    getArticleDate(
                                       article
                                     )
-                                  }
-                                  title="Hapus artikel"
-                                  className="
-                                    flex
-                                    h-8
-                                    w-8
-                                    items-center
-                                    justify-center
-                                    rounded-md
-                                    border
-                                    border-red-100
-                                    bg-red-50
-                                    text-red-500
-                                    transition
-                                    hover:border-red-200
-                                    hover:bg-red-100
-                                  "
-                                >
-                                  <Trash2 size={14} />
-                                </button>
-
+                                  )}
+                                </span>
                               </div>
-
-                            </td>
-
-                          </tr>
-                        )
-                      )}
-
-                  </tbody>
-
-                </table>
-
-              </div>
-
-              {/* =================================================
-                  MOBILE
-              ================================================= */}
-
-              <div className="h-full divide-y divide-slate-100 overflow-auto md:hidden">
-
-                {/* LOADING */}
-
-                {loading && (
-                  <div className="flex h-full items-center justify-center p-10 text-center">
-                    <div>
-                      <Loader2
-                        size={24}
-                        className="mx-auto animate-spin text-blue-600"
-                      />
-
-                      <p className="mt-3 text-sm font-semibold text-slate-500">
-                        Memuat artikel...
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {/* EMPTY */}
-
-                {!loading &&
-                  filteredArticles.length ===
-                    0 && (
-                    <div className="flex h-full items-center justify-center p-8 text-center">
-                      <div>
-                        <p className="text-sm font-semibold text-slate-600">
-                          {hasFilter
-                            ? "Artikel tidak ditemukan"
-                            : "Belum ada artikel"}
-                        </p>
-
-                        <p className="mt-1 text-xs leading-5 text-slate-400">
-                          {hasFilter
-                            ? "Coba ubah filter pencarian."
-                            : "Belum ada konten artikel."}
-                        </p>
-
-                        <button
-                          type="button"
-                          onClick={
-                            hasFilter
-                              ? resetFilters
-                              : () =>
-                                  router.push(
-                                    "/cmsAdmin/articles/tambah"
-                                  )
-                          }
-                          className="
-                            mt-4
-                            rounded-lg
-                            bg-[#2563EB]
-                            px-4
-                            py-2
-                            text-xs
-                            font-semibold
-                            text-white
-                          "
-                        >
-                          {hasFilter
-                            ? "Reset Filter"
-                            : "Tambah Artikel"}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                {/* MOBILE DATA */}
-
-                {!loading &&
-                  filteredArticles.map(
-                    (article) => (
-                      <div
-                        key={article.id}
-                        className="group p-4 transition hover:bg-slate-50"
-                      >
-
-                        <div className="flex gap-3">
-
-                          <ArticleImage
-                            article={article}
-                          />
-
-                          <div className="min-w-0 flex-1">
-
-                            <h3 className="
-                              line-clamp-2
-                              text-sm
-                              font-semibold
-                              leading-5
-                              text-[#0F172A]
-                            ">
-                              {article.judul ||
-                                "Tanpa judul"}
-                            </h3>
-
-                            <p className="
-                              mt-1
-                              line-clamp-2
-                              text-xs
-                              leading-5
-                              text-slate-400
-                            ">
-                              {article.ringkasan ||
-                                "Tidak ada ringkasan"}
-                            </p>
-
-                            <div className="mt-2">
-                              <StatusBadge
-                                status={
-                                  article.status
-                                }
-                              />
                             </div>
-
                           </div>
 
-                        </div>
+                          <div className="mt-4 flex items-center justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                router.push(
+                                  `/cms/artikel/${id}`
+                                )
+                              }
+                              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                            >
+                              <Eye size={15} />
+                              Lihat
+                            </button>
 
-                        <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                router.push(
+                                  `/cms/artikel/${id}/edit`
+                                )
+                              }
+                              className="inline-flex items-center gap-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs font-medium text-blue-600 hover:bg-blue-100"
+                            >
+                              <Pencil size={15} />
+                              Edit
+                            </button>
 
-                          <div className="min-w-0">
-
-                            <p className="
-                              truncate
-                              text-xs
-                              font-medium
-                              text-slate-500
-                            ">
-                              {article
-                                ?.kategoriArtikel
-                                ?.nama ||
-                                "Tanpa kategori"}
-                            </p>
-
-                            <p className="mt-0.5 text-[10px] text-slate-400">
-                              {formatDate(
-                                article.createdAt ||
-                                  article.dibuatPada ||
-                                  article.created_at
+                            <button
+                              type="button"
+                              disabled={deletingId === id}
+                              onClick={() =>
+                                handleDelete(id)
+                              }
+                              className="inline-flex items-center gap-2 rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-100 disabled:opacity-50"
+                            >
+                              {deletingId === id ? (
+                                <RefreshCw
+                                  size={15}
+                                  className="animate-spin"
+                                />
+                              ) : (
+                                <Trash2 size={15} />
                               )}
-                            </p>
 
+                              Hapus
+                            </button>
                           </div>
-
-                          <div className="flex shrink-0 gap-1.5">
-
-                            <button
-                              type="button"
-                              onClick={() =>
-                                router.push(
-                                  `/cmsAdmin/articles/${article.id}`
-                                )
-                              }
-                              className="
-                                flex
-                                h-8
-                                w-8
-                                items-center
-                                justify-center
-                                rounded-md
-                                border
-                                border-slate-200
-                                bg-white
-                                text-slate-500
-                              "
-                            >
-                              <Eye size={14} />
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() =>
-                                router.push(
-                                  `/cmsAdmin/articles/${article.id}/edit`
-                                )
-                              }
-                              className="
-                                flex
-                                h-8
-                                w-8
-                                items-center
-                                justify-center
-                                rounded-md
-                                border
-                                border-blue-100
-                                bg-blue-50
-                                text-blue-600
-                              "
-                            >
-                              <Pencil size={14} />
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setDeleteTarget(
-                                  article
-                                )
-                              }
-                              className="
-                                flex
-                                h-8
-                                w-8
-                                items-center
-                                justify-center
-                                rounded-md
-                                border
-                                border-red-100
-                                bg-red-50
-                                text-red-500
-                              "
-                            >
-                              <Trash2 size={14} />
-                            </button>
-
-                          </div>
-
                         </div>
-
-                      </div>
-                    )
+                      );
+                    }
                   )}
+                </div>
+              </>
+            )}
 
-              </div>
-
-            </div>
-
-            {/* =================================================
-                FOOTER
-            ================================================= */}
+            {/* PAGINATION */}
 
             {!loading &&
-              articles.length > 0 && (
-                <div className="mt-2 flex shrink-0 items-center justify-between text-[11px] text-slate-400">
-
-                  <span>
-                    Menampilkan{" "}
-                    <strong className="font-semibold text-slate-600">
-                      {filteredArticles.length}
-                    </strong>{" "}
+              filteredArticles.length > 0 && (
+                <div className="flex flex-col gap-3 border-t border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-xs text-slate-500">
+                    Halaman{" "}
+                    <span className="font-semibold text-slate-700">
+                      {currentPage}
+                    </span>{" "}
                     dari{" "}
-                    <strong className="font-semibold text-slate-600">
-                      {articles.length}
-                    </strong>{" "}
-                    artikel
-                  </span>
+                    <span className="font-semibold text-slate-700">
+                      {totalPages}
+                    </span>
+                  </p>
 
-                  {(search ||
-                    statusFilter !== "all" ||
-                    categoryFilter !==
-                      "all") && (
+                  <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={
-                        resetFilters
+                      disabled={currentPage <= 1}
+                      onClick={() =>
+                        setPage((prev) =>
+                          Math.max(1, prev - 1)
+                        )
                       }
-                      className="font-semibold text-blue-600 hover:text-blue-700"
+                      className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
                     >
-                      Reset filter
+                      <ChevronLeft size={17} />
                     </button>
-                  )}
 
+                    <button
+                      type="button"
+                      disabled={
+                        currentPage >= totalPages
+                      }
+                      onClick={() =>
+                        setPage((prev) =>
+                          Math.min(
+                            totalPages,
+                            prev + 1
+                          )
+                        )
+                      }
+                      className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      <ChevronRight size={17} />
+                    </button>
+                  </div>
                 </div>
               )}
-
           </div>
         </main>
       </div>
-
-      {/* =====================================================
-          DELETE MODAL
-      ===================================================== */}
-
-      {deleteTarget && (
-        <div
-          className="
-            fixed
-            inset-0
-            z-[100]
-            flex
-            items-center
-            justify-center
-            bg-slate-950/45
-            p-4
-            backdrop-blur-[2px]
-          "
-          onMouseDown={(e) => {
-            if (
-              e.target ===
-              e.currentTarget
-            ) {
-              if (!deleting) {
-                setDeleteTarget(null);
-              }
-            }
-          }}
-        >
-
-          <div className="
-            w-full
-            max-w-md
-            overflow-hidden
-            rounded-2xl
-            border
-            border-slate-200
-            bg-white
-            shadow-2xl
-          ">
-
-            {/* MODAL HEADER */}
-
-            <div className="border-b border-slate-200 px-5 py-5 sm:px-6">
-
-              <div className="flex items-start justify-between gap-4">
-
-                <div>
-
-                  <p className="
-                    text-[10px]
-                    font-bold
-                    uppercase
-                    tracking-[0.15em]
-                    text-red-500
-                  ">
-                    Konfirmasi
-                  </p>
-
-                  <h2 className="
-                    mt-1
-                    text-lg
-                    font-bold
-                    tracking-tight
-                    text-[#0F172A]
-                  ">
-                    Hapus Artikel?
-                  </h2>
-
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    !deleting &&
-                    setDeleteTarget(
-                      null
-                    )
-                  }
-                  disabled={deleting}
-                  className="
-                    flex
-                    h-8
-                    w-8
-                    items-center
-                    justify-center
-                    rounded-lg
-                    text-slate-400
-                    transition
-                    hover:bg-slate-100
-                    hover:text-slate-600
-                    disabled:opacity-50
-                  "
-                >
-                  <X size={17} />
-                </button>
-
-              </div>
-
-            </div>
-
-            {/* MODAL CONTENT */}
-
-            <div className="px-5 py-5 sm:px-6">
-
-              <p className="text-sm leading-6 text-slate-500">
-                Artikel berikut akan
-                dihapus dari daftar konten:
-              </p>
-
-              <div className="
-                mt-3
-                rounded-lg
-                border
-                border-slate-200
-                bg-slate-50
-                px-4
-                py-3
-              ">
-                <p className="
-                  line-clamp-2
-                  text-sm
-                  font-semibold
-                  leading-5
-                  text-slate-700
-                ">
-                  {deleteTarget.judul ||
-                    "Tanpa judul"}
-                </p>
-
-                <p className="mt-1 text-xs text-slate-400">
-                  {deleteTarget
-                    ?.kategoriArtikel
-                    ?.nama ||
-                    "Tanpa kategori"}
-                </p>
-              </div>
-
-              <p className="mt-3 text-xs leading-5 text-slate-400">
-                Tindakan ini tidak dapat
-                dibatalkan.
-              </p>
-
-            </div>
-
-            {/* MODAL FOOTER */}
-
-            <div className="
-              flex
-              flex-col-reverse
-              gap-2
-              border-t
-              border-slate-200
-              bg-slate-50
-              px-5
-              py-4
-              sm:flex-row
-              sm:justify-end
-              sm:px-6
-            ">
-
-              <button
-                type="button"
-                onClick={() =>
-                  setDeleteTarget(
-                    null
-                  )
-                }
-                disabled={deleting}
-                className="
-                  h-10
-                  rounded-lg
-                  border
-                  border-slate-200
-                  bg-white
-                  px-5
-                  text-sm
-                  font-semibold
-                  text-slate-600
-                  transition
-                  hover:bg-slate-50
-                  disabled:opacity-50
-                "
-              >
-                Batal
-              </button>
-
-              <button
-                type="button"
-                onClick={handleDelete}
-                disabled={deleting}
-                className="
-                  inline-flex
-                  h-10
-                  items-center
-                  justify-center
-                  gap-2
-                  rounded-lg
-                  bg-red-600
-                  px-5
-                  text-sm
-                  font-semibold
-                  text-white
-                  transition
-                  hover:bg-red-700
-                  disabled:cursor-not-allowed
-                  disabled:opacity-50
-                "
-              >
-                {deleting ? (
-                  <>
-                    <Loader2
-                      size={14}
-                      className="animate-spin"
-                    />
-                    Menghapus...
-                  </>
-                ) : (
-                  <>
-                    <Trash2 size={14} />
-                    Hapus Artikel
-                  </>
-                )}
-              </button>
-
-            </div>
-
-          </div>
-
-        </div>
-      )}
-
     </div>
   );
 }

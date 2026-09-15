@@ -181,6 +181,12 @@ export interface VerifyTenantResponse {
     is_trial?: boolean;
 
     order_id?: string;
+
+    bank?: string;
+
+    va_number?: string;
+
+    gross_amount?: number;
   };
 }
 
@@ -213,13 +219,11 @@ export interface VerifyTenantResponse {
  */
 export async function verifyTenant(
   email: string,
-  kodeOtp: string
+  kodeOtp: string,
+  bank?: "bca" | "bni" | "bri"
 ): Promise<VerifyTenantResponse> {
-  const normalizedEmail =
-    email.trim().toLowerCase();
-
-  const normalizedOtp =
-    kodeOtp.trim();
+  const normalizedEmail = email.trim().toLowerCase();
+  const normalizedOtp = kodeOtp.trim();
 
   console.log(
     "========== VERIFY REQUEST =========="
@@ -236,6 +240,11 @@ export async function verifyTenant(
   );
 
   console.log(
+    "BANK:",
+    bank || "tidak ada"
+  );
+
+  console.log(
     "===================================="
   );
 
@@ -245,27 +254,24 @@ export async function verifyTenant(
       method: "POST",
 
       headers: {
-        "Content-Type":
-          "application/json",
-
-        Accept:
-          "application/json",
+        "Content-Type": "application/json",
+        Accept: "application/json",
       },
 
       body: JSON.stringify({
-        email:
-          normalizedEmail,
+        email: normalizedEmail,
+        kodeOtp: normalizedOtp,
 
-        kodeOtp:
-          normalizedOtp,
+        ...(bank
+          ? {
+              bank: bank.toLowerCase(),
+            }
+          : {}),
       }),
     }
   );
 
-  const result =
-    await parseResponse(
-      response
-    );
+  const result = await parseResponse(response);
 
   console.log(
     "========== VERIFY RESPONSE =========="
@@ -294,6 +300,21 @@ export async function verifyTenant(
   console.log(
     "ORDER ID:",
     result?.data?.order_id
+  );
+
+  console.log(
+    "VA NUMBER:",
+    result?.data?.va_number
+  );
+
+  console.log(
+    "BANK:",
+    result?.data?.bank
+  );
+
+  console.log(
+    "GROSS AMOUNT:",
+    result?.data?.gross_amount
   );
 
   console.log(

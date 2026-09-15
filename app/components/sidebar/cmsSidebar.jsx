@@ -52,12 +52,6 @@ export const cmsSidebarConfig = {
           path: "/cmsAdmin/articles",
         },
         {
-          key: "create-article",
-          label: "Tambah Artikel",
-          icon: FileText,
-          path: "/cmsAdmin/articles/tambah",
-        },
-        {
           key: "draft-articles",
           label: "Draft",
           icon: FileText,
@@ -83,12 +77,7 @@ export const cmsSidebarConfig = {
           icon: File,
           path: "/cmsAdmin/pages",
         },
-        {
-          key: "create-page",
-          label: "Tambah Halaman",
-          icon: File,
-          path: "/cmsAdmin/pages/tambah",
-        },
+      
         {
           key: "published-pages",
           label: "Halaman Terbit",
@@ -109,12 +98,7 @@ export const cmsSidebarConfig = {
           icon: Images,
           path: "/cmsAdmin/media",
         },
-        {
-          key: "upload-media",
-          label: "Upload Media",
-          icon: Image,
-          path: "/cmsAdmin/media/tambah",
-        },
+      
         {
           key: "folders",
           label: "Folder Media",
@@ -135,12 +119,7 @@ export const cmsSidebarConfig = {
           icon: LayoutPanelTop,
           path: "/cmsAdmin/banners",
         },
-        {
-          key: "create-banner",
-          label: "Tambah Banner",
-          icon: LayoutPanelTop,
-          path: "/cmsAdmin/banners/tambah",
-        },
+     
       ],
     },
     {
@@ -181,12 +160,7 @@ export const cmsSidebarConfig = {
           icon: Megaphone,
           path: "/cmsAdmin/announcements",
         },
-        {
-          key: "create-announcement",
-          label: "Tambah Pengumuman",
-          icon: Megaphone,
-          path: "/cmsAdmin/pengumuman/tambah",
-        },
+      
         {
           key: "scheduled-announcements",
           label: "Pengumuman Terjadwal",
@@ -207,12 +181,7 @@ export const cmsSidebarConfig = {
           icon: CalendarDays,
           path: "/cmsAdmin/agenda",
         },
-        {
-          key: "create-event",
-          label: "Tambah Agenda",
-          icon: CalendarDays,
-          path: "/cmsAdmin/agenda/tambah",
-        },
+      
         {
           key: "upcoming-events",
           label: "Agenda Mendatang",

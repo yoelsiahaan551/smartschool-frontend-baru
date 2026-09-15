@@ -197,6 +197,11 @@ export default function UjianGuruPage() {
         );
       }
     } catch (err) {
+      console.error(
+        "LOAD KELAS MAPEL ERROR:",
+        err
+      );
+
       setKelasMapel([]);
       setSelectedKelasMapel("");
       setUjian([]);
@@ -240,8 +245,25 @@ export default function UjianGuruPage() {
 
       const data = parseData(response);
 
+      /*
+       * Backend mengirim:
+       *
+       * _count: {
+       *   soalAsesmen: 2,
+       *   percobaanAsesmen: 1
+       * }
+       *
+       * Jadi kita pertahankan response BE
+       * dan gunakan nama field tersebut di FE.
+       */
+
       setUjian(data);
     } catch (err) {
+      console.error(
+        "LOAD UJIAN ERROR:",
+        err
+      );
+
       setUjian([]);
 
       setError(
@@ -315,23 +337,32 @@ export default function UjianGuruPage() {
 
     const draft = total - published;
 
+    /*
+     * FIX:
+     * Backend menggunakan soalAsesmen,
+     * bukan soalUjian.
+     */
     const totalQuestions =
       ujian.reduce(
         (sum, item) =>
           sum +
           Number(
-            item?._count?.soalUjian || 0
+            item?._count?.soalAsesmen || 0
           ),
         0
       );
 
+    /*
+     * FIX:
+     * Backend menggunakan percobaanAsesmen,
+     * bukan percobaanUjian.
+     */
     const totalAttempts =
       ujian.reduce(
         (sum, item) =>
           sum +
           Number(
-            item?._count
-              ?.percobaanUjian || 0
+            item?._count?.percobaanAsesmen || 0
           ),
         0
       );
@@ -369,6 +400,11 @@ export default function UjianGuruPage() {
         selectedKelasMapel
       );
     } catch (err) {
+      console.error(
+        "DELETE UJIAN ERROR:",
+        err
+      );
+
       setError(
         err?.message ||
           "Gagal menghapus ujian."
@@ -1045,10 +1081,19 @@ export default function UjianGuruPage() {
                           index
                         ) => {
 
+                          /*
+                           * FIX UTAMA:
+                           *
+                           * Backend:
+                           * _count.soalAsesmen
+                           *
+                           * BUKAN:
+                           * _count.soalUjian
+                           */
                           const jumlahSoal =
                             Number(
                               item?._count
-                                ?.soalUjian ||
+                                ?.soalAsesmen ||
                                 0
                             );
 

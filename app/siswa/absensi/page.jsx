@@ -33,88 +33,62 @@ import Sidebar from "../../components/Sidebar";
 
 import {
   getAbsensiSaya,
-  createAbsensi,
+  absenDenganFace,
   absenManual,
 } from "../../../services/absensi.service";
-
-import {
-  getKelas,
-  getKelasById,
-} from "../../../services/kelas.service";
 
 /* =========================================================
    GPS
 ========================================================= */
 
-async function getLocation() {
-  if (
-    typeof navigator === "undefined" ||
-    !navigator.geolocation
-  ) {
-    throw new Error(
-      "Browser tidak mendukung GPS."
-    );
-  }
-
+function getCurrentLocation() {
   return new Promise((resolve, reject) => {
+    if (
+      typeof navigator === "undefined" ||
+      !navigator.geolocation
+    ) {
+      reject(
+        new Error(
+          "Browser kamu tidak mendukung fitur lokasi."
+        )
+      );
+
+      return;
+    }
+
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        const latitude =
-          position.coords.latitude;
-
-        const longitude =
-          position.coords.longitude;
-
-        const accuracy =
-          position.coords.accuracy;
-
-        console.log(
-          "========== GPS ABSENSI =========="
-        );
-
-        console.log(
-          "Latitude:",
-          latitude
-        );
-
-        console.log(
-          "Longitude:",
-          longitude
-        );
-
-        console.log(
-          "Accuracy:",
-          accuracy
-        );
-
-        console.log(
-          "================================="
-        );
-
-        resolve({
-          latitude,
-          longitude,
-          accuracy,
-        });
+        resolve(position);
       },
-
       (error) => {
-        console.log(
-          "GPS GAGAL - code:",
-          error.code
-        );
+        let message = "Gagal mendapatkan lokasi.";
 
-        console.log(
-          "GPS GAGAL - message:",
-          error.message
-        );
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            message =
+              "Izin lokasi ditolak. Aktifkan lokasi dan izinkan website ini mengakses GPS.";
+            break;
 
-        reject(error);
+          case error.POSITION_UNAVAILABLE:
+            message =
+              "Lokasi tidak tersedia. Pastikan GPS perangkat aktif.";
+            break;
+
+          case error.TIMEOUT:
+            message =
+              "Waktu mengambil lokasi habis. Silakan coba lagi.";
+            break;
+
+          default:
+            message =
+              "Gagal mendapatkan lokasi GPS.";
+        }
+
+        reject(new Error(message));
       },
-
       {
         enableHighAccuracy: true,
-        timeout: 30000,
+        timeout: 20000,
         maximumAge: 0,
       }
     );
@@ -132,23 +106,16 @@ function formatTanggal(tanggal) {
 
   const date = new Date(tanggal);
 
-  if (
-    Number.isNaN(
-      date.getTime()
-    )
-  ) {
+  if (Number.isNaN(date.getTime())) {
     return "-";
   }
 
-  return date.toLocaleDateString(
-    "id-ID",
-    {
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    }
-  );
+  return date.toLocaleDateString("id-ID", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
 }
 
 /* =========================================================
@@ -162,21 +129,14 @@ function formatJam(tanggal) {
 
   const date = new Date(tanggal);
 
-  if (
-    Number.isNaN(
-      date.getTime()
-    )
-  ) {
+  if (Number.isNaN(date.getTime())) {
     return "-";
   }
 
-  return date.toLocaleTimeString(
-    "id-ID",
-    {
-      hour: "2-digit",
-      minute: "2-digit",
-    }
-  );
+  return date.toLocaleTimeString("id-ID", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 /* =========================================================
@@ -184,9 +144,7 @@ function formatJam(tanggal) {
 ========================================================= */
 
 function getStatusLabel(status) {
-  switch (
-    String(status || "").toLowerCase()
-  ) {
+  switch (String(status || "").toLowerCase()) {
     case "hadir":
       return "Hadir";
 
@@ -211,10 +169,7 @@ function getStatusLabel(status) {
    FORMAT NAMA KAMERA
 ========================================================= */
 
-function getCameraName(
-  device,
-  index
-) {
+function getCameraName(device, index) {
   if (!device) {
     return `Kamera ${index + 1}`;
   }
@@ -231,10 +186,7 @@ function getCameraName(
 ========================================================= */
 
 function isVirtualCamera(device) {
-  const label =
-    String(
-      device?.label || ""
-    ).toLowerCase();
+  const label = String(device?.label || "").toLowerCase();
 
   return (
     label.includes("snap") ||
@@ -248,768 +200,283 @@ function isVirtualCamera(device) {
 }
 
 /* =========================================================
-   NORMALIZE RESPONSE KELAS
-========================================================= */
-
-function normalizeKelasList(response) {
-  if (Array.isArray(response)) {
-    return response;
-  }
-
-  if (
-    Array.isArray(
-      response?.data
-    )
-  ) {
-    return response.data;
-  }
-
-  if (
-    Array.isArray(
-      response?.data?.data
-    )
-  ) {
-    return response.data.data;
-  }
-
-  if (
-    Array.isArray(
-      response?.items
-    )
-  ) {
-    return response.items;
-  }
-
-  if (
-    Array.isArray(
-      response?.result
-    )
-  ) {
-    return response.result;
-  }
-
-  if (
-    Array.isArray(
-      response?.result?.data
-    )
-  ) {
-    return response.result.data;
-  }
-
-  return [];
-}
-
-/* =========================================================
-   NORMALIZE DETAIL KELAS
-========================================================= */
-
-function normalizeKelasDetail(response) {
-  if (!response) {
-    return null;
-  }
-
-  if (
-    response?.data?.data
-  ) {
-    return response.data.data;
-  }
-
-  if (
-    response?.data &&
-    typeof response.data === "object" &&
-    !Array.isArray(response.data)
-  ) {
-    return response.data;
-  }
-
-  if (
-    response?.result?.data
-  ) {
-    return response.result.data;
-  }
-
-  if (
-    response?.result &&
-    typeof response.result === "object" &&
-    !Array.isArray(response.result)
-  ) {
-    return response.result;
-  }
-
-  return response;
-}
-
-/* =========================================================
-   AMBIL ID USER LOGIN
-========================================================= */
-
-function getLoggedInUserId() {
-  if (
-    typeof window === "undefined"
-  ) {
-    return null;
-  }
-
-  try {
-    const rawUser =
-      localStorage.getItem(
-        "user"
-      );
-
-    if (!rawUser) {
-      return null;
-    }
-
-    const user =
-      JSON.parse(rawUser);
-
-    return (
-      user?.id ||
-      user?.userId ||
-      user?.penggunaId ||
-      user?.pengguna?.id ||
-      user?.user?.id ||
-      null
-    );
-  } catch (error) {
-    console.error(
-      "Gagal membaca user login:",
-      error
-    );
-
-    return null;
-  }
-}
-
-/* =========================================================
-   CEK ANGGOTA KELAS
-========================================================= */
-
-function isUserMemberOfKelas(
-  detail,
-  userId
-) {
-  if (
-    !detail ||
-    !userId
-  ) {
-    return false;
-  }
-
-  const anggota =
-    Array.isArray(
-      detail?.anggota
-    )
-      ? detail.anggota
-      : Array.isArray(
-          detail?.classStudents
-        )
-      ? detail.classStudents
-      : Array.isArray(
-          detail?.siswa
-        )
-      ? detail.siswa
-      : [];
-
-  return anggota.some(
-    (member) => {
-      const memberUserId =
-        member?.penggunaId ||
-        member?.userId ||
-        member?.siswaId ||
-        member?.pengguna?.id ||
-        member?.siswa?.id ||
-        member?.user?.id;
-
-      return (
-        String(memberUserId) ===
-        String(userId)
-      );
-    }
-  );
-}
-
-/* =========================================================
    PAGE
 ========================================================= */
 
 export default function AbsensiSiswaPage() {
-  const searchParams =
-    useSearchParams();
+  const searchParams = useSearchParams();
 
-  const kelasIdFromUrl =
-    searchParams.get(
-      "kelasId"
-    );
+  const kelasIdFromUrl = searchParams.get("kelasId");
 
-  /* =======================================================
-     STATE KELAS
-  ======================================================= */
-
-  const [
-    kelasId,
-    setKelasId,
-  ] = useState(
-    kelasIdFromUrl || ""
-  );
-
-  const [
-    kelasData,
-    setKelasData,
-  ] = useState(null);
-
-  const [
-    loadingKelas,
-    setLoadingKelas,
-  ] = useState(
-    !kelasIdFromUrl
-  );
+  /*
+   * Untuk sementara tetap menggunakan fallback
+   * karena halaman sebelumnya memang menggunakan
+   * kelasId default.
+   */
+  const kelasId =
+    kelasIdFromUrl ||
+    "d4221aad-78b1-4d14-ab87-97ae3a3f05ac";
 
   /* =======================================================
      STATE ABSENSI
   ======================================================= */
 
-  const [
-    absensiData,
-    setAbsensiData,
-  ] = useState([]);
+  const [absensiData, setAbsensiData] = useState([]);
 
-  const [
-    loadingData,
-    setLoadingData,
-  ] = useState(true);
+  const [loadingData, setLoadingData] = useState(true);
 
-  const [
-    loadingAbsen,
-    setLoadingAbsen,
-  ] = useState(false);
+  const [loadingAbsen, setLoadingAbsen] = useState(false);
 
   /* =======================================================
      STATE CAMERA
   ======================================================= */
 
-  const [
-    cameraOpen,
-    setCameraOpen,
-  ] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
 
-  const [
-    cameraLoading,
-    setCameraLoading,
-  ] = useState(false);
+  const [cameraLoading, setCameraLoading] = useState(false);
 
-  const [
-    cameraError,
-    setCameraError,
-  ] = useState("");
+  const [cameraError, setCameraError] = useState("");
 
-  const [
-    cameras,
-    setCameras,
-  ] = useState([]);
+  const [cameras, setCameras] = useState([]);
 
-  const [
-    selectedCameraId,
-    setSelectedCameraId,
-  ] = useState("");
+  const [selectedCameraId, setSelectedCameraId] = useState("");
 
-  const [
-    capturedImage,
-    setCapturedImage,
-  ] = useState(null);
+  const [capturedImage, setCapturedImage] = useState(null);
 
   /* =======================================================
      STATE UMUM
   ======================================================= */
 
-  const [
-    error,
-    setError,
-  ] = useState("");
+  const [error, setError] = useState("");
 
-  const [
-    success,
-    setSuccess,
-  ] = useState("");
+  const [success, setSuccess] = useState("");
 
-  const [
-    showIzinForm,
-    setShowIzinForm,
-  ] = useState(false);
+  const [showIzinForm, setShowIzinForm] = useState(false);
 
-  const [
-    jenisIzin,
-    setJenisIzin,
-  ] = useState("izin");
+  const [jenisIzin, setJenisIzin] = useState("izin");
 
-  const [
-    keterangan,
-    setKeterangan,
-  ] = useState("");
-
-  const [
-    locationStatus,
-    setLocationStatus,
-  ] = useState("idle");
-
-  const [
-    locationText,
-    setLocationText,
-  ] = useState("");
+  const [keterangan, setKeterangan] = useState("");
 
   /* =======================================================
-     STATE WAKTU CLIENT
+     STATE LOCATION
   ======================================================= */
 
-  const [
-    currentTime,
-    setCurrentTime,
-  ] = useState(null);
+  const [locationStatus, setLocationStatus] = useState("idle");
+
+  const [locationText, setLocationText] = useState("");
+
+  const [locationData, setLocationData] = useState(null);
 
   /* =======================================================
      REFS
   ======================================================= */
 
-  const videoRef =
-    useRef(null);
+  const videoRef = useRef(null);
 
-  const canvasRef =
-    useRef(null);
+  const canvasRef = useRef(null);
 
-  const streamRef =
-    useRef(null);
+  const streamRef = useRef(null);
 
-  /* =======================================================
-     UPDATE WAKTU
-  ======================================================= */
+  /* =========================================================
+     LOAD ABSENSI
+  ========================================================= */
 
-  useEffect(() => {
-    const updateTime =
-      () => {
-        setCurrentTime(
-          new Date()
-        );
-      };
+  const loadAbsensi = useCallback(async () => {
+    try {
+      setLoadingData(true);
+      setError("");
 
-    updateTime();
+      const response = await getAbsensiSaya();
 
-    const interval =
-      setInterval(
-        updateTime,
-        1000
+      let data = [];
+
+      if (Array.isArray(response)) {
+        data = response;
+      } else if (Array.isArray(response?.data)) {
+        data = response.data;
+      } else if (Array.isArray(response?.data?.data)) {
+        data = response.data.data;
+      } else if (Array.isArray(response?.items)) {
+        data = response.items;
+      }
+
+      setAbsensiData(data);
+    } catch (err) {
+      console.error(
+        "Gagal mengambil absensi:",
+        err
       );
 
-    return () => {
-      clearInterval(
-        interval
+      setAbsensiData([]);
+
+      setError(
+        err?.message ||
+          "Gagal mengambil data absensi."
       );
-    };
+    } finally {
+      setLoadingData(false);
+    }
   }, []);
 
-  /* =======================================================
-     SYNC KELAS DARI URL
-  ======================================================= */
-
-  useEffect(() => {
-    if (
-      kelasIdFromUrl
-    ) {
-      setKelasId(
-        kelasIdFromUrl
-      );
-
-      setLoadingKelas(
-        false
-      );
-    }
-  }, [
-    kelasIdFromUrl,
-  ]);
-
-  /* =======================================================
-     CARI KELAS SISWA DARI BE
-  ======================================================= */
-
-  const loadKelasSiswa =
-    useCallback(
-      async () => {
-        /*
-         * Kalau URL sudah memberikan kelasId,
-         * gunakan langsung.
-         */
-        if (
-          kelasIdFromUrl
-        ) {
-          setKelasId(
-            kelasIdFromUrl
-          );
-
-          setLoadingKelas(
-            false
-          );
-
-          try {
-            const response =
-              await getKelasById(
-                kelasIdFromUrl
-              );
-
-            const detail =
-              normalizeKelasDetail(
-                response
-              );
-
-            setKelasData(
-              detail
-            );
-          } catch (err) {
-            console.error(
-              "Gagal mengambil detail kelas:",
-              err
-            );
-          }
-
-          return;
-        }
-
-        try {
-          setLoadingKelas(
-            true
-          );
-
-          setError("");
-
-          const userId =
-            getLoggedInUserId();
-
-          console.log(
-            "ID USER LOGIN:",
-            userId
-          );
-
-          if (!userId) {
-            throw new Error(
-              "ID siswa tidak ditemukan dari data login."
-            );
-          }
-
-          /*
-           * Ambil daftar kelas dari BE.
-           */
-          const response =
-            await getKelas({
-              page: 1,
-              limit: 100,
-            });
-
-          const daftarKelas =
-            normalizeKelasList(
-              response
-            );
-
-          console.log(
-            "JUMLAH KELAS ABSENSI:",
-            daftarKelas.length
-          );
-
-          if (
-            daftarKelas.length === 0
-          ) {
-            console.error(
-              "Tidak ada kelas yang dikembalikan BE."
-            );
-
-            setKelasId("");
-
-            setKelasData(
-              null
-            );
-
-            return;
-          }
-
-          /*
-           * Periksa detail setiap kelas
-           * untuk menemukan siswa yang sedang login.
-           */
-          for (
-            const kelas of daftarKelas
-          ) {
-            if (
-              !kelas?.id
-            ) {
-              continue;
-            }
-
-            try {
-              const detailResponse =
-                await getKelasById(
-                  kelas.id
-                );
-
-              const detail =
-                normalizeKelasDetail(
-                  detailResponse
-                );
-
-              console.log(
-                `DETAIL KELAS ABSENSI ${kelas.nama || kelas.namaKelas || kelas.id}:`,
-                detail
-              );
-
-              if (
-                isUserMemberOfKelas(
-                  detail,
-                  userId
-                )
-              ) {
-                console.log(
-                  "KELAS SISWA DITEMUKAN UNTUK ABSENSI:",
-                  detail
-                );
-
-                setKelasId(
-                  detail.id ||
-                    kelas.id
-                );
-
-                setKelasData(
-                  detail
-                );
-
-                return;
-              }
-            } catch (err) {
-              console.error(
-                `Gagal mengambil detail kelas ${kelas.id}:`,
-                err
-              );
-            }
-          }
-
-          /*
-           * Tidak menemukan siswa
-           * di semua kelas.
-           */
-          console.error(
-            "KELAS SISWA TIDAK DITEMUKAN UNTUK ABSENSI."
-          );
-
-          setKelasId("");
-
-          setKelasData(
-            null
-          );
-        } catch (err) {
-          console.error(
-            "Gagal mencari kelas siswa:",
-            err
-          );
-
-          setKelasId("");
-
-          setKelasData(
-            null
-          );
-
-          setError(
-            err?.message ||
-              "Gagal menentukan kelas siswa."
-          );
-        } finally {
-          setLoadingKelas(
-            false
-          );
-        }
-      },
-      [
-        kelasIdFromUrl,
-      ]
-    );
-
-  /* =======================================================
-     LOAD KELAS SAAT PAGE
-  ======================================================= */
-
-  useEffect(() => {
-    loadKelasSiswa();
-  }, [
-    loadKelasSiswa,
-  ]);
-
-  /* =======================================================
-     LOAD ABSENSI
-  ======================================================= */
-
-  const loadAbsensi =
-    useCallback(
-      async () => {
-        try {
-          setLoadingData(
-            true
-          );
-
-          const response =
-            await getAbsensiSaya();
-
-          let data = [];
-
-          if (
-            Array.isArray(
-              response
-            )
-          ) {
-            data =
-              response;
-          } else if (
-            Array.isArray(
-              response?.data
-            )
-          ) {
-            data =
-              response.data;
-          } else if (
-            Array.isArray(
-              response?.data?.data
-            )
-          ) {
-            data =
-              response.data.data;
-          } else if (
-            Array.isArray(
-              response?.items
-            )
-          ) {
-            data =
-              response.items;
-          } else if (
-            Array.isArray(
-              response?.result
-            )
-          ) {
-            data =
-              response.result;
-          } else if (
-            Array.isArray(
-              response?.result?.data
-            )
-          ) {
-            data =
-              response.result.data;
-          }
-
-          setAbsensiData(
-            data
-          );
-        } catch (err) {
-          console.error(
-            "Gagal mengambil absensi:",
-            err
-          );
-
-          setAbsensiData([]);
-
-          setError(
-            err?.message ||
-              "Gagal mengambil data absensi."
-          );
-        } finally {
-          setLoadingData(
-            false
-          );
-        }
-      },
-      []
-    );
-
-  /* =======================================================
-     LOAD ABSENSI SAAT PAGE
-  ======================================================= */
+  /* =========================================================
+     LOAD SAAT PAGE
+  ========================================================= */
 
   useEffect(() => {
     loadAbsensi();
-  }, [
-    loadAbsensi,
-  ]);
+  }, [loadAbsensi]);
 
-  /* =======================================================
+  /* =========================================================
      TANGGAL HARI INI
-  ======================================================= */
+  ========================================================= */
 
-  const today =
-    currentTime ||
-    new Date();
+  const today = new Date();
 
-  const todayString =
-    today
+  const todayString = today
+    .toISOString()
+    .split("T")[0];
+
+  /* =========================================================
+     ABSENSI HARI INI
+  ========================================================= */
+
+  const absensiHariIni = absensiData.find((item) => {
+    if (!item?.tanggal) {
+      return false;
+    }
+
+    const itemDate = new Date(item.tanggal)
       .toISOString()
       .split("T")[0];
 
-  /* =======================================================
-     ABSENSI HARI INI
-  ======================================================= */
+    const tanggalSama =
+      itemDate === todayString;
 
-  const absensiHariIni =
-    absensiData.find(
-      (item) => {
-        if (
-          !item?.tanggal
-        ) {
-          return false;
-        }
+    const kelasSama =
+      !kelasId ||
+      item.kelasId === kelasId;
 
-        const itemDate =
-          new Date(
-            item.tanggal
-          )
-            .toISOString()
-            .split("T")[0];
+    return tanggalSama && kelasSama;
+  });
 
-        const tanggalSama =
-          itemDate ===
-          todayString;
+  const sudahAbsen = Boolean(absensiHariIni);
 
-        const kelasSama =
-          !kelasId ||
-          String(
-            item.kelasId
-          ) ===
-            String(
-              kelasId
-            );
+  /* =========================================================
+     ENUMERATE CAMERA
+  ========================================================= */
 
-        return (
-          tanggalSama &&
-          kelasSama
+  const loadCameras = useCallback(async () => {
+    try {
+      if (
+        typeof navigator === "undefined" ||
+        !navigator.mediaDevices ||
+        !navigator.mediaDevices.enumerateDevices
+      ) {
+        throw new Error(
+          "Browser tidak mendukung daftar kamera."
         );
       }
-    );
 
-  const sudahAbsen =
-    Boolean(
-      absensiHariIni
-    );
+      const devices =
+        await navigator.mediaDevices.enumerateDevices();
 
-  /* =======================================================
-     ENUMERATE CAMERA
-  ======================================================= */
+      const videoDevices = devices.filter(
+        (device) =>
+          device.kind === "videoinput"
+      );
 
-  const loadCameras =
-    useCallback(
-      async () => {
-        try {
-          if (
-            typeof navigator ===
-              "undefined" ||
-            !navigator.mediaDevices ||
-            !navigator.mediaDevices
-              .enumerateDevices
-          ) {
-            throw new Error(
-              "Browser tidak mendukung daftar kamera."
-            );
-          }
+      setCameras(videoDevices);
 
+      if (videoDevices.length === 0) {
+        setSelectedCameraId("");
+        return;
+      }
+
+      const selectedStillExists =
+        videoDevices.some(
+          (device) =>
+            device.deviceId ===
+            selectedCameraId
+        );
+
+      if (selectedStillExists) {
+        return;
+      }
+
+      const realCamera =
+        videoDevices.find(
+          (device) =>
+            !isVirtualCamera(device)
+        );
+
+      const firstCamera =
+        realCamera || videoDevices[0];
+
+      setSelectedCameraId(
+        firstCamera.deviceId
+      );
+    } catch (err) {
+      console.error(
+        "Gagal membaca kamera:",
+        err
+      );
+
+      setCameraError(
+        err?.message ||
+          "Tidak dapat membaca daftar kamera."
+      );
+    }
+  }, [selectedCameraId]);
+
+  /* =========================================================
+     STOP CAMERA
+  ========================================================= */
+
+  const stopCamera = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current
+        .getTracks()
+        .forEach((track) => {
+          track.stop();
+        });
+
+      streamRef.current = null;
+    }
+
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+  }, []);
+
+  /* =========================================================
+     START CAMERA
+  ========================================================= */
+
+  const startCamera = useCallback(
+    async (deviceId = null) => {
+      try {
+        setCameraError("");
+        setError("");
+        setCameraLoading(true);
+        setCameraOpen(true);
+
+        if (
+          typeof navigator === "undefined" ||
+          !navigator.mediaDevices ||
+          !navigator.mediaDevices.getUserMedia
+        ) {
+          throw new Error(
+            "Browser tidak mendukung kamera."
+          );
+        }
+
+        stopCamera();
+
+        let cameraId =
+          deviceId ||
+          selectedCameraId;
+
+        if (!cameraId) {
           const devices =
             await navigator.mediaDevices.enumerateDevices();
 
@@ -1020,269 +487,102 @@ export default function AbsensiSiswaPage() {
                 "videoinput"
             );
 
-          setCameras(
-            videoDevices
-          );
-
-          if (
-            videoDevices.length ===
-            0
-          ) {
-            setSelectedCameraId(
-              ""
+          if (videoDevices.length === 0) {
+            throw new Error(
+              "Kamera tidak ditemukan. Pastikan webcam terhubung."
             );
-
-            return;
-          }
-
-          const selectedStillExists =
-            videoDevices.some(
-              (device) =>
-                device.deviceId ===
-                selectedCameraId
-            );
-
-          if (
-            selectedStillExists
-          ) {
-            return;
           }
 
           const realCamera =
             videoDevices.find(
               (device) =>
-                !isVirtualCamera(
-                  device
-                )
+                !isVirtualCamera(device)
             );
 
-          const firstCamera =
+          cameraId = (
             realCamera ||
-            videoDevices[0];
+            videoDevices[0]
+          ).deviceId;
+
+          setCameras(videoDevices);
 
           setSelectedCameraId(
-            firstCamera.deviceId
-          );
-        } catch (err) {
-          console.error(
-            "Gagal membaca kamera:",
-            err
-          );
-
-          setCameraError(
-            err?.message ||
-              "Tidak dapat membaca daftar kamera."
+            cameraId
           );
         }
-      },
-      [
-        selectedCameraId,
-      ]
-    );
 
-  /* =======================================================
-     STOP CAMERA
-  ======================================================= */
-
-  const stopCamera =
-    useCallback(
-      () => {
-        if (
-          streamRef.current
-        ) {
-          streamRef.current
-            .getTracks()
-            .forEach(
-              (track) => {
-                track.stop();
-              }
-            );
-
-          streamRef.current =
-            null;
-        }
-
-        if (
-          videoRef.current
-        ) {
-          videoRef.current.srcObject =
-            null;
-        }
-      },
-      []
-    );
-
-  /* =======================================================
-     START CAMERA
-  ======================================================= */
-
-  const startCamera =
-    useCallback(
-      async (
-        deviceId = null
-      ) => {
-        try {
-          setCameraError(
-            ""
-          );
-
-          setError(
-            ""
-          );
-
-          setCameraLoading(
-            true
-          );
-
-          setCameraOpen(
-            true
-          );
-
-          if (
-            typeof navigator ===
-              "undefined" ||
-            !navigator.mediaDevices ||
-            !navigator.mediaDevices
-              .getUserMedia
-          ) {
-            throw new Error(
-              "Browser tidak mendukung kamera."
-            );
-          }
-
-          stopCamera();
-
-          let cameraId =
-            deviceId ||
-            selectedCameraId;
-
-          if (!cameraId) {
-            const devices =
-              await navigator.mediaDevices.enumerateDevices();
-
-            const videoDevices =
-              devices.filter(
-                (device) =>
-                  device.kind ===
-                  "videoinput"
-              );
-
-            if (
-              videoDevices.length ===
-              0
-            ) {
-              throw new Error(
-                "Kamera tidak ditemukan. Pastikan webcam terhubung."
-              );
-            }
-
-            const realCamera =
-              videoDevices.find(
-                (device) =>
-                  !isVirtualCamera(
-                    device
-                  )
-              );
-
-            cameraId =
-              (
-                realCamera ||
-                videoDevices[0]
-              ).deviceId;
-
-            setCameras(
-              videoDevices
-            );
-
-            setSelectedCameraId(
-              cameraId
-            );
-          }
-
-          const stream =
-            await navigator.mediaDevices.getUserMedia(
-              {
-                video: {
-                  deviceId: {
-                    exact: cameraId,
-                  },
-
-                  width: {
-                    ideal: 1280,
-                  },
-
-                  height: {
-                    ideal: 720,
-                  },
+        const stream =
+          await navigator.mediaDevices.getUserMedia(
+            {
+              video: {
+                deviceId: {
+                  exact: cameraId,
                 },
+                width: {
+                  ideal: 1280,
+                },
+                height: {
+                  ideal: 720,
+                },
+              },
+              audio: false,
+            }
+          );
 
-                audio: false,
-              }
-            );
+        streamRef.current = stream;
 
-          streamRef.current =
+        if (videoRef.current) {
+          videoRef.current.srcObject =
             stream;
 
-          if (
-            videoRef.current
-          ) {
-            videoRef.current.srcObject =
-              stream;
-
-            await videoRef.current.play();
-          }
-
-          await loadCameras();
-        } catch (err) {
-          console.error(
-            "Camera error:",
-            err
-          );
-
-          setCameraError(
-            err?.message ||
-              "Kamera tidak dapat dibuka."
-          );
-        } finally {
-          setCameraLoading(
-            false
-          );
+          await videoRef.current.play();
         }
-      },
-      [
-        loadCameras,
-        selectedCameraId,
-        stopCamera,
-      ]
-    );
 
-  /* =======================================================
+        await loadCameras();
+      } catch (err) {
+        console.error(
+          "Camera error:",
+          err
+        );
+
+        setCameraError(
+          err?.message ||
+            "Kamera tidak dapat dibuka."
+        );
+      } finally {
+        setCameraLoading(false);
+      }
+    },
+    [
+      loadCameras,
+      selectedCameraId,
+      stopCamera,
+    ]
+  );
+
+  /* =========================================================
      LOAD CAMERA SAAT PAGE
-  ======================================================= */
+  ========================================================= */
 
   useEffect(() => {
     loadCameras();
-  }, [
-    loadCameras,
-  ]);
+  }, [loadCameras]);
 
-  /* =======================================================
+  /* =========================================================
      CAMERA DEVICE CHANGE
-  ======================================================= */
+  ========================================================= */
 
   useEffect(() => {
     if (
-      typeof navigator ===
-        "undefined" ||
+      typeof navigator === "undefined" ||
       !navigator.mediaDevices
     ) {
       return;
     }
 
-    const handleDeviceChange =
-      () => {
-        loadCameras();
-      };
+    const handleDeviceChange = () => {
+      loadCameras();
+    };
 
     navigator.mediaDevices.addEventListener(
       "devicechange",
@@ -1295,65 +595,48 @@ export default function AbsensiSiswaPage() {
         handleDeviceChange
       );
     };
-  }, [
-    loadCameras,
-  ]);
+  }, [loadCameras]);
 
-  /* =======================================================
+  /* =========================================================
      CHANGE CAMERA
-  ======================================================= */
+  ========================================================= */
 
-  async function handleCameraChange(
-    event
-  ) {
+  async function handleCameraChange(event) {
     const deviceId =
       event.target.value;
 
-    setSelectedCameraId(
-      deviceId
-    );
+    setSelectedCameraId(deviceId);
 
     if (
       cameraOpen &&
       deviceId
     ) {
-      await startCamera(
-        deviceId
-      );
+      await startCamera(deviceId);
     }
   }
 
-  /* =======================================================
+  /* =========================================================
      CLOSE CAMERA
-  ======================================================= */
+  ========================================================= */
 
   function closeCamera() {
     stopCamera();
 
-    setCameraOpen(
-      false
-    );
+    setCameraOpen(false);
 
-    setCameraError(
-      ""
-    );
+    setCameraError("");
   }
 
-  /* =======================================================
+  /* =========================================================
      TAKE PHOTO
-  ======================================================= */
+  ========================================================= */
 
   function takePhoto() {
-    const video =
-      videoRef.current;
+    const video = videoRef.current;
 
-    const canvas =
-      canvasRef.current;
+    const canvas = canvasRef.current;
 
-    if (
-      !video ||
-      !canvas
-    ) {
+    if (!video || !canvas) {
       setCameraError(
         "Kamera belum siap."
       );
@@ -1362,10 +645,8 @@ export default function AbsensiSiswaPage() {
     }
 
     if (
-      video.videoWidth ===
-        0 ||
-      video.videoHeight ===
-        0
+      video.videoWidth === 0 ||
+      video.videoHeight === 0
     ) {
       setCameraError(
         "Kamera belum siap. Tunggu sebentar lalu coba lagi."
@@ -1381,9 +662,7 @@ export default function AbsensiSiswaPage() {
       video.videoHeight;
 
     const context =
-      canvas.getContext(
-        "2d"
-      );
+      canvas.getContext("2d");
 
     if (!context) {
       setCameraError(
@@ -1407,39 +686,115 @@ export default function AbsensiSiswaPage() {
         0.9
       );
 
-    setCapturedImage(
-      image
-    );
+    setCapturedImage(image);
 
     stopCamera();
 
-    setCameraOpen(
-      false
-    );
+    setCameraOpen(false);
 
-    setCameraError(
-      ""
-    );
+    setCameraError("");
   }
 
-  /* =======================================================
-     SUBMIT ABSENSI GPS
-  ======================================================= */
+  /* =========================================================
+     GET LOCATION
+  ========================================================= */
+
+  async function getLocation() {
+    try {
+      setLocationStatus("loading");
+
+      setLocationText(
+        "Mengambil lokasi GPS terbaru..."
+      );
+
+      setLocationData(null);
+
+      const position =
+        await getCurrentLocation();
+
+      const latitude =
+        Number(
+          position?.coords?.latitude
+        );
+
+      const longitude =
+        Number(
+          position?.coords?.longitude
+        );
+
+      const accuracy =
+        Number(
+          position?.coords?.accuracy
+        );
+
+      if (
+        !Number.isFinite(latitude) ||
+        !Number.isFinite(longitude)
+      ) {
+        throw new Error(
+          "Koordinat GPS tidak valid."
+        );
+      }
+
+      const data = {
+        latitude,
+        longitude,
+        accuracy:
+          Number.isFinite(accuracy)
+            ? accuracy
+            : null,
+      };
+
+      setLocationData(data);
+
+      setLocationStatus("success");
+
+      if (
+        Number.isFinite(accuracy)
+      ) {
+        setLocationText(
+          `GPS aktif • Akurasi ±${Math.round(
+            accuracy
+          )} meter`
+        );
+      } else {
+        setLocationText(
+          "GPS aktif"
+        );
+      }
+
+      return {
+        latitude,
+        longitude,
+      };
+    } catch (err) {
+      setLocationStatus("error");
+
+      setLocationData(null);
+
+      setLocationText(
+        err?.message ||
+          "Lokasi tidak tersedia."
+      );
+
+      throw err;
+    }
+  }
+
+  /* =========================================================
+     SUBMIT FACE
+  ========================================================= */
 
   async function handleSubmitAbsen() {
-    if (
-      !kelasId
-    ) {
+    if (!kelasId) {
       setError(
-        "Kelas siswa belum ditemukan. Tunggu sampai data kelas selesai dimuat."
+        "Kelas siswa belum tersedia. Halaman ini harus dibuka dengan kelasId."
       );
 
       return;
     }
 
-    if (
-      sudahAbsen
-    ) {
+    if (sudahAbsen) {
       setError(
         "Kamu sudah melakukan absensi hari ini."
       );
@@ -1447,180 +802,103 @@ export default function AbsensiSiswaPage() {
       return;
     }
 
-    try {
-      setLoadingAbsen(
-        true
-      );
-
+    if (!capturedImage) {
       setError(
-        ""
+        "Silakan ambil foto terlebih dahulu."
       );
 
-      setSuccess(
-        ""
-      );
+      return;
+    }
 
-      /* ---------------------------------------------------
-         Ambil lokasi GPS
-      --------------------------------------------------- */
+    try {
+      setLoadingAbsen(true);
 
+      setError("");
+
+      setSuccess("");
+
+      /*
+       * Ambil GPS tepat ketika tombol
+       * Kirim Absensi ditekan.
+       *
+       * Jadi koordinat yang dikirim
+       * adalah lokasi terbaru perangkat.
+       */
       const position =
         await getLocation();
 
-      console.log(
-        "======================================"
-      );
+      /*
+       * DATA URL -> BLOB
+       */
 
-      console.log(
-        "     DATA ABSENSI SEBELUM DIKIRIM"
-      );
+      const response =
+        await fetch(
+          capturedImage
+        );
 
-      console.log(
-        "======================================"
-      );
+      if (!response.ok) {
+        throw new Error(
+          "Gagal memproses foto."
+        );
+      }
 
-      console.log(
-        "kelasId:",
-        kelasId
-      );
+      const blob =
+        await response.blob();
 
-      console.log(
-        "kelas:",
-        kelasData
-      );
+      /*
+       * KIRIM KE BACKEND
+       */
 
-      console.log(
-        "status:",
-        "hadir"
-      );
-
-      console.log(
-        "metode:",
-        "lokasi"
-      );
-
-      console.log(
-        "lintang:",
-        position.latitude
-      );
-
-      console.log(
-        "bujur:",
-        position.longitude
-      );
-
-      console.log(
-        "accuracy:",
-        position.accuracy
-      );
-
-      console.log(
-        "======================================"
-      );
-
-      /* ---------------------------------------------------
-         Kirim ke BE melalui service absensi
-      --------------------------------------------------- */
-
-      await createAbsensi({
+      await absenDenganFace({
         kelasId,
+        snapshot: blob,
         status: "hadir",
-        metode: "lokasi",
         keterangan:
-          "Absen masuk melalui lokasi GPS",
-        lintang: position.latitude,
-        bujur: position.longitude,
+          "Absen masuk melalui verifikasi wajah",
+        lintang:
+          position.latitude,
+        bujur:
+          position.longitude,
       });
+
+      /*
+       * BERHASIL
+       */
 
       setSuccess(
         "Absensi berhasil dicatat!"
       );
 
-      setLocationStatus(
-        "idle"
-      );
+      setCapturedImage(null);
 
-      setLocationText(
-        ""
-      );
+      setLocationStatus("idle");
 
-      setCapturedImage(
-        null
-      );
+      setLocationText("");
+
+      setLocationData(null);
 
       await loadAbsensi();
     } catch (err) {
       console.error(
-        "ERROR ABSENSI:",
-        err?.message || String(err)
+        "Gagal melakukan absensi:",
+        err
       );
-
-      console.error(
-        "DETAIL ERROR ABSENSI:",
-        {
-          name: err?.name,
-          message: err?.message,
-          code: err?.code,
-          status: err?.status,
-          stack: err?.stack,
-        }
-      );
-
-      let pesanError =
-        "Gagal melakukan absensi.";
-
-      if (
-        err?.code === 1
-      ) {
-        pesanError =
-          "Izin lokasi ditolak. Silakan izinkan lokasi untuk localhost.";
-      } else if (
-        err?.code === 2
-      ) {
-        pesanError =
-          "Lokasi GPS tidak tersedia. Pastikan lokasi perangkat aktif.";
-      } else if (
-        err?.code === 3
-      ) {
-        pesanError =
-          "GPS terlalu lama mendapatkan lokasi. Silakan coba lagi.";
-      } else if (
-        err instanceof Error &&
-        err.message
-      ) {
-        pesanError =
-          err.message;
-      } else if (
-        typeof err ===
-        "string"
-      ) {
-        pesanError =
-          err;
-      } else if (
-        err?.message
-      ) {
-        pesanError =
-          err.message;
-      }
 
       setError(
-        pesanError
+        err?.message ||
+          "Gagal melakukan absensi."
       );
     } finally {
-      setLoadingAbsen(
-        false
-      );
+      setLoadingAbsen(false);
     }
   }
 
-  /* =======================================================
+  /* =========================================================
      SUBMIT MANUAL
-  ======================================================= */
+  ========================================================= */
 
   async function handleSubmitManual() {
-    if (
-      !kelasId
-    ) {
+    if (!kelasId) {
       setError(
         "Kelas siswa belum tersedia."
       );
@@ -1628,9 +906,7 @@ export default function AbsensiSiswaPage() {
       return;
     }
 
-    if (
-      sudahAbsen
-    ) {
+    if (sudahAbsen) {
       setError(
         "Kamu sudah melakukan absensi hari ini."
       );
@@ -1638,9 +914,7 @@ export default function AbsensiSiswaPage() {
       return;
     }
 
-    if (
-      !keterangan.trim()
-    ) {
+    if (!keterangan.trim()) {
       setError(
         "Keterangan wajib diisi."
       );
@@ -1649,17 +923,11 @@ export default function AbsensiSiswaPage() {
     }
 
     try {
-      setLoadingAbsen(
-        true
-      );
+      setLoadingAbsen(true);
 
-      setError(
-        ""
-      );
+      setError("");
 
-      setSuccess(
-        ""
-      );
+      setSuccess("");
 
       await absenManual({
         kelasId,
@@ -1674,13 +942,9 @@ export default function AbsensiSiswaPage() {
         ).toLowerCase()} berhasil dikirim.`
       );
 
-      setKeterangan(
-        ""
-      );
+      setKeterangan("");
 
-      setShowIzinForm(
-        false
-      );
+      setShowIzinForm(false);
 
       await loadAbsensi();
     } catch (err) {
@@ -1694,107 +958,82 @@ export default function AbsensiSiswaPage() {
           "Gagal mengirim absensi."
       );
     } finally {
-      setLoadingAbsen(
-        false
-      );
+      setLoadingAbsen(false);
     }
   }
 
-  /* =======================================================
+  /* =========================================================
      RESET FOTO
-  ======================================================= */
+  ========================================================= */
 
   function resetPhoto() {
-    setCapturedImage(
-      null
-    );
+    setCapturedImage(null);
 
-    setError(
-      ""
-    );
+    setError("");
 
-    setSuccess(
-      ""
-    );
+    setSuccess("");
 
-    setLocationStatus(
-      "idle"
-    );
+    setLocationStatus("idle");
 
-    setLocationText(
-      ""
-    );
+    setLocationText("");
+
+    setLocationData(null);
   }
 
-  /* =======================================================
-     CLEANUP CAMERA
-  ======================================================= */
+  /* =========================================================
+     CLEANUP
+  ========================================================= */
 
   useEffect(() => {
     return () => {
-      if (
-        streamRef.current
-      ) {
+      if (streamRef.current) {
         streamRef.current
           .getTracks()
-          .forEach(
-            (track) => {
-              track.stop();
-            }
-          );
+          .forEach((track) => {
+            track.stop();
+          });
       }
     };
   }, []);
 
-  /* =======================================================
-     SIDEBAR & HEADER
-  ======================================================= */
+  /* =========================================================
+     SIDEBAR
+  ========================================================= */
 
   const [
     sidebarOpen,
     setSidebarOpen,
   ] = useState(true);
 
-  const toggleSidebar =
-    () =>
-      setSidebarOpen(
-        !sidebarOpen
-      );
+  const toggleSidebar = () =>
+    setSidebarOpen(
+      !sidebarOpen
+    );
 
-  /* =======================================================
+  /* =========================================================
      RENDER
-  ======================================================= */
+  ========================================================= */
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-slate-50">
 
-      {/* ===================================================
-          SIDEBAR
-      =================================================== */}
+      {/* SIDEBAR */}
 
       <Sidebar
         active="absensi"
         setActive={() => {}}
-        collapsed={
-          !sidebarOpen
-        }
-        setCollapsed={
-          toggleSidebar
-        }
+        collapsed={!sidebarOpen}
+        setCollapsed={toggleSidebar}
       />
 
-      {/* ===================================================
-          MAIN CONTENT
-      =================================================== */}
+      {/* MAIN */}
 
       <div className="flex h-full min-w-0 flex-1 flex-col overflow-hidden">
 
         {/* HEADER */}
 
         <Header
-          toggleSidebar={
-            toggleSidebar
-          }
+          toggleSidebar={toggleSidebar}
           notifications={[]}
           user={{
             name: "Siswa",
@@ -1804,15 +1043,13 @@ export default function AbsensiSiswaPage() {
           }}
         />
 
-        {/* SCROLLABLE CONTENT */}
+        {/* CONTENT */}
 
         <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
 
           <div className="mx-auto w-full max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8">
 
-            {/* =================================================
-                PAGE HEADER
-            ================================================= */}
+            {/* PAGE HEADER */}
 
             <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
 
@@ -1822,30 +1059,22 @@ export default function AbsensiSiswaPage() {
 
                   <div className="mb-2 flex items-center gap-3 text-sm text-slate-500">
 
-                    <CalendarDays
-                      size={16}
-                    />
+                    <CalendarDays size={16} />
 
                     <span>
-                      {currentTime
-                        ? formatTanggal(
-                            currentTime
-                          )
-                        : "Memuat tanggal..."}
+                      {formatTanggal(
+                        new Date()
+                      )}
                     </span>
 
                     <span className="h-1 w-1 rounded-full bg-slate-300" />
 
-                    <Clock3
-                      size={16}
-                    />
+                    <Clock3 size={16} />
 
                     <span>
-                      {currentTime
-                        ? formatJam(
-                            currentTime
-                          )
-                        : "--:--"}
+                      {formatJam(
+                        new Date()
+                      )}
                     </span>
 
                   </div>
@@ -1858,51 +1087,19 @@ export default function AbsensiSiswaPage() {
                     Lakukan absensi menggunakan verifikasi wajah dan lokasi GPS.
                   </p>
 
-                  {/* INFO KELAS */}
-
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
-
-                    <span className="rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700">
-
-                      {loadingKelas
-                        ? "Mencari kelas..."
-                        : kelasData?.nama ||
-                          kelasData?.namaKelas ||
-                          kelasData?.kelas?.nama ||
-                          (kelasId
-                            ? "Kelas ditemukan"
-                            : "Kelas belum tersedia")}
-
-                    </span>
-
-                    {kelasId && (
-                      <span className="rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700">
-                        Kelas siswa terhubung
-                      </span>
-                    )}
-
-                  </div>
-
                 </div>
 
                 <button
                   type="button"
-                  onClick={() => {
-                    loadAbsensi();
-                    loadKelasSiswa();
-                  }}
-                  disabled={
-                    loadingData ||
-                    loadingKelas
-                  }
+                  onClick={loadAbsensi}
+                  disabled={loadingData}
                   className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-600 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
                 >
 
                   <RefreshCw
                     size={17}
                     className={
-                      loadingData ||
-                      loadingKelas
+                      loadingData
                         ? "animate-spin"
                         : ""
                     }
@@ -1916,28 +1113,28 @@ export default function AbsensiSiswaPage() {
 
             </div>
 
-            {/* =================================================
-                LOADING KELAS
-            ================================================= */}
+            {/* KELAS BELUM TERSEDIA */}
 
-            {loadingKelas && (
-              <div className="rounded-2xl border border-blue-200 bg-blue-50 p-5">
+            {!kelasId && (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-start gap-3">
 
-                  <Loader2
+                  <AlertCircle
                     size={21}
-                    className="animate-spin text-blue-600"
+                    className="mt-0.5 shrink-0 text-amber-600"
                   />
 
                   <div>
 
-                    <h3 className="font-semibold text-blue-800">
-                      Mencari kelas siswa...
+                    <h3 className="font-semibold text-amber-800">
+                      Kelas belum tersedia
                     </h3>
 
-                    <p className="mt-1 text-sm text-blue-700">
-                      Sistem sedang mengambil data kelas dari server.
+                    <p className="mt-1 text-sm leading-6 text-amber-700">
+                      Halaman absensi membutuhkan{" "}
+                      <b>kelasId</b>{" "}
+                      untuk menentukan kelas siswa.
                     </p>
 
                   </div>
@@ -1947,41 +1144,7 @@ export default function AbsensiSiswaPage() {
               </div>
             )}
 
-            {/* =================================================
-                KELAS BELUM TERSEDIA
-            ================================================= */}
-
-            {!loadingKelas &&
-              !kelasId && (
-                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
-
-                  <div className="flex items-start gap-3">
-
-                    <AlertCircle
-                      size={21}
-                      className="mt-0.5 shrink-0 text-amber-600"
-                    />
-
-                    <div>
-
-                      <h3 className="font-semibold text-amber-800">
-                        Kelas belum tersedia
-                      </h3>
-
-                      <p className="mt-1 text-sm leading-6 text-amber-700">
-                        Sistem belum menemukan kelas siswa dari data kelas yang tersedia.
-                      </p>
-
-                    </div>
-
-                  </div>
-
-                </div>
-              )}
-
-            {/* =================================================
-                ERROR
-            ================================================= */}
+            {/* ERROR */}
 
             {error && (
               <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">
@@ -2010,17 +1173,13 @@ export default function AbsensiSiswaPage() {
                   }
                   className="rounded-lg p-1 hover:bg-red-100"
                 >
-                  <X
-                    size={17}
-                  />
+                  <X size={17} />
                 </button>
 
               </div>
             )}
 
-            {/* =================================================
-                SUCCESS
-            ================================================= */}
+            {/* SUCCESS */}
 
             {success && (
               <div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-700">
@@ -2049,17 +1208,13 @@ export default function AbsensiSiswaPage() {
                   }
                   className="rounded-lg p-1 hover:bg-emerald-100"
                 >
-                  <X
-                    size={17}
-                  />
+                  <X size={17} />
                 </button>
 
               </div>
             )}
 
-            {/* =================================================
-                STATUS ABSENSI HARI INI
-            ================================================= */}
+            {/* STATUS ABSENSI */}
 
             {sudahAbsen &&
               absensiHariIni && (
@@ -2070,9 +1225,11 @@ export default function AbsensiSiswaPage() {
                     <div className="flex items-center gap-4">
 
                       <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600">
+
                         <CheckCircle2
                           size={28}
                         />
+
                       </div>
 
                       <div>
@@ -2088,16 +1245,12 @@ export default function AbsensiSiswaPage() {
                         </h2>
 
                         <p className="mt-1 text-sm text-slate-500">
-
                           {formatJam(
                             absensiHariIni.tanggal
-                          )}
-
-                          {" • "}
-
+                          )}{" "}
+                          •{" "}
                           {absensiHariIni.metode ||
                             "manual"}
-
                         </p>
 
                       </div>
@@ -2108,9 +1261,7 @@ export default function AbsensiSiswaPage() {
 
                       <div className="flex items-center gap-2">
 
-                        <Clock3
-                          size={16}
-                        />
+                        <Clock3 size={16} />
 
                         Sudah melakukan absensi
 
@@ -2123,9 +1274,7 @@ export default function AbsensiSiswaPage() {
                 </div>
               )}
 
-            {/* =================================================
-                MAIN GRID
-            ================================================= */}
+            {/* MAIN GRID */}
 
             <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
 
@@ -2141,9 +1290,7 @@ export default function AbsensiSiswaPage() {
 
                     <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-md shadow-blue-200">
 
-                      <ScanFace
-                        size={24}
-                      />
+                      <ScanFace size={24} />
 
                     </div>
 
@@ -2165,9 +1312,7 @@ export default function AbsensiSiswaPage() {
 
                 <div className="p-6">
 
-                  {/* =================================================
-                      CAMERA SELECTOR
-                  ================================================= */}
+                  {/* CAMERA SELECTOR */}
 
                   <div className="mb-5 rounded-xl border border-blue-100 bg-blue-50 p-4">
 
@@ -2175,9 +1320,7 @@ export default function AbsensiSiswaPage() {
 
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-blue-600 shadow-sm">
 
-                        <Video
-                          size={20}
-                        />
+                        <Video size={20} />
 
                       </div>
 
@@ -2206,8 +1349,7 @@ export default function AbsensiSiswaPage() {
                         }
                         disabled={
                           cameraLoading ||
-                          sudahAbsen ||
-                          !kelasId
+                          sudahAbsen
                         }
                         className="w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 py-3 pr-10 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100"
                       >
@@ -2232,18 +1374,15 @@ export default function AbsensiSiswaPage() {
                                   camera.deviceId
                                 }
                               >
-
                                 {getCameraName(
                                   camera,
                                   index
                                 )}
-
                                 {isVirtualCamera(
                                   camera
                                 )
                                   ? " (Virtual)"
                                   : ""}
-
                               </option>
                             )
                           )
@@ -2273,9 +1412,7 @@ export default function AbsensiSiswaPage() {
 
                   </div>
 
-                  {/* =================================================
-                      CAMERA PREVIEW
-                  ================================================= */}
+                  {/* CAMERA PREVIEW */}
 
                   {cameraOpen ? (
 
@@ -2284,9 +1421,7 @@ export default function AbsensiSiswaPage() {
                       <div className="relative overflow-hidden rounded-xl bg-slate-900">
 
                         <video
-                          ref={
-                            videoRef
-                          }
+                          ref={videoRef}
                           autoPlay
                           muted
                           playsInline
@@ -2326,21 +1461,15 @@ export default function AbsensiSiswaPage() {
 
                                 <div className="flex items-center gap-2">
 
-                                  <Video
-                                    size={14}
-                                  />
+                                  <Video size={14} />
 
                                   <span className="truncate">
-
                                     {cameras.find(
-                                      (
-                                        c
-                                      ) =>
+                                      (c) =>
                                         c.deviceId ===
                                         selectedCameraId
                                     )?.label ||
                                       "Kamera terpilih"}
-
                                   </span>
 
                                 </div>
@@ -2370,13 +1499,10 @@ export default function AbsensiSiswaPage() {
                           }
                           className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                         >
-
                           <Camera
                             size={19}
                           />
-
                           Ambil Foto
-
                         </button>
 
                         <button
@@ -2386,13 +1512,8 @@ export default function AbsensiSiswaPage() {
                           }
                           className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 font-semibold text-slate-700 transition hover:bg-slate-50"
                         >
-
-                          <X
-                            size={18}
-                          />
-
+                          <X size={18} />
                           Batal
-
                         </button>
 
                       </div>
@@ -2401,9 +1522,7 @@ export default function AbsensiSiswaPage() {
 
                   ) : capturedImage ? (
 
-                    /* =================================================
-                       PREVIEW PHOTO
-                    ================================================= */
+                    /* PREVIEW PHOTO */
 
                     <div className="space-y-4">
 
@@ -2424,14 +1543,12 @@ export default function AbsensiSiswaPage() {
                           }
                           className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/95 text-slate-700 shadow-md hover:bg-white"
                         >
-
-                          <X
-                            size={18}
-                          />
-
+                          <X size={18} />
                         </button>
 
                       </div>
+
+                      {/* LOCATION */}
 
                       <div
                         className={`rounded-xl border p-4 ${
@@ -2466,7 +1583,7 @@ export default function AbsensiSiswaPage() {
                             }
                           />
 
-                          <div>
+                          <div className="min-w-0 flex-1">
 
                             <p className="text-sm font-semibold text-slate-800">
                               Lokasi GPS
@@ -2477,11 +1594,52 @@ export default function AbsensiSiswaPage() {
                                 "Lokasi akan diperiksa saat absensi dikirim."}
                             </p>
 
+                            {locationData && (
+                              <div className="mt-3 space-y-1 rounded-lg bg-white/70 p-3 text-xs text-slate-500">
+
+                                <p>
+                                  Latitude:{" "}
+                                  <span className="font-semibold text-slate-700">
+                                    {locationData.latitude.toFixed(
+                                      8
+                                    )}
+                                  </span>
+                                </p>
+
+                                <p>
+                                  Longitude:{" "}
+                                  <span className="font-semibold text-slate-700">
+                                    {locationData.longitude.toFixed(
+                                      8
+                                    )}
+                                  </span>
+                                </p>
+
+                                {Number.isFinite(
+                                  locationData.accuracy
+                                ) && (
+                                  <p>
+                                    Akurasi:{" "}
+                                    <span className="font-semibold text-slate-700">
+                                      ±
+                                      {Math.round(
+                                        locationData.accuracy
+                                      )}{" "}
+                                      meter
+                                    </span>
+                                  </p>
+                                )}
+
+                              </div>
+                            )}
+
                           </div>
 
                         </div>
 
                       </div>
+
+                      {/* BUTTON */}
 
                       <div className="flex flex-col gap-3 sm:flex-row">
 
@@ -2533,18 +1691,14 @@ export default function AbsensiSiswaPage() {
                           }
                           disabled={
                             loadingAbsen ||
-                            sudahAbsen ||
-                            !kelasId
+                            sudahAbsen
                           }
                           className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                         >
-
                           <Camera
                             size={18}
                           />
-
                           Foto Ulang
-
                         </button>
 
                       </div>
@@ -2553,9 +1707,7 @@ export default function AbsensiSiswaPage() {
 
                   ) : (
 
-                    /* =================================================
-                       EMPTY STATE
-                    ================================================= */
+                    /* EMPTY STATE */
 
                     <div className="flex min-h-[320px] flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 px-6 py-12 text-center">
 
@@ -2568,17 +1720,11 @@ export default function AbsensiSiswaPage() {
                       </div>
 
                       <h3 className="text-lg font-bold text-slate-900">
-                        {loadingKelas
-                          ? "Menyiapkan absensi..."
-                          : "Siap melakukan absensi?"}
+                        Siap melakukan absensi?
                       </h3>
 
                       <p className="mt-2 max-w-md text-sm leading-6 text-slate-500">
-
-                        {loadingKelas
-                          ? "Sedang menentukan kelas siswa dari data server."
-                          : "Pilih kamera terlebih dahulu, kemudian pastikan wajah terlihat jelas dan izin lokasi GPS sudah diberikan."}
-
+                        Pilih kamera terlebih dahulu, kemudian pastikan wajah terlihat jelas dan izin lokasi GPS sudah diberikan.
                       </p>
 
                       <button
@@ -2589,7 +1735,6 @@ export default function AbsensiSiswaPage() {
                           )
                         }
                         disabled={
-                          loadingKelas ||
                           !kelasId ||
                           sudahAbsen ||
                           cameras.length ===
@@ -2602,9 +1747,7 @@ export default function AbsensiSiswaPage() {
                           size={19}
                         />
 
-                        {loadingKelas
-                          ? "Menunggu Kelas..."
-                          : sudahAbsen
+                        {sudahAbsen
                           ? "Sudah Absen"
                           : "Buka Kamera"}
 
@@ -2614,9 +1757,7 @@ export default function AbsensiSiswaPage() {
 
                   )}
 
-                  {/* =================================================
-                      INFO
-                  ================================================= */}
+                  {/* INFO */}
 
                   <div className="mt-5 grid grid-cols-3 gap-3">
 
@@ -2683,9 +1824,7 @@ export default function AbsensiSiswaPage() {
 
               <div className="space-y-6">
 
-                {/* =================================================
-                    STATUS HARI INI
-                ================================================= */}
+                {/* STATUS */}
 
                 <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
 
@@ -2780,9 +1919,7 @@ export default function AbsensiSiswaPage() {
 
                 </section>
 
-                {/* =================================================
-                    MANUAL
-                ================================================= */}
+                {/* MANUAL */}
 
                 <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
 
@@ -2821,8 +1958,7 @@ export default function AbsensiSiswaPage() {
                       }
                       disabled={
                         !kelasId ||
-                        sudahAbsen ||
-                        loadingKelas
+                        sudahAbsen
                       }
                       className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                     >
@@ -2941,9 +2077,7 @@ export default function AbsensiSiswaPage() {
                               ""
                             );
 
-                            setError(
-                              ""
-                            );
+                            setError("");
                           }}
                           className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
                         >
@@ -2962,11 +2096,9 @@ export default function AbsensiSiswaPage() {
                           }
                           className="flex-1 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                         >
-
                           {loadingAbsen
                             ? "Mengirim..."
                             : "Kirim"}
-
                         </button>
 
                       </div>
@@ -2977,9 +2109,7 @@ export default function AbsensiSiswaPage() {
 
                 </section>
 
-                {/* =================================================
-                    RIWAYAT
-                ================================================= */}
+                {/* RIWAYAT */}
 
                 <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
 
@@ -3002,7 +2132,6 @@ export default function AbsensiSiswaPage() {
                     <div className="flex items-center justify-between text-sm font-semibold text-slate-700">
 
                       <span>
-
                         {today.toLocaleDateString(
                           "id-ID",
                           {
@@ -3012,7 +2141,6 @@ export default function AbsensiSiswaPage() {
                               "numeric",
                           }
                         )}
-
                       </span>
 
                       <div className="flex gap-1">
@@ -3053,16 +2181,14 @@ export default function AbsensiSiswaPage() {
                         "Sab",
                       ].map(
                         (
-                          day,
-                          index
+                          d,
+                          i
                         ) => (
                           <div
-                            key={
-                              index
-                            }
+                            key={i}
                             className="font-medium text-slate-400"
                           >
-                            {day}
+                            {d}
                           </div>
                         )
                       )}
@@ -3073,13 +2199,10 @@ export default function AbsensiSiswaPage() {
                         },
                         (
                           _,
-                          index
-                        ) =>
-                          index + 1
+                          i
+                        ) => i + 1
                       ).map(
-                        (
-                          date
-                        ) => {
+                        (date) => {
 
                           const isToday =
                             date ===
@@ -3087,27 +2210,24 @@ export default function AbsensiSiswaPage() {
 
                           const hasAbsen =
                             absensiData.some(
-                              (
-                                item
-                              ) => {
-
+                              (a) => {
                                 if (
-                                  !item?.tanggal
+                                  !a?.tanggal
                                 ) {
                                   return false;
                                 }
 
-                                const dateItem =
+                                const d =
                                   new Date(
-                                    item.tanggal
+                                    a.tanggal
                                   );
 
                                 return (
-                                  dateItem.getDate() ===
+                                  d.getDate() ===
                                     date &&
-                                  dateItem.getMonth() ===
+                                  d.getMonth() ===
                                     today.getMonth() &&
-                                  dateItem.getFullYear() ===
+                                  d.getFullYear() ===
                                     today.getFullYear()
                                 );
                               }
@@ -3120,13 +2240,15 @@ export default function AbsensiSiswaPage() {
                               }
                               className={`rounded-lg p-1.5 text-xs ${
                                 isToday
-                                  ? "bg-blue-600 text-white font-bold"
+                                  ? "bg-blue-600 font-bold text-white"
                                   : hasAbsen
-                                  ? "bg-emerald-100 text-emerald-700 font-semibold"
+                                  ? "bg-emerald-100 font-semibold text-emerald-700"
                                   : "text-slate-600"
                               }`}
                             >
-                              {date}
+                              {
+                                date
+                              }
                             </div>
                           );
                         }
@@ -3156,7 +2278,7 @@ export default function AbsensiSiswaPage() {
 
                   </div>
 
-                  {/* LIST RIWAYAT */}
+                  {/* LIST */}
 
                   <div className="mt-4 max-h-[280px] space-y-3 overflow-y-auto pr-1">
 
@@ -3200,10 +2322,7 @@ export default function AbsensiSiswaPage() {
                       absensiData
                         .slice()
                         .sort(
-                          (
-                            a,
-                            b
-                          ) =>
+                          (a, b) =>
                             new Date(
                               b?.tanggal ||
                                 b?.dibuatPada ||
@@ -3216,9 +2335,7 @@ export default function AbsensiSiswaPage() {
                             ).getTime()
                         )
                         .map(
-                          (
-                            item
-                          ) => (
+                          (item) => (
 
                             <div
                               key={
@@ -3250,18 +2367,14 @@ export default function AbsensiSiswaPage() {
                                     "hadir" ? (
 
                                       <UserCheck
-                                        size={
-                                          17
-                                        }
+                                        size={17}
                                       />
 
                                     ) : item?.status ===
                                       "sakit" ? (
 
                                       <HeartPulse
-                                        size={
-                                          17
-                                        }
+                                        size={17}
                                       />
 
                                     ) : item?.status ===
@@ -3270,17 +2383,13 @@ export default function AbsensiSiswaPage() {
                                         "alpa" ? (
 
                                       <UserX
-                                        size={
-                                          17
-                                        }
+                                        size={17}
                                       />
 
                                     ) : (
 
                                       <FileText
-                                        size={
-                                          17
-                                        }
+                                        size={17}
                                       />
 
                                     )}
@@ -3306,25 +2415,27 @@ export default function AbsensiSiswaPage() {
                                 </div>
 
                                 <span className="text-xs font-medium text-slate-500">
-
                                   {formatJam(
                                     item?.tanggal
                                   )}
-
                                 </span>
 
                               </div>
 
                               {item?.keterangan && (
                                 <p className="mt-3 border-t border-slate-200 pt-3 text-xs leading-5 text-slate-500">
-                                  {item.keterangan}
+                                  {
+                                    item.keterangan
+                                  }
                                 </p>
                               )}
 
                               {item?.metode && (
                                 <div className="mt-2 text-[11px] text-slate-400">
                                   Metode:{" "}
-                                  {item.metode}
+                                  {
+                                    item.metode
+                                  }
                                 </div>
                               )}
 
@@ -3352,9 +2463,7 @@ export default function AbsensiSiswaPage() {
       </div>
 
       <canvas
-        ref={
-          canvasRef
-        }
+        ref={canvasRef}
         className="hidden"
       />
 

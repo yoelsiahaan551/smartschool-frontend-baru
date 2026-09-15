@@ -1,4 +1,4 @@
-const API_URL = "http://localhost:5000/api/v1";
+import { apiFetch } from "../lib/api";
 
 // ============================================================
 // TYPES
@@ -18,7 +18,7 @@ export interface Modul {
   nama: string;
   deskripsi?: string | null;
   ikon?: string | null;
-  sistem?: boolean;
+  sistem?: boolean | null;
 }
 
 export interface Paket {
@@ -27,426 +27,455 @@ export interface Paket {
   deskripsi?: string | null;
   harga: number;
   durasi: number;
+  status?: string | null;
   fitur: PaketFitur[];
 }
 
-export interface ApiResponse<T = any> {
+export interface PaketResponse {
   success: boolean;
-  message: string;
-  data: T;
+  message?: string;
+  data: Paket[];
+}
+
+export interface PaketByIdResponse {
+  success: boolean;
+  message?: string;
+  data: Paket;
+}
+
+export interface ModulResponse {
+  success: boolean;
+  message?: string;
+  data: Modul[];
+}
+
+export interface CreatePaketPayload {
+  nama: string;
+  deskripsi?: string;
+  harga: number;
+  durasi: number;
+  modulIds: string[];
+}
+
+export interface UpdatePaketPayload {
+  nama: string;
+  deskripsi?: string;
+  harga: number;
+  durasi: number;
+  modulIds?: string[];
+  status?: string;
 }
 
 // ============================================================
-// GET TOKEN
+// HELPER
 // ============================================================
 
-function getToken() {
-  if (typeof window === "undefined") {
-    return "";
+function normalizeArray<T = any>(response: any): T[] {
+  if (Array.isArray(response)) {
+    return response;
   }
 
-  return localStorage.getItem("token") || "";
+  if (Array.isArray(response?.data)) {
+    return response.data;
+  }
+
+  if (Array.isArray(response?.data?.data)) {
+    return response.data.data;
+  }
+
+  if (Array.isArray(response?.result)) {
+    return response.result;
+  }
+
+  if (Array.isArray(response?.results)) {
+    return response.results;
+  }
+
+  return [];
 }
 
-// ============================================================
-// PARSE RESPONSE
-// ============================================================
-
-async function parseResponse(response: Response) {
-  const text = await response.text();
-
-  let result: any = null;
-
-  try {
-    result = text ? JSON.parse(text) : null;
-  } catch {
-    result = null;
+function normalizeObject<T = any>(response: any): T | null {
+  if (!response) {
+    return null;
   }
 
-  console.log("========================================");
-  console.log("📦 PAKET API");
-  console.log("STATUS:", response.status);
-  console.log("URL:", response.url);
-  console.log("RAW RESPONSE:", text);
-  console.log("PARSED RESPONSE:", result);
-  console.log("========================================");
+  if (
+    response?.data &&
+    !Array.isArray(response.data)
+  ) {
+    if (
+      response.data?.data &&
+      !Array.isArray(response.data.data)
+    ) {
+      return response.data.data;
+    }
 
-  if (!response.ok) {
-    throw new Error(
-      result?.message ||
-        result?.error ||
-        result?.errors?.[0]?.message ||
-        `HTTP ${response.status}: ${response.statusText}`
-    );
+    return response.data;
   }
 
-  return result;
+  return response;
 }
 
 // ============================================================
 // GET SEMUA PAKET
-//
 // GET /api/v1/paket
-//
-// Backend:
-// getPaketPublic
-//
-// Response:
-// {
-//   success: true,
-//   message: "...",
-//   data: [
-//     {
-//       id,
-//       nama,
-//       deskripsi,
-//       harga,
-//       durasi,
-//       fitur: []
-//     }
-//   ]
-// }
 // ============================================================
 
-export const getPaket = async (): Promise<
-  ApiResponse<Paket[]>
-> => {
-  const url = `${API_URL}/paket`;
-
-  console.log("📦 GET PAKET:", url);
-
-  const response = await fetch(url, {
+export async function getPaket(): Promise<PaketResponse> {
+  const response = await apiFetch("/api/v1/paket", {
     method: "GET",
-    headers: {
-      Accept: "application/json",
-    },
     cache: "no-store",
   });
 
-  const result = await parseResponse(response);
+  const rawData = normalizeArray(response);
 
-  let data: Paket[] = [];
-
-  if (Array.isArray(result)) {
-    data = result;
-  } else if (Array.isArray(result?.data)) {
-    data = result.data;
-  }
-
-  console.log("========== HASIL GET PAKET ==========");
-
-  console.log("Jumlah paket:", data.length);
-
-  data.forEach((paket: any) => {
-    console.log("--------------------------------------");
-    console.log("Nama:", paket?.nama);
-    console.log("ID:", paket?.id);
-    console.log("Harga:", paket?.harga);
-    console.log("Durasi:", paket?.durasi);
-
-    console.log(
-      "Fitur:",
-      Array.isArray(paket?.fitur)
-        ? paket.fitur
-        : []
-    );
-
-    console.log(
-      "Jumlah fitur:",
-      Array.isArray(paket?.fitur)
-        ? paket.fitur.length
-        : 0
-    );
-  });
-
-  console.log("======================================");
+  const data = rawData.map((item) =>
+    normalizePaket(item)
+  );
 
   return {
-    success: result?.success !== false,
+    success: response?.success !== false,
+    message: response?.message || "",
     data,
-    message: result?.message || "",
   };
-};
+}
 
 // ============================================================
-// GET PAKET BERDASARKAN ID
-//
+// GET PAKET BY ID
 // GET /api/v1/paket/:id
 // ============================================================
 
-export const getPaketById = async (
+export async function getPaketById(
   id: string
-): Promise<ApiResponse<Paket>> => {
+): Promise<PaketByIdResponse> {
   if (!id) {
-    throw new Error("ID paket tidak ditemukan");
+    throw new Error("ID paket tidak ditemukan.");
   }
 
-  const url = `${API_URL}/paket/${id}`;
+  const response = await apiFetch(
+    `/api/v1/paket/${id}`,
+    {
+      method: "GET",
+      cache: "no-store",
+    }
+  );
 
-  console.log("📦 GET PAKET BY ID:", url);
+  const rawData = normalizeObject(response);
 
-  const response = await fetch(url, {
-    method: "GET",
-    headers: {
-      Accept: "application/json",
-    },
-    cache: "no-store",
-  });
-
-  const result = await parseResponse(response);
+  if (!rawData) {
+    throw new Error("Data paket tidak ditemukan.");
+  }
 
   return {
-    success: result?.success !== false,
-    data: result?.data || result,
-    message: result?.message || "",
+    success: response?.success !== false,
+    message: response?.message || "",
+    data: normalizePaket(rawData),
   };
-};
+}
 
 // ============================================================
-// GET SEMUA FITUR / MODUL
-//
+// GET SEMUA MODUL / FITUR
 // GET /api/v1/paket/fitur/list
-//
-// Backend:
-// getFiturPublic
-//
-// Response:
-// {
-//   success: true,
-//   message: "...",
-//   data: [
-//     {
-//       id,
-//       kode,
-//       nama,
-//       deskripsi,
-//       ikon,
-//       sistem
-//     }
-//   ]
-// }
 // ============================================================
 
-export const getFitur = async (): Promise<
-  ApiResponse<Modul[]>
-> => {
-  const url = `${API_URL}/paket/fitur/list`;
+export async function getFitur(): Promise<ModulResponse> {
+  const response = await apiFetch(
+    "/api/v1/paket/fitur/list",
+    {
+      method: "GET",
+      cache: "no-store",
+    }
+  );
 
-  console.log("🔵 GET SEMUA FITUR / MODUL:", url);
+  const rawData = normalizeArray(response);
 
-  const response = await fetch(url, {
-    method: "GET",
-    headers: {
-      Accept: "application/json",
-    },
-    cache: "no-store",
-  });
-
-  const result = await parseResponse(response);
-
-  let data: Modul[] = [];
-
-  if (Array.isArray(result)) {
-    data = result;
-  } else if (Array.isArray(result?.data)) {
-    data = result.data;
-  }
-
-  console.log("========== HASIL GET FITUR ==========");
-
-  console.log("Jumlah modul:", data.length);
-
-  data.forEach((modul: any, index: number) => {
-    console.log(`${index + 1}. ${modul?.nama}`);
-    console.log("   ID:", modul?.id);
-    console.log("   Kode:", modul?.kode);
-    console.log("   Deskripsi:", modul?.deskripsi);
-    console.log("   Ikon:", modul?.ikon);
-    console.log("   Sistem:", modul?.sistem);
-  });
-
-  console.log("======================================");
+  const data = rawData.map((item) =>
+    normalizeModul(item)
+  );
 
   return {
-    success: result?.success !== false,
+    success: response?.success !== false,
+    message: response?.message || "",
     data,
-    message: result?.message || "",
   };
-};
+}
 
 // ============================================================
 // CREATE PAKET
-//
 // POST /api/v1/paket
-//
-// Body backend:
-// {
-//   nama,
-//   deskripsi,
-//   harga,
-//   durasi,
-//   modulIds
-// }
 // ============================================================
 
-export const createPaket = async (
-  data: {
-    nama: string;
-    deskripsi?: string;
-    harga: number;
-    durasi: number;
-    modulIds: string[];
-  },
-  token?: string
-) => {
-  const url = `${API_URL}/paket`;
+export async function createPaket(
+  data: CreatePaketPayload
+) {
+  if (!data.nama?.trim()) {
+    throw new Error("Nama paket wajib diisi.");
+  }
 
-  const authToken = token || getToken();
+  const harga = Number(data.harga);
+  const durasi = Number(data.durasi);
 
-  console.log("🟢 CREATE PAKET:", url);
-  console.log("BODY:", data);
+  if (!Number.isFinite(harga)) {
+    throw new Error("Harga paket tidak valid.");
+  }
 
-  const response = await fetch(url, {
-    method: "POST",
+  if (!Number.isInteger(durasi) || durasi <= 0) {
+    throw new Error(
+      "Durasi paket harus berupa angka lebih dari 0."
+    );
+  }
 
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
+  const modulIds = Array.isArray(data.modulIds)
+    ? [
+        ...new Set(
+          data.modulIds.filter(
+            (id): id is string =>
+              typeof id === "string" &&
+              id.trim().length > 0
+          )
+        ),
+      ]
+    : [];
 
-      ...(authToken
-        ? {
-            Authorization: `Bearer ${authToken}`,
-          }
-        : {}),
-    },
+  const response = await apiFetch(
+    "/api/v1/paket",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        nama: data.nama.trim(),
+        deskripsi: data.deskripsi?.trim() || "",
+        harga,
+        durasi,
+        modulIds,
+      }),
+    }
+  );
 
-    body: JSON.stringify({
-      nama: data.nama,
-      deskripsi: data.deskripsi || "",
-      harga: Number(data.harga),
-      durasi: Number(data.durasi),
-      modulIds: Array.isArray(data.modulIds)
-        ? data.modulIds
-        : [],
-    }),
-  });
-
-  return await parseResponse(response);
-};
+  return response;
+}
 
 // ============================================================
 // UPDATE PAKET
-//
 // PUT /api/v1/paket/:id
-//
-// Body backend:
-// {
-//   nama,
-//   deskripsi,
-//   harga,
-//   durasi,
-//   modulIds,
-//   status
-// }
 // ============================================================
 
-export const updatePaket = async (
+export async function updatePaket(
   id: string,
-  data: {
-    nama: string;
-    deskripsi?: string;
-    harga: number;
-    durasi: number;
-    modulIds?: string[];
-    status?: string;
-  },
-  token?: string
-) => {
+  data: UpdatePaketPayload
+) {
   if (!id) {
-    throw new Error("ID paket tidak ditemukan");
+    throw new Error("ID paket tidak ditemukan.");
   }
 
-  const url = `${API_URL}/paket/${id}`;
+  if (!data.nama?.trim()) {
+    throw new Error("Nama paket wajib diisi.");
+  }
 
-  const authToken = token || getToken();
+  const harga = Number(data.harga);
+  const durasi = Number(data.durasi);
 
-  console.log("🟡 UPDATE PAKET:", url);
-  console.log("BODY:", data);
+  if (!Number.isFinite(harga)) {
+    throw new Error("Harga paket tidak valid.");
+  }
 
-  const body: any = {
-    nama: data.nama,
-    deskripsi: data.deskripsi || "",
-    harga: Number(data.harga),
-    durasi: Number(data.durasi),
+  if (!Number.isInteger(durasi) || durasi <= 0) {
+    throw new Error(
+      "Durasi paket harus berupa angka lebih dari 0."
+    );
+  }
+
+  const body: Record<string, any> = {
+    nama: data.nama.trim(),
+    deskripsi: data.deskripsi?.trim() || "",
+    harga,
+    durasi,
   };
 
-  // Kalau modulIds dikirim, pastikan selalu array
   if (Array.isArray(data.modulIds)) {
-    body.modulIds = data.modulIds;
+    body.modulIds = [
+      ...new Set(
+        data.modulIds.filter(
+          (id): id is string =>
+            typeof id === "string" &&
+            id.trim().length > 0
+        )
+      ),
+    ];
   }
 
-  // Status hanya dikirim kalau memang ada
   if (data.status !== undefined) {
     body.status = data.status;
   }
 
-  const response = await fetch(url, {
-    method: "PUT",
+  const response = await apiFetch(
+    `/api/v1/paket/${id}`,
+    {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }
+  );
 
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-
-      ...(authToken
-        ? {
-            Authorization: `Bearer ${authToken}`,
-          }
-        : {}),
-    },
-
-    body: JSON.stringify(body),
-  });
-
-  return await parseResponse(response);
-};
+  return response;
+}
 
 // ============================================================
 // DELETE PAKET
-//
 // DELETE /api/v1/paket/:id
-//
-// Backend melakukan soft delete:
-// status = nonaktif
-// dihapusPada = new Date()
 // ============================================================
 
-export const deletePaket = async (
-  id: string,
-  token?: string
-) => {
+export async function deletePaket(id: string) {
   if (!id) {
-    throw new Error("ID paket tidak ditemukan");
+    throw new Error("ID paket tidak ditemukan.");
   }
 
-  const url = `${API_URL}/paket/${id}`;
+  const response = await apiFetch(
+    `/api/v1/paket/${id}`,
+    {
+      method: "DELETE",
+    }
+  );
 
-  const authToken = token || getToken();
+  return response;
+}
 
-  console.log("🔴 DELETE PAKET:", url);
+// ============================================================
+// NORMALIZE PAKET
+// ============================================================
 
-  const response = await fetch(url, {
-    method: "DELETE",
+function normalizePaket(
+  paket: any
+): Paket {
+  /**
+   * Backend mengirim:
+   *
+   * {
+   *   id,
+   *   nama,
+   *   deskripsi,
+   *   harga,
+   *   durasi,
+   *   fitur: [
+   *     {
+   *       id,
+   *       kode,
+   *       nama,
+   *       deskripsi,
+   *       ikon
+   *     }
+   *   ]
+   * }
+   */
 
-    headers: {
-      Accept: "application/json",
+  const rawFitur =
+    Array.isArray(paket?.fitur)
+      ? paket.fitur
+      : Array.isArray(paket?.features)
+      ? paket.features
+      : Array.isArray(paket?.modul)
+      ? paket.modul
+      : Array.isArray(paket?.paketModul)
+      ? paket.paketModul
+      : [];
 
-      ...(authToken
-        ? {
-            Authorization: `Bearer ${authToken}`,
-          }
-        : {}),
-    },
-  });
+  const fitur: PaketFitur[] = rawFitur
+    .filter(Boolean)
+    .map((item: any) => {
+      // Kalau backend mengirim:
+      // paketModul -> modul
+      const modul =
+        item?.modul ?? item;
 
-  return await parseResponse(response);
-};
+      return {
+        id: String(
+          modul?.id ??
+            item?.modulId ??
+            item?.modul_id ??
+            modul?.kode ??
+            ""
+        ),
+
+        kode: String(
+          modul?.kode ?? ""
+        ),
+
+        nama:
+          modul?.nama ??
+          "Fitur",
+
+        deskripsi:
+          modul?.deskripsi ??
+          null,
+
+        ikon:
+          modul?.ikon ??
+          null,
+      };
+    })
+    .filter(
+      (item: PaketFitur) =>
+        item.id &&
+        item.nama
+    );
+
+  return {
+    id: String(
+      paket?.id ?? ""
+    ),
+
+    nama:
+      paket?.nama ??
+      "Tanpa Nama",
+
+    deskripsi:
+      paket?.deskripsi ??
+      null,
+
+    harga: Number(
+      paket?.harga ?? 0
+    ),
+
+    durasi: Number(
+      paket?.durasi ?? 1
+    ),
+
+    status:
+      paket?.status ??
+      "aktif",
+
+    fitur,
+  };
+}
+
+// ============================================================
+// NORMALIZE MODUL
+// ============================================================
+
+function normalizeModul(
+  modul: any
+): Modul {
+  return {
+    id: String(
+      modul?.id ?? ""
+    ),
+
+    kode: String(
+      modul?.kode ?? ""
+    ),
+
+    nama:
+      modul?.nama ??
+      "Modul",
+
+    deskripsi:
+      modul?.deskripsi ??
+      null,
+
+    ikon:
+      modul?.ikon ??
+      null,
+
+    sistem:
+      modul?.sistem ??
+      null,
+  };
+}
