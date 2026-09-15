@@ -1,17 +1,13 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  GraduationCap,
   CalendarClock,
   FileCheck2,
   ClipboardList,
   Search,
   Megaphone,
   ChevronRight,
-  Menu,
-  X,
   CheckCircle2,
   Users,
   MapPin,
@@ -19,6 +15,8 @@ import {
   Mail,
   Sparkles,
 } from "lucide-react";
+
+import PpdbNavbar from "../components/ppdb/PpdbNavbar";
 
 /*
 |--------------------------------------------------------------------------
@@ -144,238 +142,74 @@ const colorMap = {
   },
 };
 
-const navItems = [
-  {
-    key: "beranda",
-    label: "Beranda",
-    type: "scroll-top",
-  },
-  {
-    key: "jalur",
-    label: "Jalur Pendaftaran",
-    type: "route",
-    href: "/PPDB/jalurPendaftaran",
-  },
-  {
-    key: "alur",
-    label: "Alur Pendaftaran",
-    type: "route",
-    href: "/PPDB/alurPendaftaran",
-  },
-  {
-    key: "pengumuman",
-    label: "Pengumuman",
-    type: "route",
-    href: "/PPDB/pengumuman",
-  },
-];
-
 export default function PPDBLandingPage() {
   const router = useRouter();
-
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [activeNav, setActiveNav] = useState("beranda");
-
-  const goToDaftar = () => {
-    setMenuOpen(false);
-    router.push("/PPDB/daftar");
-  };
-
-  const goToCekPendaftaran = () => {
-    setMenuOpen(false);
-    router.push("/PPDB/cek-pendaftaran");
-  };
-
-  const handleNavClick = (item) => {
-    setActiveNav(item.key);
-    setMenuOpen(false);
-
-    if (item.type === "scroll-top") {
-      window.scrollTo({
-        top: 0,
-        behavior: "smooth",
-      });
-      return;
-    }
-
-    if (item.type === "route") {
-      router.push(item.href);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-slate-50">
       {/* ================================================================
-          NAVBAR
+          NAVBAR COMPONENT
       ================================================================ */}
-      <header className="sticky top-0 z-30 bg-white/90 backdrop-blur border-b border-slate-200/80">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
-          {/* BRAND */}
-          <button
-            type="button"
-            onClick={() => handleNavClick(navItems[0])}
-            className="flex items-center gap-2.5 min-w-0 text-left"
-          >
-            <div className="p-2 rounded-lg bg-blue-600 text-white flex-shrink-0">
-              <GraduationCap size={18} />
-            </div>
 
-            <span className="text-sm sm:text-base font-semibold text-slate-800 truncate">
-              PPDB SmartSchool 2026/2027
-            </span>
-          </button>
-
-          {/* DESKTOP NAV */}
-          <nav className="hidden md:flex items-center gap-1 text-sm text-slate-600">
-            {navItems.map((item) => {
-              const isActive = activeNav === item.key;
-
-              const commonClass = `relative px-3 py-2 font-medium transition-colors ${
-                isActive
-                  ? "text-blue-600"
-                  : "text-slate-600 hover:text-blue-600"
-              }`;
-
-              return (
-                <button
-                  key={item.key}
-                  type="button"
-                  onClick={() => handleNavClick(item)}
-                  className={commonClass}
-                >
-                  {item.label}
-
-                  {isActive && (
-                    <span className="absolute left-3 right-3 -bottom-[1px] h-0.5 rounded-full bg-blue-600" />
-                  )}
-                </button>
-              );
-            })}
-          </nav>
-
-          {/* DESKTOP CTA */}
-          <div className="hidden md:flex items-center gap-2 flex-shrink-0">
-            <button
-              type="button"
-              onClick={goToCekPendaftaran}
-              className="text-sm font-medium text-slate-600 hover:text-slate-800 px-3 py-2 rounded-lg hover:bg-slate-50 transition-colors"
-            >
-              Cek Pendaftaran
-            </button>
-
-            <button
-              type="button"
-              onClick={goToDaftar}
-              className="text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg transition-colors"
-            >
-              Daftar Sekarang
-            </button>
-          </div>
-
-          {/* MOBILE TOGGLE */}
-          <button
-            type="button"
-            onClick={() => setMenuOpen((prev) => !prev)}
-            className="md:hidden p-2 text-slate-600 rounded-lg hover:bg-slate-50 transition-colors flex-shrink-0"
-            aria-label={menuOpen ? "Tutup menu" : "Buka menu"}
-            aria-expanded={menuOpen}
-          >
-            {menuOpen ? <X size={20} /> : <Menu size={20} />}
-          </button>
-        </div>
-
-        {/* MOBILE MENU */}
-        {menuOpen && (
-          <div className="md:hidden border-t border-slate-100 px-4 py-3 space-y-1 bg-white">
-            {navItems.map((item) => {
-              const isActive = activeNav === item.key;
-
-              const commonClass = `block w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                isActive
-                  ? "text-blue-600 bg-blue-50"
-                  : "text-slate-600 hover:bg-slate-50"
-              }`;
-
-              return (
-                <button
-                  key={item.key}
-                  type="button"
-                  onClick={() => handleNavClick(item)}
-                  className={commonClass}
-                >
-                  {item.label}
-                </button>
-              );
-            })}
-
-            <div className="pt-2 flex flex-col gap-2">
-              <button
-                type="button"
-                onClick={goToCekPendaftaran}
-                className="text-sm font-medium text-slate-600 border border-slate-200 rounded-lg py-2 hover:bg-slate-50 transition-colors"
-              >
-                Cek Pendaftaran
-              </button>
-
-              <button
-                type="button"
-                onClick={goToDaftar}
-                className="text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg py-2 transition-colors"
-              >
-                Daftar Sekarang
-              </button>
-            </div>
-          </div>
-        )}
-      </header>
+      <PpdbNavbar />
 
       {/* ================================================================
           HERO
       ================================================================ */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 pt-10 sm:pt-14 pb-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+
+      <section className="mx-auto max-w-6xl px-4 pb-8 pt-10 sm:px-6 sm:pt-14">
+        <div className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-3">
           {/* HERO CONTENT */}
-          <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 sm:p-8">
-            <div className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full">
+
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm sm:p-8 lg:col-span-2">
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-600">
               <CalendarClock size={13} />
+
               Pendaftaran berlangsung sampai 20 Juni 2026
             </div>
 
-            <h1 className="mt-4 text-2xl sm:text-3xl font-semibold text-slate-800 leading-snug">
+            <h1 className="mt-4 text-2xl font-semibold leading-snug text-slate-800 sm:text-3xl">
               Penerimaan Peserta Didik Baru
               <br className="hidden sm:block" />
               Tahun Ajaran 2026/2027
             </h1>
 
-            <p className="mt-3 text-sm sm:text-base text-slate-500 leading-relaxed max-w-xl">
+            <p className="mt-3 max-w-xl text-sm leading-relaxed text-slate-500 sm:text-base">
               Informasi lengkap seputar jadwal, jalur, syarat, dan tahapan
               pendaftaran siswa baru. Daftar secara online dan pantau status
               pendaftaran melalui halaman Cek Pendaftaran.
             </p>
 
-            <div className="mt-6 flex flex-col sm:flex-row gap-3">
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               <button
-                type="button"
-                onClick={goToDaftar}
-                className="inline-flex items-center justify-center gap-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 px-5 py-2.5 rounded-lg transition-colors"
-              >
-                Mulai Pendaftaran
-                <ChevronRight size={15} />
-              </button>
+              type="button"
+              onClick={() =>
+                router.push("/PPDB/jalurPendaftaran")
+              }
+              className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+            >
+              Mulai Pendaftaran
+
+              <ChevronRight size={15} />
+            </button>
 
               <button
                 type="button"
-                onClick={goToCekPendaftaran}
-                className="inline-flex items-center justify-center gap-1.5 text-sm font-medium text-slate-700 border border-slate-200 hover:border-slate-300 hover:bg-slate-50 px-5 py-2.5 rounded-lg transition-colors"
+                onClick={() =>
+                  router.push("/PPDB/cek-pendaftaran")
+                }
+                className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 px-5 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50"
               >
                 <Search size={15} />
+
                 Cek Status Pendaftaran
               </button>
             </div>
           </div>
 
           {/* KUOTA */}
-          <div className="bg-blue-600 rounded-2xl shadow-sm p-6 sm:p-8 text-white flex flex-col justify-between">
+
+          <div className="flex flex-col justify-between rounded-2xl bg-blue-600 p-6 text-white shadow-sm sm:p-8">
             <div>
               <p className="text-sm text-blue-100">
                 Total Kuota Siswa Baru
@@ -388,17 +222,26 @@ export default function PPDBLandingPage() {
 
             <div className="mt-6 space-y-2 text-sm text-blue-50">
               <div className="flex items-center gap-2">
-                <CheckCircle2 size={15} className="flex-shrink-0" />
+                <CheckCircle2
+                  size={15}
+                  className="shrink-0"
+                />
                 4 jalur pendaftaran tersedia
               </div>
 
               <div className="flex items-center gap-2">
-                <CheckCircle2 size={15} className="flex-shrink-0" />
+                <CheckCircle2
+                  size={15}
+                  className="shrink-0"
+                />
                 Pendaftaran online
               </div>
 
               <div className="flex items-center gap-2">
-                <CheckCircle2 size={15} className="flex-shrink-0" />
+                <CheckCircle2
+                  size={15}
+                  className="shrink-0"
+                />
                 Status dapat dipantau
               </div>
             </div>
@@ -409,32 +252,36 @@ export default function PPDBLandingPage() {
       {/* ================================================================
           JALUR PENDAFTARAN
       ================================================================ */}
+
       <section
         id="jalur"
-        className="max-w-6xl mx-auto px-4 sm:px-6 py-8"
+        className="mx-auto max-w-6xl px-4 py-8 sm:px-6"
       >
-        <div className="flex items-center justify-between gap-2 mb-4">
+        <div className="mb-4 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2.5">
-            <div className="p-1.5 rounded-lg bg-amber-50 text-amber-600">
+            <div className="rounded-lg bg-amber-50 p-1.5 text-amber-600">
               <ClipboardList size={16} />
             </div>
 
-            <h2 className="text-base sm:text-lg font-semibold text-slate-800">
+            <h2 className="text-base font-semibold text-slate-800 sm:text-lg">
               Jalur Pendaftaran
             </h2>
           </div>
 
           <button
             type="button"
-            onClick={() => router.push("/PPDB/jalurPendaftaran")}
-            className="text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors inline-flex items-center gap-0.5 flex-shrink-0"
+            onClick={() =>
+              router.push("/PPDB/jalurPendaftaran")
+            }
+            className="inline-flex shrink-0 items-center gap-0.5 text-xs font-medium text-blue-600 transition-colors hover:text-blue-700"
           >
             Lihat detail
+
             <ChevronRight size={12} />
           </button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {jalurPendaftaran.map((j) => {
             const Icon = j.icon;
             const c = colorMap[j.color];
@@ -443,11 +290,15 @@ export default function PPDBLandingPage() {
               <button
                 key={j.id}
                 type="button"
-                onClick={() => router.push("/PPDB/jalurPendaftaran")}
-                className={`text-left bg-white rounded-2xl border ${c.border} shadow-sm p-5 hover:shadow-md transition-shadow`}
+                onClick={() =>
+                  router.push(
+                    "/PPDB/jalurPendaftaran"
+                  )
+                }
+                className={`rounded-2xl border bg-white p-5 text-left shadow-sm transition-shadow hover:shadow-md ${c.border}`}
               >
                 <div
-                  className={`w-10 h-10 rounded-lg ${c.bg} ${c.text} flex items-center justify-center`}
+                  className={`flex h-10 w-10 items-center justify-center rounded-lg ${c.bg} ${c.text}`}
                 >
                   <Icon size={17} />
                 </div>
@@ -456,12 +307,12 @@ export default function PPDBLandingPage() {
                   {j.title}
                 </h3>
 
-                <p className="mt-1.5 text-xs text-slate-500 leading-relaxed">
+                <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
                   {j.desc}
                 </p>
 
                 <div
-                  className={`mt-3 inline-block text-[11px] font-medium ${c.text} ${c.bg} px-2.5 py-1 rounded-full`}
+                  className={`mt-3 inline-block rounded-full px-2.5 py-1 text-[11px] font-medium ${c.bg} ${c.text}`}
                 >
                   {j.kuota}
                 </div>
@@ -474,38 +325,47 @@ export default function PPDBLandingPage() {
       {/* ================================================================
           ALUR + PERSYARATAN
       ================================================================ */}
+
       <section
         id="alur"
-        className="max-w-6xl mx-auto px-4 sm:px-6 py-8"
+        className="mx-auto max-w-6xl px-4 py-8 sm:px-6"
       >
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           {/* ALUR */}
-          <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5 sm:p-6">
-            <div className="flex items-center justify-between gap-2 mb-5">
-              <h2 className="text-base sm:text-lg font-semibold text-slate-800">
+
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6 lg:col-span-2">
+            <div className="mb-5 flex items-center justify-between gap-2">
+              <h2 className="text-base font-semibold text-slate-800 sm:text-lg">
                 Alur Pendaftaran
               </h2>
 
               <button
                 type="button"
-                onClick={() => router.push("/PPDB/alurPendaftaran")}
-                className="text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors inline-flex items-center gap-0.5 flex-shrink-0"
+                onClick={() =>
+                  router.push("/PPDB/alurPendaftaran")
+                }
+                className="inline-flex shrink-0 items-center gap-0.5 text-xs font-medium text-blue-600 transition-colors hover:text-blue-700"
               >
                 Lihat detail
+
                 <ChevronRight size={12} />
               </button>
             </div>
 
             <div className="space-y-5">
               {alurPendaftaran.map((a, idx) => (
-                <div key={a.id} className="flex gap-4">
-                  <div className="flex flex-col items-center flex-shrink-0">
-                    <div className="w-8 h-8 rounded-full bg-blue-600 text-white text-xs font-semibold flex items-center justify-center">
+                <div
+                  key={a.id}
+                  className="flex gap-4"
+                >
+                  <div className="flex shrink-0 flex-col items-center">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-xs font-semibold text-white">
                       {idx + 1}
                     </div>
 
-                    {idx !== alurPendaftaran.length - 1 && (
-                      <div className="w-px flex-1 bg-slate-200 mt-1" />
+                    {idx !==
+                      alurPendaftaran.length - 1 && (
+                      <div className="mt-1 w-px flex-1 bg-slate-200" />
                     )}
                   </div>
 
@@ -514,7 +374,7 @@ export default function PPDBLandingPage() {
                       {a.title}
                     </p>
 
-                    <p className="mt-1 text-xs text-slate-500 leading-relaxed">
+                    <p className="mt-1 text-xs leading-relaxed text-slate-500">
                       {a.desc}
                     </p>
                   </div>
@@ -524,8 +384,9 @@ export default function PPDBLandingPage() {
           </div>
 
           {/* PERSYARATAN */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5 sm:p-6">
-            <h2 className="text-base sm:text-lg font-semibold text-slate-800 mb-4">
+
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6">
+            <h2 className="mb-4 text-base font-semibold text-slate-800 sm:text-lg">
               Dokumen Persyaratan
             </h2>
 
@@ -537,7 +398,7 @@ export default function PPDBLandingPage() {
                 >
                   <CheckCircle2
                     size={15}
-                    className="text-emerald-500 flex-shrink-0 mt-0.5"
+                    className="mt-0.5 shrink-0 text-emerald-500"
                   />
 
                   <span>{p}</span>
@@ -551,28 +412,32 @@ export default function PPDBLandingPage() {
       {/* ================================================================
           PENGUMUMAN
       ================================================================ */}
+
       <section
         id="pengumuman"
-        className="max-w-6xl mx-auto px-4 sm:px-6 py-8"
+        className="mx-auto max-w-6xl px-4 py-8 sm:px-6"
       >
-        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
-          <div className="flex items-center justify-between gap-2 p-4 sm:p-5 border-b border-slate-100">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="p-1.5 rounded-lg bg-rose-50 text-rose-600 flex-shrink-0">
+        <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
+          <div className="flex items-center justify-between gap-2 border-b border-slate-100 p-4 sm:p-5">
+            <div className="flex min-w-0 items-center gap-2.5">
+              <div className="shrink-0 rounded-lg bg-rose-50 p-1.5 text-rose-600">
                 <Megaphone size={16} />
               </div>
 
-              <h3 className="text-sm sm:text-base font-semibold text-slate-800 truncate">
+              <h3 className="truncate text-sm font-semibold text-slate-800 sm:text-base">
                 Pengumuman Terbaru
               </h3>
             </div>
 
             <button
               type="button"
-              onClick={() => router.push("/PPDB/pengumuman")}
-              className="text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors inline-flex items-center gap-0.5 flex-shrink-0"
+              onClick={() =>
+                router.push("/PPDB/pengumuman")
+              }
+              className="inline-flex shrink-0 items-center gap-0.5 text-xs font-medium text-blue-600 transition-colors hover:text-blue-700"
             >
               Lihat semua
+
               <ChevronRight size={12} />
             </button>
           </div>
@@ -582,14 +447,16 @@ export default function PPDBLandingPage() {
               <button
                 key={p.id}
                 type="button"
-                onClick={() => router.push("/PPDB/pengumuman")}
-                className="w-full text-left p-4 sm:p-5 flex items-center justify-between gap-3 hover:bg-slate-50/60 transition-colors"
+                onClick={() =>
+                  router.push("/PPDB/pengumuman")
+                }
+                className="flex w-full items-center justify-between gap-3 p-4 text-left transition-colors hover:bg-slate-50/60 sm:p-5"
               >
-                <span className="text-sm font-medium text-slate-800 truncate">
+                <span className="truncate text-sm font-medium text-slate-800">
                   {p.title}
                 </span>
 
-                <span className="text-xs text-slate-400 flex-shrink-0">
+                <span className="shrink-0 text-xs text-slate-400">
                   {p.tanggal}
                 </span>
               </button>
@@ -601,11 +468,40 @@ export default function PPDBLandingPage() {
       {/* ================================================================
           FOOTER
       ================================================================ */}
-      <footer className="border-t border-slate-200/80 bg-white mt-8">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+
+      <footer className="mt-8 border-t border-slate-200/80 bg-white">
+        <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-8 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-lg bg-blue-600 text-white flex-shrink-0">
-              <GraduationCap size={16} />
+            <div className="flex shrink-0 items-center justify-center rounded-lg bg-blue-600 p-2 text-white">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M3 10L12 4L21 10"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M5 10V19H19V10"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M9 19V13H15V19"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
             </div>
 
             <span className="text-sm font-semibold text-slate-700">
@@ -613,7 +509,7 @@ export default function PPDBLandingPage() {
             </span>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-2 sm:gap-6 text-xs text-slate-500">
+          <div className="flex flex-col gap-2 text-xs text-slate-500 sm:flex-row sm:gap-6">
             <span className="flex items-center gap-1.5">
               <Phone size={13} />
               (021) 555-0199

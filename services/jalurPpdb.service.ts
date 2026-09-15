@@ -36,58 +36,103 @@ export interface JalurPpdbListResponse {
   data: JalurPpdb[];
 }
 
-/**
- * GET semua jalur PPDB
- */
 export async function getJalurPpdb(): Promise<JalurPpdbListResponse> {
   return apiFetch(ENDPOINT, {
     method: "GET",
   });
 }
 
-/**
- * GET detail jalur PPDB
- */
 export async function getJalurPpdbById(
   id: string
 ): Promise<JalurPpdbResponse> {
-  return apiFetch(`${ENDPOINT}/${id}`, {
+  if (!id) {
+    throw new Error("ID jalur PPDB tidak ditemukan.");
+  }
+
+  return apiFetch(`${ENDPOINT}/${encodeURIComponent(id)}`, {
     method: "GET",
   });
 }
 
-/**
- * POST tambah jalur PPDB
- */
 export async function createJalurPpdb(
   payload: JalurPpdbPayload
 ): Promise<JalurPpdbResponse> {
+  if (!payload?.nama?.trim()) {
+    throw new Error("Nama jalur PPDB wajib diisi.");
+  }
+
+  if (!Number.isFinite(Number(payload.kuota))) {
+    throw new Error("Kuota jalur PPDB wajib diisi.");
+  }
+
   return apiFetch(ENDPOINT, {
     method: "POST",
-    body: JSON.stringify(payload),
+    body: JSON.stringify({
+      nama: payload.nama.trim(),
+      deskripsi: payload.deskripsi?.trim() || undefined,
+      kuota: Number(payload.kuota),
+      tanggalMulai: payload.tanggalMulai || undefined,
+      tanggalSelesai: payload.tanggalSelesai || undefined,
+      status: payload.status || "aktif",
+    }),
   });
 }
 
-/**
- * PUT edit jalur PPDB
- */
 export async function updateJalurPpdb(
   id: string,
   payload: Partial<JalurPpdbPayload>
 ): Promise<JalurPpdbResponse> {
-  return apiFetch(`${ENDPOINT}/${id}`, {
+  if (!id) {
+    throw new Error("ID jalur PPDB tidak ditemukan.");
+  }
+
+  if (payload.nama !== undefined && !payload.nama.trim()) {
+    throw new Error("Nama jalur PPDB wajib diisi.");
+  }
+
+  if (
+    payload.kuota !== undefined &&
+    !Number.isFinite(Number(payload.kuota))
+  ) {
+    throw new Error("Kuota jalur PPDB harus berupa angka.");
+  }
+
+  return apiFetch(`${ENDPOINT}/${encodeURIComponent(id)}`, {
     method: "PUT",
-    body: JSON.stringify(payload),
+    body: JSON.stringify({
+      ...(payload.nama !== undefined && {
+        nama: payload.nama.trim(),
+      }),
+      ...(payload.deskripsi !== undefined && {
+        deskripsi: payload.deskripsi.trim() || undefined,
+      }),
+      ...(payload.kuota !== undefined && {
+        kuota: Number(payload.kuota),
+      }),
+      ...(payload.tanggalMulai !== undefined && {
+        tanggalMulai: payload.tanggalMulai || undefined,
+      }),
+      ...(payload.tanggalSelesai !== undefined && {
+        tanggalSelesai: payload.tanggalSelesai || undefined,
+      }),
+      ...(payload.status !== undefined && {
+        status: payload.status || undefined,
+      }),
+    }),
   });
 }
 
-/**
- * DELETE / soft delete jalur PPDB
- */
 export async function deleteJalurPpdb(
   id: string
-) {
-  return apiFetch(`${ENDPOINT}/${id}`, {
+): Promise<{
+  success: boolean;
+  message?: string;
+}> {
+  if (!id) {
+    throw new Error("ID jalur PPDB tidak ditemukan.");
+  }
+
+  return apiFetch(`${ENDPOINT}/${encodeURIComponent(id)}`, {
     method: "DELETE",
   });
 }

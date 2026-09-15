@@ -450,34 +450,40 @@ export const adminSidebarConfig = {
     // ==========================================================
     // PENERIMAAN SPMB
     // ==========================================================
-    {
-      type: "item",
-      key: "spmb",
-      icon: UserPlus,
-      label: "Penerimaan (SPMB)",
-      path: "/admin/spmb",
+   {
+  type: "item",
+  key: "spmb",
+  icon: UserPlus,
+  label: "Penerimaan (SPMB)",
+  path: "/admin/spmb",
 
-      children: [
-        {
-          key: "dataPendaftaran",
-          icon: FileInput,
-          label: "Data Pendaftaran",
-          path: "/admin/spmb/data-pendaftaran",
-        },
-        {
-          key: "gelombang",
-          icon: Layers,
-          label: "Gelombang",
-          path: "/admin/spmb/gelombang",
-        },
-        {
-          key: "pengaturanSpmb",
-          icon: Settings,
-          label: "Pengaturan",
-          path: "/admin/spmb/pengaturan",
-        },
-      ],
+  children: [
+    {
+      key: "dataPendaftaran",
+      icon: FileInput,
+      label: "Data Pendaftaran",
+      path: "/admin/spmb/data-pendaftaran",
     },
+    {
+      key: "gelombang",
+      icon: Layers,
+      label: "Gelombang",
+      path: "/admin/spmb/gelombang",
+    },
+    {
+      key: "jalurPendaftaran",
+      icon: ClipboardList,
+      label: "Jalur Pendaftaran",
+      path: "/admin/spmb/jalur-pendaftaran",
+    },
+    {
+      key: "pengaturanSpmb",
+      icon: Settings,
+      label: "Pengaturan",
+      path: "/admin/spmb/pengaturan",
+    },
+  ],
+},
 
     // ==========================================================
     // CMS

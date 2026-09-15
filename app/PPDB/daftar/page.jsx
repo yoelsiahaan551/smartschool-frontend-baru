@@ -1,167 +1,53 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
-  GraduationCap,
+  useRouter,
+  useSearchParams,
+} from "next/navigation";
+
+import {
   ArrowLeft,
-  ChevronRight,
-  ChevronLeft,
-  Check,
-  UploadCloud,
-  FileCheck2,
+  ArrowRight,
+  AlertCircle,
   User,
-  FileText,
-  ClipboardList,
-  ShieldCheck,
-  MapPin,
-  Sparkles,
   Users,
   School,
-  Loader2,
-  AlertCircle,
+  ClipboardList,
 } from "lucide-react";
 
-import {
-  daftarPpdb,
-  uploadBerkasPpdb,
-} from "../../../services/ppdb.service";
+import PpdbHeader from "../../components/ppdb/PpdbHeader";
+import PpdbStepper from "../../components/ppdb/PpdbStepper";
+import PpdbFooter from "../../components/ppdb/PpdbFooter";
 
-// ======================================================
-// BERKAS SESUAI BE
-// BE hanya menerima: KK | AKTE | IJAZAH
-// ======================================================
-
-const dokumenList = [
-  {
-    id: "KK",
-    label: "Kartu Keluarga (KK)",
-  },
-  {
-    id: "AKTE",
-    label: "Akta Kelahiran",
-  },
-  {
-    id: "IJAZAH",
-    label: "Ijazah",
-  },
-];
-
-// ======================================================
-// JALUR - HANYA LABEL UI
-// ID ASLI DIAMBIL DARI URL
-// ?jalurPpdbId=UUID
-// ======================================================
-
-const jalurOptions = [
-  {
-    id: "zonasi",
-    title: "Jalur Zonasi",
-    desc: "Domisili dalam radius zona sekolah sesuai ketentuan.",
-    icon: MapPin,
-    color: "blue",
-  },
-  {
-    id: "prestasi",
-    title: "Jalur Prestasi",
-    desc: "Prestasi akademik atau non-akademik.",
-    icon: Sparkles,
-    color: "amber",
-  },
-  {
-    id: "afirmasi",
-    title: "Jalur Afirmasi",
-    desc: "Jalur sesuai ketentuan afirmasi.",
-    icon: Users,
-    color: "emerald",
-  },
-  {
-    id: "pindahan",
-    title: "Jalur Perpindahan Tugas",
-    desc: "Mengikuti perpindahan tugas orang tua/wali.",
-    icon: FileCheck2,
-    color: "rose",
-  },
-];
-
-// ======================================================
-// STEPS
-// ======================================================
-
-const steps = [
-  {
-    id: 1,
-    label: "Data Calon Siswa",
-    icon: User,
-  },
-  {
-    id: 2,
-    label: "Data Orang Tua",
-    icon: Users,
-  },
-  {
-    id: 3,
-    label: "Jalur & Sekolah",
-    icon: ClipboardList,
-  },
-  {
-    id: 4,
-    label: "Berkas",
-    icon: FileText,
-  },
-  {
-    id: 5,
-    label: "Review",
-    icon: ShieldCheck,
-  },
-];
-
-const colorMap = {
-  blue: {
-    bg: "bg-blue-50",
-    text: "text-blue-600",
-    border: "border-blue-200",
-    ring: "ring-blue-500",
-  },
-  amber: {
-    bg: "bg-amber-50",
-    text: "text-amber-600",
-    border: "border-amber-200",
-    ring: "ring-amber-500",
-  },
-  emerald: {
-    bg: "bg-emerald-50",
-    text: "text-emerald-600",
-    border: "border-emerald-200",
-    ring: "ring-emerald-500",
-  },
-  rose: {
-    bg: "bg-rose-50",
-    text: "text-rose-600",
-    border: "border-rose-200",
-    ring: "ring-rose-500",
-  },
-};
+import { daftarPpdb } from "../../../services/ppdb.service";
 
 export default function DaftarPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // ======================================================
-  // ID DARI URL
-  // BE membutuhkan:
-  // sekolahId
-  // jalurPpdbId
-  // ======================================================
+  /*
+   * ============================================================
+   * ID DATABASE
+   * ============================================================
+   *
+   * Prioritas:
+   * 1. URL
+   * 2. sessionStorage
+   * 3. environment variable
+   */
 
-  const sekolahId = searchParams.get("sekolahId") || "";
-  const jalurPpdbId = searchParams.get("jalurPpdbId") || "";
+  const [sekolahId, setSekolahId] =
+    useState("");
 
-  const [currentStep, setCurrentStep] = useState(1);
+  const [jalurPpdbId, setJalurPpdbId] =
+    useState("");
 
-  // ======================================================
-  // FORM SESUAI pendaftaranPpdbSchema
-  // ======================================================
+  /*
+   * ============================================================
+   * FORM
+   * ============================================================
+   */
 
   const [form, setForm] = useState({
     namaLengkap: "",
@@ -175,26 +61,108 @@ export default function DaftarPage() {
     namaAyah: "",
     namaIbu: "",
     asalSekolah: "",
-    nilaiRapor: "",
-    jalur: "",
   });
 
-  // ======================================================
-  // FILE
-  // ======================================================
-
-  const [uploaded, setUploaded] = useState({});
-  const [files, setFiles] = useState({});
-
   const [errors, setErrors] = useState({});
-  const [submitError, setSubmitError] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] =
+    useState("");
+  const [submitting, setSubmitting] =
+    useState(false);
 
-  // ======================================================
-  // UPDATE FORM
-  // ======================================================
+  /*
+   * ============================================================
+   * AMBIL ID PPDB
+   * ============================================================
+   */
 
-  const update = (key, value) => {
+  useEffect(() => {
+    if (
+      typeof window === "undefined"
+    ) {
+      return;
+    }
+
+    const sekolahFromUrl =
+      searchParams.get("sekolahId") || "";
+
+    const jalurFromUrl =
+      searchParams.get("jalurPpdbId") || "";
+
+    const sekolahFromSession =
+      sessionStorage.getItem(
+        "ppdb_sekolah_id"
+      ) || "";
+
+    const jalurFromSession =
+      sessionStorage.getItem(
+        "ppdb_jalur_id"
+      ) || "";
+
+    const sekolahFromEnv =
+      process.env
+        .NEXT_PUBLIC_PPDB_SEKOLAH_ID || "";
+
+    const jalurFromEnv =
+      process.env
+        .NEXT_PUBLIC_PPDB_JALUR_ID || "";
+
+    const finalSekolahId =
+      sekolahFromUrl ||
+      sekolahFromSession ||
+      sekolahFromEnv;
+
+    const finalJalurPpdbId =
+      jalurFromUrl ||
+      jalurFromSession ||
+      jalurFromEnv;
+
+    setSekolahId(finalSekolahId);
+    setJalurPpdbId(finalJalurPpdbId);
+
+    /*
+     * Simpan kembali ke sessionStorage
+     * supaya tetap tersedia saat berpindah halaman.
+     */
+
+    if (finalSekolahId) {
+      sessionStorage.setItem(
+        "ppdb_sekolah_id",
+        finalSekolahId
+      );
+    }
+
+    if (finalJalurPpdbId) {
+      sessionStorage.setItem(
+        "ppdb_jalur_id",
+        finalJalurPpdbId
+      );
+    }
+
+    console.log(
+      "=== ID PPDB ==="
+    );
+
+    console.log(
+      "sekolahId:",
+      finalSekolahId
+    );
+
+    console.log(
+      "jalurPpdbId:",
+      finalJalurPpdbId
+    );
+  }, [searchParams]);
+
+  /*
+   * ============================================================
+   * UPDATE FIELD
+   * ============================================================
+   */
+
+  const update = (
+    key,
+    value
+  ) => {
     setForm((current) => ({
       ...current,
       [key]: value,
@@ -208,323 +176,290 @@ export default function DaftarPage() {
     setSubmitError("");
   };
 
-  // ======================================================
-  // VALIDASI
-  // ======================================================
+  /*
+   * ============================================================
+   * VALIDASI
+   * ============================================================
+   */
 
-  const validateStep = (step) => {
+  const validateForm = () => {
     const newErrors = {};
 
-    // -----------------------------------------------
-    // STEP 1
-    // -----------------------------------------------
-
-    if (step === 1) {
-      if (!form.namaLengkap.trim()) {
-        newErrors.namaLengkap = "Nama lengkap wajib diisi";
-      }
-
-      if (!form.nisn.trim()) {
-        newErrors.nisn = "NISN wajib diisi";
-      } else if (form.nisn.length < 10) {
-        newErrors.nisn = "NISN minimal 10 digit";
-      }
-
-      if (!form.tempatLahir.trim()) {
-        newErrors.tempatLahir = "Tempat lahir wajib diisi";
-      }
-
-      if (!form.tanggalLahir) {
-        newErrors.tanggalLahir = "Tanggal lahir wajib diisi";
-      }
-
-      if (!form.jenisKelamin) {
-        newErrors.jenisKelamin = "Jenis kelamin wajib dipilih";
-      }
-
-      if (!form.alamat.trim()) {
-        newErrors.alamat = "Alamat wajib diisi";
-      } else if (form.alamat.trim().length < 5) {
-        newErrors.alamat = "Alamat minimal 5 karakter";
-      }
+    if (!form.namaLengkap.trim()) {
+      newErrors.namaLengkap =
+        "Nama lengkap wajib diisi";
     }
 
-    // -----------------------------------------------
-    // STEP 2
-    // -----------------------------------------------
-
-    if (step === 2) {
-      if (!form.namaAyah.trim()) {
-        newErrors.namaAyah = "Nama ayah wajib diisi";
-      }
-
-      if (!form.namaIbu.trim()) {
-        newErrors.namaIbu = "Nama ibu wajib diisi";
-      }
-
-      if (!form.email.trim()) {
-        newErrors.email = "Email wajib diisi";
-      } else if (!/^\S+@\S+\.\S+$/.test(form.email)) {
-        newErrors.email = "Format email tidak valid";
-      }
-
-      if (form.telepon && form.telepon.length > 20) {
-        newErrors.telepon = "Nomor telepon maksimal 20 karakter";
-      }
+    if (!form.nisn.trim()) {
+      newErrors.nisn =
+        "NISN wajib diisi";
+    } else if (
+      form.nisn.trim().length < 10
+    ) {
+      newErrors.nisn =
+        "NISN minimal 10 digit";
     }
 
-    // -----------------------------------------------
-    // STEP 3
-    // -----------------------------------------------
-
-    if (step === 3) {
-      if (!sekolahId) {
-        newErrors.sekolahId =
-          "Sekolah tujuan belum ditentukan.";
-      }
-
-      if (!jalurPpdbId) {
-        newErrors.jalurPpdbId =
-          "Jalur PPDB belum ditentukan.";
-      }
-
-      if (!form.jalur) {
-        newErrors.jalur = "Pilih salah satu jalur";
-      }
-
-      if (!form.asalSekolah.trim()) {
-        newErrors.asalSekolah = "Asal sekolah wajib diisi";
-      }
-
-      if (form.nilaiRapor !== "") {
-        const nilai = Number(form.nilaiRapor);
-
-        if (Number.isNaN(nilai) || nilai < 0 || nilai > 100) {
-          newErrors.nilaiRapor =
-            "Nilai rapor harus berada di antara 0-100";
-        }
-      }
+    if (!form.tempatLahir.trim()) {
+      newErrors.tempatLahir =
+        "Tempat lahir wajib diisi";
     }
 
-    // -----------------------------------------------
-    // STEP 4
-    // -----------------------------------------------
+    if (!form.tanggalLahir) {
+      newErrors.tanggalLahir =
+        "Tanggal lahir wajib diisi";
+    }
 
-    if (step === 4) {
-      dokumenList.forEach((document) => {
-        if (!files[document.id]) {
-          newErrors[document.id] =
-            "Dokumen wajib diunggah";
-        }
-      });
+    if (!form.jenisKelamin) {
+      newErrors.jenisKelamin =
+        "Jenis kelamin wajib dipilih";
+    }
+
+    if (!form.alamat.trim()) {
+      newErrors.alamat =
+        "Alamat wajib diisi";
+    } else if (
+      form.alamat.trim().length < 5
+    ) {
+      newErrors.alamat =
+        "Alamat minimal 5 karakter";
+    }
+
+    if (
+      form.telepon &&
+      form.telepon.trim().length > 20
+    ) {
+      newErrors.telepon =
+        "Nomor telepon maksimal 20 karakter";
+    }
+
+    if (!form.namaAyah.trim()) {
+      newErrors.namaAyah =
+        "Nama ayah wajib diisi";
+    }
+
+    if (!form.namaIbu.trim()) {
+      newErrors.namaIbu =
+        "Nama ibu wajib diisi";
+    }
+
+    if (!form.email.trim()) {
+      newErrors.email =
+        "Email wajib diisi";
+    } else if (
+      !/^\S+@\S+\.\S+$/.test(
+        form.email.trim()
+      )
+    ) {
+      newErrors.email =
+        "Format email tidak valid";
+    }
+
+    if (!form.asalSekolah.trim()) {
+      newErrors.asalSekolah =
+        "Asal sekolah wajib diisi";
+    }
+
+    /*
+     * ID DATABASE WAJIB
+     */
+
+    if (!sekolahId) {
+      newErrors.sekolahId =
+        "Sekolah tujuan belum ditentukan.";
+    }
+
+    if (!jalurPpdbId) {
+      newErrors.jalurPpdbId =
+        "Jalur PPDB belum ditentukan.";
     }
 
     setErrors(newErrors);
 
-    return Object.keys(newErrors).length === 0;
-  };
-
-  // ======================================================
-  // NEXT
-  // ======================================================
-
-  const goNext = () => {
-    if (!validateStep(currentStep)) {
-      return;
-    }
-
-    setCurrentStep((current) =>
-      Math.min(current + 1, steps.length)
+    return (
+      Object.keys(newErrors).length === 0
     );
-
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
   };
 
-  // ======================================================
-  // BACK
-  // ======================================================
-
-  const goBack = () => {
-    setCurrentStep((current) =>
-      Math.max(current - 1, 1)
-    );
-
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
-  };
-
-  // ======================================================
-  // FILE CHANGE
-  // ======================================================
-
-  const handleFileChange = (id, file) => {
-    if (!file) return;
-
-    setErrors((current) => ({
-      ...current,
-      [id]: undefined,
-    }));
-
-    setSubmitError("");
-
-    // -----------------------------------------------
-    // VALIDASI TIPE FILE
-    // -----------------------------------------------
-
-    const allowedTypes = [
-      "image/jpeg",
-      "image/png",
-      "application/pdf",
-    ];
-
-    if (!allowedTypes.includes(file.type)) {
-      setErrors((current) => ({
-        ...current,
-        [id]:
-          "Format file harus JPG, PNG, atau PDF",
-      }));
-
-      return;
-    }
-
-    // -----------------------------------------------
-    // MAX 2 MB
-    // -----------------------------------------------
-
-    const maxSize = 2 * 1024 * 1024;
-
-    if (file.size > maxSize) {
-      setErrors((current) => ({
-        ...current,
-        [id]:
-          "Ukuran file maksimal 2MB",
-      }));
-
-      return;
-    }
-
-    setFiles((current) => ({
-      ...current,
-      [id]: file,
-    }));
-
-    setUploaded((current) => ({
-      ...current,
-      [id]: file.name,
-    }));
-  };
-
-  // ======================================================
-  // SUBMIT
-  // ======================================================
+  /*
+   * ============================================================
+   * SUBMIT KE BACKEND
+   * ============================================================
+   *
+   * POST /api/v1/ppdb/daftar
+   */
 
   const handleSubmit = async () => {
-    // Pastikan step terakhir valid
-    const validStep1 = validateStep(1);
-    const validStep2 = validateStep(2);
-    const validStep3 = validateStep(3);
-    const validStep4 = validateStep(4);
-
-    if (
-      !validStep1 ||
-      !validStep2 ||
-      !validStep3 ||
-      !validStep4
-    ) {
+    if (!validateForm()) {
       setSubmitError(
-        "Masih ada data atau berkas yang belum lengkap."
+        "Masih ada data yang belum lengkap."
       );
+
       return;
     }
 
-    if (!sekolahId || !jalurPpdbId) {
-      setSubmitError(
-        "Sekolah atau jalur PPDB belum ditentukan."
-      );
-      return;
-    }
+    const payload = {
+      sekolahId,
+      jalurPpdbId,
 
-    setSubmitting(true);
-    setSubmitError("");
+      namaLengkap:
+        form.namaLengkap.trim(),
+
+      nisn:
+        form.nisn.trim(),
+
+      tempatLahir:
+        form.tempatLahir.trim(),
+
+      tanggalLahir:
+        form.tanggalLahir,
+
+      jenisKelamin:
+        form.jenisKelamin,
+
+      alamat:
+        form.alamat.trim(),
+
+      telepon:
+        form.telepon.trim() ||
+        undefined,
+
+      email:
+        form.email.trim() ||
+        undefined,
+
+      namaAyah:
+        form.namaAyah.trim() ||
+        undefined,
+
+      namaIbu:
+        form.namaIbu.trim() ||
+        undefined,
+
+      asalSekolah:
+        form.asalSekolah.trim() ||
+        undefined,
+    };
 
     try {
-      // ==================================================
-      // 1. DAFTAR PPDB
-      // SESUAI daftarPpdb() DI BE
-      // ==================================================
+      setSubmitting(true);
+      setSubmitError("");
 
-      const payload = {
-        sekolahId,
-        jalurPpdbId,
-        namaLengkap: form.namaLengkap.trim(),
-        nisn: form.nisn.trim(),
-        tempatLahir: form.tempatLahir.trim(),
-        tanggalLahir: form.tanggalLahir,
-        jenisKelamin: form.jenisKelamin,
-        alamat: form.alamat.trim(),
-        telepon: form.telepon.trim() || undefined,
-        email: form.email.trim() || undefined,
-        namaAyah: form.namaAyah.trim() || undefined,
-        namaIbu: form.namaIbu.trim() || undefined,
-        asalSekolah:
-          form.asalSekolah.trim() || undefined,
-        nilaiRapor:
-          form.nilaiRapor !== ""
-            ? Number(form.nilaiRapor)
-            : undefined,
-      };
+      console.log(
+        "================================"
+      );
 
-      const response = await daftarPpdb(payload);
+      console.log(
+        "SUBMIT PPDB"
+      );
 
-      if (!response?.success || !response?.data?.id) {
+      console.log(
+        "================================"
+      );
+
+      console.log(
+        "Payload:",
+        payload
+      );
+
+      /*
+       * KIRIM KE BE
+       */
+
+      const response =
+        await daftarPpdb(payload);
+
+      console.log(
+        "Response BE:",
+        response
+      );
+
+      /*
+       * VALIDASI RESPONSE
+       */
+
+      if (
+        !response?.success ||
+        !response?.data?.id
+      ) {
         throw new Error(
           response?.message ||
-            "Pendaftaran PPDB gagal diproses."
+            "Pendaftaran gagal diproses oleh server."
         );
       }
 
-      const pendaftaranId = response.data.id;
+      const pendaftaranId =
+        response.data.id;
 
-      // ==================================================
-      // 2. UPLOAD BERKAS
-      // BE:
-      // POST /:id/berkas
-      //
-      // namaBerkas:
-      // KK | AKTE | IJAZAH
-      // ==================================================
-
-      for (const document of dokumenList) {
-        const file = files[document.id];
-
-        if (!file) {
-          continue;
-        }
-
-        await uploadBerkasPpdb(
-          pendaftaranId,
-          file,
-          document.id
-        );
-      }
-
-      // ==================================================
-      // 3. BERHASIL
-      // ==================================================
-
-      router.push(
-        `/PPDB/daftar/berhasil?id=${encodeURIComponent(
-          pendaftaranId
-        )}`
+      console.log(
+        "Pendaftaran berhasil."
       );
+
+      console.log(
+        "ID:",
+        pendaftaranId
+      );
+
+      /*
+       * SIMPAN ID PENDAFTARAN
+       */
+
+      sessionStorage.setItem(
+        "ppdb_pendaftaran_id",
+        String(pendaftaranId)
+      );
+
+      /*
+       * SIMPAN NOMOR PENDAFTARAN
+       */
+
+      if (
+        response.data.nomorPendaftaran
+      ) {
+        sessionStorage.setItem(
+          "ppdb_nomor_pendaftaran",
+          String(
+            response.data.nomorPendaftaran
+          )
+        );
+      }
+
+      /*
+       * SIMPAN ID SEKOLAH & JALUR
+       */
+
+      if (sekolahId) {
+        sessionStorage.setItem(
+          "ppdb_sekolah_id",
+          sekolahId
+        );
+      }
+
+      if (jalurPpdbId) {
+        sessionStorage.setItem(
+          "ppdb_jalur_id",
+          jalurPpdbId
+        );
+      }
+
+      /*
+       * PINDAH KE UPLOAD BERKAS
+       */
+
+      const uploadUrl =
+        `/PPDB/daftar/uploadBerkas?id=${encodeURIComponent(
+          String(pendaftaranId)
+        )}`;
+
+      console.log(
+        "Redirect:",
+        uploadUrl
+      );
+
+      router.push(uploadUrl);
     } catch (error) {
       console.error(
-        "Error submit PPDB:",
+        "Error daftar PPDB:",
         error
       );
 
@@ -537,149 +472,108 @@ export default function DaftarPage() {
     }
   };
 
-  // ======================================================
-  // RENDER
-  // ======================================================
-
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* HEADER */}
+      <main className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+        {/* ============================================================
+            KEMBALI
+        ============================================================ */}
 
-      <header className="sticky top-0 z-30 bg-white/90 backdrop-blur border-b border-slate-200/80">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <button
-            onClick={() => router.push("/PPDB")}
-            className="flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-800 transition-colors"
-          >
-            <ArrowLeft size={16} />
-            Kembali
-          </button>
+        <button
+          type="button"
+          onClick={() =>
+            router.push("/PPDB")
+          }
+          disabled={submitting}
+          className="mb-5 inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600 shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <ArrowLeft size={15} />
+          Kembali ke PPDB
+        </button>
 
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="p-1.5 rounded-lg bg-blue-600 text-white flex-shrink-0">
-              <GraduationCap size={16} />
+        {/* ============================================================
+            HEADER
+        ============================================================ */}
+
+        <PpdbHeader
+          eyebrow="PPDB Online"
+          title="Pendaftaran Peserta Didik Baru"
+          description="Lengkapi data calon peserta didik dengan benar untuk melanjutkan ke tahap upload dokumen."
+        />
+
+        <div className="mt-6">
+          {/* ============================================================
+              ERROR
+          ============================================================ */}
+
+          {submitError && (
+            <div className="mb-6 flex items-start gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3">
+              <AlertCircle
+                size={18}
+                className="mt-0.5 shrink-0 text-rose-500"
+              />
+
+              <div>
+                <p className="text-sm font-semibold text-rose-700">
+                  Pendaftaran gagal
+                </p>
+
+                <p className="mt-1 text-xs leading-5 text-rose-600">
+                  {submitError}
+                </p>
+              </div>
             </div>
+          )}
 
-            <span className="text-sm font-semibold text-slate-800 truncate">
-              Formulir Pendaftaran
-            </span>
-          </div>
-        </div>
-      </header>
+          {/* ============================================================
+              STEPPER
+          ============================================================ */}
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
-        {/* ==================================================
-            ERROR GLOBAL
-        ================================================== */}
+          <PpdbStepper currentStep={1} />
 
-        {submitError && (
-          <div className="mb-5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 flex items-start gap-3">
-            <AlertCircle
-              size={18}
-              className="text-rose-500 mt-0.5 flex-shrink-0"
-            />
+          {/* ============================================================
+              FORM CARD
+          ============================================================ */}
 
-            <div>
-              <p className="text-sm font-semibold text-rose-700">
-                Pendaftaran belum berhasil
-              </p>
+          <div className="mt-6 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-8">
+            {/* ==========================================================
+                DATA CALON SISWA
+            ========================================================== */}
 
-              <p className="mt-1 text-xs text-rose-600">
-                {submitError}
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* ==================================================
-            STEPPER
-        ================================================== */}
-
-        <div className="mb-8">
-          <div className="flex items-center">
-            {steps.map((step, index) => {
-              const Icon = step.icon;
-
-              const isActive =
-                step.id === currentStep;
-
-              const isDone =
-                step.id < currentStep;
-
-              return (
-                <div
-                  key={step.id}
-                  className="flex items-center flex-1 last:flex-none"
-                >
-                  <div className="flex flex-col items-center gap-1.5">
-                    <div
-                      className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-semibold transition-colors ${
-                        isDone
-                          ? "bg-blue-600 text-white"
-                          : isActive
-                          ? "bg-blue-600 text-white ring-4 ring-blue-100"
-                          : "bg-slate-200 text-slate-500"
-                      }`}
-                    >
-                      {isDone ? (
-                        <Check size={15} />
-                      ) : (
-                        <Icon size={15} />
-                      )}
-                    </div>
-
-                    <span
-                      className={`hidden sm:block text-[11px] font-medium text-center max-w-[90px] ${
-                        isActive
-                          ? "text-slate-800"
-                          : "text-slate-400"
-                      }`}
-                    >
-                      {step.label}
-                    </span>
-                  </div>
-
-                  {index !== steps.length - 1 && (
-                    <div
-                      className={`h-px flex-1 mx-2 ${
-                        isDone
-                          ? "bg-blue-600"
-                          : "bg-slate-200"
-                      }`}
-                    />
-                  )}
+            <section>
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50">
+                  <User
+                    size={19}
+                    className="text-blue-600"
+                  />
                 </div>
-              );
-            })}
-          </div>
-        </div>
 
-        {/* ==================================================
-            FORM CARD
-        ================================================== */}
+                <div>
+                  <h2 className="text-base font-semibold text-slate-800 sm:text-lg">
+                    Data Calon Siswa
+                  </h2>
 
-        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5 sm:p-8">
-          {/* ==================================================
-              STEP 1
-          ================================================== */}
+                  <p className="mt-0.5 text-sm text-slate-500">
+                    Masukkan data calon siswa
+                    sesuai dokumen resmi.
+                  </p>
+                </div>
+              </div>
 
-          {currentStep === 1 && (
-            <div>
-              <h2 className="text-base sm:text-lg font-semibold text-slate-800">
-                Data Calon Siswa
-              </h2>
-
-              <p className="mt-1 text-sm text-slate-500">
-                Masukkan data calon siswa sesuai dokumen resmi.
-              </p>
-
-              <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2">
                 <Field
                   label="Nama Lengkap"
-                  error={errors.namaLengkap}
+                  required
+                  error={
+                    errors.namaLengkap
+                  }
                 >
                   <input
-                    value={form.namaLengkap}
+                    type="text"
+                    value={
+                      form.namaLengkap
+                    }
                     onChange={(e) =>
                       update(
                         "namaLengkap",
@@ -687,6 +581,7 @@ export default function DaftarPage() {
                       )
                     }
                     placeholder="Nama lengkap calon siswa"
+                    disabled={submitting}
                     className={inputClass(
                       errors.namaLengkap
                     )}
@@ -695,9 +590,11 @@ export default function DaftarPage() {
 
                 <Field
                   label="NISN"
+                  required
                   error={errors.nisn}
                 >
                   <input
+                    type="text"
                     value={form.nisn}
                     onChange={(e) =>
                       update(
@@ -710,6 +607,7 @@ export default function DaftarPage() {
                     }
                     maxLength={20}
                     placeholder="Nomor Induk Siswa Nasional"
+                    disabled={submitting}
                     className={inputClass(
                       errors.nisn
                     )}
@@ -718,10 +616,16 @@ export default function DaftarPage() {
 
                 <Field
                   label="Tempat Lahir"
-                  error={errors.tempatLahir}
+                  required
+                  error={
+                    errors.tempatLahir
+                  }
                 >
                   <input
-                    value={form.tempatLahir}
+                    type="text"
+                    value={
+                      form.tempatLahir
+                    }
                     onChange={(e) =>
                       update(
                         "tempatLahir",
@@ -729,6 +633,7 @@ export default function DaftarPage() {
                       )
                     }
                     placeholder="Kota tempat lahir"
+                    disabled={submitting}
                     className={inputClass(
                       errors.tempatLahir
                     )}
@@ -737,17 +642,23 @@ export default function DaftarPage() {
 
                 <Field
                   label="Tanggal Lahir"
-                  error={errors.tanggalLahir}
+                  required
+                  error={
+                    errors.tanggalLahir
+                  }
                 >
                   <input
                     type="date"
-                    value={form.tanggalLahir}
+                    value={
+                      form.tanggalLahir
+                    }
                     onChange={(e) =>
                       update(
                         "tanggalLahir",
                         e.target.value
                       )
                     }
+                    disabled={submitting}
                     className={inputClass(
                       errors.tanggalLahir
                     )}
@@ -756,16 +667,22 @@ export default function DaftarPage() {
 
                 <Field
                   label="Jenis Kelamin"
-                  error={errors.jenisKelamin}
+                  required
+                  error={
+                    errors.jenisKelamin
+                  }
                 >
                   <select
-                    value={form.jenisKelamin}
+                    value={
+                      form.jenisKelamin
+                    }
                     onChange={(e) =>
                       update(
                         "jenisKelamin",
                         e.target.value
                       )
                     }
+                    disabled={submitting}
                     className={inputClass(
                       errors.jenisKelamin
                     )}
@@ -773,9 +690,11 @@ export default function DaftarPage() {
                     <option value="">
                       Pilih jenis kelamin
                     </option>
+
                     <option value="L">
                       Laki-laki
                     </option>
+
                     <option value="P">
                       Perempuan
                     </option>
@@ -784,9 +703,12 @@ export default function DaftarPage() {
 
                 <Field
                   label="Nomor Telepon"
-                  error={errors.telepon}
+                  error={
+                    errors.telepon
+                  }
                 >
                   <input
+                    type="text"
                     value={form.telepon}
                     onChange={(e) =>
                       update(
@@ -799,6 +721,7 @@ export default function DaftarPage() {
                     }
                     maxLength={20}
                     placeholder="08xxxxxxxxxx"
+                    disabled={submitting}
                     className={inputClass(
                       errors.telepon
                     )}
@@ -808,6 +731,7 @@ export default function DaftarPage() {
                 <div className="sm:col-span-2">
                   <Field
                     label="Alamat"
+                    required
                     error={errors.alamat}
                   >
                     <textarea
@@ -818,8 +742,9 @@ export default function DaftarPage() {
                           e.target.value
                         )
                       }
-                      rows={3}
+                      rows={4}
                       placeholder="Alamat lengkap calon siswa"
+                      disabled={submitting}
                       className={inputClass(
                         errors.alamat
                       )}
@@ -827,29 +752,41 @@ export default function DaftarPage() {
                   </Field>
                 </div>
               </div>
-            </div>
-          )}
+            </section>
 
-          {/* ==================================================
-              STEP 2
-          ================================================== */}
+            {/* ==========================================================
+                DATA ORANG TUA
+            ========================================================== */}
 
-          {currentStep === 2 && (
-            <div>
-              <h2 className="text-base sm:text-lg font-semibold text-slate-800">
-                Data Orang Tua / Wali
-              </h2>
+            <section className="mt-10 border-t border-slate-100 pt-8">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50">
+                  <Users
+                    size={19}
+                    className="text-blue-600"
+                  />
+                </div>
 
-              <p className="mt-1 text-sm text-slate-500">
-                Lengkapi informasi orang tua/wali dan kontak.
-              </p>
+                <div>
+                  <h2 className="text-base font-semibold text-slate-800 sm:text-lg">
+                    Data Orang Tua / Wali
+                  </h2>
 
-              <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  <p className="mt-0.5 text-sm text-slate-500">
+                    Lengkapi informasi orang
+                    tua/wali dan kontak.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2">
                 <Field
                   label="Nama Ayah"
+                  required
                   error={errors.namaAyah}
                 >
                   <input
+                    type="text"
                     value={form.namaAyah}
                     onChange={(e) =>
                       update(
@@ -858,6 +795,7 @@ export default function DaftarPage() {
                       )
                     }
                     placeholder="Nama lengkap ayah"
+                    disabled={submitting}
                     className={inputClass(
                       errors.namaAyah
                     )}
@@ -866,9 +804,11 @@ export default function DaftarPage() {
 
                 <Field
                   label="Nama Ibu"
+                  required
                   error={errors.namaIbu}
                 >
                   <input
+                    type="text"
                     value={form.namaIbu}
                     onChange={(e) =>
                       update(
@@ -877,6 +817,7 @@ export default function DaftarPage() {
                       )
                     }
                     placeholder="Nama lengkap ibu"
+                    disabled={submitting}
                     className={inputClass(
                       errors.namaIbu
                     )}
@@ -885,6 +826,7 @@ export default function DaftarPage() {
 
                 <Field
                   label="Email"
+                  required
                   error={errors.email}
                 >
                   <input
@@ -897,6 +839,7 @@ export default function DaftarPage() {
                       )
                     }
                     placeholder="nama@email.com"
+                    disabled={submitting}
                     className={inputClass(
                       errors.email
                     )}
@@ -908,6 +851,7 @@ export default function DaftarPage() {
                   error={errors.telepon}
                 >
                   <input
+                    type="text"
                     value={form.telepon}
                     onChange={(e) =>
                       update(
@@ -920,118 +864,77 @@ export default function DaftarPage() {
                     }
                     maxLength={20}
                     placeholder="08xxxxxxxxxx"
+                    disabled={submitting}
                     className={inputClass(
                       errors.telepon
                     )}
                   />
                 </Field>
               </div>
-            </div>
-          )}
+            </section>
 
-          {/* ==================================================
-              STEP 3
-          ================================================== */}
+            {/* ==========================================================
+                DATA PPDB
+            ========================================================== */}
 
-          {currentStep === 3 && (
-            <div>
-              <h2 className="text-base sm:text-lg font-semibold text-slate-800">
-                Pilih Jalur & Sekolah
-              </h2>
-
-              <p className="mt-1 text-sm text-slate-500">
-                Pilih jalur PPDB dan lengkapi informasi asal sekolah.
-              </p>
-
-              {/* INFO ID BE */}
-
-              {(!sekolahId || !jalurPpdbId) && (
-                <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-                  <div className="flex gap-3">
-                    <AlertCircle
-                      size={18}
-                      className="text-amber-600 mt-0.5 flex-shrink-0"
-                    />
-
-                    <div>
-                      <p className="text-sm font-semibold text-amber-800">
-                        Data sekolah/jalur belum tersedia
-                      </p>
-
-                      <p className="mt-1 text-xs text-amber-700 leading-relaxed">
-                        Halaman ini membutuhkan
-                        <b> sekolahId </b>
-                        dan
-                        <b> jalurPpdbId </b>
-                        dari database.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div className="mt-6">
-                <p className="text-xs font-medium text-slate-600 mb-2">
-                  Jalur Pendaftaran
-                </p>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {jalurOptions.map((jalur) => {
-                    const Icon = jalur.icon;
-                    const color =
-                      colorMap[jalur.color];
-
-                    const selected =
-                      form.jalur === jalur.id;
-
-                    return (
-                      <button
-                        type="button"
-                        key={jalur.id}
-                        onClick={() =>
-                          update(
-                            "jalur",
-                            jalur.id
-                          )
-                        }
-                        className={`text-left rounded-xl border p-4 transition-all ${
-                          selected
-                            ? `${color.border} ring-2 ${color.ring} bg-white`
-                            : "border-slate-200 hover:border-slate-300"
-                        }`}
-                      >
-                        <div
-                          className={`w-9 h-9 rounded-lg ${color.bg} ${color.text} flex items-center justify-center`}
-                        >
-                          <Icon size={16} />
-                        </div>
-
-                        <p className="mt-2.5 text-sm font-semibold text-slate-800">
-                          {jalur.title}
-                        </p>
-
-                        <p className="mt-1 text-xs text-slate-500 leading-relaxed">
-                          {jalur.desc}
-                        </p>
-                      </button>
-                    );
-                  })}
+            <section className="mt-10 border-t border-slate-100 pt-8">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50">
+                  <ClipboardList
+                    size={19}
+                    className="text-blue-600"
+                  />
                 </div>
 
-                {errors.jalur && (
-                  <p className="mt-2 text-xs text-rose-500">
-                    {errors.jalur}
+                <div>
+                  <h2 className="text-base font-semibold text-slate-800 sm:text-lg">
+                    Data PPDB
+                  </h2>
+
+                  <p className="mt-0.5 text-sm text-slate-500">
+                    Sekolah tujuan dan jalur
+                    pendaftaran.
                   </p>
-                )}
+                </div>
               </div>
 
-              <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <div className="mt-6 space-y-4">
+                <InfoBox
+                  icon={School}
+                  title="Sekolah Tujuan"
+                  value={
+                    sekolahId ||
+                    "Belum ditentukan"
+                  }
+                  error={
+                    errors.sekolahId
+                  }
+                />
+
+                <InfoBox
+                  icon={ClipboardList}
+                  title="Jalur PPDB"
+                  value={
+                    jalurPpdbId ||
+                    "Belum ditentukan"
+                  }
+                  error={
+                    errors.jalurPpdbId
+                  }
+                />
+
                 <Field
                   label="Asal Sekolah"
-                  error={errors.asalSekolah}
+                  required
+                  error={
+                    errors.asalSekolah
+                  }
                 >
                   <input
-                    value={form.asalSekolah}
+                    type="text"
+                    value={
+                      form.asalSekolah
+                    }
                     onChange={(e) =>
                       update(
                         "asalSekolah",
@@ -1039,413 +942,78 @@ export default function DaftarPage() {
                       )
                     }
                     placeholder="Nama sekolah asal"
+                    disabled={submitting}
                     className={inputClass(
                       errors.asalSekolah
                     )}
                   />
                 </Field>
-
-                <Field
-                  label="Nilai Rapor"
-                  error={errors.nilaiRapor}
-                >
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    step="0.01"
-                    value={form.nilaiRapor}
-                    onChange={(e) =>
-                      update(
-                        "nilaiRapor",
-                        e.target.value
-                      )
-                    }
-                    placeholder="0 - 100"
-                    className={inputClass(
-                      errors.nilaiRapor
-                    )}
-                  />
-                </Field>
               </div>
+            </section>
 
-              {/* SEKOLAH ID */}
+            {/* ==========================================================
+                ACTION
+            ========================================================== */}
 
-              <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
-                <div className="flex gap-3">
-                  <School
-                    size={18}
-                    className="text-blue-600 mt-0.5"
-                  />
-
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold text-slate-700">
-                      Sekolah Tujuan
-                    </p>
-
-                    <p className="mt-1 text-xs text-slate-500 break-all">
-                      {sekolahId ||
-                        "Belum ditentukan"}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* JALUR ID */}
-
-              <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
-                <div className="flex gap-3">
-                  <ClipboardList
-                    size={18}
-                    className="text-blue-600 mt-0.5"
-                  />
-
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold text-slate-700">
-                      Jalur PPDB
-                    </p>
-
-                    <p className="mt-1 text-xs text-slate-500 break-all">
-                      {jalurPpdbId ||
-                        "Belum ditentukan"}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ==================================================
-              STEP 4
-          ================================================== */}
-
-          {currentStep === 4 && (
-            <div>
-              <h2 className="text-base sm:text-lg font-semibold text-slate-800">
-                Lengkapi Berkas
-              </h2>
-
-              <p className="mt-1 text-sm text-slate-500">
-                Unggah dokumen dalam format JPG, PNG, atau PDF.
-                Maksimal 2MB per file.
-              </p>
-
-              <div className="mt-6 space-y-3">
-                {dokumenList.map((document) => (
-                  <label
-                    key={document.id}
-                    className={`flex items-center justify-between gap-3 p-4 rounded-xl border cursor-pointer transition-colors ${
-                      errors[document.id]
-                        ? "border-rose-300 bg-rose-50/40"
-                        : files[document.id]
-                        ? "border-emerald-200 bg-emerald-50/40"
-                        : "border-slate-200 hover:border-slate-300"
-                    }`}
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div
-                        className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                          files[document.id]
-                            ? "bg-emerald-100 text-emerald-600"
-                            : "bg-slate-100 text-slate-500"
-                        }`}
-                      >
-                        {files[document.id] ? (
-                          <Check size={16} />
-                        ) : (
-                          <UploadCloud size={16} />
-                        )}
-                      </div>
-
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-slate-800">
-                          {document.label}
-                        </p>
-
-                        <p className="text-xs text-slate-500 truncate">
-                          {uploaded[document.id]
-                            ? uploaded[
-                                document.id
-                              ]
-                            : errors[
-                                document.id
-                              ]
-                            ? errors[
-                                document.id
-                              ]
-                            : "Belum ada file dipilih"}
-                        </p>
-                      </div>
-                    </div>
-
-                    <span className="text-xs font-medium text-blue-600 flex-shrink-0">
-                      {files[document.id]
-                        ? "Ganti"
-                        : "Unggah"}
-                    </span>
-
-                    <input
-                      type="file"
-                      accept=".jpg,.jpeg,.png,.pdf"
-                      className="hidden"
-                      onChange={(e) =>
-                        handleFileChange(
-                          document.id,
-                          e.target.files?.[0]
-                        )
-                      }
-                    />
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* ==================================================
-              STEP 5
-          ================================================== */}
-
-          {currentStep === 5 && (
-            <div>
-              <h2 className="text-base sm:text-lg font-semibold text-slate-800">
-                Review Pendaftaran
-              </h2>
-
-              <p className="mt-1 text-sm text-slate-500">
-                Periksa kembali data sebelum mengirim pendaftaran.
-              </p>
-
-              <div className="mt-6 space-y-4">
-                {/* DATA SISWA */}
-
-                <ReviewGroup title="Data Calon Siswa">
-                  <ReviewRow
-                    label="Nama Lengkap"
-                    value={
-                      form.namaLengkap || "-"
-                    }
-                  />
-
-                  <ReviewRow
-                    label="NISN"
-                    value={form.nisn || "-"}
-                  />
-
-                  <ReviewRow
-                    label="Tempat Lahir"
-                    value={
-                      form.tempatLahir || "-"
-                    }
-                  />
-
-                  <ReviewRow
-                    label="Tanggal Lahir"
-                    value={
-                      form.tanggalLahir || "-"
-                    }
-                  />
-
-                  <ReviewRow
-                    label="Jenis Kelamin"
-                    value={
-                      form.jenisKelamin === "L"
-                        ? "Laki-laki"
-                        : form.jenisKelamin ===
-                          "P"
-                        ? "Perempuan"
-                        : "-"
-                    }
-                  />
-
-                  <ReviewRow
-                    label="Alamat"
-                    value={form.alamat || "-"}
-                  />
-                </ReviewGroup>
-
-                {/* ORANG TUA */}
-
-                <ReviewGroup title="Orang Tua / Kontak">
-                  <ReviewRow
-                    label="Nama Ayah"
-                    value={
-                      form.namaAyah || "-"
-                    }
-                  />
-
-                  <ReviewRow
-                    label="Nama Ibu"
-                    value={
-                      form.namaIbu || "-"
-                    }
-                  />
-
-                  <ReviewRow
-                    label="Email"
-                    value={form.email || "-"}
-                  />
-
-                  <ReviewRow
-                    label="Telepon"
-                    value={
-                      form.telepon || "-"
-                    }
-                  />
-                </ReviewGroup>
-
-                {/* PPDB */}
-
-                <ReviewGroup title="PPDB">
-                  <ReviewRow
-                    label="Jalur"
-                    value={
-                      jalurOptions.find(
-                        (item) =>
-                          item.id ===
-                          form.jalur
-                      )?.title || "-"
-                    }
-                  />
-
-                  <ReviewRow
-                    label="Jalur PPDB ID"
-                    value={
-                      jalurPpdbId || "-"
-                    }
-                  />
-
-                  <ReviewRow
-                    label="Sekolah ID"
-                    value={
-                      sekolahId || "-"
-                    }
-                  />
-
-                  <ReviewRow
-                    label="Asal Sekolah"
-                    value={
-                      form.asalSekolah || "-"
-                    }
-                  />
-
-                  <ReviewRow
-                    label="Nilai Rapor"
-                    value={
-                      form.nilaiRapor || "-"
-                    }
-                  />
-                </ReviewGroup>
-
-                {/* BERKAS */}
-
-                <ReviewGroup title="Berkas">
-                  {dokumenList.map(
-                    (document) => (
-                      <ReviewRow
-                        key={document.id}
-                        label={
-                          document.label
-                        }
-                        value={
-                          uploaded[
-                            document.id
-                          ] || "-"
-                        }
-                      />
-                    )
-                  )}
-                </ReviewGroup>
-              </div>
-
-              <div className="mt-6 flex items-start gap-2.5">
-                <input
-                  id="agreement"
-                  type="checkbox"
-                  className="mt-0.5"
-                  required
-                />
-
-                <label
-                  htmlFor="agreement"
-                  className="text-sm text-slate-600"
-                >
-                  Saya menyatakan bahwa seluruh
-                  data yang diisi sudah benar dan
-                  bertanggung jawab atas kebenarannya.
-                </label>
-              </div>
-            </div>
-          )}
-
-          {/* ==================================================
-              NAVIGATION
-          ================================================== */}
-
-          <div className="mt-8 flex items-center justify-between border-t border-slate-100 pt-5">
-            {currentStep > 1 ? (
+            <div className="mt-10 flex items-center justify-between border-t border-slate-100 pt-6">
               <button
-                onClick={goBack}
+                type="button"
+                onClick={() =>
+                  router.push(
+                    "/PPDB"
+                  )
+                }
                 disabled={submitting}
-                className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 border border-slate-200 hover:border-slate-300 px-4 py-2.5 rounded-lg transition-colors disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 transition-colors hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <ChevronLeft size={15} />
-                Sebelumnya
+                <ArrowLeft size={15} />
+                Kembali
               </button>
-            ) : (
-              <span />
-            )}
 
-            {currentStep < steps.length ? (
               <button
-                onClick={goNext}
+                type="button"
+                onClick={
+                  handleSubmit
+                }
                 disabled={submitting}
-                className="inline-flex items-center gap-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 px-5 py-2.5 rounded-lg transition-colors disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Selanjutnya
-                <ChevronRight size={15} />
+                {submitting
+                  ? "Mengirim..."
+                  : "Selanjutnya"}
+
+                <ArrowRight size={15} />
               </button>
-            ) : (
-              <button
-                onClick={handleSubmit}
-                disabled={submitting}
-                className="inline-flex items-center gap-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 px-5 py-2.5 rounded-lg transition-colors disabled:opacity-50"
-              >
-                {submitting ? (
-                  <>
-                    <Loader2
-                      size={15}
-                      className="animate-spin"
-                    />
-                    Mengirim...
-                  </>
-                ) : (
-                  <>
-                    Kirim Pendaftaran
-                    <Check size={15} />
-                  </>
-                )}
-              </button>
-            )}
+            </div>
           </div>
         </div>
-      </div>
+      </main>
+
+      <PpdbFooter />
     </div>
   );
 }
 
-// ======================================================
-// FIELD
-// ======================================================
+/* ========================================================================
+   FIELD
+======================================================================== */
 
 function Field({
   label,
+  required = false,
   error,
   children,
 }) {
   return (
     <div>
-      <label className="block text-xs font-medium text-slate-600 mb-1.5">
+      <label className="mb-1.5 block text-xs font-medium text-slate-600">
         {label}
+
+        {required && (
+          <span className="ml-1 text-rose-500">
+            *
+          </span>
+        )}
       </label>
 
       {children}
@@ -1459,56 +1027,62 @@ function Field({
   );
 }
 
-// ======================================================
-// INPUT CLASS
-// ======================================================
+/* ========================================================================
+   INPUT CLASS
+======================================================================== */
 
 function inputClass(hasError) {
-  return `w-full text-sm text-slate-800 bg-white border rounded-lg px-3 py-2.5 outline-none transition-colors focus:border-blue-400 focus:ring-2 focus:ring-blue-100 ${
+  return `w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition-colors focus:border-blue-400 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-50 disabled:text-slate-400 ${
     hasError
       ? "border-rose-300"
       : "border-slate-200"
   }`;
 }
 
-// ======================================================
-// REVIEW GROUP
-// ======================================================
+/* ========================================================================
+   INFO BOX
+======================================================================== */
 
-function ReviewGroup({
+function InfoBox({
+  icon: Icon,
   title,
-  children,
-}) {
-  return (
-    <div className="rounded-xl border border-slate-200 overflow-hidden">
-      <div className="bg-slate-50 px-4 py-2.5 text-xs font-semibold text-slate-600">
-        {title}
-      </div>
-
-      <div className="divide-y divide-slate-100">
-        {children}
-      </div>
-    </div>
-  );
-}
-
-// ======================================================
-// REVIEW ROW
-// ======================================================
-
-function ReviewRow({
-  label,
   value,
+  error,
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 px-4 py-2.5">
-      <span className="text-xs text-slate-500">
-        {label}
-      </span>
+    <div
+      className={`rounded-xl border p-4 ${
+        error
+          ? "border-rose-200 bg-rose-50"
+          : "border-slate-200 bg-slate-50"
+      }`}
+    >
+      <div className="flex gap-3">
+        <Icon
+          size={18}
+          className={
+            error
+              ? "mt-0.5 text-rose-500"
+              : "mt-0.5 text-blue-600"
+          }
+        />
 
-      <span className="text-sm font-medium text-slate-800 text-right truncate max-w-[65%]">
-        {value}
-      </span>
+        <div className="min-w-0">
+          <p className="text-xs font-semibold text-slate-700">
+            {title}
+          </p>
+
+          <p className="mt-1 break-all text-xs text-slate-500">
+            {value}
+          </p>
+
+          {error && (
+            <p className="mt-1 text-xs text-rose-500">
+              {error}
+            </p>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
