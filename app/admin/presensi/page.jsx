@@ -1,12 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+
 import Sidebar from "../../components/Sidebar";
 import Header from "../../components/Header";
 
 import {
   Search,
-  Filter,
   CalendarDays,
   Users,
   UserCheck,
@@ -26,28 +27,30 @@ import {
   UserRound,
   BookOpen,
   AlertCircle,
+  Loader2,
+  Database,
 } from "lucide-react";
 
-/* =========================================================
-   BACKEND HELPERS
-========================================================= */
+import { getAbsensiKelas } from "../../../services/absensi.service";
+import { getKelas } from "../../../services/kelas.service";
 
-import {
-  getAbsensiKelas,
-} from "../../../services/absensi.service";
-import {
-  getKelas,
-} from "../../../services/kelas.service";
+/* =========================================================
+   DATE HELPERS
+========================================================= */
 
 function formatTanggal(tanggal) {
   if (!tanggal) return "-";
 
-  // Untuk filter input type=date (YYYY-MM-DD), tampilkan tanggal tanpa
-  // menggeser hari akibat konversi timezone.
   const raw = String(tanggal);
+
   if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
     const [yyyy, mm, dd] = raw.split("-");
-    return new Date(Number(yyyy), Number(mm) - 1, Number(dd)).toLocaleDateString("id-ID", {
+
+    return new Date(
+      Number(yyyy),
+      Number(mm) - 1,
+      Number(dd),
+    ).toLocaleDateString("id-ID", {
       day: "2-digit",
       month: "long",
       year: "numeric",
@@ -55,7 +58,10 @@ function formatTanggal(tanggal) {
   }
 
   const date = new Date(tanggal);
-  if (Number.isNaN(date.getTime())) return String(tanggal);
+
+  if (Number.isNaN(date.getTime())) {
+    return String(tanggal);
+  }
 
   return date.toLocaleDateString("id-ID", {
     day: "2-digit",
@@ -68,7 +74,10 @@ function formatJam(tanggal) {
   if (!tanggal) return "-";
 
   const date = new Date(tanggal);
-  if (Number.isNaN(date.getTime())) return "-";
+
+  if (Number.isNaN(date.getTime())) {
+    return "-";
+  }
 
   return date.toLocaleTimeString("id-ID", {
     hour: "2-digit",
@@ -78,54 +87,265 @@ function formatJam(tanggal) {
 
 function getTodayInputValue() {
   const today = new Date();
+
   const yyyy = today.getFullYear();
   const mm = String(today.getMonth() + 1).padStart(2, "0");
   const dd = String(today.getDate()).padStart(2, "0");
+
   return `${yyyy}-${mm}-${dd}`;
 }
 
+/* =========================================================
+   RESPONSE HELPERS
+========================================================= */
+
 function normalizeListResponse(response) {
   if (Array.isArray(response)) return response;
-  if (Array.isArray(response?.data)) return response.data;
-  if (Array.isArray(response?.data?.data)) return response.data.data;
-  if (Array.isArray(response?.items)) return response.items;
-  if (Array.isArray(response?.result)) return response.result;
+
+  if (Array.isArray(response?.data)) {
+    return response.data;
+  }
+
+  if (Array.isArray(response?.data?.data)) {
+    return response.data.data;
+  }
+
+  if (Array.isArray(response?.items)) {
+    return response.items;
+  }
+
+  if (Array.isArray(response?.result)) {
+    return response.result;
+  }
+
   return [];
 }
 
-function normalizeAbsensiItem(item, fallbackKelas = null) {
-  const pengguna = item?.pengguna || item?.siswa || {};
-  const roleRaw =
-    item?.role ||
-    item?.peran ||
-    pengguna?.role ||
-    pengguna?.peran?.nama ||
-    pengguna?.role?.nama ||
+/* =========================================================
+   ROLE HELPERS
+========================================================= */
+
+function normalizeRole(value) {
+  if (!value) return null;
+
+  const text = String(value)
+    .trim()
+    .toLowerCase();
+
+  if (
+    text.includes("guru") ||
+    text.includes("teacher") ||
+    text === "pengajar"
+  ) {
+    return "Guru";
+  }
+
+  if (
+    text.includes("staff") ||
+    text.includes("staf") ||
+    text.includes("tenaga kependidikan")
+  ) {
+    return "Staff";
+  }
+
+  if (
+    text.includes("siswa") ||
+    text.includes("student") ||
+    text.includes("peserta didik")
+  ) {
+    return "Siswa";
+  }
+
+  return null;
+}
+
+/*
+ * ROLE HARUS DIAMBIL DARI DATA PENGGUNA.
+ * Jangan menentukan Guru/Siswa berdasarkan kelas.
+ */
+function getRoleFromUser(user) {
+  if (!user) return null;
+
+  const candidates = [
+    user?.peran?.nama,
+    user?.peran?.namaTampilan,
+    user?.role?.nama,
+    user?.role?.namaTampilan,
+    user?.role,
+    user?.peran,
+    user?.jabatan,
+  ];
+
+  for (const candidate of candidates) {
+    const role = normalizeRole(candidate);
+
+    if (role) {
+      return role;
+    }
+  }
+
+  return null;
+}
+
+/* =========================================================
+   STATUS
+========================================================= */
+
+function normalizeStatus(status) {
+  const value = String(status || "")
+    .trim()
+    .toLowerCase();
+
+  if (value === "hadir") {
+    return "Hadir";
+  }
+
+  if (
+    value === "terlambat" ||
+    value === "late"
+  ) {
+    return "Terlambat";
+  }
+
+  if (value === "izin") {
+    return "Izin";
+  }
+
+  if (value === "sakit") {
+    return "Sakit";
+  }
+
+  if (
+    value === "alpha" ||
+    value === "alpa" ||
+    value === "tidak hadir"
+  ) {
+    return "Tidak Hadir";
+  }
+
+  return "Tidak Hadir";
+}
+
+/* =========================================================
+   METHOD
+========================================================= */
+
+function normalizeMetode(metode) {
+  const value = String(metode || "")
+    .trim()
+    .toLowerCase();
+
+  if (value === "face") {
+    return "Face";
+  }
+
+  if (value === "lokasi") {
+    return "Lokasi";
+  }
+
+  if (value === "barcode") {
+    return "Barcode";
+  }
+
+  if (value === "manual") {
+    return "Manual";
+  }
+
+  return metode || "-";
+}
+
+/* =========================================================
+   AUTH FETCH
+========================================================= */
+
+async function fetchUserById(userId) {
+  if (!userId) return null;
+
+  const API_URL =
+    process.env.NEXT_PUBLIC_API_URL ||
+    "http://localhost:5000";
+
+  const token =
+    typeof window !== "undefined"
+      ? localStorage.getItem("token")
+      : null;
+
+  if (!token) {
+    return null;
+  }
+
+  try {
+    const response = await fetch(
+      `${API_URL}/api/users/${userId}`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      },
+    );
+
+    if (!response.ok) {
+      console.warn(
+        `Gagal mengambil user ${userId}:`,
+        response.status,
+      );
+
+      return null;
+    }
+
+    const result = await response.json();
+
+    return (
+      result?.data ||
+      result?.data?.data ||
+      result?.user ||
+      result?.result ||
+      null
+    );
+  } catch (error) {
+    console.error(
+      `Error mengambil detail user ${userId}:`,
+      error,
+    );
+
+    return null;
+  }
+}
+
+/* =========================================================
+   NORMALIZE ABSENSI
+========================================================= */
+
+function normalizeAbsensiItem(
+  item,
+  fallbackKelas = null,
+  authoritativeUser = null,
+) {
+  const pengguna =
+    authoritativeUser ||
+    item?.pengguna ||
+    item?.siswa ||
+    {};
+
+  /*
+   * PRIORITAS ROLE:
+   * 1. /api/users/:id
+   * 2. item.pengguna.peran
+   * 3. item.role
+   * 4. jabatan
+   *
+   * TIDAK berdasarkan kelas.
+   */
+
+  const role =
+    getRoleFromUser(authoritativeUser) ||
+    getRoleFromUser(item?.pengguna) ||
+    normalizeRole(item?.role) ||
+    normalizeRole(item?.peran) ||
+    normalizeRole(item?.jabatan) ||
     "Siswa";
-
-  const roleText = String(roleRaw || "Siswa").toLowerCase();
-  const role = roleText.includes("guru")
-    ? "Guru"
-    : roleText.includes("staff") || roleText.includes("staf")
-      ? "Staff"
-      : "Siswa";
-
-  const statusRaw = String(item?.status || "alpha").toLowerCase();
-  const status =
-    statusRaw === "alpa" ? "Tidak Hadir" :
-    statusRaw === "alpha" ? "Tidak Hadir" :
-    statusRaw === "hadir" ? "Hadir" :
-    statusRaw === "izin" ? "Izin" :
-    statusRaw === "sakit" ? "Sakit" :
-    statusRaw;
-
-  const metodeRaw = String(item?.metode || "-").toLowerCase();
-  const metode =
-    metodeRaw === "lokasi" ? "Lokasi" :
-    metodeRaw === "barcode" ? "Barcode" :
-    metodeRaw === "face" ? "Face" :
-    metodeRaw === "manual" ? "Manual" :
-    item?.metode || "-";
 
   const nama =
     pengguna?.namaLengkap ||
@@ -135,11 +355,12 @@ function normalizeAbsensiItem(item, fallbackKelas = null) {
     "Pengguna";
 
   const nomorInduk =
-    pengguna?.nisn ||
     pengguna?.nip ||
+    pengguna?.nipd ||
+    pengguna?.nisn ||
     pengguna?.nik ||
-    item?.nisn ||
     item?.nip ||
+    item?.nisn ||
     item?.nomorInduk ||
     "-";
 
@@ -150,69 +371,128 @@ function normalizeAbsensiItem(item, fallbackKelas = null) {
     fallbackKelas?.nama ||
     "-";
 
-  const initials = nama
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase() || "-";
+  const status = normalizeStatus(
+    item?.status,
+  );
+
+  const metode = normalizeMetode(
+    item?.metode,
+  );
+
+  const initials =
+    nama
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0])
+      .join("")
+      .toUpperCase() || "-";
 
   return {
     ...item,
-    _kelasId: item?.kelasId || item?.kelas?.id || fallbackKelas?.id || null,
+
+    id:
+      item?.id ||
+      item?.absensiId ||
+      `${pengguna?.id || "user"}-${item?.dibuatPada || Date.now()}`,
+
+    penggunaId:
+      item?.penggunaId ||
+      item?.pengguna?.id ||
+      authoritativeUser?.id ||
+      null,
+
+    _kelasId:
+      item?.kelasId ||
+      item?.kelas?.id ||
+      fallbackKelas?.id ||
+      null,
+
     nama,
+
     nomorInduk,
+
     kelas,
+
     role,
-    tanggal: item?.tanggal || item?.dibuatPada || null,
-    jamMasuk: item?.dibuatPada ? formatJam(item.dibuatPada) : "-",
+
+    tanggal:
+      item?.tanggal ||
+      item?.dibuatPada ||
+      null,
+
+    jamMasuk:
+      item?.dibuatPada
+        ? formatJam(item.dibuatPada)
+        : "-",
+
     jamPulang: "-",
+
     status,
+
     metode,
+
     lokasi:
-      item?.lintang != null && item?.bujur != null
+      item?.lintang != null &&
+      item?.bujur != null
         ? "Sekolah / GPS"
         : "-",
-    keterangan: item?.keterangan || "-",
+
+    keterangan:
+      item?.keterangan || "-",
+
     avatar: initials,
+
+    /*
+     * Data user asli disimpan untuk halaman detail.
+     */
+    penggunaDetail: authoritativeUser || pengguna,
   };
 }
 
 /* =========================================================
-   CONFIG
+   STATUS CONFIG
 ========================================================= */
 
 const STATUS_CONFIG = {
   Hadir: {
     bg: "bg-emerald-50",
     text: "text-emerald-700",
-    border: "border-emerald-100",
+    border: "border-emerald-200",
     dot: "bg-emerald-500",
+    icon: UserCheck,
   },
+
   Terlambat: {
     bg: "bg-amber-50",
     text: "text-amber-700",
-    border: "border-amber-100",
+    border: "border-amber-200",
     dot: "bg-amber-500",
+    icon: Clock3,
   },
+
   Izin: {
     bg: "bg-blue-50",
     text: "text-blue-700",
-    border: "border-blue-100",
+    border: "border-blue-200",
     dot: "bg-blue-500",
+    icon: AlertCircle,
   },
+
   Sakit: {
     bg: "bg-violet-50",
     text: "text-violet-700",
-    border: "border-violet-100",
+    border: "border-violet-200",
     dot: "bg-violet-500",
+    icon: AlertCircle,
   },
+
   "Tidak Hadir": {
     bg: "bg-red-50",
     text: "text-red-700",
-    border: "border-red-100",
+    border: "border-red-200",
     dot: "bg-red-500",
+    icon: UserX,
   },
 };
 
@@ -222,15 +502,16 @@ const STATUS_CONFIG = {
 
 function StatusBadge({ status }) {
   const config =
-    STATUS_CONFIG[status] || STATUS_CONFIG["Tidak Hadir"];
+    STATUS_CONFIG[status] ||
+    STATUS_CONFIG["Tidak Hadir"];
+
+  const Icon = config.icon;
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium ${config.bg} ${config.text} ${config.border}`}
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap ${config.bg} ${config.text} ${config.border}`}
     >
-      <span
-        className={`h-1.5 w-1.5 rounded-full ${config.dot}`}
-      />
+      <Icon size={12} />
       {status}
     </span>
   );
@@ -242,14 +523,19 @@ function StatusBadge({ status }) {
 
 function RoleBadge({ role }) {
   const config = {
-    Guru: "border-blue-100 bg-blue-50 text-blue-700",
-    Siswa: "border-indigo-100 bg-indigo-50 text-indigo-700",
-    Staff: "border-slate-200 bg-slate-100 text-slate-700",
+    Guru:
+      "border-blue-200 bg-blue-50 text-blue-700",
+
+    Siswa:
+      "border-indigo-200 bg-indigo-50 text-indigo-700",
+
+    Staff:
+      "border-slate-200 bg-slate-100 text-slate-700",
   };
 
   return (
     <span
-      className={`inline-flex rounded-md border px-2 py-1 text-[10px] font-medium ${
+      className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold ${
         config[role] || config.Staff
       }`}
     >
@@ -267,30 +553,35 @@ function StatCard({
   value,
   description,
   icon: Icon,
-  iconBg,
-  iconColor,
+  iconClass,
+  loading,
 }) {
   return (
-    <div className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm">
+    <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-5 shadow-sm hover:shadow-md transition-all duration-200">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-xs font-medium text-slate-500">
+          <p className="text-[11px] sm:text-xs font-medium text-slate-500">
             {title}
           </p>
 
-          <p className="mt-1 text-2xl font-bold tracking-tight text-slate-800">
-            {value}
-          </p>
+          {loading ? (
+            <div className="mt-2 h-8 w-16 animate-pulse rounded-lg bg-slate-100" />
+          ) : (
+            <p className="mt-1.5 text-2xl sm:text-3xl font-bold text-slate-900">
+              {value}
+            </p>
+          )}
 
-          <p className="mt-1 truncate text-xs text-slate-400">
+          <p className="mt-1 text-[10px] sm:text-xs text-slate-400 truncate">
             {description}
           </p>
         </div>
 
-        <div
-          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${iconBg}`}
-        >
-          <Icon size={19} className={iconColor} />
+        <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center shrink-0">
+          <Icon
+            size={18}
+            className={iconClass}
+          />
         </div>
       </div>
     </div>
@@ -301,12 +592,19 @@ function StatCard({
    INFO ITEM
 ========================================================= */
 
-function InfoItem({ icon: Icon, label, value }) {
+function InfoItem({
+  icon: Icon,
+  label,
+  value,
+}) {
   return (
     <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
       <div className="flex items-start gap-2.5">
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white">
-          <Icon size={14} className="text-slate-400" />
+          <Icon
+            size={14}
+            className="text-slate-400"
+          />
         </div>
 
         <div className="min-w-0">
@@ -324,112 +622,281 @@ function InfoItem({ icon: Icon, label, value }) {
 }
 
 /* =========================================================
+   MINI SUMMARY
+========================================================= */
+
+function MiniSummary({
+  label,
+  value,
+}) {
+  return (
+    <div>
+      <p className="text-[10px] text-slate-400">
+        {label}
+      </p>
+
+      <p className="text-sm font-bold text-slate-700">
+        {value}
+      </p>
+    </div>
+  );
+}
+
+/* =========================================================
    PAGE
 ========================================================= */
 
 export default function PresensiPage() {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const router = useRouter();
 
-  const [searchQuery, setSearchQuery] = useState("");
-  const [roleFilter, setRoleFilter] = useState("Semua");
-  const [statusFilter, setStatusFilter] = useState("Semua");
-  const [classFilter, setClassFilter] = useState("Semua");
-  const [dateFilter, setDateFilter] = useState(getTodayInputValue());
+  const [sidebarOpen, setSidebarOpen] =
+    useState(true);
+
+  const [searchQuery, setSearchQuery] =
+    useState("");
+
+  const [roleFilter, setRoleFilter] =
+    useState("Semua");
+
+  const [statusFilter, setStatusFilter] =
+    useState("Semua");
+
+  const [classFilter, setClassFilter] =
+    useState("Semua");
+
+  const [dateFilter, setDateFilter] =
+    useState(getTodayInputValue());
 
   const [kelas, setKelas] = useState([]);
-  const [absensi, setAbsensi] = useState([]);
-  const [loadingKelas, setLoadingKelas] = useState(true);
-  const [loadingAbsensi, setLoadingAbsensi] = useState(false);
-  const [errorKelas, setErrorKelas] = useState("");
-  const [errorAbsensi, setErrorAbsensi] = useState("");
 
-  const [currentPage, setCurrentPage] = useState(1);
+  const [absensi, setAbsensi] =
+    useState([]);
+
+  const [loadingKelas, setLoadingKelas] =
+    useState(true);
+
+  const [loadingAbsensi, setLoadingAbsensi] =
+    useState(false);
+
+  const [errorKelas, setErrorKelas] =
+    useState("");
+
+  const [errorAbsensi, setErrorAbsensi] =
+    useState("");
+
+  const [currentPage, setCurrentPage] =
+    useState(1);
 
   const [selectedPresensi, setSelectedPresensi] =
     useState(null);
 
-  const [editPresensi, setEditPresensi] = useState(null);
+  const [editPresensi, setEditPresensi] =
+    useState(null);
 
-  const [editStatus, setEditStatus] = useState("");
+  const [editStatus, setEditStatus] =
+    useState("");
 
   const [editKeterangan, setEditKeterangan] =
     useState("");
 
-  const [isSaving, setIsSaving] = useState(false);
+  const [isSaving, setIsSaving] =
+    useState(false);
 
   const itemsPerPage = 7;
 
-  const fetchKelas = useCallback(async () => {
-    try {
-      setLoadingKelas(true);
-      setErrorKelas("");
+  /* =======================================================
+     FETCH KELAS
+  ======================================================= */
 
-      const response = await getKelas({
-        page: 1,
-        limit: 100,
-        sortBy: "tingkat",
-        sortOrder: "asc",
-      });
+  const fetchKelas = useCallback(
+    async () => {
+      try {
+        setLoadingKelas(true);
+        setErrorKelas("");
 
-      const data = normalizeListResponse(response);
-      setKelas(data);
-    } catch (err) {
-      console.error("Error fetch kelas admin absensi:", err);
-      setKelas([]);
-      setErrorKelas(err?.message || "Gagal mengambil data kelas.");
-    } finally {
-      setLoadingKelas(false);
-    }
-  }, []);
+        const response = await getKelas({
+          page: 1,
+          limit: 100,
+          sortBy: "tingkat",
+          sortOrder: "asc",
+        });
 
-  const fetchAbsensi = useCallback(async () => {
-    if (kelas.length === 0) {
-      setAbsensi([]);
-      return;
-    }
+        const data =
+          normalizeListResponse(response);
 
-    try {
-      setLoadingAbsensi(true);
-      setErrorAbsensi("");
+        setKelas(data);
+      } catch (err) {
+        console.error(
+          "Error fetch kelas:",
+          err,
+        );
 
-      const selectedClasses =
-        classFilter === "Semua"
-          ? kelas
-          : kelas.filter((item) => item?.id === classFilter);
+        setKelas([]);
 
-      const responses = await Promise.all(
-        selectedClasses.map(async (kelasItem) => {
-          try {
-            const response = await getAbsensiKelas(
-              kelasItem.id,
-              dateFilter || null,
-            );
+        setErrorKelas(
+          err?.message ||
+            "Gagal mengambil data kelas.",
+        );
+      } finally {
+        setLoadingKelas(false);
+      }
+    },
+    [],
+  );
 
-            const records = normalizeListResponse(response);
-            return records.map((item) =>
-              normalizeAbsensiItem(item, kelasItem),
-            );
-          } catch (err) {
-            console.error(
-              `Error absensi kelas ${kelasItem?.nama || kelasItem?.id}:`,
-              err,
-            );
-            throw err;
-          }
-        }),
-      );
+  /* =======================================================
+     FETCH ABSENSI
+  ======================================================= */
 
-      setAbsensi(responses.flat());
-    } catch (err) {
-      console.error("Error fetch absensi admin:", err);
-      setAbsensi([]);
-      setErrorAbsensi(
-        err?.message || "Gagal mengambil data absensi dari backend.",
-      );
-    } finally {
-      setLoadingAbsensi(false);
-    }
-  }, [kelas, classFilter, dateFilter]);
+  const fetchAbsensi = useCallback(
+    async () => {
+      if (kelas.length === 0) {
+        setAbsensi([]);
+        return;
+      }
+
+      try {
+        setLoadingAbsensi(true);
+        setErrorAbsensi("");
+
+        const selectedClasses =
+          classFilter === "Semua"
+            ? kelas
+            : kelas.filter(
+                (item) =>
+                  item?.id === classFilter,
+              );
+
+        const responses =
+          await Promise.all(
+            selectedClasses.map(
+              async (kelasItem) => {
+                try {
+                  const response =
+                    await getAbsensiKelas(
+                      kelasItem.id,
+                      dateFilter || null,
+                    );
+
+                  const records =
+                    normalizeListResponse(
+                      response,
+                    );
+
+                  /*
+                   * Ambil user ID dari setiap
+                   * record lalu ambil data user
+                   * sebenarnya.
+                   */
+                  const normalized =
+                    await Promise.all(
+                      records.map(
+                        async (item) => {
+                          const userId =
+                            item?.penggunaId ||
+                            item?.pengguna?.id ||
+                            item?.siswa?.id ||
+                            null;
+
+                          let userDetail = null;
+
+                          if (userId) {
+                            userDetail =
+                              await fetchUserById(
+                                userId,
+                              );
+                          }
+
+                          return normalizeAbsensiItem(
+                            item,
+                            kelasItem,
+                            userDetail,
+                          );
+                        },
+                      ),
+                    );
+
+                  return normalized;
+                } catch (err) {
+                  console.error(
+                    `Error absensi kelas ${
+                      kelasItem?.nama ||
+                      kelasItem?.id
+                    }:`,
+                    err,
+                  );
+
+                  throw err;
+                }
+              },
+            ),
+          );
+
+        const finalData =
+          responses.flat();
+
+        /*
+         * Debug supaya mudah mengecek
+         * Siti Rahayu.
+         */
+        console.log(
+          "=== DATA PRESENSI ADMIN ===",
+          finalData,
+        );
+
+        const siti =
+          finalData.find((item) =>
+            String(item.nama)
+              .toLowerCase()
+              .includes("siti rahayu"),
+          );
+
+        if (siti) {
+          console.log(
+            "=== DATA SITI RAHAYU ===",
+            {
+              id: siti.id,
+              penggunaId:
+                siti.penggunaId,
+              nama: siti.nama,
+              role: siti.role,
+              nomorInduk:
+                siti.nomorInduk,
+              status: siti.status,
+              metode: siti.metode,
+              pengguna:
+                siti.penggunaDetail,
+            },
+          );
+        }
+
+        setAbsensi(finalData);
+      } catch (err) {
+        console.error(
+          "Error fetch absensi:",
+          err,
+        );
+
+        setAbsensi([]);
+
+        setErrorAbsensi(
+          err?.message ||
+            "Gagal mengambil data absensi dari backend.",
+        );
+      } finally {
+        setLoadingAbsensi(false);
+      }
+    },
+    [
+      kelas,
+      classFilter,
+      dateFilter,
+    ],
+  );
+
+  /* =======================================================
+     EFFECT
+  ======================================================= */
 
   useEffect(() => {
     fetchKelas();
@@ -439,19 +906,28 @@ export default function PresensiPage() {
     fetchAbsensi();
   }, [fetchAbsensi]);
 
-  /* =========================================================
-     FILTER DATA
-  ========================================================= */
+  /* =======================================================
+     FILTER
+  ======================================================= */
 
   const filteredData = useMemo(() => {
     return absensi.filter((item) => {
-      const search = searchQuery.toLowerCase().trim();
+      const search =
+        searchQuery
+          .toLowerCase()
+          .trim();
 
       const matchesSearch =
         !search ||
-        item.nama.toLowerCase().includes(search) ||
-        item.nomorInduk.toLowerCase().includes(search) ||
-        item.kelas.toLowerCase().includes(search);
+        String(item.nama)
+          .toLowerCase()
+          .includes(search) ||
+        String(item.nomorInduk)
+          .toLowerCase()
+          .includes(search) ||
+        String(item.kelas)
+          .toLowerCase()
+          .includes(search);
 
       const matchesRole =
         roleFilter === "Semua" ||
@@ -481,92 +957,159 @@ export default function PresensiPage() {
     classFilter,
   ]);
 
-  /* =========================================================
+  /* =======================================================
      PAGINATION
-  ========================================================= */
+  ======================================================= */
 
   const totalPages = Math.max(
     1,
-    Math.ceil(filteredData.length / itemsPerPage)
+    Math.ceil(
+      filteredData.length /
+        itemsPerPage,
+    ),
   );
 
-  const safeCurrentPage = Math.min(
-    currentPage,
-    totalPages
-  );
+  const safeCurrentPage =
+    Math.min(
+      currentPage,
+      totalPages,
+    );
 
-  const paginatedData = filteredData.slice(
-    (safeCurrentPage - 1) * itemsPerPage,
-    safeCurrentPage * itemsPerPage
-  );
+  const paginatedData =
+    filteredData.slice(
+      (safeCurrentPage - 1) *
+        itemsPerPage,
+      safeCurrentPage *
+        itemsPerPage,
+    );
 
-  /* =========================================================
+  /* =======================================================
      STATISTICS
-  ========================================================= */
+  ======================================================= */
 
-  const totalPresensi = absensi.length;
+  const totalPresensi =
+    absensi.length;
 
-  const totalHadir = absensi.filter(
-    (item) => item.status === "Hadir"
-  ).length;
+  const totalHadir =
+    absensi.filter(
+      (item) =>
+        item.status === "Hadir",
+    ).length;
 
-  const totalTerlambat = absensi.filter((item) => String(item.status).toLowerCase() === "terlambat").length;
+  const totalTerlambat =
+    absensi.filter(
+      (item) =>
+        item.status ===
+        "Terlambat",
+    ).length;
 
-  const totalTidakHadir = absensi.filter(
-    (item) =>
-      item.status === "Tidak Hadir" ||
-      item.status === "Izin" ||
-      item.status === "Sakit"
-  ).length;
+  const totalTidakHadir =
+    absensi.filter(
+      (item) =>
+        item.status ===
+          "Tidak Hadir" ||
+        item.status === "Izin" ||
+        item.status === "Sakit",
+    ).length;
 
-  const attendancePercentage = totalPresensi
-    ? Math.round((totalHadir / totalPresensi) * 100)
-    : 0;
+  const attendancePercentage =
+    totalPresensi
+      ? Math.round(
+          (totalHadir /
+            totalPresensi) *
+            100,
+        )
+      : 0;
 
-  /* =========================================================
+  /* =======================================================
      RESET
-  ========================================================= */
+  ======================================================= */
 
   const resetFilters = () => {
     setSearchQuery("");
     setRoleFilter("Semua");
     setStatusFilter("Semua");
     setClassFilter("Semua");
-    setDateFilter(getTodayInputValue());
+    setDateFilter(
+      getTodayInputValue(),
+    );
     setCurrentPage(1);
   };
 
-  /* =========================================================
-     OPEN EDIT
-  ========================================================= */
+  /* =======================================================
+     DETAIL
+  ======================================================= */
+
+  const handleOpenDetail = (item) => {
+    /*
+     * Kalau Guru → halaman detail Guru.
+     */
+    if (
+      item.role === "Guru" &&
+      item.penggunaId
+    ) {
+      router.push(
+        `/admin/presensi/guru/${item.penggunaId}`,
+      );
+
+      return;
+    }
+
+    /*
+     * Untuk role lain tetap menggunakan
+     * modal detail.
+     */
+    setSelectedPresensi(item);
+  };
+
+  /* =======================================================
+     EDIT
+  ======================================================= */
 
   const handleOpenEdit = (item) => {
     setSelectedPresensi(null);
+
     setEditPresensi(item);
+
     setEditStatus(item.status);
+
     setEditKeterangan(
-      item.keterangan === "-" ? "" : item.keterangan
+      item.keterangan === "-"
+        ? ""
+        : item.keterangan,
     );
   };
 
-  /* =========================================================
+  /* =======================================================
      SAVE EDIT
-  ========================================================= */
+  ======================================================= */
 
   const handleSaveEdit = async () => {
     if (!editPresensi) return;
 
     setIsSaving(true);
+
     setErrorAbsensi(
-      "Backend saat ini belum menyediakan endpoint update absensi admin, jadi perubahan tidak disimpan."
+      "Backend saat ini belum menyediakan endpoint update absensi admin, jadi perubahan tidak disimpan.",
     );
+
     setIsSaving(false);
+
     setEditPresensi(null);
   };
 
+  /* =======================================================
+     EXPORT
+  ======================================================= */
+
   const handleExport = () => {
-    if (filteredData.length === 0) {
-      setErrorAbsensi("Tidak ada data absensi untuk diekspor.");
+    if (
+      filteredData.length === 0
+    ) {
+      setErrorAbsensi(
+        "Tidak ada data absensi untuk diekspor.",
+      );
+
       return;
     }
 
@@ -583,189 +1126,233 @@ export default function PresensiPage() {
       "Keterangan",
     ];
 
-    const rows = filteredData.map((item) => [
-      item.nama,
-      item.nomorInduk,
-      item.kelas,
-      item.role,
-      formatTanggal(item.tanggal),
-      item.jamMasuk,
-      item.status,
-      item.metode,
-      item.lokasi,
-      item.keterangan,
-    ]);
+    const rows =
+      filteredData.map(
+        (item) => [
+          item.nama,
+          item.nomorInduk,
+          item.kelas,
+          item.role,
+          formatTanggal(
+            item.tanggal,
+          ),
+          item.jamMasuk,
+          item.status,
+          item.metode,
+          item.lokasi,
+          item.keterangan,
+        ],
+      );
 
-    const csv = [headers, ...rows]
+    const csv = [
+      headers,
+      ...rows,
+    ]
       .map((row) =>
         row
-          .map((value) => `"${String(value ?? "").replace(/"/g, '""')}"`)
+          .map(
+            (value) =>
+              `"${String(
+                value ?? "",
+              ).replace(
+                /"/g,
+                '""',
+              )}"`,
+          )
           .join(","),
       )
       .join("\n");
 
-    const blob = new Blob(["\ufeff" + csv], {
-      type: "text/csv;charset=utf-8;",
-    });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
+    const blob = new Blob(
+      ["\ufeff" + csv],
+      {
+        type: "text/csv;charset=utf-8;",
+      },
+    );
+
+    const url =
+      URL.createObjectURL(blob);
+
+    const link =
+      document.createElement(
+        "a",
+      );
+
     link.href = url;
-    link.download = `presensi-${dateFilter || "semua"}.csv`;
-    document.body.appendChild(link);
+
+    link.download =
+      `presensi-${dateFilter || "semua"}.csv`;
+
+    document.body.appendChild(
+      link,
+    );
+
     link.click();
+
     link.remove();
+
     URL.revokeObjectURL(url);
   };
 
-  /* =========================================================
-     TOGGLE SIDEBAR
-  ========================================================= */
-
-  const toggleSidebar = () => {
-    setIsCollapsed((prev) => !prev);
-  };
+  /* =======================================================
+     RENDER
+  ======================================================= */
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-slate-50">
-      {/* =====================================================
-          SIDEBAR
-      ===================================================== */}
-
+    <div className="flex h-screen w-full bg-slate-50 overflow-hidden">
       <Sidebar
-        active="presensi"
-        setActive={() => {}}
-        collapsed={isCollapsed}
-        setCollapsed={setIsCollapsed}
         role="admin"
+        activeMenu="presensi"
+        isOpen={sidebarOpen}
+        onToggle={() =>
+          setSidebarOpen(
+            !sidebarOpen,
+          )
+        }
       />
 
-      {/* =====================================================
-          MAIN
-      ===================================================== */}
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+        <Header
+          title="Presensi & Kehadiran"
+          onMenuClick={() =>
+            setSidebarOpen(
+              !sidebarOpen,
+            )
+          }
+        />
 
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        {/* ===================================================
-            HEADER
-        =================================================== */}
+        <main className="flex-1 overflow-y-auto">
+          <div className="p-4 sm:p-6 lg:p-8 space-y-5 sm:space-y-6">
 
-        <div className="sticky top-0 z-40 shrink-0">
-          <Header
-            toggleSidebar={toggleSidebar}
-            notifications={[]}
-            user={{
-              name: "Admin Sekolah",
-              email: "admin@smartschool.com",
-              avatar: "AD",
-            }}
-          />
-        </div>
+            {/* HEADER */}
 
-        {/* ===================================================
-            CONTENT
-        =================================================== */}
-
-        <main className="min-h-0 flex-1 overflow-hidden">
-          <div className="flex h-full min-h-0 flex-col px-4 py-4 sm:px-5 lg:px-6">
-            {/* =================================================
-                PAGE HEADER
-            ================================================= */}
-
-            <div className="mb-4 shrink-0">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex min-w-0 items-center gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#eaf1ff]">
-                    <ClipboardCheck
-                      size={20}
-                      className="text-[#155DFC]"
-                    />
-                  </div>
-
-                  <div className="min-w-0">
-                    <h1 className="truncate text-lg font-bold tracking-tight text-slate-800 sm:text-xl">
-                      Presensi & Kehadiran
-                    </h1>
-
-                    <p className="truncate text-xs text-slate-500">
-                      Kelola dan pantau kehadiran siswa, guru,
-                      dan staff sekolah
-                    </p>
-                  </div>
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#155DFC] to-[#0d47c9] text-white flex items-center justify-center shadow-lg shadow-[#155DFC]/20 shrink-0">
+                  <ClipboardCheck size={20} />
                 </div>
 
-                <div className="flex shrink-0 items-center gap-2">
-                  <button
-                    onClick={handleExport}
-                    type="button"
-                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-600 shadow-sm transition hover:bg-slate-50"
-                  >
-                    <Download size={15} />
-                    Export
-                  </button>
+                <div className="min-w-0">
+                  <h1 className="text-xl sm:text-2xl font-bold text-slate-800 truncate">
+                    Presensi & Kehadiran
+                  </h1>
+
+                  <p className="text-xs sm:text-sm text-slate-500 mt-1">
+                    Kelola dan pantau kehadiran siswa, guru, dan staff sekolah.
+                  </p>
                 </div>
               </div>
+
+              <button
+                type="button"
+                onClick={handleExport}
+                disabled={
+                  filteredData.length === 0
+                }
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#155DFC] to-[#0d47c9] text-white text-sm font-semibold shadow-sm hover:brightness-110 transition disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <Download size={15} />
+                Export Data
+              </button>
             </div>
 
-            {/* =================================================
-                DATE SUMMARY
-            ================================================= */}
+            {/* ERROR */}
 
-            <div className="mb-4 shrink-0 rounded-xl border border-[#c7dbff] bg-[#f5f8ff] px-4 py-3">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white">
-                    <CalendarDays
-                      size={17}
-                      className="text-[#155DFC]"
+            {(errorKelas ||
+              errorAbsensi) && (
+              <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4">
+                <AlertCircle
+                  size={19}
+                  className="mt-0.5 shrink-0 text-red-600"
+                />
+
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-red-800">
+                    Terjadi kesalahan
+                  </p>
+
+                  <p className="mt-0.5 text-sm text-red-700">
+                    {errorKelas ||
+                      errorAbsensi}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setErrorKelas("");
+                    setErrorAbsensi("");
+                  }}
+                  className="text-red-500 hover:text-red-700"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            )}
+
+            {/* DATE */}
+
+            <section className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+              <div className="p-4 sm:p-5">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#eaf1ff] border border-[#c7dbff]">
+                      <CalendarDays
+                        size={17}
+                        className="text-[#155DFC]"
+                      />
+                    </div>
+
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                        Rekap Tanggal
+                      </p>
+
+                      <p className="text-sm font-bold text-slate-800">
+                        {formatTanggal(
+                          dateFilter,
+                        )}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+                    <MiniSummary
+                      label="Kehadiran"
+                      value={`${attendancePercentage}%`}
+                    />
+
+                    <MiniSummary
+                      label="Hadir"
+                      value={totalHadir}
+                    />
+
+                    <MiniSummary
+                      label="Terlambat"
+                      value={totalTerlambat}
+                    />
+
+                    <MiniSummary
+                      label="Tidak Hadir"
+                      value={
+                        totalTidakHadir
+                      }
                     />
                   </div>
-
-                  <div>
-                    <p className="text-[10px] font-medium uppercase tracking-wide text-slate-400">
-                      Rekap tanggal
-                    </p>
-
-                    <p className="text-sm font-semibold text-slate-700">
-                      {formatTanggal(dateFilter)}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-                  <MiniSummary
-                    label="Kehadiran"
-                    value={`${attendancePercentage}%`}
-                  />
-
-                  <MiniSummary
-                    label="Hadir"
-                    value={totalHadir}
-                  />
-
-                  <MiniSummary
-                    label="Terlambat"
-                    value={totalTerlambat}
-                  />
-
-                  <MiniSummary
-                    label="Tidak Hadir"
-                    value={totalTidakHadir}
-                  />
                 </div>
               </div>
-            </div>
+            </section>
 
-            {/* =================================================
-                STATISTICS
-            ================================================= */}
+            {/* STAT */}
 
-            <div className="mb-4 grid shrink-0 grid-cols-2 gap-3 xl:grid-cols-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               <StatCard
                 title="Total Presensi"
                 value={totalPresensi}
                 description="Data presensi hari ini"
                 icon={Users}
-                iconBg="bg-[#eaf1ff]"
-                iconColor="text-[#155DFC]"
+                iconClass="text-[#155DFC]"
+                loading={loadingAbsensi}
               />
 
               <StatCard
@@ -773,8 +1360,8 @@ export default function PresensiPage() {
                 value={totalHadir}
                 description="Kehadiran tercatat"
                 icon={UserCheck}
-                iconBg="bg-emerald-50"
-                iconColor="text-emerald-600"
+                iconClass="text-emerald-500"
+                loading={loadingAbsensi}
               />
 
               <StatCard
@@ -782,8 +1369,8 @@ export default function PresensiPage() {
                 value={totalTerlambat}
                 description="Masuk setelah jam"
                 icon={Clock3}
-                iconBg="bg-amber-50"
-                iconColor="text-amber-600"
+                iconClass="text-amber-500"
+                loading={loadingAbsensi}
               />
 
               <StatCard
@@ -791,313 +1378,451 @@ export default function PresensiPage() {
                 value={totalTidakHadir}
                 description="Izin, sakit, atau alpa"
                 icon={UserX}
-                iconBg="bg-red-50"
-                iconColor="text-red-500"
+                iconClass="text-red-500"
+                loading={loadingAbsensi}
               />
             </div>
 
-            {/* =================================================
-                TABLE CARD
-            ================================================= */}
+            {/* FILTER */}
 
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-sm">
-              {/* =================================================
-                  FILTER
-              ================================================= */}
+            <section className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4">
+              <div className="flex flex-col lg:flex-row gap-3">
+                <div className="relative flex-1 min-w-0">
+                  <Search
+                    size={16}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                  />
 
-              <div className="shrink-0 border-b border-slate-100 p-3 sm:p-4">
-                <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
-                  {/* SEARCH */}
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(
+                        e.target.value,
+                      );
+                      setCurrentPage(1);
+                    }}
+                    placeholder="Cari nama, NIS/NIP, atau kelas..."
+                    className="w-full pl-9 pr-3 py-2.5 text-sm rounded-xl border border-slate-200 bg-white text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#155DFC]/20 focus:border-[#155DFC]/50 transition"
+                  />
+                </div>
 
-                  <div className="relative min-w-0 flex-1">
-                    <Search
-                      size={17}
-                      className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                    />
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:flex">
+                  <select
+                    value={roleFilter}
+                    onChange={(e) => {
+                      setRoleFilter(
+                        e.target.value,
+                      );
+                      setCurrentPage(1);
+                    }}
+                    className="h-11 min-w-[130px] rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 outline-none focus:border-[#155DFC]/50 focus:ring-2 focus:ring-[#155DFC]/20"
+                  >
+                    <option value="Semua">
+                      Semua Pengguna
+                    </option>
 
-                    <input
-                      type="text"
-                      value={searchQuery}
-                      onChange={(e) => {
-                        setSearchQuery(e.target.value);
-                        setCurrentPage(1);
-                      }}
-                      placeholder="Cari nama, NIS/NIP, atau kelas..."
-                      className="h-10 w-full rounded-lg border border-slate-200 bg-slate-50/50 pl-9 pr-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-[#8bb4ff] focus:bg-white focus:ring-2 focus:ring-[#155DFC]/10"
-                    />
-                  </div>
+                    <option value="Siswa">
+                      Siswa
+                    </option>
 
-                  {/* FILTERS */}
+                    <option value="Guru">
+                      Guru
+                    </option>
 
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:flex">
-                    <select
-                      value={roleFilter}
-                      onChange={(e) => {
-                        setRoleFilter(e.target.value);
-                        setCurrentPage(1);
-                      }}
-                      className="h-10 min-w-[120px] rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-600 outline-none focus:border-[#8bb4ff] focus:ring-2 focus:ring-[#155DFC]/10"
-                    >
-                      <option value="Semua">
-                        Semua Pengguna
-                      </option>
-                      <option value="Siswa">Siswa</option>
-                      <option value="Guru">Guru</option>
-                      <option value="Staff">Staff</option>
-                    </select>
+                    <option value="Staff">
+                      Staff
+                    </option>
+                  </select>
 
-                    <select
-                      value={classFilter}
-                      onChange={(e) => {
-                        setClassFilter(e.target.value);
-                        setCurrentPage(1);
-                      }}
-                      className="h-10 min-w-[130px] rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-600 outline-none focus:border-[#8bb4ff] focus:ring-2 focus:ring-[#155DFC]/10"
-                    >
-                      <option value="Semua">
-                        Semua Kelas
-                      </option>
-                      {kelas.map((item) => (
-                        <option key={item?.id} value={item?.id}>
-                          {item?.nama || `Kelas ${item?.tingkat || "-"}`}
-                          {item?.tingkat ? ` - Tingkat ${item.tingkat}` : ""}
+                  <select
+                    value={classFilter}
+                    onChange={(e) => {
+                      setClassFilter(
+                        e.target.value,
+                      );
+                      setCurrentPage(1);
+                    }}
+                    className="h-11 min-w-[140px] rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 outline-none focus:border-[#155DFC]/50 focus:ring-2 focus:ring-[#155DFC]/20"
+                  >
+                    <option value="Semua">
+                      Semua Kelas
+                    </option>
+
+                    {kelas.map(
+                      (item) => (
+                        <option
+                          key={item?.id}
+                          value={item?.id}
+                        >
+                          {item?.nama ||
+                            `Kelas ${
+                              item?.tingkat ||
+                              "-"
+                            }`}
                         </option>
-                      ))}
-                    </select>
+                      ),
+                    )}
+                  </select>
 
-                    <select
-                      value={statusFilter}
-                      onChange={(e) => {
-                        setStatusFilter(e.target.value);
-                        setCurrentPage(1);
-                      }}
-                      className="h-10 min-w-[135px] rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-600 outline-none focus:border-[#8bb4ff] focus:ring-2 focus:ring-[#155DFC]/10"
-                    >
-                      <option value="Semua">
-                        Semua Status
-                      </option>
-                      <option value="Hadir">Hadir</option>
-                      <option value="Terlambat">
-                        Terlambat
-                      </option>
-                      <option value="Izin">Izin</option>
-                      <option value="Sakit">Sakit</option>
-                      <option value="Tidak Hadir">
-                        Tidak Hadir
-                      </option>
-                    </select>
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => {
+                      setStatusFilter(
+                        e.target.value,
+                      );
+                      setCurrentPage(1);
+                    }}
+                    className="h-11 min-w-[140px] rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 outline-none focus:border-[#155DFC]/50 focus:ring-2 focus:ring-[#155DFC]/20"
+                  >
+                    <option value="Semua">
+                      Semua Status
+                    </option>
 
-                    <input
-                      type="date"
-                      value={dateFilter}
-                      onChange={(e) => {
-                        setDateFilter(e.target.value);
-                        setCurrentPage(1);
-                      }}
-                      className="h-10 min-w-[145px] rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-600 outline-none focus:border-[#8bb4ff] focus:ring-2 focus:ring-[#155DFC]/10"
-                      aria-label="Filter tanggal absensi"
-                    />
+                    <option value="Hadir">
+                      Hadir
+                    </option>
 
-                    <button
-                      onClick={resetFilters}
-                      className="inline-flex h-10 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-500 transition hover:bg-slate-50"
-                    >
-                      <RotateCcw size={14} />
-                      Reset
-                    </button>
-                  </div>
+                    <option value="Terlambat">
+                      Terlambat
+                    </option>
+
+                    <option value="Izin">
+                      Izin
+                    </option>
+
+                    <option value="Sakit">
+                      Sakit
+                    </option>
+
+                    <option value="Tidak Hadir">
+                      Tidak Hadir
+                    </option>
+                  </select>
+
+                  <input
+                    type="date"
+                    value={dateFilter}
+                    onChange={(e) => {
+                      setDateFilter(
+                        e.target.value,
+                      );
+                      setCurrentPage(1);
+                    }}
+                    className="h-11 min-w-[150px] rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 outline-none focus:border-[#155DFC]/50 focus:ring-2 focus:ring-[#155DFC]/20"
+                  />
+
+                  <button
+                    onClick={
+                      resetFilters
+                    }
+                    className="inline-flex h-11 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
+                  >
+                    <RotateCcw size={14} />
+                    Reset
+                  </button>
                 </div>
               </div>
+            </section>
 
-              {/* =================================================
-                  TABLE
-              ================================================= */}
+            {/* TABLE */}
 
-              <div className="min-h-0 flex-1 overflow-auto">
-                <table className="w-full min-w-[1050px] border-collapse">
-                  <thead className="sticky top-0 z-10 bg-slate-50">
-                    <tr className="border-b border-slate-200">
-                      <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+            <section className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+              <div className="px-4 sm:px-5 lg:px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-[#eaf1ff] border border-[#c7dbff] flex items-center justify-center">
+                      <Database
+                        size={15}
+                        className="text-[#155DFC]"
+                      />
+                    </div>
+
+                    <h2 className="text-sm font-bold text-slate-800">
+                      Data Presensi
+                    </h2>
+                  </div>
+
+                  <p className="text-xs text-slate-400 mt-1">
+                    Daftar kehadiran siswa, guru, dan staff.
+                  </p>
+                </div>
+
+                {loadingAbsensi && (
+                  <div className="flex items-center gap-2 text-xs text-slate-500">
+                    <Loader2
+                      size={14}
+                      className="animate-spin text-[#155DFC]"
+                    />
+                    Memuat data...
+                  </div>
+                )}
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[1050px] text-sm border-collapse">
+                  <thead>
+                    <tr className="bg-gradient-to-r from-[#155DFC] to-[#0d47c9] text-white">
+                      <th className="px-4 py-3 text-left text-xs font-semibold">
                         Pengguna
                       </th>
 
-                      <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                      <th className="px-4 py-3 text-left text-xs font-semibold">
                         Kelas / Jabatan
                       </th>
 
-                      <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                      <th className="px-4 py-3 text-left text-xs font-semibold">
                         Jam Masuk
                       </th>
 
-                      <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                      <th className="px-4 py-3 text-left text-xs font-semibold">
                         Jam Pulang
                       </th>
 
-                      <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                      <th className="px-4 py-3 text-left text-xs font-semibold">
                         Status
                       </th>
 
-                      <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                      <th className="px-4 py-3 text-left text-xs font-semibold">
                         Metode
                       </th>
 
-                      <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                      <th className="px-4 py-3 text-center text-xs font-semibold">
                         Aksi
                       </th>
                     </tr>
                   </thead>
 
-                  <tbody className="divide-y divide-slate-100">
-                    {paginatedData.length > 0 ? (
-                      paginatedData.map((item) => (
-                        <tr
-                          key={item.id}
-                          className="group transition hover:bg-slate-50/70"
-                        >
-                          {/* USER */}
+                  <tbody>
+                    {loadingAbsensi ? (
+                      Array.from({
+                        length:
+                          itemsPerPage,
+                      }).map(
+                        (_, index) => (
+                          <tr
+                            key={index}
+                            className="border-b border-slate-100"
+                          >
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-3">
+                                <div className="h-9 w-9 animate-pulse rounded-lg bg-slate-100" />
 
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-3">
-                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#eaf1ff] text-xs font-bold text-[#155DFC]">
-                                {item.avatar}
-                              </div>
+                                <div className="space-y-2">
+                                  <div className="h-4 w-32 animate-pulse rounded bg-slate-100" />
 
-                              <div className="min-w-0">
-                                <p className="truncate text-sm font-semibold text-slate-700">
-                                  {item.nama}
-                                </p>
-
-                                <div className="mt-0.5 flex items-center gap-2">
-                                  <p className="text-[11px] text-slate-400">
-                                    {item.nomorInduk}
-                                  </p>
-
-                                  <RoleBadge role={item.role} />
+                                  <div className="h-3 w-20 animate-pulse rounded bg-slate-100" />
                                 </div>
                               </div>
-                            </div>
-                          </td>
+                            </td>
 
-                          {/* CLASS */}
+                            <td className="px-4 py-3">
+                              <div className="space-y-2">
+                                <div className="h-3 w-24 animate-pulse rounded bg-slate-100" />
 
-                          <td className="px-4 py-3">
-                            <p className="text-xs font-medium text-slate-700">
-                              {item.kelas}
-                            </p>
+                                <div className="h-3 w-20 animate-pulse rounded bg-slate-100" />
+                              </div>
+                            </td>
 
-                            <p className="mt-0.5 text-[11px] text-slate-400">
-                              {item.role === "Guru"
-                                ? "Tenaga Pendidik"
-                                : item.role === "Staff"
-                                ? "Tenaga Kependidikan"
-                                : "Peserta Didik"}
-                            </p>
-                          </td>
+                            <td className="px-4 py-3">
+                              <div className="h-4 w-16 animate-pulse rounded bg-slate-100" />
+                            </td>
 
-                          {/* MASUK */}
+                            <td className="px-4 py-3">
+                              <div className="h-4 w-16 animate-pulse rounded bg-slate-100" />
+                            </td>
 
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-2">
-                              <Clock
-                                size={14}
-                                className={
-                                  item.jamMasuk === "-"
-                                    ? "text-slate-300"
-                                    : "text-slate-400"
+                            <td className="px-4 py-3">
+                              <div className="h-6 w-20 animate-pulse rounded-full bg-slate-100" />
+                            </td>
+
+                            <td className="px-4 py-3">
+                              <div className="h-4 w-20 animate-pulse rounded bg-slate-100" />
+                            </td>
+
+                            <td className="px-4 py-3">
+                              <div className="flex justify-center gap-1">
+                                <div className="h-8 w-8 animate-pulse rounded-lg bg-slate-100" />
+                                <div className="h-8 w-8 animate-pulse rounded-lg bg-slate-100" />
+                              </div>
+                            </td>
+                          </tr>
+                        ),
+                      )
+                    ) : paginatedData.length >
+                      0 ? (
+                      paginatedData.map(
+                        (item) => (
+                          <tr
+                            key={item.id}
+                            className="border-b border-slate-100 last:border-0 hover:bg-[#eaf1ff] transition-colors"
+                          >
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-3">
+                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#155DFC] to-[#0d47c9] text-white text-xs font-bold">
+                                  {item.avatar}
+                                </div>
+
+                                <div className="min-w-0">
+                                  <p className="truncate max-w-[180px] text-sm font-semibold text-slate-800">
+                                    {item.nama}
+                                  </p>
+
+                                  <div className="mt-1 flex items-center gap-2">
+                                    <span className="text-[11px] text-slate-400">
+                                      {
+                                        item.nomorInduk
+                                      }
+                                    </span>
+
+                                    <RoleBadge
+                                      role={
+                                        item.role
+                                      }
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+
+                            <td className="px-4 py-3">
+                              <p className="text-xs font-medium text-slate-700">
+                                {item.role ===
+                                "Guru"
+                                  ? item.penggunaDetail
+                                      ?.jabatan ||
+                                    "Guru"
+                                  : item.kelas}
+                              </p>
+
+                              <p className="mt-0.5 text-[11px] text-slate-400">
+                                {item.role ===
+                                "Guru"
+                                  ? "Tenaga Pendidik"
+                                  : item.role ===
+                                    "Staff"
+                                  ? "Tenaga Kependidikan"
+                                  : "Peserta Didik"}
+                              </p>
+                            </td>
+
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2">
+                                <Clock3
+                                  size={13}
+                                  className={
+                                    item.jamMasuk ===
+                                    "-"
+                                      ? "text-slate-300"
+                                      : "text-[#155DFC]"
+                                  }
+                                />
+
+                                <span
+                                  className={`text-xs font-semibold ${
+                                    item.jamMasuk ===
+                                    "-"
+                                      ? "text-slate-300"
+                                      : "text-slate-700"
+                                  }`}
+                                >
+                                  {
+                                    item.jamMasuk
+                                  }
+                                </span>
+                              </div>
+                            </td>
+
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2">
+                                <Clock3
+                                  size={13}
+                                  className="text-slate-300"
+                                />
+
+                                <span className="text-xs font-semibold text-slate-300">
+                                  -
+                                </span>
+                              </div>
+                            </td>
+
+                            <td className="px-4 py-3">
+                              <StatusBadge
+                                status={
+                                  item.status
                                 }
                               />
 
-                              <span
-                                className={`text-xs font-semibold ${
-                                  item.jamMasuk === "-"
-                                    ? "text-slate-300"
-                                    : "text-slate-700"
-                                }`}
-                              >
-                                {item.jamMasuk}
+                              {item.keterangan !==
+                                "-" && (
+                                <p className="mt-1 max-w-[160px] truncate text-[10px] text-slate-400">
+                                  {
+                                    item.keterangan
+                                  }
+                                </p>
+                              )}
+                            </td>
+
+                            <td className="px-4 py-3">
+                              <span className="text-xs font-medium text-slate-600">
+                                {
+                                  item.metode
+                                }
                               </span>
-                            </div>
-                          </td>
 
-                          {/* PULANG */}
+                              {item.lokasi !==
+                                "-" && (
+                                <p className="mt-0.5 flex items-center gap-1 text-[10px] text-slate-400">
+                                  <MapPin
+                                    size={
+                                      10
+                                    }
+                                  />
+                                  {
+                                    item.lokasi
+                                  }
+                                </p>
+                              )}
+                            </td>
 
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-2">
-                              <Clock
-                                size={14}
-                                className={
-                                  item.jamPulang === "-"
-                                    ? "text-slate-300"
-                                    : "text-slate-400"
-                                }
-                              />
+                            <td className="px-4 py-3">
+                              <div className="flex items-center justify-center gap-1">
+                                <button
+                                  onClick={() =>
+                                    handleOpenDetail(
+                                      item,
+                                    )
+                                  }
+                                  title="Lihat detail"
+                                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:border-[#c7dbff] hover:bg-[#eaf1ff] hover:text-[#155DFC]"
+                                >
+                                  <Eye
+                                    size={
+                                      14
+                                    }
+                                  />
+                                </button>
 
-                              <span
-                                className={`text-xs font-semibold ${
-                                  item.jamPulang === "-"
-                                    ? "text-slate-300"
-                                    : "text-slate-700"
-                                }`}
-                              >
-                                {item.jamPulang}
-                              </span>
-                            </div>
-                          </td>
-
-                          {/* STATUS */}
-
-                          <td className="px-4 py-3">
-                            <StatusBadge status={item.status} />
-
-                            {item.keterangan !== "-" && (
-                              <p className="mt-1 max-w-[160px] truncate text-[10px] text-slate-400">
-                                {item.keterangan}
-                              </p>
-                            )}
-                          </td>
-
-                          {/* METHOD */}
-
-                          <td className="px-4 py-3">
-                            <span className="text-xs font-medium text-slate-600">
-                              {item.metode}
-                            </span>
-
-                            {item.lokasi !== "-" && (
-                              <p className="mt-0.5 flex items-center gap-1 text-[10px] text-slate-400">
-                                <MapPin size={10} />
-                                {item.lokasi}
-                              </p>
-                            )}
-                          </td>
-
-                          {/* ACTION */}
-
-                          <td className="px-4 py-3">
-                            <div className="flex items-center justify-end gap-1">
-                              <button
-                                onClick={() =>
-                                  setSelectedPresensi(item)
-                                }
-                                title="Lihat detail"
-                                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-[#eaf1ff] hover:text-[#155DFC]"
-                              >
-                                <Eye size={16} />
-                              </button>
-
-                              <button
-                                onClick={() =>
-                                  handleOpenEdit(item)
-                                }
-                                title="Ubah presensi"
-                                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-[#eaf1ff] hover:text-[#155DFC]"
-                              >
-                                <Edit3 size={16} />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))
+                                <button
+                                  onClick={() =>
+                                    handleOpenEdit(
+                                      item,
+                                    )
+                                  }
+                                  title="Ubah presensi"
+                                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:border-[#c7dbff] hover:bg-[#eaf1ff] hover:text-[#155DFC]"
+                                >
+                                  <Edit3
+                                    size={
+                                      14
+                                    }
+                                  />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ),
+                      )
                     ) : (
                       <tr>
                         <td
@@ -1105,21 +1830,29 @@ export default function PresensiPage() {
                           className="px-4 py-16"
                         >
                           <div className="flex flex-col items-center justify-center text-center">
-                            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100">
+                            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#eaf1ff] border border-[#c7dbff]">
                               <Search
-                                size={20}
-                                className="text-slate-400"
+                                size={24}
+                                className="text-[#155DFC]"
                               />
                             </div>
 
-                            <p className="text-sm font-semibold text-slate-700">
+                            <p className="mt-4 text-base font-bold text-slate-800">
                               Data presensi tidak ditemukan
                             </p>
 
-                            <p className="mt-1 text-xs text-slate-400">
-                              Coba ubah pencarian atau filter
-                              yang digunakan.
+                            <p className="mt-1 text-xs text-slate-500">
+                              Coba ubah pencarian atau filter yang digunakan.
                             </p>
+
+                            <button
+                              onClick={
+                                resetFilters
+                              }
+                              className="mt-4 text-xs font-semibold text-[#155DFC] hover:underline"
+                            >
+                              Reset Filter
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -1128,265 +1861,341 @@ export default function PresensiPage() {
                 </table>
               </div>
 
-              {/* =================================================
-                  PAGINATION
-              ================================================= */}
+              {/* PAGINATION */}
 
-              <div className="flex shrink-0 flex-col gap-2 border-t border-slate-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-xs text-slate-400">
-                  Menampilkan{" "}
-                  <span className="font-medium text-slate-600">
-                    {filteredData.length === 0
-                      ? 0
-                      : (safeCurrentPage - 1) *
+              {!loadingAbsensi &&
+                filteredData.length >
+                  0 && (
+                  <div className="px-4 sm:px-5 py-3 border-t border-slate-100 bg-slate-50/60 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <p className="text-xs text-slate-500">
+                      Menampilkan{" "}
+                      <span className="font-semibold text-slate-700">
+                        {(safeCurrentPage -
+                          1) *
                           itemsPerPage +
-                        1}
-                  </span>{" "}
-                  -{" "}
-                  <span className="font-medium text-slate-600">
-                    {Math.min(
-                      safeCurrentPage * itemsPerPage,
-                      filteredData.length
-                    )}
-                  </span>{" "}
-                  dari{" "}
-                  <span className="font-medium text-slate-600">
-                    {filteredData.length}
-                  </span>{" "}
-                  data
-                </p>
+                          1}
+                      </span>{" "}
+                      -{" "}
+                      <span className="font-semibold text-slate-700">
+                        {Math.min(
+                          safeCurrentPage *
+                            itemsPerPage,
+                          filteredData.length,
+                        )}
+                      </span>{" "}
+                      dari{" "}
+                      <span className="font-semibold text-slate-700">
+                        {
+                          filteredData.length
+                        }
+                      </span>{" "}
+                      data
+                    </p>
 
-                <div className="flex items-center gap-1">
-                  <button
-                    disabled={safeCurrentPage === 1}
-                    onClick={() =>
-                      setCurrentPage((prev) =>
-                        Math.max(1, prev - 1)
-                      )
-                    }
-                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    <ChevronLeft size={15} />
-                  </button>
+                    <div className="flex items-center gap-1">
+                      <button
+                        disabled={
+                          safeCurrentPage ===
+                          1
+                        }
+                        onClick={() =>
+                          setCurrentPage(
+                            (prev) =>
+                              Math.max(
+                                1,
+                                prev - 1,
+                              ),
+                          )
+                        }
+                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        <ChevronLeft
+                          size={15}
+                        />
+                      </button>
 
-                  {Array.from(
-                    { length: totalPages },
-                    (_, index) => index + 1
-                  ).map((page) => (
-                    <button
-                      key={page}
-                      onClick={() => setCurrentPage(page)}
-                      className={`flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-xs font-medium transition ${
-                        safeCurrentPage === page
-                          ? "bg-[#155DFC] text-white"
-                          : "border border-transparent text-slate-500 hover:bg-slate-100"
-                      }`}
-                    >
-                      {page}
-                    </button>
-                  ))}
+                      {Array.from(
+                        {
+                          length:
+                            totalPages,
+                        },
+                        (_, index) =>
+                          index + 1,
+                      ).map(
+                        (page) => (
+                          <button
+                            key={page}
+                            onClick={() =>
+                              setCurrentPage(
+                                page,
+                              )
+                            }
+                            className={`flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-xs font-semibold transition ${
+                              safeCurrentPage ===
+                              page
+                                ? "bg-[#155DFC] text-white shadow-sm"
+                                : "border border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        ),
+                      )}
 
-                  <button
-                    disabled={safeCurrentPage === totalPages}
-                    onClick={() =>
-                      setCurrentPage((prev) =>
-                        Math.min(totalPages, prev + 1)
-                      )
-                    }
-                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    <ChevronRight size={15} />
-                  </button>
-                </div>
-              </div>
-            </div>
+                      <button
+                        disabled={
+                          safeCurrentPage ===
+                          totalPages
+                        }
+                        onClick={() =>
+                          setCurrentPage(
+                            (prev) =>
+                              Math.min(
+                                totalPages,
+                                prev + 1,
+                              ),
+                          )
+                        }
+                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        <ChevronRight
+                          size={15}
+                        />
+                      </button>
+                    </div>
+                  </div>
+                )}
+            </section>
           </div>
         </main>
       </div>
 
-      {/* =========================================================
-          DETAIL MODAL
-      ========================================================= */}
+      {/* =====================================================
+          DETAIL MODAL NON-GURU
+      ===================================================== */}
 
       {selectedPresensi && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-[2px]">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-sm">
           <div className="w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl">
-            {/* HEADER */}
-
             <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-              <div>
-                <h2 className="text-base font-bold text-slate-800">
-                  Detail Presensi
-                </h2>
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-[#eaf1ff] border border-[#c7dbff] flex items-center justify-center">
+                  <Eye
+                    size={17}
+                    className="text-[#155DFC]"
+                  />
+                </div>
 
-                <p className="mt-0.5 text-xs text-slate-400">
-                  Informasi kehadiran pengguna
-                </p>
+                <div>
+                  <h2 className="text-sm font-bold text-slate-800">
+                    Detail Presensi
+                  </h2>
+
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    Informasi kehadiran pengguna
+                  </p>
+                </div>
               </div>
 
               <button
-                onClick={() => setSelectedPresensi(null)}
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                onClick={() =>
+                  setSelectedPresensi(
+                    null,
+                  )
+                }
+                className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
               >
                 <X size={18} />
               </button>
             </div>
 
-            {/* CONTENT */}
-
             <div className="max-h-[75vh] overflow-y-auto p-5">
-              {/* USER HEADER */}
-
               <div className="mb-5 flex flex-col gap-4 rounded-xl border border-[#c7dbff] bg-[#f5f8ff] p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white text-sm font-bold text-[#155DFC] shadow-sm">
-                    {selectedPresensi.avatar}
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#155DFC] to-[#0d47c9] text-white text-sm font-bold shadow-sm">
+                    {
+                      selectedPresensi.avatar
+                    }
                   </div>
 
                   <div className="min-w-0">
                     <h3 className="truncate text-base font-bold text-slate-800">
-                      {selectedPresensi.nama}
+                      {
+                        selectedPresensi.nama
+                      }
                     </h3>
 
-                    <p className="mt-0.5 text-xs text-slate-400">
-                      {selectedPresensi.nomorInduk}
+                    <p className="mt-0.5 text-xs text-slate-500">
+                      {
+                        selectedPresensi.nomorInduk
+                      }
                     </p>
                   </div>
                 </div>
 
                 <StatusBadge
-                  status={selectedPresensi.status}
+                  status={
+                    selectedPresensi.status
+                  }
                 />
               </div>
-
-              {/* INFORMATION */}
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <InfoItem
                   icon={CalendarDays}
                   label="Tanggal"
-                  value={selectedPresensi.tanggal}
+                  value={formatTanggal(
+                    selectedPresensi.tanggal,
+                  )}
                 />
 
                 <InfoItem
                   icon={UserRound}
                   label="Peran"
-                  value={selectedPresensi.role}
+                  value={
+                    selectedPresensi.role
+                  }
                 />
 
                 <InfoItem
                   icon={BookOpen}
                   label="Kelas / Jabatan"
-                  value={selectedPresensi.kelas}
+                  value={
+                    selectedPresensi.role ===
+                    "Guru"
+                      ? selectedPresensi
+                          .penggunaDetail
+                          ?.jabatan ||
+                        "Guru"
+                      : selectedPresensi.kelas
+                  }
                 />
 
                 <InfoItem
                   icon={Clock3}
                   label="Jam Masuk"
-                  value={selectedPresensi.jamMasuk}
+                  value={
+                    selectedPresensi.jamMasuk
+                  }
                 />
 
                 <InfoItem
                   icon={Clock}
                   label="Jam Pulang"
-                  value={selectedPresensi.jamPulang}
+                  value={
+                    selectedPresensi.jamPulang
+                  }
                 />
 
                 <InfoItem
                   icon={ClipboardCheck}
                   label="Metode"
-                  value={selectedPresensi.metode}
+                  value={
+                    selectedPresensi.metode
+                  }
                 />
 
                 <InfoItem
                   icon={MapPin}
                   label="Lokasi"
-                  value={selectedPresensi.lokasi}
+                  value={
+                    selectedPresensi.lokasi
+                  }
                 />
 
                 <InfoItem
                   icon={AlertCircle}
                   label="Keterangan"
-                  value={selectedPresensi.keterangan}
+                  value={
+                    selectedPresensi.keterangan
+                  }
                 />
               </div>
             </div>
 
-            {/* FOOTER */}
-
-            <div className="flex flex-col-reverse gap-2 border-t border-slate-100 px-5 py-4 sm:flex-row sm:justify-end">
-              <button
-                onClick={() => setSelectedPresensi(null)}
-                className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
-              >
-                Tutup
-              </button>
-
+            <div className="flex flex-col-reverse gap-2 border-t border-slate-100 bg-slate-50/70 px-5 py-4 sm:flex-row sm:justify-end">
               <button
                 onClick={() =>
-                  handleOpenEdit(selectedPresensi)
+                  setSelectedPresensi(
+                    null,
+                  )
                 }
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#155DFC] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#0d47c9]"
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
               >
-                <Edit3 size={15} />
-                Ubah Presensi
+                Tutup
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* =========================================================
+      {/* =====================================================
           EDIT MODAL
-      ========================================================= */}
+      ===================================================== */}
 
       {editPresensi && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-[2px]">
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
           <div className="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl">
-            {/* HEADER */}
-
             <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-              <div>
-                <h2 className="text-base font-bold text-slate-800">
-                  Ubah Status Presensi
-                </h2>
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-[#eaf1ff] border border-[#c7dbff] flex items-center justify-center">
+                  <Edit3
+                    size={17}
+                    className="text-[#155DFC]"
+                  />
+                </div>
 
-                <p className="mt-0.5 text-xs text-slate-400">
-                  Perbarui data kehadiran pengguna
-                </p>
+                <div>
+                  <h2 className="text-sm font-bold text-slate-800">
+                    Ubah Status Presensi
+                  </h2>
+
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    Perbarui data kehadiran pengguna
+                  </p>
+                </div>
               </div>
 
               <button
-                onClick={() => setEditPresensi(null)}
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                onClick={() =>
+                  setEditPresensi(null)
+                }
+                className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
               >
                 <X size={18} />
               </button>
             </div>
 
-            {/* CONTENT */}
-
             <div className="max-h-[75vh] overflow-y-auto p-5">
-              {/* USER */}
-
               <div className="mb-5 flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#eaf1ff] text-sm font-bold text-[#155DFC]">
-                  {editPresensi.avatar}
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#155DFC] to-[#0d47c9] text-white text-xs font-bold">
+                  {
+                    editPresensi.avatar
+                  }
                 </div>
 
                 <div className="min-w-0">
                   <p className="truncate text-sm font-bold text-slate-800">
-                    {editPresensi.nama}
+                    {
+                      editPresensi.nama
+                    }
                   </p>
 
-                  <p className="mt-0.5 text-xs text-slate-400">
-                    {editPresensi.nomorInduk} ·{" "}
-                    {editPresensi.kelas}
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    {
+                      editPresensi.nomorInduk
+                    }{" "}
+                    ·{" "}
+                    {editPresensi.role ===
+                    "Guru"
+                      ? editPresensi
+                          .penggunaDetail
+                          ?.jabatan ||
+                        "Guru"
+                      : editPresensi.kelas}
                   </p>
                 </div>
               </div>
-
-              {/* STATUS */}
 
               <div>
                 <label className="mb-2 block text-xs font-semibold text-slate-600">
@@ -1400,44 +2209,51 @@ export default function PresensiPage() {
                     "Izin",
                     "Sakit",
                     "Tidak Hadir",
-                  ].map((status) => {
-                    const config =
-                      STATUS_CONFIG[status];
+                  ].map(
+                    (status) => {
+                      const config =
+                        STATUS_CONFIG[
+                          status
+                        ];
 
-                    const active =
-                      editStatus === status;
+                      const active =
+                        editStatus ===
+                        status;
 
-                    return (
-                      <button
-                        key={status}
-                        type="button"
-                        onClick={() =>
-                          setEditStatus(status)
-                        }
-                        className={`rounded-lg border px-3 py-2.5 text-left text-xs font-medium transition ${
-                          active
-                            ? `${config.bg} ${config.text} ${config.border} ring-2 ring-[#155DFC]/10`
-                            : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
-                        }`}
-                      >
-                        <span className="flex items-center gap-2">
-                          <span
-                            className={`h-2 w-2 rounded-full ${
-                              active
-                                ? config.dot
-                                : "bg-slate-300"
-                            }`}
-                          />
+                      return (
+                        <button
+                          key={status}
+                          type="button"
+                          onClick={() =>
+                            setEditStatus(
+                              status,
+                            )
+                          }
+                          className={`rounded-xl border px-3 py-2.5 text-left text-xs font-medium transition ${
+                            active
+                              ? `${config.bg} ${config.text} ${config.border} ring-2 ring-[#155DFC]/10`
+                              : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
+                          }`}
+                        >
+                          <span className="flex items-center gap-2">
+                            <span
+                              className={`h-2 w-2 rounded-full ${
+                                active
+                                  ? config.dot
+                                  : "bg-slate-300"
+                              }`}
+                            />
 
-                          {status}
-                        </span>
-                      </button>
-                    );
-                  })}
+                            {
+                              status
+                            }
+                          </span>
+                        </button>
+                      );
+                    },
+                  )}
                 </div>
               </div>
-
-              {/* JAM */}
 
               <div className="mt-5 grid gap-3 sm:grid-cols-2">
                 <div>
@@ -1448,11 +2264,12 @@ export default function PresensiPage() {
                   <input
                     type="time"
                     defaultValue={
-                      editPresensi.jamMasuk !== "-"
+                      editPresensi.jamMasuk !==
+                      "-"
                         ? editPresensi.jamMasuk
                         : ""
                     }
-                    className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-[#8bb4ff] focus:ring-2 focus:ring-[#155DFC]/10"
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none"
                   />
                 </div>
 
@@ -1463,17 +2280,11 @@ export default function PresensiPage() {
 
                   <input
                     type="time"
-                    defaultValue={
-                      editPresensi.jamPulang !== "-"
-                        ? editPresensi.jamPulang
-                        : ""
-                    }
-                    className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-[#8bb4ff] focus:ring-2 focus:ring-[#155DFC]/10"
+                    defaultValue=""
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none"
                   />
                 </div>
               </div>
-
-              {/* KETERANGAN */}
 
               <div className="mt-5">
                 <label className="mb-2 block text-xs font-semibold text-slate-600">
@@ -1481,50 +2292,52 @@ export default function PresensiPage() {
                 </label>
 
                 <textarea
-                  value={editKeterangan}
+                  value={
+                    editKeterangan
+                  }
                   onChange={(e) =>
-                    setEditKeterangan(e.target.value)
+                    setEditKeterangan(
+                      e.target.value,
+                    )
                   }
                   rows={3}
                   placeholder="Tambahkan keterangan jika diperlukan..."
-                  className="w-full resize-none rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none placeholder:text-slate-400 focus:border-[#8bb4ff] focus:ring-2 focus:ring-[#155DFC]/10"
+                  className="w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none"
                 />
               </div>
 
-              {/* INFO */}
-
-              <div className="mt-4 flex gap-2 rounded-xl border border-blue-100 bg-[#f5f8ff] p-3">
+              <div className="mt-4 flex gap-2 rounded-xl border border-blue-200 bg-[#f5f8ff] p-3">
                 <AlertCircle
                   size={15}
                   className="mt-0.5 shrink-0 text-[#155DFC]"
                 />
 
-                <p className="text-[11px] leading-relaxed text-slate-500">
-                  Perubahan status presensi akan tercatat pada
-                  riwayat aktivitas dan dapat digunakan dalam
-                  laporan kehadiran sekolah.
+                <p className="text-[11px] leading-relaxed text-slate-600">
+                  Backend saat ini belum menyediakan endpoint update presensi dari halaman admin.
                 </p>
               </div>
             </div>
 
-            {/* FOOTER */}
-
-            <div className="flex flex-col-reverse gap-2 border-t border-slate-100 px-5 py-4 sm:flex-row sm:justify-end">
+            <div className="flex flex-col-reverse gap-2 border-t border-slate-100 bg-slate-50/70 px-5 py-4 sm:flex-row sm:justify-end">
               <button
-                onClick={() => setEditPresensi(null)}
-                className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
+                onClick={() =>
+                  setEditPresensi(null)
+                }
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
               >
                 Batal
               </button>
 
               <button
-                onClick={handleSaveEdit}
+                onClick={
+                  handleSaveEdit
+                }
                 disabled={isSaving}
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#155DFC] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#0d47c9] disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#155DFC] to-[#0d47c9] px-4 py-2.5 text-sm font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isSaving ? (
                   <>
-                    <RotateCcw
+                    <Loader2
                       size={15}
                       className="animate-spin"
                     />
@@ -1532,7 +2345,9 @@ export default function PresensiPage() {
                   </>
                 ) : (
                   <>
-                    <Check size={15} />
+                    <Check
+                      size={15}
+                    />
                     Simpan Perubahan
                   </>
                 )}
@@ -1541,22 +2356,6 @@ export default function PresensiPage() {
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-/* =========================================================
-   MINI SUMMARY
-========================================================= */
-
-function MiniSummary({ label, value }) {
-  return (
-    <div>
-      <p className="text-[10px] text-slate-400">{label}</p>
-
-      <p className="text-sm font-bold text-slate-700">
-        {value}
-      </p>
     </div>
   );
 }

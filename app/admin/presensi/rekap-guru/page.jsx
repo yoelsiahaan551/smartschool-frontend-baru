@@ -1,1110 +1,1773 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import Sidebar from "../../../components/Sidebar";
 import Header from "../../../components/Header";
 
 import {
-  ArrowLeft,
+  Search,
+  RefreshCw,
+  Download,
   CalendarDays,
+  Users,
   CheckCircle2,
   Clock3,
-  Download,
+  CircleAlert,
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  X,
+  Database,
+  Activity,
   FileSpreadsheet,
-  Filter,
-  RefreshCw,
-  Search,
-  Users,
+  TrendingUp,
   UserCheck,
   UserX,
-  XCircle,
+  Loader2,
 } from "lucide-react";
 
-/* ================================================================
-   DUMMY DATA
-================================================================ */
+/* =========================================================
+   API
+========================================================= */
 
-const INITIAL_DATA = [
-  {
-    id: 1,
-    nama: "Dian Puspita, S.Pd.",
-    nip: "198705122014022001",
-    jabatan: "Guru Matematika",
-    status: "hadir",
-    jamMasuk: "06:54",
-    jamPulang: "15:02",
-    terlambat: 0,
-    izin: 0,
-    sakit: 0,
-    alpha: 0,
-    totalHari: 22,
-  },
-  {
-    id: 2,
-    nama: "Budi Santoso, S.Pd.",
-    nip: "198903182015031002",
-    jabatan: "Guru Bahasa Indonesia",
-    status: "hadir",
-    jamMasuk: "06:58",
-    jamPulang: "15:00",
-    terlambat: 0,
-    izin: 0,
-    sakit: 0,
-    alpha: 0,
-    totalHari: 22,
-  },
-  {
-    id: 3,
-    nama: "Rina Maharani, S.Pd.",
-    nip: "199101222016022003",
-    jabatan: "Guru Bahasa Inggris",
-    status: "terlambat",
-    jamMasuk: "07:18",
-    jamPulang: "15:05",
-    terlambat: 2,
-    izin: 0,
-    sakit: 0,
-    alpha: 0,
-    totalHari: 22,
-  },
-  {
-    id: 4,
-    nama: "Andi Wijaya, S.Pd.",
-    nip: "198812052014011004",
-    jabatan: "Guru IPA",
-    status: "izin",
-    jamMasuk: "-",
-    jamPulang: "-",
-    terlambat: 0,
-    izin: 1,
-    sakit: 0,
-    alpha: 0,
-    totalHari: 22,
-  },
-  {
-    id: 5,
-    nama: "Sari Wulandari, S.Pd.",
-    nip: "199207112018022005",
-    jabatan: "Guru Seni Budaya",
-    status: "sakit",
-    jamMasuk: "-",
-    jamPulang: "-",
-    terlambat: 0,
-    izin: 0,
-    sakit: 2,
-    alpha: 0,
-    totalHari: 22,
-  },
-  {
-    id: 6,
-    nama: "Doni Pratama, S.Pd.",
-    nip: "199005202017031006",
-    jabatan: "Guru Penjaskes",
-    status: "hadir",
-    jamMasuk: "06:51",
-    jamPulang: "15:10",
-    terlambat: 0,
-    izin: 0,
-    sakit: 0,
-    alpha: 0,
-    totalHari: 22,
-  },
-  {
-    id: 7,
-    nama: "Wulan Permata, S.Sn.",
-    nip: "199102152019022007",
-    jabatan: "Guru Seni Musik",
-    status: "terlambat",
-    jamMasuk: "07:12",
-    jamPulang: "15:00",
-    terlambat: 1,
-    izin: 0,
-    sakit: 0,
-    alpha: 0,
-    totalHari: 22,
-  },
-  {
-    id: 8,
-    nama: "Anwar Hidayat, S.Pd.",
-    nip: "198806082013011008",
-    jabatan: "Guru IPS",
-    status: "alpha",
-    jamMasuk: "-",
-    jamPulang: "-",
-    terlambat: 0,
-    izin: 0,
-    sakit: 0,
-    alpha: 1,
-    totalHari: 22,
-  },
-  {
-    id: 9,
-    nama: "Dewi Lestari, S.Pd.",
-    nip: "199008102015032009",
-    jabatan: "Guru Biologi",
-    status: "hadir",
-    jamMasuk: "06:56",
-    jamPulang: "15:03",
-    terlambat: 0,
-    izin: 0,
-    sakit: 0,
-    alpha: 0,
-    totalHari: 22,
-  },
-  {
-    id: 10,
-    nama: "Rudi Hartono, S.Pd.",
-    nip: "198907142016011010",
-    jabatan: "Guru Fisika",
-    status: "hadir",
-    jamMasuk: "06:59",
-    jamPulang: "15:01",
-    terlambat: 0,
-    izin: 0,
-    sakit: 0,
-    alpha: 0,
-    totalHari: 22,
-  },
-];
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
-/* ================================================================
+const REKAP_GURU_ENDPOINT =
+  `${API_URL}/api/v1/absensi/rekap-guru`;
+
+const EXPORT_ENDPOINT =
+  `${API_URL}/api/v1/absensi/export`;
+
+/* =========================================================
+   HELPER
+========================================================= */
+
+function getTodayDate() {
+  const now = new Date();
+
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function normalizeStatus(status, item = {}) {
+  const value = String(status || "")
+    .toLowerCase()
+    .trim();
+
+  if (value === "hadir") {
+    return "hadir";
+  }
+
+  if (
+    value === "terlambat" ||
+    value === "late"
+  ) {
+    return "terlambat";
+  }
+
+  if (value === "izin") {
+    return "izin";
+  }
+
+  if (value === "sakit") {
+    return "sakit";
+  }
+
+  if (
+    value === "alpha" ||
+    value === "alpa"
+  ) {
+    return "alpha";
+  }
+
+  if (
+    item?.jamMasuk ||
+    item?.waktuMasuk ||
+    item?.jam_masuk
+  ) {
+    return "hadir";
+  }
+
+  return "alpha";
+}
+
+function formatTanggalIndonesia(tanggal) {
+  if (!tanggal) return "-";
+
+  const date = new Date(`${tanggal}T00:00:00`);
+
+  if (Number.isNaN(date.getTime())) {
+    return tanggal;
+  }
+
+  return date.toLocaleDateString("id-ID", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+function formatJam(value) {
+  if (!value || value === "-") {
+    return "-";
+  }
+
+  try {
+    const date = new Date(value);
+
+    if (!Number.isNaN(date.getTime())) {
+      return date.toLocaleTimeString("id-ID", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    }
+  } catch {
+    // ignore
+  }
+
+  const stringValue = String(value);
+
+  if (/^\d{2}:\d{2}(:\d{2})?$/.test(stringValue)) {
+    return stringValue.slice(0, 5);
+  }
+
+  return stringValue;
+}
+
+/* =========================================================
+   NORMALIZE DATA GURU
+========================================================= */
+
+function normalizeGuru(item, index) {
+  const guru = item?.pengguna || item?.guru || {};
+
+  const id =
+    item?.id ??
+    item?.penggunaId ??
+    guru?.id ??
+    `guru-${index}`;
+
+  const nama =
+    item?.nama ??
+    item?.namaLengkap ??
+    item?.namaGuru ??
+    item?.pengguna?.namaLengkap ??
+    guru?.namaLengkap ??
+    guru?.nama ??
+    "-";
+
+  const nip =
+    item?.nip ??
+    item?.pengguna?.nip ??
+    guru?.nip ??
+    "-";
+
+  const jabatan =
+    item?.jabatan ??
+    item?.pengguna?.jabatan ??
+    guru?.jabatan ??
+    item?.peran?.nama ??
+    guru?.peran?.nama ??
+    "Guru";
+
+  const status = normalizeStatus(
+    item?.status ??
+      item?.statusAbsensi ??
+      item?.statusKehadiran ??
+      item?.kehadiran,
+    item
+  );
+
+  const jamMasuk =
+    item?.jamMasuk ??
+    item?.waktuMasuk ??
+    item?.jam_masuk ??
+    item?.checkIn ??
+    item?.waktuCheckIn ??
+    "-";
+
+  const jamPulang =
+    item?.jamPulang ??
+    item?.waktuPulang ??
+    item?.jam_pulang ??
+    item?.checkOut ??
+    item?.waktuCheckOut ??
+    "-";
+
+  const terlambat = Number(
+    item?.terlambat ??
+      item?.jumlahTerlambat ??
+      item?.totalTerlambat ??
+      0
+  );
+
+  const izin = Number(
+    item?.izin ??
+      item?.totalIzin ??
+      0
+  );
+
+  const sakit = Number(
+    item?.sakit ??
+      item?.totalSakit ??
+      0
+  );
+
+  const alpha = Number(
+    item?.alpha ??
+      item?.alpa ??
+      item?.totalAlpha ??
+      item?.totalAlpa ??
+      0
+  );
+
+  return {
+    id,
+    nama,
+    nip,
+    jabatan,
+    status,
+    jamMasuk: formatJam(jamMasuk),
+    jamPulang: formatJam(jamPulang),
+    terlambat,
+    izin,
+    sakit,
+    alpha,
+    original: item,
+  };
+}
+
+/* =========================================================
    STATUS CONFIG
-================================================================ */
+========================================================= */
 
 const STATUS_CONFIG = {
   hadir: {
     label: "Hadir",
-    className: "bg-emerald-50 text-emerald-700 border-emerald-200",
-    dot: "bg-emerald-500",
+    icon: CheckCircle2,
+    className:
+      "bg-emerald-50 text-emerald-700 border-emerald-200",
   },
+
   terlambat: {
     label: "Terlambat",
-    className: "bg-amber-50 text-amber-700 border-amber-200",
-    dot: "bg-amber-500",
+    icon: Clock3,
+    className:
+      "bg-amber-50 text-amber-700 border-amber-200",
   },
+
   izin: {
     label: "Izin",
-    className: "bg-blue-50 text-blue-700 border-blue-200",
-    dot: "bg-blue-500",
+    icon: CircleAlert,
+    className:
+      "bg-blue-50 text-blue-700 border-blue-200",
   },
+
   sakit: {
     label: "Sakit",
-    className: "bg-violet-50 text-violet-700 border-violet-200",
-    dot: "bg-violet-500",
+    icon: CircleAlert,
+    className:
+      "bg-orange-50 text-orange-700 border-orange-200",
   },
+
   alpha: {
     label: "Alpha",
-    className: "bg-red-50 text-red-700 border-red-200",
-    dot: "bg-red-500",
+    icon: CircleAlert,
+    className:
+      "bg-red-50 text-red-700 border-red-200",
   },
 };
 
-/* ================================================================
+/* =========================================================
    PAGE
-================================================================ */
+========================================================= */
 
 export default function RekapGuruPage() {
   const router = useRouter();
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  const [data, setData] = useState(INITIAL_DATA);
-
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("semua");
-
-  const [tanggal, setTanggal] = useState("2026-09-10");
-
-  const [selectedId, setSelectedId] = useState(
-    INITIAL_DATA[0].id
+  const [tanggal, setTanggal] = useState(
+    () => getTodayDate()
   );
 
-  /* ==============================================================
-     NOTIFICATIONS
-     
-     WAJIB ARRAY karena Header melakukan:
-     notifications.filter(...)
-  ============================================================== */
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] =
+    useState("semua");
+  const [selectedGuru, setSelectedGuru] =
+    useState(null);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [exportLoading, setExportLoading] =
+    useState(false);
 
-  const notifications = [
-    {
-      id: 1,
-      title: "Rekap presensi tersedia",
-      desc: "Rekap presensi guru hari ini telah diperbarui.",
-      read: false,
-    },
-    {
-      id: 2,
-      title: "Permohonan izin baru",
-      desc: "Ada permohonan izin guru yang perlu ditinjau.",
-      read: true,
-    },
-  ];
+  const getToken = () => {
+    if (typeof window === "undefined") {
+      return null;
+    }
 
-  /* ==============================================================
-     FILTER DATA
-  ============================================================== */
+    return (
+      localStorage.getItem("token") ||
+      localStorage.getItem("accessToken")
+    );
+  };
+
+  /* =======================================================
+     FETCH
+  ======================================================= */
+
+  const fetchRekapGuru = useCallback(
+    async (showRefreshLoading = true) => {
+      const token = getToken();
+
+      if (!token) {
+        setError(
+          "Sesi login tidak ditemukan. Silakan login kembali."
+        );
+        return;
+      }
+
+      if (showRefreshLoading) {
+        setLoading(true);
+      }
+
+      setError("");
+
+      try {
+        const url =
+          `${REKAP_GURU_ENDPOINT}?tanggal=` +
+          encodeURIComponent(tanggal);
+
+        const response = await fetch(url, {
+          method: "GET",
+
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json",
+          },
+
+          cache: "no-store",
+        });
+
+        const text = await response.text();
+
+        let result = null;
+
+        try {
+          result = text ? JSON.parse(text) : null;
+        } catch {
+          throw new Error(
+            "Response dari server bukan JSON yang valid."
+          );
+        }
+
+        if (!response.ok) {
+          throw new Error(
+            result?.message ||
+              result?.error ||
+              result?.detail ||
+              `Gagal mengambil rekap guru (${response.status})`
+          );
+        }
+
+        let rawData = [];
+
+        if (Array.isArray(result)) {
+          rawData = result;
+        } else if (Array.isArray(result?.data)) {
+          rawData = result.data;
+        } else if (Array.isArray(result?.data?.data)) {
+          rawData = result.data.data;
+        } else if (Array.isArray(result?.rows)) {
+          rawData = result.rows;
+        } else if (Array.isArray(result?.results)) {
+          rawData = result.results;
+        }
+
+        const normalized = rawData.map(normalizeGuru);
+
+        setData(normalized);
+        setPage(1);
+      } catch (err) {
+        console.error("ERROR FETCH REKAP GURU:", err);
+
+        setData([]);
+
+        setError(
+          err?.message ||
+            "Gagal mengambil data rekap guru."
+        );
+      } finally {
+        setLoading(false);
+      }
+    },
+    [tanggal]
+  );
+
+  useEffect(() => {
+    fetchRekapGuru();
+  }, [fetchRekapGuru]);
+
+  /* =======================================================
+     AUTO REFRESH
+  ======================================================= */
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchRekapGuru(false);
+    }, 10000);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [fetchRekapGuru]);
+
+  /* =======================================================
+     FILTER
+  ======================================================= */
 
   const filteredData = useMemo(() => {
     const keyword = search.toLowerCase().trim();
 
-    return data.filter((item) => {
-      const matchesSearch =
+    return data.filter((guru) => {
+      const matchSearch =
         !keyword ||
-        item.nama.toLowerCase().includes(keyword) ||
-        item.nip.toLowerCase().includes(keyword) ||
-        item.jabatan.toLowerCase().includes(keyword);
+        guru.nama.toLowerCase().includes(keyword) ||
+        guru.nip.toLowerCase().includes(keyword) ||
+        guru.jabatan.toLowerCase().includes(keyword);
 
-      const matchesStatus =
+      const matchStatus =
         statusFilter === "semua" ||
-        item.status === statusFilter;
+        guru.status === statusFilter;
 
-      return matchesSearch && matchesStatus;
+      return matchSearch && matchStatus;
     });
   }, [data, search, statusFilter]);
 
-  /* ==============================================================
-     SELECTED
-  ============================================================== */
+  /* =======================================================
+     PAGINATION
+  ======================================================= */
 
-  const selectedGuru =
-    data.find((item) => item.id === selectedId) ||
-    filteredData[0] ||
-    null;
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredData.length / limit)
+  );
 
-  /* ==============================================================
+  const paginatedData = useMemo(() => {
+    const start = (page - 1) * limit;
+    const end = start + limit;
+
+    return filteredData.slice(start, end);
+  }, [filteredData, page, limit]);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
+
+  /* =======================================================
      STATISTICS
-  ============================================================== */
+  ======================================================= */
 
-  const totalGuru = data.length;
+  const statistics = useMemo(() => {
+    const total = data.length;
 
-  const totalHadir = data.filter(
-    (item) => item.status === "hadir"
-  ).length;
+    const hadir = data.filter(
+      (guru) => guru.status === "hadir"
+    ).length;
 
-  const totalTerlambat = data.filter(
-    (item) => item.status === "terlambat"
-  ).length;
+    const terlambat = data.filter(
+      (guru) => guru.status === "terlambat"
+    ).length;
 
-  const totalTidakHadir = data.filter(
-    (item) =>
-      item.status === "izin" ||
-      item.status === "sakit" ||
-      item.status === "alpha"
-  ).length;
+    const izin = data.filter(
+      (guru) => guru.status === "izin"
+    ).length;
 
-  /* ==============================================================
-     REFRESH DUMMY
-  ============================================================== */
+    const sakit = data.filter(
+      (guru) => guru.status === "sakit"
+    ).length;
 
-  const handleRefresh = () => {
-    setData(INITIAL_DATA);
-    setSearch("");
-    setStatusFilter("semua");
-    setSelectedId(INITIAL_DATA[0].id);
+    const alpha = data.filter(
+      (guru) => guru.status === "alpha"
+    ).length;
+
+    return {
+      total,
+      hadir,
+      terlambat,
+      izin,
+      sakit,
+      alpha,
+    };
+  }, [data]);
+
+  /* =======================================================
+     HANDLERS
+  ======================================================= */
+
+  const handleTanggalChange = (event) => {
+    setTanggal(event.target.value);
+    setPage(1);
   };
 
-  /* ==============================================================
-     EXPORT DUMMY
-  ============================================================== */
+  const handleRefresh = () => {
+    fetchRekapGuru(true);
+  };
 
-  const handleExport = () => {
-    alert(
-      "Export Excel masih menggunakan mode dummy. Nantinya dapat dihubungkan ke API/export backend."
+  const handleExport = async () => {
+    const token = getToken();
+
+    if (!token) {
+      setError("Sesi login tidak ditemukan.");
+      return;
+    }
+
+    setExportLoading(true);
+
+    try {
+      const url =
+        `${EXPORT_ENDPOINT}?tanggal=` +
+        encodeURIComponent(tanggal);
+
+      const response = await fetch(url, {
+        method: "GET",
+
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        let message = "Gagal melakukan export.";
+
+        try {
+          const result = await response.json();
+
+          message =
+            result?.message ||
+            result?.error ||
+            message;
+        } catch {
+          // ignore
+        }
+
+        throw new Error(message);
+      }
+
+      const blob = await response.blob();
+
+      const downloadUrl =
+        window.URL.createObjectURL(blob);
+
+      const link = document.createElement("a");
+
+      link.href = downloadUrl;
+
+      link.download = `rekap-guru-${tanggal}.xlsx`;
+
+      document.body.appendChild(link);
+
+      link.click();
+
+      link.remove();
+
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (err) {
+      console.error("EXPORT ERROR:", err);
+
+      setError(
+        err?.message || "Gagal melakukan export."
+      );
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
+  const renderStatus = (status) => {
+    const config =
+      STATUS_CONFIG[status] || STATUS_CONFIG.alpha;
+
+    const Icon = config.icon;
+
+    return (
+      <span
+        className={`
+          inline-flex
+          items-center
+          gap-1.5
+          rounded-full
+          border
+          px-2.5
+          py-1
+          text-[11px]
+          font-semibold
+          whitespace-nowrap
+          ${config.className}
+        `}
+      >
+        <Icon size={12} />
+
+        {config.label}
+      </span>
     );
   };
 
+  /* =======================================================
+     RENDER
+  ======================================================= */
+
   return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden">
-      {/* ==========================================================
+    <div className="flex h-screen w-full bg-slate-50 overflow-hidden">
+      {/* =====================================================
           SIDEBAR
-      ========================================================== */}
+      ===================================================== */}
 
       <Sidebar
         role="admin"
-        active="rekapPresensiGuru"
-        setActive={() => {}}
-        collapsed={!sidebarOpen}
-        setCollapsed={() =>
-          setSidebarOpen(!sidebarOpen)
-        }
+        activeMenu="rekap-guru"
+        isOpen={sidebarOpen}
+        onToggle={() => setSidebarOpen(!sidebarOpen)}
       />
 
-      {/* ==========================================================
-          MAIN
-      ========================================================== */}
+      {/* =====================================================
+          MAIN CONTENT
+      ===================================================== */}
 
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+        {/* HEADER */}
+
         <Header
-          toggleSidebar={() =>
-            setSidebarOpen(!sidebarOpen)
-          }
-          notifications={notifications}
-          user={{
-            name: "Admin Sekolah",
-            email: "admin@smartschool.com",
-            avatar: "AS",
-          }}
+          title="Rekap Absensi Guru"
+          onMenuClick={() => setSidebarOpen(!sidebarOpen)}
         />
 
+        {/* =====================================================
+            PAGE (HANYA AREA INI YANG SCROLL)
+        ===================================================== */}
+
         <main className="flex-1 overflow-y-auto">
-          <div className="w-full max-w-[1550px] mx-auto p-4 sm:p-6 lg:p-8">
-            {/* ====================================================
-                HEADER
-            ==================================================== */}
+          <div className="p-4 sm:p-6 lg:p-8 space-y-5 sm:space-y-6">
+            {/* =================================================
+                PAGE HEADER
+            ================================================== */}
 
-            <div className="flex flex-col gap-5 mb-7">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-start gap-3 min-w-0">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      router.push("/admin/presensi")
-                    }
-                    className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-600 hover:text-blue-600 hover:bg-blue-50 transition-all shadow-sm flex-shrink-0"
-                  >
-                    <ArrowLeft size={18} />
-                  </button>
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+              {/* TITLE */}
 
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="w-2 h-2 rounded-full bg-blue-600" />
-
-                      <p className="text-xs font-bold uppercase tracking-wider text-blue-600">
-                        Presensi & Kehadiran
-                      </p>
-                    </div>
-
-                    <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
-                      Rekap Presensi Guru
-                    </h1>
-
-                    <p className="text-sm text-slate-500 mt-1.5">
-                      Pantau dan kelola rekap kehadiran guru
-                      secara terstruktur.
-                    </p>
-                  </div>
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#155DFC] to-[#0d47c9] text-white flex items-center justify-center shadow-lg shadow-[#155DFC]/20 shrink-0">
+                  <Users size={20} />
                 </div>
 
-                <div className="hidden sm:flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={handleRefresh}
-                    className="h-10 px-3.5 rounded-xl bg-white border border-slate-200 text-sm font-semibold text-slate-600 hover:text-blue-600 hover:bg-blue-50 transition-all shadow-sm inline-flex items-center gap-2"
-                  >
-                    <RefreshCw size={15} />
-                    Refresh
-                  </button>
+                <div className="min-w-0">
+                  <h1 className="text-xl sm:text-2xl font-bold text-slate-800 truncate">
+                    Rekap Absensi Guru
+                  </h1>
 
-                  <button
-                    type="button"
-                    onClick={handleExport}
-                    className="h-10 px-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition-all shadow-sm inline-flex items-center gap-2"
-                  >
-                    <Download size={15} />
-                    Export
-                  </button>
+                  <p className="text-xs sm:text-sm text-slate-500 mt-1">
+                    Pantau kehadiran guru berdasarkan tanggal yang dipilih.
+                  </p>
                 </div>
+              </div>
+
+              {/* ACTION */}
+
+              <div className="flex flex-col sm:flex-row gap-2">
+                <button
+                  type="button"
+                  onClick={handleRefresh}
+                  disabled={loading}
+                  className="
+                    inline-flex
+                    items-center
+                    justify-center
+                    gap-2
+                    px-4
+                    py-2.5
+                    rounded-xl
+                    border
+                    border-slate-200
+                    bg-white
+                    text-slate-600
+                    text-sm
+                    font-semibold
+                    hover:bg-slate-50
+                    hover:border-slate-300
+                    transition
+                    disabled:cursor-not-allowed
+                    disabled:opacity-60
+                  "
+                >
+                  <RefreshCw
+                    size={15}
+                    className={loading ? "animate-spin" : ""}
+                  />
+                  Refresh
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleExport}
+                  disabled={
+                    exportLoading || data.length === 0
+                  }
+                  className="
+                    inline-flex
+                    items-center
+                    justify-center
+                    gap-2
+                    px-4
+                    py-2.5
+                    rounded-xl
+                    bg-gradient-to-r
+                    from-[#155DFC]
+                    to-[#0d47c9]
+                    text-white
+                    text-sm
+                    font-semibold
+                    shadow-sm
+                    hover:brightness-110
+                    transition
+                    disabled:cursor-not-allowed
+                    disabled:opacity-60
+                  "
+                >
+                  {exportLoading ? (
+                    <>
+                      <Loader2
+                        size={15}
+                        className="animate-spin"
+                      />
+                      Export...
+                    </>
+                  ) : (
+                    <>
+                      <FileSpreadsheet size={15} />
+                      Export Excel
+                    </>
+                  )}
+                </button>
               </div>
             </div>
 
-            {/* ====================================================
-                STAT CARDS
-            ==================================================== */}
+            {/* =================================================
+                ERROR
+            ================================================== */}
 
-            <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 mb-6">
+            {error && (
+              <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4">
+                <CircleAlert
+                  size={19}
+                  className="mt-0.5 shrink-0 text-red-600"
+                />
+
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-red-800">
+                    Terjadi kesalahan
+                  </p>
+
+                  <p className="mt-0.5 text-sm text-red-700">
+                    {error}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setError("")}
+                  className="text-red-500 hover:text-red-700"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            )}
+
+            {/* =================================================
+                FILTER TANGGAL
+            ================================================== */}
+
+            <section className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+              <div className="p-4 sm:p-5 lg:p-6">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-end">
+                  <div className="w-full lg:max-w-xs">
+                    <label
+                      htmlFor="tanggal"
+                      className="mb-2 block text-xs font-semibold text-slate-600"
+                    >
+                      Tanggal Absensi
+                    </label>
+
+                    <div className="relative">
+                      <CalendarDays
+                        size={16}
+                        className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                      />
+
+                      <input
+                        id="tanggal"
+                        type="date"
+                        value={tanggal}
+                        onChange={handleTanggalChange}
+                        className="
+                          h-11
+                          w-full
+                          rounded-xl
+                          border
+                          border-slate-200
+                          bg-white
+                          pl-9
+                          pr-3
+                          text-sm
+                          font-medium
+                          text-slate-700
+                          outline-none
+                          transition
+                          focus:border-[#155DFC]/50
+                          focus:ring-2
+                          focus:ring-[#155DFC]/20
+                        "
+                      />
+                    </div>
+                  </div>
+
+                  <div className="pb-2 text-xs sm:text-sm text-slate-500">
+                    Menampilkan data untuk:{" "}
+                    <span className="font-semibold text-slate-700">
+                      {formatTanggalIndonesia(tanggal)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* =================================================
+                STATISTICS
+            ================================================== */}
+
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
               <StatCard
+                title="Total Guru"
+                value={statistics.total}
+                description="Total data guru"
                 icon={Users}
-                label="Total Guru"
-                value={totalGuru}
-                description="Guru terdaftar"
-                iconClass="bg-blue-50 text-blue-600"
+                iconClass="text-[#155DFC]"
+                loading={loading}
               />
 
               <StatCard
-                icon={UserCheck}
-                label="Hadir"
-                value={totalHadir}
+                title="Hadir"
+                value={statistics.hadir}
                 description="Guru hadir"
-                iconClass="bg-emerald-50 text-emerald-600"
+                icon={UserCheck}
+                iconClass="text-emerald-500"
+                loading={loading}
               />
 
               <StatCard
+                title="Terlambat"
+                value={statistics.terlambat}
+                description="Guru terlambat"
                 icon={Clock3}
-                label="Terlambat"
-                value={totalTerlambat}
-                description="Perlu diperhatikan"
-                iconClass="bg-amber-50 text-amber-600"
+                iconClass="text-amber-500"
+                loading={loading}
               />
 
               <StatCard
+                title="Izin"
+                value={statistics.izin}
+                description="Guru izin"
+                icon={CircleAlert}
+                iconClass="text-blue-500"
+                loading={loading}
+              />
+
+              <StatCard
+                title="Alpha"
+                value={statistics.alpha}
+                description="Guru alpha"
                 icon={UserX}
-                label="Tidak Hadir"
-                value={totalTidakHadir}
-                description="Izin, sakit, atau alpha"
-                iconClass="bg-red-50 text-red-600"
+                iconClass="text-red-500"
+                loading={loading}
               />
             </div>
 
-            {/* ====================================================
-                FILTER
-            ==================================================== */}
+            {/* =================================================
+                SEARCH + FILTER STATUS
+            ================================================== */}
 
-            <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm p-4 mb-6">
-              <div className="flex flex-col xl:flex-row gap-3">
-                {/* DATE */}
-
-                <div className="relative xl:w-56 flex-shrink-0">
-                  <CalendarDays
-                    size={16}
-                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
-                  />
-
-                  <input
-                    type="date"
-                    value={tanggal}
-                    onChange={(e) =>
-                      setTanggal(e.target.value)
-                    }
-                    className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-3 text-sm text-slate-700 outline-none focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-50"
-                  />
-                </div>
-
+            <section className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4">
+              <div className="flex flex-col lg:flex-row gap-3">
                 {/* SEARCH */}
 
-                <div className="relative flex-1 min-w-0">
+                <div className="relative flex-1">
                   <Search
-                    size={17}
-                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
+                    size={16}
+                    className="
+                      absolute
+                      left-3
+                      top-1/2
+                      -translate-y-1/2
+                      text-slate-400
+                    "
                   />
 
                   <input
                     type="text"
                     value={search}
-                    onChange={(e) =>
-                      setSearch(e.target.value)
-                    }
+                    onChange={(event) => {
+                      setSearch(event.target.value);
+                      setPage(1);
+                    }}
                     placeholder="Cari nama guru, NIP, atau jabatan..."
-                    className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-4 text-sm text-slate-800 placeholder:text-slate-400 outline-none focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-50 transition-all"
+                    className="
+                      w-full
+                      pl-9
+                      pr-10
+                      py-2.5
+                      text-sm
+                      rounded-xl
+                      border
+                      border-slate-200
+                      bg-white
+                      text-slate-800
+                      placeholder:text-slate-400
+                      focus:outline-none
+                      focus:ring-2
+                      focus:ring-[#155DFC]/20
+                      focus:border-[#155DFC]/50
+                      transition
+                    "
+                  />
+
+                  {search && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearch("");
+                        setPage(1);
+                      }}
+                      className="
+                        absolute
+                        right-3
+                        top-1/2
+                        -translate-y-1/2
+                        text-slate-400
+                        hover:text-slate-600
+                      "
+                    >
+                      <X size={15} />
+                    </button>
+                  )}
+                </div>
+
+                {/* STATUS FILTER */}
+
+                <div className="flex items-center gap-2 overflow-x-auto pb-1 lg:pb-0">
+                  {[
+                    ["semua", "Semua"],
+                    ["hadir", "Hadir"],
+                    ["terlambat", "Terlambat"],
+                    ["izin", "Izin"],
+                    ["sakit", "Sakit"],
+                    ["alpha", "Alpha"],
+                  ].map(([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => {
+                        setStatusFilter(value);
+                        setPage(1);
+                      }}
+                      className={`
+                        whitespace-nowrap
+                        rounded-xl
+                        border
+                        px-3.5
+                        py-2
+                        text-xs
+                        font-semibold
+                        transition
+                        ${
+                          statusFilter === value
+                            ? "bg-gradient-to-r from-[#155DFC] to-[#0d47c9] border-[#155DFC] text-white shadow-sm"
+                            : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                        }
+                      `}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </section>
+
+            {/* =================================================
+                TABLE
+            ================================================== */}
+
+            <section className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+              {/* TABLE HEADER */}
+
+              <div
+                className="
+                  px-4
+                  sm:px-5
+                  lg:px-6
+                  py-4
+                  border-b
+                  border-slate-100
+                  flex
+                  flex-col
+                  sm:flex-row
+                  sm:items-center
+                  sm:justify-between
+                  gap-3
+                "
+              >
+                <div>
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="
+                        w-8
+                        h-8
+                        rounded-lg
+                        bg-[#eaf1ff]
+                        border
+                        border-[#c7dbff]
+                        flex
+                        items-center
+                        justify-center
+                      "
+                    >
+                      <Database
+                        size={15}
+                        className="text-[#155DFC]"
+                      />
+                    </div>
+
+                    <h2 className="text-sm font-bold text-slate-800">
+                      Data Rekap Guru
+                    </h2>
+                  </div>
+
+                  <p className="text-xs text-slate-400 mt-1">
+                    Daftar kehadiran guru pada tanggal yang dipilih.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 text-xs text-slate-500">
+                  <Activity size={14} className="text-[#155DFC]" />
+                  Auto-refresh setiap 10 detik
+                </div>
+              </div>
+
+              {/* TABLE */}
+
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[1000px] text-sm border-collapse">
+                  <thead>
+                    <tr
+                      className="
+                        bg-gradient-to-r
+                        from-[#155DFC]
+                        to-[#0d47c9]
+                        text-white
+                      "
+                    >
+                      <th className="px-4 py-3 text-center font-semibold w-[65px]">
+                        No
+                      </th>
+
+                      <th className="px-4 py-3 text-left font-semibold">
+                        Guru
+                      </th>
+
+                      <th className="px-4 py-3 text-left font-semibold">
+                        NIP
+                      </th>
+
+                      <th className="px-4 py-3 text-left font-semibold">
+                        Jabatan
+                      </th>
+
+                      <th className="px-4 py-3 text-left font-semibold">
+                        Status
+                      </th>
+
+                      <th className="px-4 py-3 text-left font-semibold">
+                        Jam Masuk
+                      </th>
+
+                      <th className="px-4 py-3 text-left font-semibold">
+                        Jam Pulang
+                      </th>
+
+                      <th className="px-4 py-3 text-center font-semibold">
+                        Aksi
+                      </th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {loading ? (
+                      Array.from({ length: limit }).map(
+                        (_, index) => (
+                          <tr
+                            key={index}
+                            className="border-b border-slate-100 last:border-0"
+                          >
+                            <td className="px-4 py-3 text-center">
+                              <div className="mx-auto h-7 w-7 animate-pulse rounded-lg bg-slate-100" />
+                            </td>
+
+                            <td className="px-4 py-3">
+                              <div className="space-y-2">
+                                <div className="h-4 w-36 animate-pulse rounded bg-slate-100" />
+
+                                <div className="h-3 w-24 animate-pulse rounded bg-slate-100" />
+                              </div>
+                            </td>
+
+                            <td className="px-4 py-3">
+                              <div className="h-4 w-24 animate-pulse rounded bg-slate-100" />
+                            </td>
+
+                            <td className="px-4 py-3">
+                              <div className="h-4 w-28 animate-pulse rounded bg-slate-100" />
+                            </td>
+
+                            <td className="px-4 py-3">
+                              <div className="h-6 w-20 animate-pulse rounded-full bg-slate-100" />
+                            </td>
+
+                            <td className="px-4 py-3">
+                              <div className="h-4 w-16 animate-pulse rounded bg-slate-100" />
+                            </td>
+
+                            <td className="px-4 py-3">
+                              <div className="h-4 w-16 animate-pulse rounded bg-slate-100" />
+                            </td>
+
+                            <td className="px-4 py-3">
+                              <div className="mx-auto h-8 w-20 animate-pulse rounded-lg bg-slate-100" />
+                            </td>
+                          </tr>
+                        )
+                      )
+                    ) : paginatedData.length === 0 ? (
+                      <tr>
+                        <td
+                          colSpan={8}
+                          className="px-4 py-16 text-center"
+                        >
+                          <div className="mx-auto flex max-w-md flex-col items-center">
+                            <div
+                              className="
+                                w-14
+                                h-14
+                                rounded-full
+                                bg-[#eaf1ff]
+                                border
+                                border-[#c7dbff]
+                                flex
+                                items-center
+                                justify-center
+                              "
+                            >
+                              <Users
+                                size={24}
+                                className="text-[#155DFC]"
+                              />
+                            </div>
+
+                            <h3 className="mt-4 text-base font-bold text-slate-800">
+                              Data guru tidak ditemukan
+                            </h3>
+
+                            <p className="mt-1 text-xs text-slate-500 text-center">
+                              Tidak ada data absensi guru untuk
+                              tanggal{" "}
+                              <span className="font-semibold">
+                                {formatTanggalIndonesia(tanggal)}
+                              </span>
+                              .
+                            </p>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : (
+                      paginatedData.map((guru, index) => (
+                        <tr
+                          key={guru.id}
+                          className="
+                            border-b
+                            border-slate-100
+                            last:border-0
+                            hover:bg-[#eaf1ff]
+                            transition-colors
+                          "
+                        >
+                          {/* NO */}
+
+                          <td className="px-4 py-3 text-center">
+                            <span
+                              className="
+                                inline-flex
+                                items-center
+                                justify-center
+                                w-7
+                                h-7
+                                rounded-lg
+                                bg-[#eaf1ff]
+                                border
+                                border-[#c7dbff]
+                                text-[#155DFC]
+                                text-xs
+                                font-bold
+                              "
+                            >
+                              {(page - 1) * limit + index + 1}
+                            </span>
+                          </td>
+
+                          {/* GURU */}
+
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-3">
+                              <div
+                                className="
+                                  w-10
+                                  h-10
+                                  rounded-full
+                                  bg-gradient-to-br
+                                  from-[#155DFC]
+                                  to-[#0d47c9]
+                                  text-white
+                                  flex
+                                  items-center
+                                  justify-center
+                                  text-xs
+                                  font-bold
+                                  shrink-0
+                                "
+                              >
+                                {guru.nama
+                                  .split(" ")
+                                  .slice(0, 2)
+                                  .map((w) => w[0])
+                                  .join("")
+                                  .toUpperCase()}
+                              </div>
+
+                              <div className="min-w-0">
+                                <p className="font-semibold text-slate-800 truncate max-w-[200px]">
+                                  {guru.nama}
+                                </p>
+
+                                <p className="text-[11px] text-slate-400 mt-0.5 truncate max-w-[200px]">
+                                  {guru.jabatan}
+                                </p>
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* NIP */}
+
+                          <td className="px-4 py-3 text-xs font-medium text-slate-600">
+                            {guru.nip}
+                          </td>
+
+                          {/* JABATAN */}
+
+                          <td className="px-4 py-3 text-xs text-slate-600">
+                            {guru.jabatan}
+                          </td>
+
+                          {/* STATUS */}
+
+                          <td className="px-4 py-3">
+                            {renderStatus(guru.status)}
+                          </td>
+
+                          {/* JAM MASUK */}
+
+                          <td className="px-4 py-3">
+                            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700">
+                              <Clock3
+                                size={12}
+                                className="text-slate-400"
+                              />
+                              {guru.jamMasuk}
+                            </span>
+                          </td>
+
+                          {/* JAM PULANG */}
+
+                          <td className="px-4 py-3">
+                            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700">
+                              <Clock3
+                                size={12}
+                                className="text-slate-400"
+                              />
+                              {guru.jamPulang}
+                            </span>
+                          </td>
+
+                          {/* AKSI */}
+
+                          <td className="px-4 py-3 text-center">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setSelectedGuru(guru)
+                              }
+                              className="
+                                inline-flex
+                                items-center
+                                gap-1.5
+                                rounded-lg
+                                border
+                                border-slate-200
+                                bg-white
+                                px-3
+                                py-2
+                                text-xs
+                                font-semibold
+                                text-slate-600
+                                transition
+                                hover:border-[#c7dbff]
+                                hover:bg-[#eaf1ff]
+                                hover:text-[#155DFC]
+                              "
+                            >
+                              <Eye size={13} />
+                              Detail
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* =================================================
+                  PAGINATION
+              ================================================== */}
+
+              {!loading && filteredData.length > 0 && (
+                <div
+                  className="
+                    px-4
+                    sm:px-5
+                    py-3
+                    border-t
+                    border-slate-100
+                    bg-slate-50/60
+                    flex
+                    flex-col
+                    sm:flex-row
+                    sm:items-center
+                    sm:justify-between
+                    gap-3
+                  "
+                >
+                  <p className="text-xs text-slate-500">
+                    Menampilkan{" "}
+                    <span className="font-semibold text-slate-700">
+                      {(page - 1) * limit + 1}
+                    </span>{" "}
+                    -{" "}
+                    <span className="font-semibold text-slate-700">
+                      {Math.min(
+                        page * limit,
+                        filteredData.length
+                      )}
+                    </span>{" "}
+                    dari{" "}
+                    <span className="font-semibold text-slate-700">
+                      {filteredData.length}
+                    </span>{" "}
+                    guru
+                  </p>
+
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={limit}
+                      onChange={(event) => {
+                        setLimit(Number(event.target.value));
+                        setPage(1);
+                      }}
+                      className="
+                        text-xs
+                        rounded-lg
+                        border
+                        border-slate-200
+                        bg-white
+                        px-3
+                        py-2
+                        text-slate-600
+                        outline-none
+                        focus:border-[#155DFC]/50
+                        focus:ring-2
+                        focus:ring-[#155DFC]/20
+                      "
+                    >
+                      <option value={10}>10 / halaman</option>
+                      <option value={20}>20 / halaman</option>
+                      <option value={50}>50 / halaman</option>
+                    </select>
+
+                    <button
+                      type="button"
+                      disabled={page <= 1}
+                      onClick={() =>
+                        setPage((current) => current - 1)
+                      }
+                      className="
+                        w-8
+                        h-8
+                        rounded-lg
+                        border
+                        border-slate-200
+                        bg-white
+                        text-slate-500
+                        flex
+                        items-center
+                        justify-center
+                        disabled:opacity-40
+                        disabled:cursor-not-allowed
+                        hover:bg-slate-50
+                      "
+                    >
+                      <ChevronLeft size={15} />
+                    </button>
+
+                    <span className="min-w-[60px] text-center text-xs font-semibold text-slate-600">
+                      {page} / {totalPages}
+                    </span>
+
+                    <button
+                      type="button"
+                      disabled={page >= totalPages}
+                      onClick={() =>
+                        setPage((current) => current + 1)
+                      }
+                      className="
+                        w-8
+                        h-8
+                        rounded-lg
+                        border
+                        border-slate-200
+                        bg-white
+                        text-slate-500
+                        flex
+                        items-center
+                        justify-center
+                        disabled:opacity-40
+                        disabled:cursor-not-allowed
+                        hover:bg-slate-50
+                      "
+                    >
+                      <ChevronRight size={15} />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </section>
+          </div>
+        </main>
+      </div>
+
+      {/* =====================================================
+          DETAIL MODAL
+      ====================================================== */}
+
+      {selectedGuru && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-sm"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setSelectedGuru(null);
+            }
+          }}
+        >
+          <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl overflow-hidden">
+            {/* MODAL HEADER */}
+
+            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-[#eaf1ff] border border-[#c7dbff] flex items-center justify-center">
+                  <Eye
+                    size={17}
+                    className="text-[#155DFC]"
                   />
                 </div>
 
-                {/* STATUS */}
+                <div>
+                  <h2 className="text-sm font-bold text-slate-800">
+                    Detail Absensi Guru
+                  </h2>
 
-                <div className="flex items-center gap-2 overflow-x-auto pb-1 xl:pb-0">
-                  <div className="hidden sm:flex w-10 h-10 rounded-xl bg-slate-50 items-center justify-center text-slate-500 flex-shrink-0">
-                    <Filter size={16} />
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    {formatTanggalIndonesia(tanggal)}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setSelectedGuru(null)}
+                className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* MODAL BODY */}
+
+            <div className="px-6 py-5 space-y-5 max-h-[60vh] overflow-y-auto">
+              {/* PROFIL */}
+
+              <div className="flex items-center gap-4 p-4 rounded-xl bg-slate-50 border border-slate-200">
+                <div
+                  className="
+                    w-14
+                    h-14
+                    rounded-full
+                    bg-gradient-to-br
+                    from-[#155DFC]
+                    to-[#0d47c9]
+                    text-white
+                    flex
+                    items-center
+                    justify-center
+                    text-lg
+                    font-bold
+                    shrink-0
+                  "
+                >
+                  {selectedGuru.nama
+                    .split(" ")
+                    .slice(0, 2)
+                    .map((w) => w[0])
+                    .join("")
+                    .toUpperCase()}
+                </div>
+
+                <div className="min-w-0">
+                  <p className="text-base font-bold text-slate-800 truncate">
+                    {selectedGuru.nama}
+                  </p>
+
+                  <p className="text-xs text-slate-500 mt-0.5 truncate">
+                    {selectedGuru.jabatan}
+                  </p>
+
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    NIP: {selectedGuru.nip}
+                  </p>
+                </div>
+              </div>
+
+              {/* STATUS */}
+
+              <div>
+                <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                  Status Kehadiran
+                </p>
+
+                {renderStatus(selectedGuru.status)}
+              </div>
+
+              {/* JAM */}
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-xl border border-slate-200 p-4">
+                  <div className="flex items-center gap-2 text-slate-400">
+                    <Clock3 size={14} />
+
+                    <p className="text-[10px] font-medium uppercase tracking-wide">
+                      Jam Masuk
+                    </p>
                   </div>
 
-                  <FilterButton
-                    active={statusFilter === "semua"}
-                    onClick={() =>
-                      setStatusFilter("semua")
-                    }
-                  >
-                    Semua
-                  </FilterButton>
+                  <p className="mt-2 text-lg font-bold text-slate-800">
+                    {selectedGuru.jamMasuk}
+                  </p>
+                </div>
 
-                  <FilterButton
-                    active={statusFilter === "hadir"}
-                    onClick={() =>
-                      setStatusFilter("hadir")
-                    }
-                  >
-                    Hadir
-                  </FilterButton>
+                <div className="rounded-xl border border-slate-200 p-4">
+                  <div className="flex items-center gap-2 text-slate-400">
+                    <Clock3 size={14} />
 
-                  <FilterButton
-                    active={statusFilter === "terlambat"}
-                    onClick={() =>
-                      setStatusFilter("terlambat")
-                    }
-                  >
-                    Terlambat
-                  </FilterButton>
+                    <p className="text-[10px] font-medium uppercase tracking-wide">
+                      Jam Pulang
+                    </p>
+                  </div>
 
-                  <FilterButton
-                    active={statusFilter === "izin"}
-                    onClick={() =>
-                      setStatusFilter("izin")
-                    }
-                  >
-                    Izin
-                  </FilterButton>
+                  <p className="mt-2 text-lg font-bold text-slate-800">
+                    {selectedGuru.jamPulang}
+                  </p>
+                </div>
+              </div>
 
-                  <FilterButton
-                    active={statusFilter === "sakit"}
-                    onClick={() =>
-                      setStatusFilter("sakit")
-                    }
-                  >
-                    Sakit
-                  </FilterButton>
+              {/* RINGKASAN */}
 
-                  <FilterButton
-                    active={statusFilter === "alpha"}
-                    onClick={() =>
-                      setStatusFilter("alpha")
-                    }
-                  >
-                    Alpha
-                  </FilterButton>
+              <div>
+                <p className="mb-3 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                  Ringkasan Bulan Ini
+                </p>
+
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <div className="rounded-xl border border-amber-100 bg-amber-50 p-3">
+                    <p className="text-[10px] text-amber-600 font-medium">
+                      Terlambat
+                    </p>
+
+                    <p className="mt-1 text-lg font-bold text-amber-700">
+                      {selectedGuru.terlambat}
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl border border-blue-100 bg-blue-50 p-3">
+                    <p className="text-[10px] text-blue-600 font-medium">
+                      Izin
+                    </p>
+
+                    <p className="mt-1 text-lg font-bold text-blue-700">
+                      {selectedGuru.izin}
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl border border-orange-100 bg-orange-50 p-3">
+                    <p className="text-[10px] text-orange-600 font-medium">
+                      Sakit
+                    </p>
+
+                    <p className="mt-1 text-lg font-bold text-orange-700">
+                      {selectedGuru.sakit}
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl border border-red-100 bg-red-50 p-3">
+                    <p className="text-[10px] text-red-600 font-medium">
+                      Alpha
+                    </p>
+
+                    <p className="mt-1 text-lg font-bold text-red-700">
+                      {selectedGuru.alpha}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* ====================================================
-                CONTENT
-            ==================================================== */}
+            {/* MODAL FOOTER */}
 
-            <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6 items-start">
-              {/* ==================================================
-                  TABLE
-              ================================================== */}
-
-              <section className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden min-w-0">
-                <div className="px-5 sm:px-6 py-4 border-b border-slate-100 flex items-center justify-between gap-4">
-                  <div>
-                    <h2 className="text-sm sm:text-base font-bold text-slate-800">
-                      Data Kehadiran Guru
-                    </h2>
-
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      {filteredData.length} data ditampilkan
-                    </p>
-                  </div>
-
-                  <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
-                    <FileSpreadsheet size={17} />
-                  </div>
-                </div>
-
-                {filteredData.length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <table className="w-full min-w-[850px]">
-                      <thead>
-                        <tr className="bg-slate-50/80 border-b border-slate-100">
-                          <th className="text-left px-5 py-3.5 text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                            Guru
-                          </th>
-
-                          <th className="text-left px-4 py-3.5 text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                            Status
-                          </th>
-
-                          <th className="text-left px-4 py-3.5 text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                            Jam Masuk
-                          </th>
-
-                          <th className="text-left px-4 py-3.5 text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                            Jam Pulang
-                          </th>
-
-                          <th className="text-center px-4 py-3.5 text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                            Terlambat
-                          </th>
-
-                          <th className="text-right px-5 py-3.5 text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                            Detail
-                          </th>
-                        </tr>
-                      </thead>
-
-                      <tbody className="divide-y divide-slate-100">
-                        {filteredData.map((item) => {
-                          const isSelected =
-                            selectedGuru?.id === item.id;
-
-                          return (
-                            <tr
-                              key={item.id}
-                              onClick={() =>
-                                setSelectedId(item.id)
-                              }
-                              className={`cursor-pointer transition-colors ${
-                                isSelected
-                                  ? "bg-blue-50/60"
-                                  : "hover:bg-slate-50"
-                              }`}
-                            >
-                              <td className="px-5 py-4">
-                                <div className="flex items-center gap-3">
-                                  <div
-                                    className={`w-10 h-10 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0 ${
-                                      isSelected
-                                        ? "bg-blue-600 text-white"
-                                        : "bg-blue-50 text-blue-700"
-                                    }`}
-                                  >
-                                    {getInitials(item.nama)}
-                                  </div>
-
-                                  <div className="min-w-0">
-                                    <p className="text-sm font-bold text-slate-800 truncate max-w-[250px]">
-                                      {item.nama}
-                                    </p>
-
-                                    <p className="text-xs text-slate-500 mt-0.5 truncate max-w-[250px]">
-                                      {item.jabatan}
-                                    </p>
-                                  </div>
-                                </div>
-                              </td>
-
-                              <td className="px-4 py-4">
-                                <StatusBadge
-                                  status={item.status}
-                                />
-                              </td>
-
-                              <td className="px-4 py-4">
-                                <span className="text-sm font-semibold text-slate-700">
-                                  {item.jamMasuk}
-                                </span>
-                              </td>
-
-                              <td className="px-4 py-4">
-                                <span className="text-sm font-semibold text-slate-700">
-                                  {item.jamPulang}
-                                </span>
-                              </td>
-
-                              <td className="px-4 py-4 text-center">
-                                <span
-                                  className={
-                                    item.terlambat > 0
-                                      ? "text-sm font-bold text-amber-600"
-                                      : "text-sm font-medium text-slate-400"
-                                  }
-                                >
-                                  {item.terlambat}
-                                </span>
-                              </td>
-
-                              <td className="px-5 py-4 text-right">
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedId(item.id);
-                                  }}
-                                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700"
-                                >
-                                  Lihat
-                                  <span>→</span>
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <EmptyState
-                    onReset={() => {
-                      setSearch("");
-                      setStatusFilter("semua");
-                    }}
-                  />
-                )}
-              </section>
-
-              {/* ==================================================
-                  DETAIL CARD
-              ================================================== */}
-
-              <aside className="xl:sticky xl:top-6">
-                {selectedGuru ? (
-                  <GuruDetailCard guru={selectedGuru} />
-                ) : (
-                  <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center">
-                    <Users
-                      size={25}
-                      className="mx-auto text-slate-300"
-                    />
-
-                    <p className="text-sm font-semibold text-slate-700 mt-3">
-                      Belum ada data
-                    </p>
-                  </div>
-                )}
-              </aside>
-            </div>
-
-            {/* ====================================================
-                MOBILE ACTION
-            ==================================================== */}
-
-            <div className="grid grid-cols-2 gap-3 mt-5 sm:hidden">
+            <div className="border-t border-slate-100 px-6 py-4 bg-slate-50/70">
               <button
                 type="button"
-                onClick={handleRefresh}
-                className="h-11 rounded-xl bg-white border border-slate-200 text-sm font-semibold text-slate-600 flex items-center justify-center gap-2"
+                onClick={() => setSelectedGuru(null)}
+                className="
+                  w-full
+                  rounded-xl
+                  bg-gradient-to-r
+                  from-[#155DFC]
+                  to-[#0d47c9]
+                  px-4
+                  py-2.5
+                  text-sm
+                  font-semibold
+                  text-white
+                  transition
+                  hover:brightness-110
+                "
               >
-                <RefreshCw size={15} />
-                Refresh
+                Tutup
               </button>
-
-              <button
-                type="button"
-                onClick={handleExport}
-                className="h-11 rounded-xl bg-blue-600 text-white text-sm font-semibold flex items-center justify-center gap-2"
-              >
-                <Download size={15} />
-                Export
-              </button>
-            </div>
-
-            {/* ====================================================
-                FOOTER
-            ==================================================== */}
-
-            <div className="py-8 text-center">
-              <p className="text-xs text-slate-400">
-                SmartSchool Admin • Rekap Presensi Guru
-              </p>
             </div>
           </div>
-        </main>
-      </div>
+        </div>
+      )}
     </div>
   );
 }
 
-/* ================================================================
+/* =========================================================
    STAT CARD
-================================================================ */
+========================================================= */
 
 function StatCard({
-  icon: Icon,
-  label,
+  title,
   value,
   description,
+  icon: Icon,
   iconClass,
+  loading,
 }) {
   return (
-    <div className="bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-sm">
+    <div
+      className="
+        bg-white
+        rounded-2xl
+        border
+        border-slate-200/80
+        p-4
+        sm:p-5
+        shadow-sm
+        hover:shadow-md
+        transition-all
+        duration-200
+      "
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-xs sm:text-sm text-slate-500 font-medium truncate">
-            {label}
+          <p className="text-[11px] sm:text-xs font-medium text-slate-500">
+            {title}
           </p>
 
-          <p className="text-2xl sm:text-3xl font-bold text-slate-900 mt-1.5">
-            {value}
-          </p>
+          {loading ? (
+            <div className="mt-2 h-8 w-16 animate-pulse rounded-lg bg-slate-100" />
+          ) : (
+            <p className="mt-1.5 text-2xl sm:text-3xl font-bold text-slate-900">
+              {value}
+            </p>
+          )}
 
-          <p className="text-[11px] sm:text-xs text-slate-400 mt-1">
+          <p className="mt-1 text-[10px] sm:text-xs text-slate-400">
             {description}
           </p>
         </div>
 
         <div
-          className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${iconClass}`}
+          className="
+            w-10
+            h-10
+            rounded-xl
+            bg-slate-50
+            border
+            border-slate-100
+            flex
+            items-center
+            justify-center
+            shrink-0
+          "
         >
-          <Icon size={18} />
+          <Icon size={18} className={iconClass} />
         </div>
       </div>
     </div>
   );
-}
-
-/* ================================================================
-   FILTER BUTTON
-================================================================ */
-
-function FilterButton({
-  active,
-  onClick,
-  children,
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`h-10 px-3.5 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all ${
-        active
-          ? "bg-blue-600 text-white shadow-sm"
-          : "bg-slate-50 text-slate-600 hover:bg-blue-50 hover:text-blue-600"
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
-
-/* ================================================================
-   STATUS BADGE
-================================================================ */
-
-function StatusBadge({ status }) {
-  const config =
-    STATUS_CONFIG[status] ||
-    STATUS_CONFIG.hadir;
-
-  return (
-    <span
-      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-semibold whitespace-nowrap ${config.className}`}
-    >
-      <span
-        className={`w-1.5 h-1.5 rounded-full ${config.dot}`}
-      />
-
-      {config.label}
-    </span>
-  );
-}
-
-/* ================================================================
-   DETAIL CARD
-================================================================ */
-
-function GuruDetailCard({ guru }) {
-  const hadirPersen =
-    guru.totalHari > 0
-      ? Math.round(
-          ((guru.totalHari -
-            guru.izin -
-            guru.sakit -
-            guru.alpha) /
-            guru.totalHari) *
-            100
-        )
-      : 0;
-
-  return (
-    <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
-      {/* HEADER */}
-
-      <div className="relative bg-[#155DFC] p-5 sm:p-6 text-white overflow-hidden">
-        <div className="absolute -right-10 -top-12 w-36 h-36 rounded-full bg-white/10" />
-
-        <div className="absolute right-12 -bottom-20 w-32 h-32 rounded-full bg-white/10" />
-
-        <div className="relative">
-          <div className="flex items-center justify-between gap-3">
-            <div className="w-12 h-12 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center font-bold">
-              {getInitials(guru.nama)}
-            </div>
-
-            <StatusBadge status={guru.status} />
-          </div>
-
-          <h2 className="text-lg font-bold mt-4">
-            {guru.nama}
-          </h2>
-
-          <p className="text-xs text-blue-100 mt-1">
-            {guru.jabatan}
-          </p>
-        </div>
-      </div>
-
-      {/* BODY */}
-
-      <div className="p-5 sm:p-6">
-        <div className="space-y-4">
-          <DetailRow
-            label="NIP"
-            value={guru.nip}
-          />
-
-          <DetailRow
-            label="Jam Masuk"
-            value={guru.jamMasuk}
-          />
-
-          <DetailRow
-            label="Jam Pulang"
-            value={guru.jamPulang}
-          />
-
-          <DetailRow
-            label="Jumlah Keterlambatan"
-            value={`${guru.terlambat} kali`}
-          />
-        </div>
-
-        {/* SUMMARY */}
-
-        <div className="mt-6 pt-5 border-t border-slate-100">
-          <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">
-            Ringkasan Kehadiran
-          </p>
-
-          <div className="grid grid-cols-2 gap-2.5">
-            <MiniStat
-              label="Hadir"
-              value={guru.totalHari - guru.izin - guru.sakit - guru.alpha}
-              className="bg-emerald-50 text-emerald-700"
-            />
-
-            <MiniStat
-              label="Izin"
-              value={guru.izin}
-              className="bg-blue-50 text-blue-700"
-            />
-
-            <MiniStat
-              label="Sakit"
-              value={guru.sakit}
-              className="bg-violet-50 text-violet-700"
-            />
-
-            <MiniStat
-              label="Alpha"
-              value={guru.alpha}
-              className="bg-red-50 text-red-700"
-            />
-          </div>
-        </div>
-
-        {/* PERSENTASE */}
-
-        <div className="mt-5">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-semibold text-slate-600">
-              Persentase Kehadiran
-            </p>
-
-            <p className="text-sm font-bold text-blue-600">
-              {hadirPersen}%
-            </p>
-          </div>
-
-          <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-blue-600 rounded-full transition-all"
-              style={{
-                width: `${Math.min(
-                  Math.max(hadirPersen, 0),
-                  100
-                )}%`,
-              }}
-            />
-          </div>
-        </div>
-
-        {/* DATE */}
-
-        <div className="mt-5 p-3.5 rounded-xl bg-slate-50 border border-slate-100 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-500">
-            <CalendarDays size={15} />
-          </div>
-
-          <div>
-            <p className="text-[11px] text-slate-400">
-              Tanggal Rekap
-            </p>
-
-            <p className="text-sm font-semibold text-slate-700 mt-0.5">
-              {formatDate("2026-09-10")}
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ================================================================
-   DETAIL ROW
-================================================================ */
-
-function DetailRow({ label, value }) {
-  return (
-    <div className="flex items-center justify-between gap-4">
-      <p className="text-xs text-slate-500">
-        {label}
-      </p>
-
-      <p className="text-sm font-semibold text-slate-700 text-right">
-        {value}
-      </p>
-    </div>
-  );
-}
-
-/* ================================================================
-   MINI STAT
-================================================================ */
-
-function MiniStat({
-  label,
-  value,
-  className,
-}) {
-  return (
-    <div
-      className={`rounded-xl px-3.5 py-3 ${className}`}
-    >
-      <p className="text-[11px] opacity-70">
-        {label}
-      </p>
-
-      <p className="text-lg font-bold mt-0.5">
-        {value}
-      </p>
-    </div>
-  );
-}
-
-/* ================================================================
-   EMPTY STATE
-================================================================ */
-
-function EmptyState({ onReset }) {
-  return (
-    <div className="px-6 py-16 text-center">
-      <div className="w-14 h-14 mx-auto rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center">
-        <Search size={23} />
-      </div>
-
-      <h3 className="text-sm font-bold text-slate-800 mt-4">
-        Data tidak ditemukan
-      </h3>
-
-      <p className="text-xs text-slate-500 mt-1">
-        Tidak ada data guru yang sesuai dengan filter.
-      </p>
-
-      <button
-        type="button"
-        onClick={onReset}
-        className="mt-5 inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold"
-      >
-        <RefreshCw size={14} />
-        Reset Filter
-      </button>
-    </div>
-  );
-}
-
-/* ================================================================
-   HELPERS
-================================================================ */
-
-function getInitials(name) {
-  return name
-    .replace(/,/g, "")
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((word) => word[0])
-    .join("")
-    .toUpperCase();
-}
-
-function formatDate(dateString) {
-  const date = new Date(`${dateString}T00:00:00`);
-
-  return date.toLocaleDateString("id-ID", {
-    weekday: "long",
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  });
 }

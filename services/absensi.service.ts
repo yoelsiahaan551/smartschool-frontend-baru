@@ -555,4 +555,35 @@ const absensiService = {
   absenManual,
 };
 
+export interface KelasSaya {
+  kelasId: string;
+  nama: string;
+  tingkat: string;
+  tahunAjaranId: string;
+}
+
+export async function getKelasSaya(): Promise<KelasSaya> {
+  const response = await apiFetch(
+    "/api/v1/siswa/kelas-saya",
+    {
+      method: "GET",
+    },
+  );
+
+  console.log(
+    "========== KELAS SAYA ==========",
+  );
+
+  console.log(
+    "RESPONSE:",
+    response,
+  );
+
+  console.log(
+    "================================",
+  );
+
+  return response.data;
+}
+
 export default absensiService;

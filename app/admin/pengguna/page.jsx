@@ -1,155 +1,320 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { useRouter } from "next/navigation";
 
 import Sidebar from "../../components/Sidebar";
 import Header from "../../components/Header";
 
 import {
-  Users,
   Search,
-  Filter,
   Plus,
+  Download,
+  RefreshCw,
   Eye,
   Pencil,
+  MoreVertical,
+  Users,
   UserCheck,
   UserX,
   GraduationCap,
   BriefcaseBusiness,
   ShieldCheck,
-  Mail,
-  Phone,
-  ChevronLeft,
-  ChevronRight,
-  MoreHorizontal,
-  Download,
-  RefreshCw,
   X,
   CheckCircle2,
   AlertCircle,
+  Loader2,
+  ChevronLeft,
+  ChevronRight,
+  Filter,
+  Mail,
+  Phone,
   UserRound,
   Database,
   Activity,
+  MoreHorizontal,
 } from "lucide-react";
 
 /* =========================================================
-   MOCK DATA
-   NANTI BISA DIGANTI HASIL API
+   API
 ========================================================= */
 
-const USERS = [
-  {
-    id: "USR-001",
-    nama: "Ahmad Fauzan",
-    username: "ahmad.fauzan",
-    email: "ahmad.fauzan@smartschool.com",
-    noTelepon: "081234567890",
-    peran: "Guru",
-    jabatan: "Guru Matematika",
-    status: "Aktif",
-    avatar: "AF",
-  },
-  {
-    id: "USR-002",
-    nama: "Siti Rahma",
-    username: "siti.rahma",
-    email: "siti.rahma@smartschool.com",
-    noTelepon: "081298765432",
-    peran: "Guru",
-    jabatan: "Guru Bahasa Indonesia",
-    status: "Aktif",
-    avatar: "SR",
-  },
-  {
-    id: "USR-003",
-    nama: "Budi Santoso",
-    username: "budi.santoso",
-    email: "budi.santoso@smartschool.com",
-    noTelepon: "082112345678",
-    peran: "Staff",
-    jabatan: "Administrasi",
-    status: "Aktif",
-    avatar: "BS",
-  },
-  {
-    id: "USR-004",
-    nama: "Dina Amelia",
-    username: "dina.amelia",
-    email: "dina.amelia@smartschool.com",
-    noTelepon: "085712345678",
-    peran: "Guru",
-    jabatan: "Guru Bahasa Inggris",
-    status: "Aktif",
-    avatar: "DA",
-  },
-  {
-    id: "USR-005",
-    nama: "Rizky Pratama",
-    username: "rizky.pratama",
-    email: "rizky.pratama@smartschool.com",
-    noTelepon: "081377889900",
-    peran: "Siswa",
-    jabatan: "Siswa Kelas XII RPL 1",
-    status: "Aktif",
-    avatar: "RP",
-  },
-  {
-    id: "USR-006",
-    nama: "Nadia Putri",
-    username: "nadia.putri",
-    email: "nadia.putri@smartschool.com",
-    noTelepon: "082233445566",
-    peran: "Siswa",
-    jabatan: "Siswa Kelas XI RPL 2",
-    status: "Aktif",
-    avatar: "NP",
-  },
-  {
-    id: "USR-007",
-    nama: "Fajar Ramadhan",
-    username: "fajar.ramadhan",
-    email: "fajar.ramadhan@smartschool.com",
-    noTelepon: "083811223344",
-    peran: "Staff",
-    jabatan: "Staff Keuangan",
-    status: "Nonaktif",
-    avatar: "FR",
-  },
-  {
-    id: "USR-008",
-    nama: "Dewi Lestari",
-    username: "dewi.lestari",
-    email: "dewi.lestari@smartschool.com",
-    noTelepon: "081266778899",
-    peran: "Guru",
-    jabatan: "Guru IPA",
-    status: "Aktif",
-    avatar: "DL",
-  },
-  {
-    id: "USR-009",
-    nama: "Andi Saputra",
-    username: "andi.saputra",
-    email: "andi.saputra@smartschool.com",
-    noTelepon: "085612341234",
-    peran: "Siswa",
-    jabatan: "Siswa Kelas X TKJ 1",
-    status: "Aktif",
-    avatar: "AS",
-  },
-  {
-    id: "USR-010",
-    nama: "Maya Puspita",
-    username: "maya.puspita",
-    email: "maya.puspita@smartschool.com",
-    noTelepon: "081355667788",
-    peran: "Admin",
-    jabatan: "Admin Sekolah",
-    status: "Aktif",
-    avatar: "MP",
-  },
-];
+const API_URL = (
+  process.env.NEXT_PUBLIC_API_URL ||
+  "http://localhost:5000"
+).replace(/\/$/, "");
+
+const USERS_ENDPOINT = `${API_URL}/api/users`;
+
+/* =========================================================
+   HELPER TOKEN
+========================================================= */
+
+const getToken = () => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  return localStorage.getItem("token");
+};
+
+/* =========================================================
+   EXTRACT DATA RESPONSE
+========================================================= */
+
+const extractUsers = (response) => {
+  if (Array.isArray(response)) {
+    return response;
+  }
+
+  if (Array.isArray(response?.data)) {
+    return response.data;
+  }
+
+  if (Array.isArray(response?.data?.data)) {
+    return response.data.data;
+  }
+
+  if (Array.isArray(response?.data?.items)) {
+    return response.data.items;
+  }
+
+  if (Array.isArray(response?.items)) {
+    return response.items;
+  }
+
+  return [];
+};
+
+/* =========================================================
+   EXTRACT PAGINATION
+========================================================= */
+
+const extractPagination = (
+  response,
+  fallbackPage,
+  fallbackLimit,
+) => {
+  const pagination =
+    response?.pagination ||
+    response?.meta ||
+    response?.data?.pagination ||
+    response?.data?.meta ||
+    {};
+
+  return {
+    currentPage:
+      Number(
+        pagination.currentPage ??
+          pagination.current_page ??
+          pagination.page ??
+          fallbackPage,
+      ) || fallbackPage,
+
+    totalPages:
+      Number(
+        pagination.totalPages ??
+          pagination.total_pages ??
+          pagination.pages ??
+          1,
+      ) || 1,
+
+    totalData:
+      Number(
+        pagination.totalData ??
+          pagination.total_data ??
+          pagination.total ??
+          0,
+      ) || 0,
+
+    limit:
+      Number(
+        pagination.limit ??
+          pagination.perPage ??
+          pagination.per_page ??
+          fallbackLimit,
+      ) || fallbackLimit,
+  };
+};
+
+/* =========================================================
+   ROLE NORMALIZER
+========================================================= */
+
+const normalizeRole = (role) => {
+  const value = String(role || "")
+    .trim()
+    .toLowerCase();
+
+  if (value.includes("guru")) {
+    return "Guru";
+  }
+
+  if (value.includes("siswa")) {
+    return "Siswa";
+  }
+
+  if (
+    value.includes("staff") ||
+    value.includes("staf")
+  ) {
+    return "Staff";
+  }
+
+  if (value.includes("admin")) {
+    return "Admin";
+  }
+
+  return role || "-";
+};
+
+/* =========================================================
+   STATUS NORMALIZER
+========================================================= */
+
+const normalizeStatus = (status) => {
+  const value = String(status || "")
+    .trim()
+    .toLowerCase();
+
+  if (
+    value === "aktif" ||
+    value === "active" ||
+    value === "true" ||
+    value === "1"
+  ) {
+    return "Aktif";
+  }
+
+  return "Nonaktif";
+};
+
+/* =========================================================
+   INITIAL
+========================================================= */
+
+const getInitials = (name) => {
+  if (!name) {
+    return "U";
+  }
+
+  const words = String(name)
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  if (words.length === 1) {
+    return words[0]
+      .substring(0, 2)
+      .toUpperCase();
+  }
+
+  return (
+    words[0][0] +
+    words[words.length - 1][0]
+  ).toUpperCase();
+};
+
+/* =========================================================
+   NORMALIZE USER
+========================================================= */
+
+const normalizeUser = (
+  user,
+  index,
+) => {
+  const role =
+    user?.peran?.namaTampilan ||
+    user?.peran?.nama ||
+    user?.role ||
+    user?.peran ||
+    "-";
+
+  return {
+    id:
+      user?.id ||
+      `user-${index}`,
+
+    nama:
+      user?.namaLengkap ||
+      user?.nama ||
+      "-",
+
+    username:
+      user?.namaPengguna ||
+      user?.username ||
+      "-",
+
+    email:
+      user?.email ||
+      "-",
+
+    noTelepon:
+      user?.noTelepon ||
+      "-",
+
+    peran: normalizeRole(role),
+
+    peranRaw:
+      user?.peran?.nama ||
+      role,
+
+    peranId:
+      user?.peran?.id ||
+      user?.peranId ||
+      null,
+
+    jabatan:
+      user?.jabatan ||
+      "-",
+
+    status:
+      normalizeStatus(
+        user?.status,
+      ),
+
+    statusRaw:
+      user?.status ||
+      "nonaktif",
+
+    avatar:
+      user?.avatar ||
+      null,
+
+    nip:
+      user?.nip ||
+      null,
+
+    nipd:
+      user?.nipd ||
+      null,
+
+    nisn:
+      user?.nisn ||
+      null,
+
+    golongan:
+      user?.golongan ||
+      null,
+
+    sekolah:
+      user?.sekolah ||
+      null,
+
+    biometrikWajah:
+      user?.biometrikWajah ||
+      null,
+
+    dibuatPada:
+      user?.dibuatPada ||
+      null,
+  };
+};
 
 /* =========================================================
    ROLE CONFIG
@@ -264,6 +429,7 @@ function StatCard({
   description,
   icon: Icon,
   iconClass,
+  loading,
 }) {
   return (
     <div
@@ -286,9 +452,13 @@ function StatCard({
             {title}
           </p>
 
-          <p className="mt-1.5 text-2xl sm:text-3xl font-bold text-slate-900">
-            {value}
-          </p>
+          {loading ? (
+            <div className="mt-2 h-8 w-16 animate-pulse rounded-lg bg-slate-100" />
+          ) : (
+            <p className="mt-1.5 text-2xl sm:text-3xl font-bold text-slate-900">
+              {value}
+            </p>
+          )}
 
           <p className="mt-1 text-[10px] sm:text-xs text-slate-400">
             {description}
@@ -320,16 +490,37 @@ function StatCard({
 }
 
 /* =========================================================
-   MAIN PAGE
+   PAGE
 ========================================================= */
 
 export default function PenggunaPage() {
   const router = useRouter();
 
-  const [isCollapsed, setIsCollapsed] =
+  const [sidebarOpen, setSidebarOpen] =
+    useState(true);
+
+  /* =======================================================
+     USERS
+  ======================================================= */
+
+  const [users, setUsers] =
+    useState([]);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [refreshing, setRefreshing] =
     useState(false);
 
-  const [search, setSearch] = useState("");
+  const [error, setError] =
+    useState("");
+
+  /* =======================================================
+     FILTER
+  ======================================================= */
+
+  const [search, setSearch] =
+    useState("");
 
   const [roleFilter, setRoleFilter] =
     useState("Semua");
@@ -337,130 +528,304 @@ export default function PenggunaPage() {
   const [statusFilter, setStatusFilter] =
     useState("Semua");
 
-  const [page, setPage] = useState(1);
-
-  const [selectedUser, setSelectedUser] =
-    useState(null);
-
-  const itemsPerPage = 7;
-
-  /* =======================================================
-     SIDEBAR
-  ======================================================= */
-
-  const toggleSidebar = () => {
-    setIsCollapsed((prev) => !prev);
-  };
-
-  /* =======================================================
-     FILTER DATA
-  ======================================================= */
-
-  const filteredUsers = useMemo(() => {
-    const keyword =
-      search.toLowerCase().trim();
-
-    return USERS.filter((user) => {
-      const matchSearch =
-        user.nama
-          .toLowerCase()
-          .includes(keyword) ||
-        user.username
-          .toLowerCase()
-          .includes(keyword) ||
-        user.email
-          .toLowerCase()
-          .includes(keyword) ||
-        user.id
-          .toLowerCase()
-          .includes(keyword) ||
-        user.jabatan
-          .toLowerCase()
-          .includes(keyword) ||
-        user.peran
-          .toLowerCase()
-          .includes(keyword);
-
-      const matchRole =
-        roleFilter === "Semua" ||
-        user.peran === roleFilter;
-
-      const matchStatus =
-        statusFilter === "Semua" ||
-        user.status === statusFilter;
-
-      return (
-        matchSearch &&
-        matchRole &&
-        matchStatus
-      );
-    });
-  }, [
-    search,
-    roleFilter,
-    statusFilter,
-  ]);
-
   /* =======================================================
      PAGINATION
   ======================================================= */
 
-  const totalPages = Math.max(
-    1,
-    Math.ceil(
-      filteredUsers.length /
-        itemsPerPage
-    )
+  const [page, setPage] =
+    useState(1);
+
+  const LIMIT = 7;
+
+  const [pagination, setPagination] =
+    useState({
+      currentPage: 1,
+      totalPages: 1,
+      totalData: 0,
+      limit: LIMIT,
+    });
+
+  /* =======================================================
+     MODAL
+  ======================================================= */
+
+  const [selectedUser, setSelectedUser] =
+    useState(null);
+
+  const [updatingStatus, setUpdatingStatus] =
+    useState(false);
+
+  /* =======================================================
+     GET USERS
+  ======================================================= */
+
+  const fetchUsers = useCallback(
+    async ({
+      pageNumber = 1,
+      searchValue = "",
+      roleValue = "Semua",
+      statusValue = "Semua",
+      isRefresh = false,
+    } = {}) => {
+      try {
+        if (isRefresh) {
+          setRefreshing(true);
+        } else {
+          setLoading(true);
+        }
+
+        setError("");
+
+        const token = getToken();
+
+        const params =
+          new URLSearchParams();
+
+        params.set(
+          "page",
+          String(pageNumber),
+        );
+
+        params.set(
+          "limit",
+          String(LIMIT),
+        );
+
+        if (
+          searchValue.trim()
+        ) {
+          params.set(
+            "search",
+            searchValue.trim(),
+          );
+        }
+
+        if (
+          roleValue &&
+          roleValue !== "Semua"
+        ) {
+          const roleMap = {
+            Guru: "guru",
+            Siswa: "siswa",
+            Staff: "staff",
+            Admin: "admin",
+          };
+
+          params.set(
+            "role",
+            roleMap[
+              roleValue
+            ] ||
+              roleValue.toLowerCase(),
+          );
+        }
+
+        if (
+          statusValue &&
+          statusValue !== "Semua"
+        ) {
+          params.set(
+            "status",
+            statusValue ===
+              "Aktif"
+              ? "aktif"
+              : "nonaktif",
+          );
+        }
+
+        const response =
+          await fetch(
+            `${USERS_ENDPOINT}?${params.toString()}`,
+            {
+              method: "GET",
+
+              headers: {
+                Accept:
+                  "application/json",
+
+                ...(token
+                  ? {
+                      Authorization: `Bearer ${token}`,
+                    }
+                  : {}),
+              },
+
+              cache: "no-store",
+            },
+          );
+
+        const result =
+          await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            result?.message ||
+              "Gagal mengambil data pengguna",
+          );
+        }
+
+        const rawUsers =
+          extractUsers(result);
+
+        const normalizedUsers =
+          rawUsers.map(
+            normalizeUser,
+          );
+
+        const paginationData =
+          extractPagination(
+            result,
+            pageNumber,
+            LIMIT,
+          );
+
+        setUsers(
+          normalizedUsers,
+        );
+
+        setPagination(
+          paginationData,
+        );
+      } catch (err) {
+        console.error(
+          "GET USERS ERROR:",
+          err,
+        );
+
+        setUsers([]);
+
+        setError(
+          err?.message ||
+            "Gagal mengambil data pengguna.",
+        );
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [],
   );
 
-  const currentPage = Math.min(
+  /* =======================================================
+     LOAD
+  ======================================================= */
+
+  useEffect(() => {
+    fetchUsers({
+      pageNumber: page,
+      searchValue: search,
+      roleValue: roleFilter,
+      statusValue: statusFilter,
+    });
+  }, [
     page,
-    totalPages
-  );
-
-  const paginatedUsers =
-    filteredUsers.slice(
-      (currentPage - 1) *
-        itemsPerPage,
-      currentPage *
-        itemsPerPage
-    );
+    search,
+    roleFilter,
+    statusFilter,
+    fetchUsers,
+  ]);
 
   /* =======================================================
      STATISTICS
   ======================================================= */
 
-  const totalUsers = USERS.length;
+  const statistics =
+    useMemo(() => {
+      return {
+        total:
+          pagination.totalData ||
+          users.length,
 
-  const totalGuru = USERS.filter(
-    (user) => user.peran === "Guru"
-  ).length;
+        guru:
+          users.filter(
+            (item) =>
+              item.peran === "Guru",
+          ).length,
 
-  const totalSiswa = USERS.filter(
-    (user) => user.peran === "Siswa"
-  ).length;
+        siswa:
+          users.filter(
+            (item) =>
+              item.peran === "Siswa",
+          ).length,
 
-  const totalStaff = USERS.filter(
-    (user) => user.peran === "Staff"
-  ).length;
+        staff:
+          users.filter(
+            (item) =>
+              item.peran === "Staff",
+          ).length,
 
-  const totalAdmin = USERS.filter(
-    (user) => user.peran === "Admin"
-  ).length;
+        admin:
+          users.filter(
+            (item) =>
+              item.peran === "Admin",
+          ).length,
 
-  const totalActive = USERS.filter(
-    (user) => user.status === "Aktif"
-  ).length;
+        aktif:
+          users.filter(
+            (item) =>
+              item.status ===
+              "Aktif",
+          ).length,
 
-  const totalInactive = USERS.filter(
-    (user) => user.status === "Nonaktif"
-  ).length;
+        nonaktif:
+          users.filter(
+            (item) =>
+              item.status ===
+              "Nonaktif",
+          ).length,
+      };
+    }, [
+      users,
+      pagination.totalData,
+    ]);
 
   /* =======================================================
-     RESET FILTER
+     SEARCH
   ======================================================= */
 
-  const resetFilter = () => {
+  const handleSearchChange = (
+    event,
+  ) => {
+    setSearch(
+      event.target.value,
+    );
+
+    setPage(1);
+  };
+
+  /* =======================================================
+     ROLE
+  ======================================================= */
+
+  const handleRoleChange = (
+    event,
+  ) => {
+    setRoleFilter(
+      event.target.value,
+    );
+
+    setPage(1);
+  };
+
+  /* =======================================================
+     STATUS
+  ======================================================= */
+
+  const handleStatusChange = (
+    event,
+  ) => {
+    setStatusFilter(
+      event.target.value,
+    );
+
+    setPage(1);
+  };
+
+  /* =======================================================
+     RESET
+  ======================================================= */
+
+  const handleResetFilter = () => {
     setSearch("");
     setRoleFilter("Semua");
     setStatusFilter("Semua");
@@ -477,48 +842,329 @@ export default function PenggunaPage() {
   };
 
   /* =======================================================
+     REFRESH
+  ======================================================= */
+
+  const handleRefresh = () => {
+    fetchUsers({
+      pageNumber: page,
+      searchValue: search,
+      roleValue: roleFilter,
+      statusValue: statusFilter,
+      isRefresh: true,
+    });
+  };
+
+  /* =======================================================
+     DETAIL
+  ======================================================= */
+
+  const handleDetail = (
+    user,
+  ) => {
+    if (!user?.id) {
+      return;
+    }
+
+    router.push(
+      `/admin/pengguna/${user.id}`,
+    );
+  };
+
+  /* =======================================================
+     EDIT
+  ======================================================= */
+
+  const handleEdit = (
+    user,
+  ) => {
+    if (!user?.id) {
+      return;
+    }
+
+    router.push(
+      `/admin/pengguna/${user.id}/edit`,
+    );
+  };
+
+  /* =======================================================
+     OPEN MODAL
+  ======================================================= */
+
+  const handleOpenStatusModal = (
+    user,
+  ) => {
+    setSelectedUser(user);
+  };
+
+  /* =======================================================
+     CLOSE MODAL
+  ======================================================= */
+
+  const handleCloseStatusModal = () => {
+    if (updatingStatus) {
+      return;
+    }
+
+    setSelectedUser(null);
+  };
+
+  /* =======================================================
+     UPDATE STATUS
+  ======================================================= */
+
+  const handleUpdateStatus =
+    async () => {
+      if (
+        !selectedUser?.id ||
+        updatingStatus
+      ) {
+        return;
+      }
+
+      try {
+        setUpdatingStatus(true);
+        setError("");
+
+        const token = getToken();
+
+        const newStatus =
+          selectedUser.status ===
+          "Aktif"
+            ? "nonaktif"
+            : "aktif";
+
+        const response =
+          await fetch(
+            `${USERS_ENDPOINT}/${selectedUser.id}`,
+            {
+              method: "PUT",
+
+              headers: {
+                "Content-Type":
+                  "application/json",
+
+                Accept:
+                  "application/json",
+
+                ...(token
+                  ? {
+                      Authorization: `Bearer ${token}`,
+                    }
+                  : {}),
+              },
+
+              body: JSON.stringify({
+                status: newStatus,
+              }),
+            },
+          );
+
+        const result =
+          await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            result?.message ||
+              "Gagal mengubah status pengguna",
+          );
+        }
+
+        setSelectedUser(null);
+
+        await fetchUsers({
+          pageNumber: page,
+          searchValue: search,
+          roleValue: roleFilter,
+          statusValue: statusFilter,
+        });
+      } catch (err) {
+        console.error(
+          "UPDATE STATUS ERROR:",
+          err,
+        );
+
+        setError(
+          err?.message ||
+            "Gagal mengubah status pengguna.",
+        );
+      } finally {
+        setUpdatingStatus(false);
+      }
+    };
+
+  /* =======================================================
+     EXPORT
+  ======================================================= */
+
+  const handleExport = () => {
+    if (!users.length) {
+      return;
+    }
+
+    const escapeCsv = (
+      value,
+    ) =>
+      `"${String(
+        value ?? "",
+      ).replaceAll(
+        '"',
+        '""',
+      )}"`;
+
+    const headers = [
+      "Nama Lengkap",
+      "Username",
+      "Email",
+      "No. Telepon",
+      "Peran",
+      "Jabatan",
+      "Status",
+    ];
+
+    const rows = users.map(
+      (user) => [
+        user.nama,
+        user.username,
+        user.email,
+        user.noTelepon,
+        user.peran,
+        user.jabatan,
+        user.status,
+      ],
+    );
+
+    const csv = [
+      headers
+        .map(escapeCsv)
+        .join(","),
+      ...rows.map((row) =>
+        row
+          .map(escapeCsv)
+          .join(","),
+      ),
+    ].join("\n");
+
+    const blob =
+      new Blob(
+        ["\ufeff" + csv],
+        {
+          type: "text/csv;charset=utf-8;",
+        },
+      );
+
+    const url =
+      URL.createObjectURL(blob);
+
+    const link =
+      document.createElement(
+        "a",
+      );
+
+    link.href = url;
+
+    link.download =
+      `data-pengguna-${new Date()
+        .toISOString()
+        .slice(0, 10)}.csv`;
+
+    document.body.appendChild(
+      link,
+    );
+
+    link.click();
+
+    document.body.removeChild(
+      link,
+    );
+
+    URL.revokeObjectURL(url);
+  };
+
+  /* =======================================================
+     PAGINATION
+  ======================================================= */
+
+  const pageNumbers =
+    useMemo(() => {
+      const totalPages =
+        pagination.totalPages ||
+        1;
+
+      const currentPage =
+        pagination.currentPage ||
+        page;
+
+      const result = [];
+
+      const start = Math.max(
+        1,
+        currentPage - 2,
+      );
+
+      const end = Math.min(
+        totalPages,
+        currentPage + 2,
+      );
+
+      for (
+        let i = start;
+        i <= end;
+        i++
+      ) {
+        result.push(i);
+      }
+
+      return result;
+    }, [
+      pagination.totalPages,
+      pagination.currentPage,
+      page,
+    ]);
+
+  /* =======================================================
      RENDER
   ======================================================= */
 
   return (
     <div className="flex h-screen w-full bg-slate-50 overflow-hidden">
-
-      {/* ===================================================
+      {/* =====================================================
           SIDEBAR
-      =================================================== */}
+      ===================================================== */}
 
       <Sidebar
-        active="pengguna"
-        setActive={() => {}}
-        collapsed={isCollapsed}
-        setCollapsed={setIsCollapsed}
         role="admin"
+        activeMenu="pengguna"
+        isOpen={sidebarOpen}
+        onToggle={() =>
+          setSidebarOpen(
+            !sidebarOpen,
+          )
+        }
       />
 
-      {/* ===================================================
+      {/* =====================================================
           MAIN CONTENT
-      =================================================== */}
+      ===================================================== */}
 
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
-
         {/* HEADER */}
 
         <Header
-          toggleSidebar={toggleSidebar}
-          notifications={[]}
-          user={{
-            name: "Admin Sekolah",
-            email: "admin@smartschool.com",
-            avatar: "AD",
-          }}
+          title="Pengguna"
+          onMenuClick={() =>
+            setSidebarOpen(
+              !sidebarOpen,
+            )
+          }
         />
 
-        {/* PAGE */}
+        {/* =====================================================
+            PAGE (HANYA AREA INI YANG SCROLL)
+        ===================================================== */}
 
         <main className="flex-1 overflow-y-auto">
-
           <div className="p-4 sm:p-6 lg:p-8 space-y-5 sm:space-y-6">
-
             {/* =================================================
                 PAGE HEADER
             ================================================== */}
@@ -533,11 +1179,9 @@ export default function PenggunaPage() {
                 gap-4
               "
             >
-
               {/* TITLE */}
 
               <div className="flex items-center gap-3">
-
                 <div
                   className="
                     w-11
@@ -559,39 +1203,68 @@ export default function PenggunaPage() {
                 </div>
 
                 <div className="min-w-0">
-
-                  <div className="flex items-center gap-2">
-
-                    <h1
-                      className="
-                        text-xl
-                        sm:text-2xl
-                        font-bold
-                        text-slate-800
-                        truncate
-                      "
-                    >
-                      Pengguna
-                    </h1>
-
-                  </div>
+                  <h1
+                    className="
+                      text-xl
+                      sm:text-2xl
+                      font-bold
+                      text-slate-800
+                      truncate
+                    "
+                  >
+                    Pengguna
+                  </h1>
 
                   <p className="text-xs sm:text-sm text-slate-500 mt-1">
                     Kelola seluruh pengguna yang terdaftar di sekolah.
                   </p>
-
                 </div>
-
               </div>
 
               {/* ACTION */}
 
               <div className="flex flex-col sm:flex-row gap-2">
+                <button
+                  type="button"
+                  onClick={handleRefresh}
+                  disabled={refreshing}
+                  className="
+                    inline-flex
+                    items-center
+                    justify-center
+                    gap-2
+                    px-4
+                    py-2.5
+                    rounded-xl
+                    border
+                    border-slate-200
+                    bg-white
+                    text-slate-600
+                    text-sm
+                    font-semibold
+                    hover:bg-slate-50
+                    hover:border-slate-300
+                    transition
+                    disabled:cursor-not-allowed
+                    disabled:opacity-60
+                  "
+                >
+                  <RefreshCw
+                    size={15}
+                    className={
+                      refreshing
+                        ? "animate-spin"
+                        : ""
+                    }
+                  />
+                  Refresh
+                </button>
 
                 <button
                   type="button"
-                  onClick={() =>
-                    window.location.reload()
+                  onClick={handleExport}
+                  disabled={
+                    loading || !users.length
                   }
                   className="
                     inline-flex
@@ -610,17 +1283,19 @@ export default function PenggunaPage() {
                     hover:bg-slate-50
                     hover:border-slate-300
                     transition
+                    disabled:cursor-not-allowed
+                    disabled:opacity-60
                   "
                 >
-                  <RefreshCw size={15} />
-                  Refresh
+                  <Download size={15} />
+                  Export
                 </button>
 
                 <button
                   type="button"
                   onClick={() =>
                     router.push(
-                      "/admin/pengguna/tambah"
+                      "/admin/pengguna/tambah",
                     )
                   }
                   className="
@@ -645,10 +1320,50 @@ export default function PenggunaPage() {
                   <Plus size={16} />
                   Tambah Pengguna
                 </button>
-
               </div>
-
             </div>
+
+            {/* ERROR */}
+
+            {error && (
+              <div
+                className="
+                  flex
+                  items-start
+                  gap-3
+                  rounded-xl
+                  border
+                  border-red-200
+                  bg-red-50
+                  p-4
+                "
+              >
+                <AlertCircle
+                  size={19}
+                  className="mt-0.5 shrink-0 text-red-600"
+                />
+
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-red-800">
+                    Terjadi kesalahan
+                  </p>
+
+                  <p className="mt-0.5 text-sm text-red-700">
+                    {error}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setError("")
+                  }
+                  className="text-red-500 hover:text-red-700"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            )}
 
             {/* =================================================
                 STATISTICS
@@ -663,39 +1378,41 @@ export default function PenggunaPage() {
                 sm:gap-4
               "
             >
-
               <StatCard
                 title="Total Pengguna"
-                value={totalUsers}
-                description={`${totalActive} pengguna aktif`}
+                value={statistics.total}
+                description={`${statistics.aktif} pengguna aktif`}
                 icon={Users}
                 iconClass="text-[#155DFC]"
+                loading={loading}
               />
 
               <StatCard
                 title="Guru"
-                value={totalGuru}
+                value={statistics.guru}
                 description="Pengguna dengan role Guru"
                 icon={GraduationCap}
                 iconClass="text-blue-500"
+                loading={loading}
               />
 
               <StatCard
                 title="Siswa"
-                value={totalSiswa}
+                value={statistics.siswa}
                 description="Pengguna dengan role Siswa"
                 icon={UserRound}
                 iconClass="text-indigo-500"
+                loading={loading}
               />
 
               <StatCard
                 title="Staff"
-                value={totalStaff}
+                value={statistics.staff}
                 description="Pengguna dengan role Staff"
                 icon={BriefcaseBusiness}
                 iconClass="text-amber-500"
+                loading={loading}
               />
-
             </div>
 
             {/* =================================================
@@ -712,9 +1429,7 @@ export default function PenggunaPage() {
                 overflow-hidden
               "
             >
-
               <div className="p-4 sm:p-5 lg:p-6">
-
                 <div
                   className="
                     flex
@@ -725,13 +1440,10 @@ export default function PenggunaPage() {
                     gap-5
                   "
                 >
-
                   {/* TEXT */}
 
                   <div>
-
                     <div className="flex items-center gap-2">
-
                       <div
                         className="
                           w-8
@@ -754,13 +1466,11 @@ export default function PenggunaPage() {
                       <h2 className="text-sm font-bold text-slate-800">
                         Ringkasan Pengguna
                       </h2>
-
                     </div>
 
                     <p className="text-xs text-slate-400 mt-2">
                       Distribusi pengguna berdasarkan peran.
                     </p>
-
                   </div>
 
                   {/* ROLE SUMMARY */}
@@ -775,7 +1485,6 @@ export default function PenggunaPage() {
                       xl:w-auto
                     "
                   >
-
                     {/* SEMUA */}
 
                     <button
@@ -802,7 +1511,7 @@ export default function PenggunaPage() {
                       </p>
 
                       <p className="text-lg font-bold text-slate-800 mt-1">
-                        {totalUsers}
+                        {statistics.total}
                       </p>
                     </button>
 
@@ -832,7 +1541,7 @@ export default function PenggunaPage() {
                       </p>
 
                       <p className="text-lg font-bold text-slate-800 mt-1">
-                        {totalGuru}
+                        {statistics.guru}
                       </p>
                     </button>
 
@@ -862,7 +1571,7 @@ export default function PenggunaPage() {
                       </p>
 
                       <p className="text-lg font-bold text-slate-800 mt-1">
-                        {totalSiswa}
+                        {statistics.siswa}
                       </p>
                     </button>
 
@@ -892,12 +1601,10 @@ export default function PenggunaPage() {
                       </p>
 
                       <p className="text-lg font-bold text-slate-800 mt-1">
-                        {totalStaff}
+                        {statistics.staff}
                       </p>
                     </button>
-
                   </div>
-
                 </div>
 
                 {/* SMALL SUMMARY */}
@@ -914,9 +1621,7 @@ export default function PenggunaPage() {
                     gap-y-2
                   "
                 >
-
                   <div className="flex items-center gap-2">
-
                     <span className="w-2 h-2 rounded-full bg-emerald-500" />
 
                     <span className="text-xs text-slate-500">
@@ -924,13 +1629,11 @@ export default function PenggunaPage() {
                     </span>
 
                     <span className="text-xs font-semibold text-slate-700">
-                      {totalActive}
+                      {statistics.aktif}
                     </span>
-
                   </div>
 
                   <div className="flex items-center gap-2">
-
                     <span className="w-2 h-2 rounded-full bg-red-500" />
 
                     <span className="text-xs text-slate-500">
@@ -938,13 +1641,11 @@ export default function PenggunaPage() {
                     </span>
 
                     <span className="text-xs font-semibold text-slate-700">
-                      {totalInactive}
+                      {statistics.nonaktif}
                     </span>
-
                   </div>
 
                   <div className="flex items-center gap-2">
-
                     <span className="w-2 h-2 rounded-full bg-purple-500" />
 
                     <span className="text-xs text-slate-500">
@@ -952,15 +1653,11 @@ export default function PenggunaPage() {
                     </span>
 
                     <span className="text-xs font-semibold text-slate-700">
-                      {totalAdmin}
+                      {statistics.admin}
                     </span>
-
                   </div>
-
                 </div>
-
               </div>
-
             </section>
 
             {/* =================================================
@@ -977,7 +1674,6 @@ export default function PenggunaPage() {
                 p-4
               "
             >
-
               <div
                 className="
                   flex
@@ -986,11 +1682,9 @@ export default function PenggunaPage() {
                   gap-3
                 "
               >
-
                 {/* SEARCH */}
 
                 <div className="relative flex-1">
-
                   <Search
                     size={16}
                     className="
@@ -1005,12 +1699,7 @@ export default function PenggunaPage() {
                   <input
                     type="text"
                     value={search}
-                    onChange={(event) => {
-                      setSearch(
-                        event.target.value
-                      );
-                      setPage(1);
-                    }}
+                    onChange={handleSearchChange}
                     placeholder="Cari nama, username, email, ID, jabatan..."
                     className="
                       w-full
@@ -1051,7 +1740,6 @@ export default function PenggunaPage() {
                       <X size={15} />
                     </button>
                   )}
-
                 </div>
 
                 {/* FILTER */}
@@ -1064,15 +1752,9 @@ export default function PenggunaPage() {
                     gap-2
                   "
                 >
-
                   <select
                     value={roleFilter}
-                    onChange={(event) => {
-                      setRoleFilter(
-                        event.target.value
-                      );
-                      setPage(1);
-                    }}
+                    onChange={handleRoleChange}
                     className="
                       text-sm
                       rounded-xl
@@ -1111,12 +1793,7 @@ export default function PenggunaPage() {
 
                   <select
                     value={statusFilter}
-                    onChange={(event) => {
-                      setStatusFilter(
-                        event.target.value
-                      );
-                      setPage(1);
-                    }}
+                    onChange={handleStatusChange}
                     className="
                       text-sm
                       rounded-xl
@@ -1147,7 +1824,7 @@ export default function PenggunaPage() {
 
                   <button
                     type="button"
-                    onClick={resetFilter}
+                    onClick={handleResetFilter}
                     className="
                       inline-flex
                       items-center
@@ -1169,11 +1846,8 @@ export default function PenggunaPage() {
                     <Filter size={15} />
                     Reset
                   </button>
-
                 </div>
-
               </div>
-
             </section>
 
             {/* =================================================
@@ -1190,7 +1864,6 @@ export default function PenggunaPage() {
                 overflow-hidden
               "
             >
-
               {/* TABLE HEADER */}
 
               <div
@@ -1209,11 +1882,8 @@ export default function PenggunaPage() {
                   gap-3
                 "
               >
-
                 <div>
-
                   <div className="flex items-center gap-2">
-
                     <Database
                       size={16}
                       className="text-[#155DFC]"
@@ -1222,17 +1892,19 @@ export default function PenggunaPage() {
                     <h2 className="text-sm font-bold text-slate-800">
                       Data Pengguna
                     </h2>
-
                   </div>
 
                   <p className="text-xs text-slate-400 mt-1">
                     Menampilkan data pengguna berdasarkan filter yang dipilih.
                   </p>
-
                 </div>
 
                 <button
                   type="button"
+                  onClick={handleExport}
+                  disabled={
+                    loading || !users.length
+                  }
                   className="
                     inline-flex
                     items-center
@@ -1250,22 +1922,20 @@ export default function PenggunaPage() {
                     hover:bg-slate-50
                     transition
                     w-fit
+                    disabled:cursor-not-allowed
+                    disabled:opacity-60
                   "
                 >
                   <Download size={14} />
                   Export Data
                 </button>
-
               </div>
 
               {/* TABLE */}
 
               <div className="overflow-x-auto">
-
                 <table className="w-full min-w-[1100px] text-sm border-collapse">
-
                   <thead>
-
                     <tr
                       className="
                         bg-gradient-to-r
@@ -1274,7 +1944,6 @@ export default function PenggunaPage() {
                         text-white
                       "
                     >
-
                       <th className="px-4 py-3 text-center font-semibold w-[65px]">
                         No
                       </th>
@@ -1302,324 +1971,78 @@ export default function PenggunaPage() {
                       <th className="px-4 py-3 text-center font-semibold">
                         Aksi
                       </th>
-
                     </tr>
-
                   </thead>
 
                   <tbody>
+                    {/* LOADING */}
 
-                    {paginatedUsers.map(
-                      (user, index) => (
+                    {loading ? (
+                      Array.from({
+                        length: LIMIT,
+                      }).map((_, index) => (
                         <tr
-                          key={user.id}
-                          className="
-                            border-b
-                            border-slate-100
-                            last:border-0
-                            hover:bg-[#eaf1ff]
-                            transition-colors
-                          "
+                          key={index}
+                          className="border-b border-slate-100 last:border-0"
                         >
-
-                          {/* NO */}
-
                           <td className="px-4 py-3 text-center">
-
-                            <span
-                              className="
-                                inline-flex
-                                items-center
-                                justify-center
-                                w-7
-                                h-7
-                                rounded-lg
-                                bg-[#eaf1ff]
-                                border
-                                border-[#c7dbff]
-                                text-[#155DFC]
-                                text-xs
-                                font-bold
-                              "
-                            >
-                              {(currentPage - 1) *
-                                itemsPerPage +
-                                index +
-                                1}
-                            </span>
-
+                            <div className="mx-auto h-7 w-7 animate-pulse rounded-lg bg-slate-100" />
                           </td>
 
-                          {/* USER */}
-
                           <td className="px-4 py-3">
-
                             <div className="flex items-center gap-3">
+                              <div className="h-10 w-10 animate-pulse rounded-full bg-slate-100" />
 
-                              <div
-                                className="
-                                  w-10
-                                  h-10
-                                  rounded-full
-                                  bg-gradient-to-br
-                                  from-[#155DFC]
-                                  to-[#0d47c9]
-                                  text-white
-                                  flex
-                                  items-center
-                                  justify-center
-                                  text-xs
-                                  font-bold
-                                  shrink-0
-                                "
-                              >
-                                {user.avatar}
+                              <div className="space-y-2">
+                                <div className="h-4 w-36 animate-pulse rounded bg-slate-100" />
+
+                                <div className="h-3 w-20 animate-pulse rounded bg-slate-100" />
                               </div>
-
-                              <div className="min-w-0">
-
-                                <p
-                                  className="
-                                    font-semibold
-                                    text-slate-800
-                                    truncate
-                                    max-w-[220px]
-                                  "
-                                >
-                                  {user.nama}
-                                </p>
-
-                                <p className="text-[11px] text-slate-400 mt-0.5">
-                                  {user.id}
-                                </p>
-
-                              </div>
-
                             </div>
-
                           </td>
 
-                          {/* KONTAK */}
-
                           <td className="px-4 py-3">
+                            <div className="space-y-2">
+                              <div className="h-3 w-40 animate-pulse rounded bg-slate-100" />
 
-                            <div className="space-y-1">
-
-                              <div className="flex items-center gap-2">
-
-                                <Mail
-                                  size={13}
-                                  className="text-[#155DFC] shrink-0"
-                                />
-
-                                <span className="text-xs text-slate-600">
-                                  {user.email}
-                                </span>
-
-                              </div>
-
-                              <div className="flex items-center gap-2">
-
-                                <Phone
-                                  size={13}
-                                  className="text-slate-400 shrink-0"
-                                />
-
-                                <span className="text-xs text-slate-500">
-                                  {user.noTelepon}
-                                </span>
-
-                              </div>
-
+                              <div className="h-3 w-24 animate-pulse rounded bg-slate-100" />
                             </div>
-
                           </td>
-
-                          {/* ROLE */}
 
                           <td className="px-4 py-3">
-                            <RoleBadge
-                              role={user.peran}
-                            />
+                            <div className="h-6 w-20 animate-pulse rounded-full bg-slate-100" />
                           </td>
-
-                          {/* JABATAN */}
 
                           <td className="px-4 py-3">
+                            <div className="space-y-2">
+                              <div className="h-3 w-32 animate-pulse rounded bg-slate-100" />
 
-                            <p className="text-xs font-medium text-slate-700">
-                              {user.jabatan}
-                            </p>
-
-                            <p className="text-[11px] text-slate-400 mt-1">
-                              @{user.username}
-                            </p>
-
+                              <div className="h-3 w-24 animate-pulse rounded bg-slate-100" />
+                            </div>
                           </td>
-
-                          {/* STATUS */}
 
                           <td className="px-4 py-3 text-center">
-                            <StatusBadge
-                              status={user.status}
-                            />
+                            <div className="mx-auto h-6 w-20 animate-pulse rounded-full bg-slate-100" />
                           </td>
-
-                          {/* ACTION */}
 
                           <td className="px-4 py-3">
+                            <div className="mx-auto flex justify-center gap-1.5">
+                              <div className="h-8 w-8 animate-pulse rounded-lg bg-slate-100" />
 
-                            <div className="flex items-center justify-center gap-1.5">
+                              <div className="h-8 w-8 animate-pulse rounded-lg bg-slate-100" />
 
-                              {/* DETAIL */}
-
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  router.push(
-                                    `/admin/pengguna/${user.id}`
-                                  )
-                                }
-                                className="
-                                  w-8
-                                  h-8
-                                  rounded-lg
-                                  border
-                                  border-slate-200
-                                  bg-white
-                                  text-slate-500
-                                  hover:text-[#155DFC]
-                                  hover:bg-[#eaf1ff]
-                                  hover:border-[#c7dbff]
-                                  transition
-                                  flex
-                                  items-center
-                                  justify-center
-                                "
-                                title="Detail"
-                              >
-                                <Eye size={14} />
-                              </button>
-
-                              {/* EDIT */}
-
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  router.push(
-                                    `/admin/pengguna/${user.id}/edit`
-                                  )
-                                }
-                                className="
-                                  w-8
-                                  h-8
-                                  rounded-lg
-                                  border
-                                  border-slate-200
-                                  bg-white
-                                  text-slate-500
-                                  hover:text-[#155DFC]
-                                  hover:bg-[#eaf1ff]
-                                  hover:border-[#c7dbff]
-                                  transition
-                                  flex
-                                  items-center
-                                  justify-center
-                                "
-                                title="Edit"
-                              >
-                                <Pencil size={14} />
-                              </button>
-
-                              {/* STATUS */}
-
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setSelectedUser(
-                                    user
-                                  )
-                                }
-                                className={`
-                                  w-8
-                                  h-8
-                                  rounded-lg
-                                  border
-                                  flex
-                                  items-center
-                                  justify-center
-                                  transition
-                                  ${
-                                    user.status ===
-                                    "Aktif"
-                                      ? "border-red-200 bg-white text-red-500 hover:bg-red-50"
-                                      : "border-emerald-200 bg-white text-emerald-500 hover:bg-emerald-50"
-                                  }
-                                `}
-                                title={
-                                  user.status ===
-                                  "Aktif"
-                                    ? "Nonaktifkan"
-                                    : "Aktifkan"
-                                }
-                              >
-                                {user.status ===
-                                "Aktif" ? (
-                                  <UserX size={14} />
-                                ) : (
-                                  <UserCheck
-                                    size={14}
-                                  />
-                                )}
-                              </button>
-
-                              {/* MORE */}
-
-                              <button
-                                type="button"
-                                className="
-                                  w-8
-                                  h-8
-                                  rounded-lg
-                                  border
-                                  border-slate-200
-                                  bg-white
-                                  text-slate-400
-                                  hover:text-slate-600
-                                  hover:bg-slate-50
-                                  transition
-                                  flex
-                                  items-center
-                                  justify-center
-                                "
-                                title="Lainnya"
-                              >
-                                <MoreHorizontal
-                                  size={14}
-                                />
-                              </button>
-
+                              <div className="h-8 w-8 animate-pulse rounded-lg bg-slate-100" />
                             </div>
-
                           </td>
-
                         </tr>
-                      )
-                    )}
-
-                    {/* EMPTY */}
-
-                    {paginatedUsers.length ===
-                      0 && (
+                      ))
+                    ) : users.length === 0 ? (
                       <tr>
-
                         <td
                           colSpan={7}
                           className="px-4 py-16 text-center"
                         >
-
                           <div className="flex flex-col items-center">
-
                             <div
                               className="
                                 w-12
@@ -1649,9 +2072,7 @@ export default function PenggunaPage() {
 
                             <button
                               type="button"
-                              onClick={
-                                resetFilter
-                              }
+                              onClick={handleResetFilter}
                               className="
                                 mt-4
                                 text-xs
@@ -1662,112 +2083,360 @@ export default function PenggunaPage() {
                             >
                               Reset Filter
                             </button>
-
                           </div>
-
                         </td>
-
                       </tr>
+                    ) : (
+                      users.map((user, index) => (
+                        <tr
+                          key={user.id}
+                          className="
+                            border-b
+                            border-slate-100
+                            last:border-0
+                            hover:bg-[#eaf1ff]
+                            transition-colors
+                          "
+                        >
+                          {/* NO */}
+
+                          <td className="px-4 py-3 text-center">
+                            <span
+                              className="
+                                inline-flex
+                                items-center
+                                justify-center
+                                w-7
+                                h-7
+                                rounded-lg
+                                bg-[#eaf1ff]
+                                border
+                                border-[#c7dbff]
+                                text-[#155DFC]
+                                text-xs
+                                font-bold
+                              "
+                            >
+                              {(page - 1) * LIMIT +
+                                index +
+                                1}
+                            </span>
+                          </td>
+
+                          {/* USER */}
+
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-3">
+                              <div
+                                className="
+                                  w-10
+                                  h-10
+                                  rounded-full
+                                  bg-gradient-to-br
+                                  from-[#155DFC]
+                                  to-[#0d47c9]
+                                  text-white
+                                  flex
+                                  items-center
+                                  justify-center
+                                  text-xs
+                                  font-bold
+                                  shrink-0
+                                  overflow-hidden
+                                "
+                              >
+                                {user.avatar ? (
+                                  <img
+                                    src={
+                                      user.avatar.startsWith(
+                                        "http",
+                                      )
+                                        ? user.avatar
+                                        : `${API_URL}${user.avatar}`
+                                    }
+                                    alt={user.nama}
+                                    className="h-full w-full object-cover"
+                                    onError={(event) => {
+                                      event.currentTarget.style.display =
+                                        "none";
+                                    }}
+                                  />
+                                ) : (
+                                  getInitials(user.nama)
+                                )}
+                              </div>
+
+                              <div className="min-w-0">
+                                <p
+                                  className="
+                                    font-semibold
+                                    text-slate-800
+                                    truncate
+                                    max-w-[220px]
+                                  "
+                                >
+                                  {user.nama}
+                                </p>
+
+                                <p className="text-[11px] text-slate-400 mt-0.5">
+                                  {user.id}
+                                </p>
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* KONTAK */}
+
+                          <td className="px-4 py-3">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <Mail
+                                  size={13}
+                                  className="text-[#155DFC] shrink-0"
+                                />
+
+                                <span className="text-xs text-slate-600">
+                                  {user.email}
+                                </span>
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                <Phone
+                                  size={13}
+                                  className="text-slate-400 shrink-0"
+                                />
+
+                                <span className="text-xs text-slate-500">
+                                  {user.noTelepon !== "-"
+                                    ? user.noTelepon
+                                    : "Belum diisi"}
+                                </span>
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* ROLE */}
+
+                          <td className="px-4 py-3">
+                            <RoleBadge role={user.peran} />
+                          </td>
+
+                          {/* JABATAN */}
+
+                          <td className="px-4 py-3">
+                            <p className="text-xs font-medium text-slate-700">
+                              {user.jabatan}
+                            </p>
+
+                            <p className="text-[11px] text-slate-400 mt-1">
+                              @{user.username}
+                            </p>
+                          </td>
+
+                          {/* STATUS */}
+
+                          <td className="px-4 py-3 text-center">
+                            <StatusBadge status={user.status} />
+                          </td>
+
+                          {/* ACTION */}
+
+                          <td className="px-4 py-3">
+                            <div className="flex items-center justify-center gap-1.5">
+                              {/* DETAIL */}
+
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleDetail(user)
+                                }
+                                className="
+                                  w-8
+                                  h-8
+                                  rounded-lg
+                                  border
+                                  border-slate-200
+                                  bg-white
+                                  text-slate-500
+                                  hover:text-[#155DFC]
+                                  hover:bg-[#eaf1ff]
+                                  hover:border-[#c7dbff]
+                                  transition
+                                  flex
+                                  items-center
+                                  justify-center
+                                "
+                                title="Detail"
+                              >
+                                <Eye size={14} />
+                              </button>
+
+                              {/* EDIT */}
+
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleEdit(user)
+                                }
+                                className="
+                                  w-8
+                                  h-8
+                                  rounded-lg
+                                  border
+                                  border-slate-200
+                                  bg-white
+                                  text-slate-500
+                                  hover:text-[#155DFC]
+                                  hover:bg-[#eaf1ff]
+                                  hover:border-[#c7dbff]
+                                  transition
+                                  flex
+                                  items-center
+                                  justify-center
+                                "
+                                title="Edit"
+                              >
+                                <Pencil size={14} />
+                              </button>
+
+                              {/* STATUS */}
+
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleOpenStatusModal(user)
+                                }
+                                className={`
+                                  w-8
+                                  h-8
+                                  rounded-lg
+                                  border
+                                  flex
+                                  items-center
+                                  justify-center
+                                  transition
+                                  ${
+                                    user.status === "Aktif"
+                                      ? "border-red-200 bg-white text-red-500 hover:bg-red-50"
+                                      : "border-emerald-200 bg-white text-emerald-500 hover:bg-emerald-50"
+                                  }
+                                `}
+                                title={
+                                  user.status === "Aktif"
+                                    ? "Nonaktifkan"
+                                    : "Aktifkan"
+                                }
+                              >
+                                {user.status === "Aktif" ? (
+                                  <UserX size={14} />
+                                ) : (
+                                  <UserCheck size={14} />
+                                )}
+                              </button>
+
+                              {/* MORE */}
+
+                              <button
+                                type="button"
+                                className="
+                                  w-8
+                                  h-8
+                                  rounded-lg
+                                  border
+                                  border-slate-200
+                                  bg-white
+                                  text-slate-400
+                                  hover:text-slate-600
+                                  hover:bg-slate-50
+                                  transition
+                                  flex
+                                  items-center
+                                  justify-center
+                                "
+                                title="Lainnya"
+                              >
+                                <MoreHorizontal size={14} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
                     )}
-
                   </tbody>
-
                 </table>
-
               </div>
 
               {/* =================================================
                   PAGINATION
               ================================================== */}
 
-              <div
-                className="
-                  px-4
-                  sm:px-5
-                  py-3
-                  border-t
-                  border-slate-100
-                  bg-slate-50/60
-                  flex
-                  flex-col
-                  sm:flex-row
-                  sm:items-center
-                  sm:justify-between
-                  gap-3
-                "
-              >
+              {!loading && users.length > 0 && (
+                <div
+                  className="
+                    px-4
+                    sm:px-5
+                    py-3
+                    border-t
+                    border-slate-100
+                    bg-slate-50/60
+                    flex
+                    flex-col
+                    sm:flex-row
+                    sm:items-center
+                    sm:justify-between
+                    gap-3
+                  "
+                >
+                  <p className="text-xs text-slate-500">
+                    Menampilkan{" "}
+                    <span className="font-semibold text-slate-700">
+                      {users.length}
+                    </span>{" "}
+                    dari{" "}
+                    <span className="font-semibold text-slate-700">
+                      {pagination.totalData}
+                    </span>{" "}
+                    pengguna
+                  </p>
 
-                <p className="text-xs text-slate-500">
+                  <div className="flex items-center gap-1">
+                    {/* PREV */}
 
-                  Menampilkan{" "}
-
-                  <span className="font-semibold text-slate-700">
-                    {paginatedUsers.length}
-                  </span>{" "}
-
-                  dari{" "}
-
-                  <span className="font-semibold text-slate-700">
-                    {filteredUsers.length}
-                  </span>{" "}
-
-                  pengguna
-
-                </p>
-
-                <div className="flex items-center gap-1">
-
-                  {/* PREV */}
-
-                  <button
-                    type="button"
-                    disabled={
-                      currentPage === 1
-                    }
-                    onClick={() =>
-                      setPage(
-                        Math.max(
-                          1,
-                          currentPage - 1
+                    <button
+                      type="button"
+                      disabled={page === 1}
+                      onClick={() =>
+                        setPage(
+                          Math.max(1, page - 1),
                         )
-                      )
-                    }
-                    className="
-                      w-8
-                      h-8
-                      rounded-lg
-                      border
-                      border-slate-200
-                      bg-white
-                      text-slate-500
-                      flex
-                      items-center
-                      justify-center
-                      disabled:opacity-40
-                      disabled:cursor-not-allowed
-                      hover:bg-slate-50
-                    "
-                  >
-                    <ChevronLeft size={15} />
-                  </button>
+                      }
+                      className="
+                        w-8
+                        h-8
+                        rounded-lg
+                        border
+                        border-slate-200
+                        bg-white
+                        text-slate-500
+                        flex
+                        items-center
+                        justify-center
+                        disabled:opacity-40
+                        disabled:cursor-not-allowed
+                        hover:bg-slate-50
+                      "
+                    >
+                      <ChevronLeft size={15} />
+                    </button>
 
-                  {/* PAGE NUMBERS */}
+                    {/* PAGE NUMBERS */}
 
-                  {Array.from(
-                    {
-                      length: totalPages,
-                    },
-                    (_, index) =>
-                      index + 1
-                  ).map(
-                    (pageNumber) => (
+                    {pageNumbers.map((pageNumber) => (
                       <button
                         key={pageNumber}
                         type="button"
                         onClick={() =>
-                          setPage(
-                            pageNumber
-                          )
+                          setPage(pageNumber)
                         }
                         className={`
                           w-8
@@ -1777,8 +2446,7 @@ export default function PenggunaPage() {
                           font-semibold
                           transition
                           ${
-                            currentPage ===
-                            pageNumber
+                            page === pageNumber
                               ? "bg-[#155DFC] text-white shadow-sm"
                               : "border border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
                           }
@@ -1786,54 +2454,47 @@ export default function PenggunaPage() {
                       >
                         {pageNumber}
                       </button>
-                    )
-                  )}
+                    ))}
 
-                  {/* NEXT */}
+                    {/* NEXT */}
 
-                  <button
-                    type="button"
-                    disabled={
-                      currentPage ===
-                      totalPages
-                    }
-                    onClick={() =>
-                      setPage(
-                        Math.min(
-                          totalPages,
-                          currentPage + 1
+                    <button
+                      type="button"
+                      disabled={
+                        page >= pagination.totalPages
+                      }
+                      onClick={() =>
+                        setPage(
+                          Math.min(
+                            pagination.totalPages,
+                            page + 1,
+                          ),
                         )
-                      )
-                    }
-                    className="
-                      w-8
-                      h-8
-                      rounded-lg
-                      border
-                      border-slate-200
-                      bg-white
-                      text-slate-500
-                      flex
-                      items-center
-                      justify-center
-                      disabled:opacity-40
-                      disabled:cursor-not-allowed
-                      hover:bg-slate-50
-                    "
-                  >
-                    <ChevronRight size={15} />
-                  </button>
-
+                      }
+                      className="
+                        w-8
+                        h-8
+                        rounded-lg
+                        border
+                        border-slate-200
+                        bg-white
+                        text-slate-500
+                        flex
+                        items-center
+                        justify-center
+                        disabled:opacity-40
+                        disabled:cursor-not-allowed
+                        hover:bg-slate-50
+                      "
+                    >
+                      <ChevronRight size={15} />
+                    </button>
+                  </div>
                 </div>
-
-              </div>
-
+              )}
             </section>
-
           </div>
-
         </main>
-
       </div>
 
       {/* =====================================================
@@ -1842,7 +2503,6 @@ export default function PenggunaPage() {
 
       {selectedUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-
           {/* OVERLAY */}
 
           <div
@@ -1852,9 +2512,7 @@ export default function PenggunaPage() {
               bg-slate-900/40
               backdrop-blur-sm
             "
-            onClick={() =>
-              setSelectedUser(null)
-            }
+            onClick={handleCloseStatusModal}
           />
 
           {/* MODAL */}
@@ -1872,7 +2530,6 @@ export default function PenggunaPage() {
               overflow-hidden
             "
           >
-
             {/* HEADER */}
 
             <div
@@ -1886,9 +2543,7 @@ export default function PenggunaPage() {
                 justify-between
               "
             >
-
               <div className="flex items-center gap-3">
-
                 <div
                   className={`
                     w-9
@@ -1898,15 +2553,13 @@ export default function PenggunaPage() {
                     items-center
                     justify-center
                     ${
-                      selectedUser.status ===
-                      "Aktif"
+                      selectedUser.status === "Aktif"
                         ? "bg-red-50"
                         : "bg-emerald-50"
                     }
                   `}
                 >
-                  {selectedUser.status ===
-                  "Aktif" ? (
+                  {selectedUser.status === "Aktif" ? (
                     <UserX
                       size={17}
                       className="text-red-500"
@@ -1920,10 +2573,8 @@ export default function PenggunaPage() {
                 </div>
 
                 <div>
-
                   <h3 className="text-sm font-bold text-slate-800">
-                    {selectedUser.status ===
-                    "Aktif"
+                    {selectedUser.status === "Aktif"
                       ? "Nonaktifkan Pengguna"
                       : "Aktifkan Pengguna"}
                   </h3>
@@ -1931,16 +2582,13 @@ export default function PenggunaPage() {
                   <p className="text-[11px] text-slate-400 mt-0.5">
                     Konfirmasi perubahan status akun
                   </p>
-
                 </div>
-
               </div>
 
               <button
                 type="button"
-                onClick={() =>
-                  setSelectedUser(null)
-                }
+                onClick={handleCloseStatusModal}
+                disabled={updatingStatus}
                 className="
                   w-8
                   h-8
@@ -1951,17 +2599,16 @@ export default function PenggunaPage() {
                   justify-center
                   text-slate-400
                   transition
+                  disabled:opacity-50
                 "
               >
                 <X size={16} />
               </button>
-
             </div>
 
             {/* BODY */}
 
             <div className="p-5">
-
               <div
                 className="
                   flex
@@ -1974,7 +2621,6 @@ export default function PenggunaPage() {
                   border-slate-200
                 "
               >
-
                 <div
                   className="
                     w-10
@@ -1991,11 +2637,10 @@ export default function PenggunaPage() {
                     font-bold
                   "
                 >
-                  {selectedUser.avatar}
+                  {getInitials(selectedUser.nama)}
                 </div>
 
                 <div className="min-w-0">
-
                   <p className="text-sm font-semibold text-slate-800">
                     {selectedUser.nama}
                   </p>
@@ -2003,24 +2648,18 @@ export default function PenggunaPage() {
                   <p className="text-xs text-slate-400 mt-1 truncate">
                     {selectedUser.email}
                   </p>
-
                 </div>
-
               </div>
 
               <p className="text-sm text-slate-600 leading-6 mt-4">
                 Apakah kamu yakin ingin{" "}
-
                 <span className="font-semibold text-slate-800">
-                  {selectedUser.status ===
-                  "Aktif"
+                  {selectedUser.status === "Aktif"
                     ? "menonaktifkan"
                     : "mengaktifkan"}
                 </span>{" "}
-
                 akun pengguna ini?
               </p>
-
             </div>
 
             {/* FOOTER */}
@@ -2037,12 +2676,10 @@ export default function PenggunaPage() {
                 gap-2
               "
             >
-
               <button
                 type="button"
-                onClick={() =>
-                  setSelectedUser(null)
-                }
+                onClick={handleCloseStatusModal}
+                disabled={updatingStatus}
                 className="
                   px-4
                   py-2.5
@@ -2055,6 +2692,7 @@ export default function PenggunaPage() {
                   font-semibold
                   hover:bg-slate-50
                   transition
+                  disabled:opacity-50
                 "
               >
                 Batal
@@ -2062,10 +2700,12 @@ export default function PenggunaPage() {
 
               <button
                 type="button"
-                onClick={() =>
-                  setSelectedUser(null)
-                }
+                onClick={handleUpdateStatus}
+                disabled={updatingStatus}
                 className={`
+                  inline-flex
+                  items-center
+                  gap-2
                   px-4
                   py-2.5
                   rounded-lg
@@ -2073,27 +2713,35 @@ export default function PenggunaPage() {
                   text-sm
                   font-semibold
                   transition
+                  disabled:cursor-not-allowed
+                  disabled:opacity-60
                   ${
-                    selectedUser.status ===
-                    "Aktif"
+                    selectedUser.status === "Aktif"
                       ? "bg-red-500 hover:bg-red-600"
                       : "bg-emerald-500 hover:bg-emerald-600"
                   }
                 `}
               >
-                {selectedUser.status ===
-                "Aktif"
-                  ? "Nonaktifkan"
-                  : "Aktifkan"}
+                {updatingStatus ? (
+                  <>
+                    <Loader2
+                      size={15}
+                      className="animate-spin"
+                    />
+                    Menyimpan...
+                  </>
+                ) : (
+                  <>
+                    {selectedUser.status === "Aktif"
+                      ? "Nonaktifkan"
+                      : "Aktifkan"}
+                  </>
+                )}
               </button>
-
             </div>
-
           </div>
-
         </div>
       )}
-
     </div>
   );
 }

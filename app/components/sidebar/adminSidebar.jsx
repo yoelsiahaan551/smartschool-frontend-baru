@@ -56,9 +56,6 @@ export const adminSidebarConfig = {
   email: "admin@smartschool.com",
 
   menuSections: [
-    // ==========================================================
-    // DASHBOARD
-    // ==========================================================
     {
       type: "item",
       key: "dashboard",
@@ -67,9 +64,6 @@ export const adminSidebarConfig = {
       path: "/admin/dashboard",
     },
 
-    // ==========================================================
-    // PRESENSI & KEHADIRAN
-    // ==========================================================
     {
       type: "item",
       key: "presensi",
@@ -111,9 +105,6 @@ export const adminSidebarConfig = {
       ],
     },
 
-    // ==========================================================
-    // KEUANGAN & KAS
-    // ==========================================================
     {
       type: "item",
       key: "keuangan",
@@ -161,17 +152,11 @@ export const adminSidebarConfig = {
       ],
     },
 
-    // ==========================================================
-    // MASTER DATA
-    // ==========================================================
     {
       type: "header",
       label: "MASTER DATA",
     },
 
-    // ----------------------------------------------------------
-    // PENGGUNA
-    // ----------------------------------------------------------
     {
       type: "item",
       key: "pengguna",
@@ -207,9 +192,6 @@ export const adminSidebarConfig = {
       ],
     },
 
-    // ----------------------------------------------------------
-    // AKADEMIK
-    // ----------------------------------------------------------
     {
       type: "item",
       key: "akademik",
@@ -251,9 +233,6 @@ export const adminSidebarConfig = {
       ],
     },
 
-    // ----------------------------------------------------------
-    // LMS & CBT
-    // ----------------------------------------------------------
     {
       type: "item",
       key: "lmsCbt",
@@ -295,9 +274,6 @@ export const adminSidebarConfig = {
       ],
     },
 
-    // ----------------------------------------------------------
-    // E-RAPORT
-    // ----------------------------------------------------------
     {
       type: "item",
       key: "eraport",
@@ -327,9 +303,6 @@ export const adminSidebarConfig = {
       ],
     },
 
-    // ----------------------------------------------------------
-    // BIMBINGAN KONSELING
-    // ----------------------------------------------------------
     {
       type: "item",
       key: "bk",
@@ -371,9 +344,6 @@ export const adminSidebarConfig = {
       ],
     },
 
-    // ----------------------------------------------------------
-    // PERPUSTAKAAN DIGITAL
-    // ----------------------------------------------------------
     {
       type: "item",
       key: "perpustakaan",
@@ -409,9 +379,6 @@ export const adminSidebarConfig = {
       ],
     },
 
-    // ----------------------------------------------------------
-    // SARPRAS
-    // ----------------------------------------------------------
     {
       type: "item",
       key: "sarpras",
@@ -439,6 +406,12 @@ export const adminSidebarConfig = {
           path: "/admin/sarpras/gudang/master",
         },
         {
+          key: "kategoriAset",
+          icon: Tags,
+          label: "Kategori Aset",
+          path: "/admin/sarpras/kategori",
+        },
+        {
           key: "daftarAset",
           icon: Package,
           label: "Daftar Aset",
@@ -447,47 +420,35 @@ export const adminSidebarConfig = {
       ],
     },
 
-    // ==========================================================
-    // PENERIMAAN SPMB
-    // ==========================================================
-   {
-  type: "item",
-  key: "spmb",
-  icon: UserPlus,
-  label: "Penerimaan (SPMB)",
-  path: "/admin/spmb",
+    {
+      type: "item",
+      key: "spmb",
+      icon: UserPlus,
+      label: "Penerimaan (SPMB)",
+      path: "/admin/spmb",
 
-  children: [
-    {
-      key: "dataPendaftaran",
-      icon: FileInput,
-      label: "Data Pendaftaran",
-      path: "/admin/spmb/data-pendaftaran",
+      children: [
+        {
+          key: "dataPendaftaran",
+          icon: FileInput,
+          label: "Data Pendaftaran",
+          path: "/admin/spmb/data-pendaftaran",
+        },
+        {
+          key: "gelombang",
+          icon: Layers,
+          label: "Gelombang",
+          path: "/admin/spmb/gelombang",
+        },
+        {
+          key: "pengaturanSpmb",
+          icon: Settings,
+          label: "Pengaturan",
+          path: "/admin/spmb/pengaturan",
+        },
+      ],
     },
-    {
-      key: "gelombang",
-      icon: Layers,
-      label: "Gelombang",
-      path: "/admin/spmb/gelombang",
-    },
-    {
-      key: "jalurPendaftaran",
-      icon: ClipboardList,
-      label: "Jalur Pendaftaran",
-      path: "/admin/spmb/jalur-pendaftaran",
-    },
-    {
-      key: "pengaturanSpmb",
-      icon: Settings,
-      label: "Pengaturan",
-      path: "/admin/spmb/pengaturan",
-    },
-  ],
-},
 
-    // ==========================================================
-    // CMS
-    // ==========================================================
     {
       type: "item",
       key: "cms",
@@ -517,9 +478,6 @@ export const adminSidebarConfig = {
       ],
     },
 
-    // ==========================================================
-    // LANGGANAN
-    // ==========================================================
     {
       type: "item",
       key: "langganan",
